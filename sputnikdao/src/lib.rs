@@ -1,9 +1,11 @@
-use near_sdk::{AccountId, Balance, env, near_bindgen, Promise};
+use std::collections::HashMap;
+
+use near_std::types::{Duration, WrappedBalance, WrappedDuration};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{UnorderedSet, Vector};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_std::types::{Duration, WrappedBalance, WrappedDuration};
-use std::collections::HashMap;
+use near_sdk::{env, near_bindgen, AccountId, Balance, Promise};
+use regex::Regex;
 
 #[global_allocator]
 static ALLOC: near_sdk::wee_alloc::WeeAlloc<'_> = near_sdk::wee_alloc::WeeAlloc::INIT;
@@ -96,6 +98,7 @@ pub enum ProposalKind {
     ChangeBond { bond: WrappedBalance },
     ChangePolicy { policy: Vec<PolicyItem> },
     ChangePurpose { purpose: String },
+    ChangeMode { mode: ProposalMode },
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -144,12 +147,40 @@ impl Proposal {
     }
 }
 
+/// Information for a new proposal.
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct ProposalInput {
     target: AccountId,
     description: String,
     kind: ProposalKind,
+}
+
+/// Define who can create proposals.
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde", tag = "type")]
+pub enum ProposalMode {
+    /// Anyone can create a proposal.
+    Open,
+    /// Limited to council members.
+    Council,
+    /// Limited to specific set of account ids.
+    Accounts(Vec<AccountId>),
+    /// Limited to account id regex pattern.
+    Pattern(String),
+}
+
+impl ProposalMode {
+    pub fn is_allowed(&self, council: &[AccountId]) -> bool {
+        match self {
+            ProposalMode::Open => true,
+            ProposalMode::Council => council.contains(&env::predecessor_account_id()),
+            ProposalMode::Accounts(accounts) => accounts.contains(&env::predecessor_account_id()),
+            ProposalMode::Pattern(pattern) => Regex::new(pattern)
+                .expect("Invalid pattern")
+                .is_match(&env::predecessor_account_id()),
+        }
+    }
 }
 
 #[near_bindgen]
@@ -162,6 +193,7 @@ pub struct SputnikDAO {
     policy: Vec<PolicyItem>,
     council: UnorderedSet<AccountId>,
     proposals: Vector<Proposal>,
+    mode: ProposalMode,
 }
 
 impl Default for SputnikDAO {
@@ -193,6 +225,7 @@ impl SputnikDAO {
             }],
             council: UnorderedSet::new(b"c".to_vec()),
             proposals: Vector::new(b"p".to_vec()),
+            mode: ProposalMode::Open,
         };
         for account_id in council {
             dao.council.insert(&account_id);
@@ -202,6 +235,7 @@ impl SputnikDAO {
 
     #[payable]
     pub fn add_proposal(&mut self, proposal: ProposalInput) -> u64 {
+        assert!(self.mode.is_allowed(&self.council.to_vec()));
         // TODO: add also extra storage cost for the proposal itself.
         assert!(env::attached_deposit() >= self.bond, "Not enough deposit");
         assert!(
@@ -311,6 +345,10 @@ impl SputnikDAO {
         self.purpose.clone()
     }
 
+    pub fn get_mode(&self) -> ProposalMode {
+        self.mode.clone()
+    }
+
     pub fn vote(&mut self, id: u64, vote: Vote) {
         assert!(
             self.council.contains(&env::predecessor_account_id()),
@@ -383,6 +421,9 @@ impl SputnikDAO {
                     ProposalKind::ChangePurpose { ref purpose } => {
                         self.purpose = purpose.clone();
                     }
+                    ProposalKind::ChangeMode { ref mode } => {
+                        self.mode = mode.clone();
+                    }
                 };
             }
             ProposalStatus::Reject => {
@@ -403,8 +444,8 @@ impl SputnikDAO {
 
 #[cfg(test)]
 mod tests {
-    use near_sdk::{MockedBlockchain, testing_env};
-    use near_std::context::{accounts, VMContextBuilder};
+    use near_lib::context::{accounts, VMContextBuilder};
+    use near_sdk::{testing_env, MockedBlockchain};
 
     use super::*;
 
@@ -722,5 +763,20 @@ mod tests {
                 ],
             },
         });
+    }
+
+    #[test]
+    fn test_proposal_mode() {
+        testing_env!(VMContextBuilder::new()
+            .predecessor_account_id(accounts(2))
+            .finish());
+        assert!(ProposalMode::Open.is_allowed(&[]));
+        assert!(!ProposalMode::Council.is_allowed(&[]));
+        assert!(!ProposalMode::Council.is_allowed(&[accounts(0)]));
+        assert!(ProposalMode::Council.is_allowed(&[accounts(2)]));
+        assert!(!ProposalMode::Accounts(vec![accounts(0)]).is_allowed(&[accounts(2)]));
+        assert!(ProposalMode::Accounts(vec![accounts(2)]).is_allowed(&[]));
+        assert!(ProposalMode::Pattern("ch.*".to_string()).is_allowed(&[]));
+        assert!(!ProposalMode::Pattern("b.*".to_string()).is_allowed(&[]));
     }
 }
