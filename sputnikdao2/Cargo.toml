@@ -1,0 +1,26 @@
+[package]
+name = "sputnikdao2"
+version = "2.0.0"
+authors = ["Illia Polosukhin <illia.polosukhin@gmail.com>"]
+edition = "2018"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+codegen-units = 1
+# Tell `rustc` to optimize for small code size.
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true
+
+[dependencies]
+near-sdk = { git = "https://github.com/near/near-sdk-rs", rev = "76c4180dc68f01ab5527faa0dd9c6985d900060c" }
+near-contract-standards = { git = "https://github.com/near/near-sdk-rs", rev = "76c4180dc68f01ab5527faa0dd9c6985d900060c" }
+regex = "1"
+
+[dev-dependencies]
+near-sdk-sim = { git = "https://github.com/near/near-sdk-rs", rev = "76c4180dc68f01ab5527faa0dd9c6985d900060c" }
