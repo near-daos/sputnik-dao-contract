@@ -21,6 +21,7 @@ overflow-checks = true
 near-sdk = { git = "https://github.com/near/near-sdk-rs", rev = "76c4180dc68f01ab5527faa0dd9c6985d900060c" }
 near-contract-standards = { git = "https://github.com/near/near-sdk-rs", rev = "76c4180dc68f01ab5527faa0dd9c6985d900060c" }
 regex = "1"
+hex = "0.4.2"
 
 [dev-dependencies]
 near-sdk-sim = { git = "https://github.com/near/near-sdk-rs", rev = "76c4180dc68f01ab5527faa0dd9c6985d900060c" }

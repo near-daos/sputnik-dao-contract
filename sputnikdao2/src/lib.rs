@@ -1,21 +1,23 @@
 use near_contract_standards::fungible_token::metadata::{
-    FungibleTokenMetadata, FungibleTokenMetadataProvider,
+    FungibleTokenMetadata, FungibleTokenMetadataProvider, FT_METADATA_SPEC,
 };
 use near_contract_standards::fungible_token::FungibleToken;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LookupMap, UnorderedSet, Vector};
+use near_sdk::collections::LookupMap;
 use near_sdk::json_types::{ValidAccountId, U128};
-use near_sdk::serde::{self, Deserialize, Serialize};
-use near_sdk::{env, near_bindgen, AccountId, Balance, PanicOnDefault, Promise, PromiseOrValue};
+use near_sdk::serde::{Deserialize, Serialize};
+use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault, Promise, PromiseOrValue};
 
 use crate::policy::Policy;
-use crate::proposals::Proposal;
-pub use crate::types::Config;
+use crate::proposals::{Proposal, ProposalInput, ProposalKind};
+pub use crate::types::{Config, Action};
 
 mod policy;
 mod proposals;
 mod types;
-mod views;
+pub mod views;
+
+const KEY_STAGE_CODE: &[u8; 4] = b"CODE";
 
 near_sdk::setup_alloc!();
 
@@ -47,6 +49,22 @@ impl Contract {
             proposals: LookupMap::new(b"p".to_vec()),
         }
     }
+
+    /// Stages code and creates a proposal for upgrade.
+    /// Should attach min of bond and funds to cover the storage of the new contract data.
+    #[payable]
+    pub fn stage_code(&mut self, #[serializer(borsh)] code: Vec<u8>) {
+        assert!(
+            !env::storage_has_key(KEY_STAGE_CODE),
+            "ERR_CODE_ALREADY_STAGED"
+        );
+        let proposal = ProposalInput {
+            description: format!("Upgrade to {}", hex::encode(env::sha256(&code))),
+            kind: ProposalKind::Upgrade,
+        };
+        self.add_proposal(proposal);
+        env::storage_write(KEY_STAGE_CODE, &code);
+    }
 }
 
 near_contract_standards::impl_fungible_token_core!(Contract, token);
@@ -55,7 +73,7 @@ near_contract_standards::impl_fungible_token_storage!(Contract, token);
 impl FungibleTokenMetadataProvider for Contract {
     fn ft_metadata(&self) -> FungibleTokenMetadata {
         FungibleTokenMetadata {
-            spec: "".to_string(),
+            spec: FT_METADATA_SPEC.to_string(),
             name: self.config.name.clone(),
             symbol: self.config.symbol.clone(),
             icon: None,
@@ -72,15 +90,16 @@ mod tests {
     use near_sdk::{testing_env, MockedBlockchain};
     use near_sdk_sim::to_yocto;
 
-    use crate::proposals::{ProposalInput, ProposalKind};
+    use crate::proposals::{ProposalInput, ProposalKind, ProposalStatus};
 
     use super::*;
+    use crate::types::BASE_TOKEN;
 
     fn test_config() -> Config {
         Config {
             name: "Test".to_string(),
             purpose: "to test".to_string(),
-            bond: to_yocto("1"),
+            bond: U128(to_yocto("1")),
             symbol: "TEST".to_string(),
             decimals: 24,
         }
@@ -99,6 +118,13 @@ mod tests {
             },
         });
         assert_eq!(contract.get_proposal(0).description, "test");
-        contract.remove_proposal(0);
+        contract.act_proposal(0, Action::RemoveProposal);
+
+        let id = contract.add_proposal(ProposalInput {
+            description: "test".to_string(),
+            kind: ProposalKind::Transfer { token_id: BASE_TOKEN.to_string(), receiver_id: accounts(2).into(), amount: to_yocto("100") }
+        });
+        contract.act_proposal(id, Action::VoteApprove);
+        assert_eq!(contract.get_proposal(id).status, ProposalStatus::Approved);
     }
 }

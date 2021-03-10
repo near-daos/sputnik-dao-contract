@@ -2087,6 +2087,7 @@ dependencies = [
 name = "sputnikdao2"
 version = "2.0.0"
 dependencies = [
+ "hex",
  "near-contract-standards",
  "near-sdk",
  "near-sdk-sim",

@@ -1,7 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{Base64VecU8, U128};
-use near_sdk::serde::{self, Deserialize, Serialize};
-use near_sdk::{ext_contract, serde_json, AccountId, Balance, Gas};
+use near_sdk::json_types::U128;
+use near_sdk::serde::{Deserialize, Serialize};
+use near_sdk::{ext_contract, serde_json, Balance, Gas};
 
 /// Account ID used for $NEAR.
 pub const BASE_TOKEN: &str = "";
@@ -13,12 +13,12 @@ pub const ONE_YOCTO_NEAR: Balance = 1;
 pub const GAS_FOR_FT_TRANSFER: Gas = 10_000_000_000_000;
 
 /// Configuration of the DAO.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Config {
     pub name: String,
     pub purpose: String,
-    pub bond: Balance,
+    pub bond: U128,
     pub symbol: String,
     pub decimals: u8,
 }
@@ -33,11 +33,18 @@ pub trait FungibleTokenExt {
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub enum Action {
+    /// Action to add proposal. Used internally.
     AddProposal,
+    /// Action to remove given proposal. Used for immediate deletion in special cases.
     RemoveProposal,
-    VoteYes,
-    VoteNo,
-    MoveProposalToHub,
+    /// Vote to approve given proposal or bounty.
+    VoteApprove,
+    /// Vote to reject given proposal or bounty.
+    VoteReject,
+    /// Vote to remove given proposal or bounty (because it's spam)
+    VoteRemove,
+    /// Move a proposal to the hub to shift into another DAO.
+    MoveToHub,
 }
 
 impl Action {
