@@ -7,7 +7,7 @@ use regex::Regex;
 
 use crate::proposals::{Proposal, ProposalKind, ProposalStatus, Vote};
 use crate::types::Action;
-use near_sdk::json_types::U128;
+use near_sdk::json_types::{WrappedDuration, U128};
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
@@ -116,18 +116,24 @@ impl Default for VotePolicy {
 #[serde(crate = "near_sdk::serde")]
 pub struct Policy {
     /// List of roles and permissions for them in the current policy.
-    roles: Vec<RolePermission>,
+    pub roles: Vec<RolePermission>,
     /// Default vote policy. Used when given proposal kind doesn't have special policy.
-    default_vote_policy: VotePolicy,
+    pub default_vote_policy: VotePolicy,
     /// For each proposal kind, defines voting policy.
-    vote_policy: HashMap<String, VotePolicy>,
+    pub vote_policy: HashMap<String, VotePolicy>,
+    /// Bond for claiming a bounty.
+    pub bounty_bond: U128,
+    /// Period in which giving up on bounty is not punished.
+    pub bounty_forgiveness_period: WrappedDuration,
 }
 
 impl Default for Policy {
     /// Defines default policy:
     ///     - everyone can add proposals
-    ///     - group consisting of the call can do all actions
-    ///     - non token weighted voting, requires 1/2 of the group
+    ///     - group consisting of the call can do all actions, consists of caller.
+    ///     - non token weighted voting, requires 1/2 of the group to vote
+    ///     - bounty bond is 1N
+    ///     - bounty forgiveness period is 1 day
     fn default() -> Self {
         Self {
             roles: vec![
@@ -144,6 +150,8 @@ impl Default for Policy {
             ],
             default_vote_policy: VotePolicy::default(),
             vote_policy: HashMap::default(),
+            bounty_bond: U128(10u128.pow(24)),
+            bounty_forgiveness_period: WrappedDuration::from(1_000_000_000 * 60 * 60 * 24),
         }
     }
 }

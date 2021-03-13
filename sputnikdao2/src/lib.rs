@@ -1,21 +1,23 @@
-use near_contract_standards::fungible_token::metadata::{
-    FungibleTokenMetadata, FungibleTokenMetadataProvider, FT_METADATA_SPEC,
-};
 use near_contract_standards::fungible_token::FungibleToken;
+use near_contract_standards::fungible_token::metadata::{
+    FT_METADATA_SPEC, FungibleTokenMetadata, FungibleTokenMetadataProvider,
+};
+use near_sdk::{AccountId, env, near_bindgen, PanicOnDefault, Promise, PromiseOrValue};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::LookupMap;
-use near_sdk::json_types::{ValidAccountId, U128};
+use near_sdk::json_types::{U128, ValidAccountId};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault, Promise, PromiseOrValue};
 
+use crate::bounties::{Bounty, BountyClaim};
 use crate::policy::Policy;
 use crate::proposals::{Proposal, ProposalInput, ProposalKind};
-pub use crate::types::{Config, Action};
+pub use crate::types::{Action, Config};
 
 mod policy;
 mod proposals;
 mod types;
 pub mod views;
+mod bounties;
 
 const KEY_STAGE_CODE: &[u8; 4] = b"CODE";
 
@@ -34,6 +36,16 @@ pub struct Contract {
     last_proposal_id: u64,
     /// Proposal map from ID to proposal information.
     proposals: LookupMap<u64, Proposal>,
+    /// Last available id for the bounty.
+    last_bounty_id: u64,
+    /// Bounties map from ID to bounty information.
+    bounties: LookupMap<u64, Bounty>,
+    /// Bounty claimers map per user. Allows quickly to query for each users their claims.
+    bounty_claimers: LookupMap<AccountId, Vec<BountyClaim>>,
+    /// Count of claims per bounty.
+    bounty_claims_count: LookupMap<u64, u32>,
+    /// Large blob storage.
+    blobs: LookupMap<Vec<u8>, AccountId>,
 }
 
 #[near_bindgen]
@@ -47,23 +59,32 @@ impl Contract {
             token: FungibleToken::new(b"t".to_vec()),
             last_proposal_id: 0,
             proposals: LookupMap::new(b"p".to_vec()),
+            last_bounty_id: 0,
+            bounties: LookupMap::new(b"b".to_vec()),
+            bounty_claimers: LookupMap::new(b"u".to_vec()),
+            bounty_claims_count: LookupMap::new(b"c".to_vec()),
+            blobs: LookupMap::new(b"d".to_vec()),
         }
     }
 
-    /// Stages code and creates a proposal for upgrade.
-    /// Should attach min of bond and funds to cover the storage of the new contract data.
+    /// Stores a blob of data under an account paid by the caller.
     #[payable]
-    pub fn stage_code(&mut self, #[serializer(borsh)] code: Vec<u8>) {
-        assert!(
-            !env::storage_has_key(KEY_STAGE_CODE),
-            "ERR_CODE_ALREADY_STAGED"
-        );
-        let proposal = ProposalInput {
-            description: format!("Upgrade to {}", hex::encode(env::sha256(&code))),
-            kind: ProposalKind::Upgrade,
-        };
-        self.add_proposal(proposal);
-        env::storage_write(KEY_STAGE_CODE, &code);
+    pub fn store_blob(&mut self, #[serializer(borsh)] blob: Vec<u8>) -> Vec<u8> {
+        assert!(env::attached_deposit() >= (blob.len() as u128) * env::storage_byte_cost(), "ERR_NOT_ENOUGH_DEPOSIT");
+        let hash = env::sha256(&blob);
+        self.blobs.insert(&hash, &env::predecessor_account_id());
+        env::storage_write(&hash, &blob);
+        hash
+    }
+
+    /// Remove blob from contract storage and pay back to original storer.
+    /// Only original storer can call this.
+    pub fn remove_blob(&mut self, hash: Vec<u8>) -> Promise {
+        let account_id = self.blobs.remove(&hash).expect("ERR_NO_BLOB");
+        assert_eq!(env::predecessor_account_id(), account_id, "ERR_INVALID_CALLER");
+        env::storage_remove(&hash);
+        let blob = env::storage_get_evicted().unwrap();
+        Promise::new(account_id).transfer(env::storage_byte_cost() * (blob.len() as u128))
     }
 }
 
@@ -76,9 +97,9 @@ impl FungibleTokenMetadataProvider for Contract {
             spec: FT_METADATA_SPEC.to_string(),
             name: self.config.name.clone(),
             symbol: self.config.symbol.clone(),
-            icon: None,
-            reference: None,
-            reference_hash: None,
+            icon: self.config.icon.clone(),
+            reference: self.config.reference.clone(),
+            reference_hash: self.config.reference_hash.clone(),
             decimals: self.config.decimals,
         }
     }
@@ -86,35 +107,25 @@ impl FungibleTokenMetadataProvider for Contract {
 
 #[cfg(test)]
 mod tests {
+    use near_sdk::{MockedBlockchain, testing_env};
     use near_sdk::test_utils::{accounts, VMContextBuilder};
-    use near_sdk::{testing_env, MockedBlockchain};
     use near_sdk_sim::to_yocto;
 
-    use crate::proposals::{ProposalInput, ProposalKind, ProposalStatus};
-
-    use super::*;
+    use crate::proposals::{ProposalStatus};
     use crate::types::BASE_TOKEN;
 
-    fn test_config() -> Config {
-        Config {
-            name: "Test".to_string(),
-            purpose: "to test".to_string(),
-            bond: U128(to_yocto("1")),
-            symbol: "TEST".to_string(),
-            decimals: 24,
-        }
-    }
+    use super::*;
 
     #[test]
     fn test_basics() {
         let mut context = VMContextBuilder::new();
         testing_env!(context.predecessor_account_id(accounts(1)).build());
-        let mut contract = Contract::new(test_config(), None);
+        let mut contract = Contract::new(Config::test_config(), None);
         testing_env!(context.attached_deposit(to_yocto("1")).build());
         contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::ChangeConfig {
-                config: test_config(),
+                config: Config::test_config(),
             },
         });
         assert_eq!(contract.get_proposal(0).description, "test");

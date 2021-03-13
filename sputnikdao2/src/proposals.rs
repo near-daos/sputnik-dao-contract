@@ -59,6 +59,17 @@ pub enum ProposalKind {
     Burn {
         amount: Balance,
     },
+    /// Add new bounty.
+    AddBounty {
+        bounty: Bounty,
+    },
+    /// Indicates that given bounty is done by given user.
+    BountyDone {
+        bounty_id: u64,
+        receiver_id: AccountId,
+    },
+    /// Just a signaling vote, with no execution.
+    Vote,
 }
 
 impl ProposalKind {
@@ -72,6 +83,9 @@ impl ProposalKind {
             ProposalKind::Transfer { .. } => "transfer",
             ProposalKind::Mint { .. } => "mint",
             ProposalKind::Burn { .. } => "burn",
+            ProposalKind::AddBounty { .. } => "add_bounty",
+            ProposalKind::BountyDone { .. } => "bounty_done",
+            ProposalKind::Vote => "vote",
         }
     }
 }
@@ -144,8 +158,34 @@ impl From<ProposalInput> for Proposal {
     }
 }
 
-#[near_bindgen]
 impl Contract {
+    /// Execute payout of given token to given user.
+    pub(crate) fn internal_payout(
+        &mut self,
+        token_id: &AccountId,
+        receiver_id: &AccountId,
+        amount: Balance,
+    ) -> PromiseOrValue<()> {
+        if token_id == &env::current_account_id() {
+            self.token
+                .internal_withdraw(&env::current_account_id(), amount);
+            self.token.internal_deposit(&receiver_id, amount);
+            PromiseOrValue::Value(())
+        } else if token_id == BASE_TOKEN {
+            Promise::new(receiver_id.clone()).transfer(amount).into()
+        } else {
+            ext_fungible_token::ft_transfer(
+                receiver_id.clone(),
+                U128(amount),
+                None,
+                &token_id,
+                ONE_YOCTO_NEAR,
+                GAS_FOR_FT_TRANSFER,
+            )
+            .into()
+        }
+    }
+
     /// Executes given proposal and updates the contract's state.
     fn internal_execute_proposal(&mut self, proposal: &Proposal) -> PromiseOrValue<()> {
         match &proposal.kind {
@@ -182,26 +222,7 @@ impl Contract {
                 token_id,
                 receiver_id,
                 amount,
-            } => {
-                if token_id == &env::current_account_id() {
-                    self.token
-                        .internal_withdraw(&env::current_account_id(), *amount);
-                    self.token.internal_deposit(&receiver_id, *amount);
-                    PromiseOrValue::Value(())
-                } else if token_id == BASE_TOKEN {
-                    Promise::new(receiver_id.clone()).transfer(*amount).into()
-                } else {
-                    ext_fungible_token::ft_transfer(
-                        receiver_id.clone(),
-                        U128(*amount),
-                        None,
-                        &token_id,
-                        ONE_YOCTO_NEAR,
-                        GAS_FOR_FT_TRANSFER,
-                    )
-                    .into()
-                }
-            }
+            } => self.internal_payout(token_id, receiver_id, *amount),
             ProposalKind::Mint { amount } => {
                 self.token
                     .internal_deposit(&env::current_account_id(), *amount);
@@ -212,6 +233,15 @@ impl Contract {
                     .internal_withdraw(&env::current_account_id(), *amount);
                 PromiseOrValue::Value(())
             }
+            ProposalKind::AddBounty { bounty } => {
+                self.internal_add_bounty(bounty.clone());
+                PromiseOrValue::Value(())
+            }
+            ProposalKind::BountyDone {
+                bounty_id,
+                receiver_id,
+            } => self.internal_execute_bounty_payout(*bounty_id, receiver_id, true),
+            ProposalKind::Vote => PromiseOrValue::Value(()),
         }
     }
 
@@ -222,6 +252,10 @@ impl Contract {
                 env::storage_remove(KEY_STAGE_CODE);
                 PromiseOrValue::Value(())
             }
+            ProposalKind::BountyDone {
+                bounty_id,
+                receiver_id,
+            } => self.internal_execute_bounty_payout(*bounty_id, receiver_id, false),
             _ => PromiseOrValue::Value(()),
         }
     }
@@ -233,7 +267,10 @@ impl Contract {
             account_id,
         }
     }
+}
 
+#[near_bindgen]
+impl Contract {
     /// Add proposal to this DAO.
     #[payable]
     pub fn add_proposal(&mut self, proposal: ProposalInput) -> u64 {

@@ -1,5 +1,5 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::U128;
+use near_sdk::json_types::{Base64VecU8, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{ext_contract, serde_json, Balance, Gas};
 
@@ -17,10 +17,29 @@ pub const GAS_FOR_FT_TRANSFER: Gas = 10_000_000_000_000;
 #[serde(crate = "near_sdk::serde")]
 pub struct Config {
     pub name: String,
+    pub symbol: String,
+    pub icon: Option<String>,
+    pub reference: Option<String>,
+    pub reference_hash: Option<Base64VecU8>,
+    pub decimals: u8,
     pub purpose: String,
     pub bond: U128,
-    pub symbol: String,
-    pub decimals: u8,
+}
+
+#[cfg(test)]
+impl Config {
+    pub fn test_config() -> Self {
+        Self {
+            name: "Test".to_string(),
+            purpose: "to test".to_string(),
+            icon: None,
+            reference: None,
+            reference_hash: None,
+            decimals: 24,
+            bond: U128(10u128.pow(24)),
+            symbol: "TEST".to_string(),
+        }
+    }
 }
 
 /// External interface for Fungible tokens.
