@@ -19,7 +19,7 @@ pub enum RoleKind {
     /// Member with at least given balance (must be non 0).
     MemberBalance(Balance),
     /// Set of accounts.
-    Group(Vec<AccountId>),
+    Group(HashSet<AccountId>),
     /// Set of accounts matches by regex.
     Regex(String),
 }
@@ -43,6 +43,26 @@ impl RoleKind {
         match self {
             RoleKind::Group(accounts) => Some(accounts.len()),
             _ => None,
+        }
+    }
+
+    pub fn add_member_to_group(&mut self, member_id: &AccountId) -> Result<(), ()> {
+        match self {
+            RoleKind::Group(accounts) => {
+                accounts.insert(member_id.clone());
+                Ok(())
+            }
+            _ => Err(()),
+        }
+    }
+
+    pub fn remove_member_from_group(&mut self, member_id: &AccountId) -> Result<(), ()> {
+        match self {
+            RoleKind::Group(accounts) => {
+                accounts.remove(member_id);
+                Ok(())
+            }
+            _ => Err(()),
         }
     }
 }
@@ -144,7 +164,9 @@ impl Default for Policy {
                 },
                 RolePermission {
                     name: "council".to_string(),
-                    kind: RoleKind::Group(vec![env::predecessor_account_id()]),
+                    kind: RoleKind::Group(
+                        vec![env::predecessor_account_id()].into_iter().collect(),
+                    ),
                     permissions: vec!["*:*".to_string()].into_iter().collect(),
                 },
             ],
@@ -157,6 +179,36 @@ impl Default for Policy {
 }
 
 impl Policy {
+    ///
+    /// Doesn't fail, because will be used on the finalization of the proposal.
+    pub fn add_member_to_role(&mut self, role: &String, member_id: &AccountId) {
+        for i in 0..self.roles.len() {
+            if &self.roles[i].name == role {
+                self.roles[i]
+                    .kind
+                    .add_member_to_group(member_id)
+                    .unwrap_or_else(|()| {
+                        env::log(&format!("ERR_ROLE_WRONG_KIND:{}", role).into_bytes());
+                    })
+            }
+        }
+        env::log(&format!("ERR_ROLE_NOT_FOUNDER:{}", role).into_bytes());
+    }
+
+    pub fn remove_member_from_role(&mut self, role: &String, member_id: &AccountId) {
+        for i in 0..self.roles.len() {
+            if &self.roles[i].name == role {
+                self.roles[i]
+                    .kind
+                    .remove_member_from_group(member_id)
+                    .unwrap_or_else(|()| {
+                        env::log(&format!("ERR_ROLE_WRONG_KIND:{}", role).into_bytes());
+                    })
+            }
+        }
+        env::log(&format!("ERR_ROLE_NOT_FOUNDER:{}", role).into_bytes());
+    }
+
     /// Returns set of permissions for given user across all the roles it's member of.
     fn get_user_permissions(&self, user: UserInfo) -> HashSet<String> {
         let mut result = HashSet::default();

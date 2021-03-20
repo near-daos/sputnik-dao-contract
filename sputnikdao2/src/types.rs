@@ -12,6 +12,15 @@ pub const ONE_YOCTO_NEAR: Balance = 1;
 /// Gas for single ft_transfer call.
 pub const GAS_FOR_FT_TRANSFER: Gas = 10_000_000_000_000;
 
+/// No deposit.
+pub const NO_DEPOSIT: Balance = 0;
+
+/// Gas for upgrading remote contract on promise creation.
+pub const GAS_FOR_UPGRADE_REMOTE_PROMISE: Gas = 10_000_000_000_000;
+
+/// Gas for upgrading this contract on promise creation + deploying new contract.
+pub const GAS_FOR_UPGRADE_SELF_DEPLOY: Gas = 10_000_000_000_000;
+
 /// Configuration of the DAO.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]

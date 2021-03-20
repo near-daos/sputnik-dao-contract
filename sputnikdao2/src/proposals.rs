@@ -6,7 +6,8 @@ use near_sdk::{AccountId, Balance, Gas, PromiseOrValue};
 
 use crate::policy::UserInfo;
 use crate::types::{
-    ext_fungible_token, Action, Config, BASE_TOKEN, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR,
+    ext_fungible_token, Action, Config, BASE_TOKEN, GAS_FOR_FT_TRANSFER,
+    GAS_FOR_UPGRADE_REMOTE_PROMISE, GAS_FOR_UPGRADE_SELF_DEPLOY, NO_DEPOSIT, ONE_YOCTO_NEAR,
 };
 use crate::*;
 use std::collections::HashMap;
@@ -31,12 +32,14 @@ pub enum ProposalStatus {
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub enum ProposalKind {
-    ChangeConfig {
-        config: Config,
-    },
-    ChangePolicy {
-        policy: Policy,
-    },
+    /// Change the DAO config.
+    ChangeConfig { config: Config },
+    /// Change the full policy.
+    ChangePolicy { policy: Policy },
+    /// Add member to given role in the policy. This is short cut to updating the whole policy.
+    AddMemberToRole { member_id: AccountId, role: String },
+    /// Remove member to given role in the policy. This is short cut to updating the whole policy.
+    RemoveMemberFromRole { member_id: AccountId, role: String },
     FunctionCall {
         receiver_id: AccountId,
         method_name: String,
@@ -44,7 +47,14 @@ pub enum ProposalKind {
         deposit: Balance,
         gas: Gas,
     },
-    Upgrade,
+    /// Upgrade this contract with given hash from blob store.
+    UpgradeSelf { hash: Base64VecU8 },
+    /// Upgrade another contract, by calling method with the code from given hash from blob store.
+    UpgradeRemote {
+        receiver_id: AccountId,
+        method_name: String,
+        hash: Base64VecU8,
+    },
     /// Transfers given amount of `token_id` from this DAO to `receiver_id`.
     Transfer {
         token_id: AccountId,
@@ -52,17 +62,11 @@ pub enum ProposalKind {
         amount: Balance,
     },
     /// Mints new tokens inside this DAO.
-    Mint {
-        amount: Balance,
-    },
+    Mint { amount: Balance },
     /// Burns tokens inside this DAO.
-    Burn {
-        amount: Balance,
-    },
+    Burn { amount: Balance },
     /// Add new bounty.
-    AddBounty {
-        bounty: Bounty,
-    },
+    AddBounty { bounty: Bounty },
     /// Indicates that given bounty is done by given user.
     BountyDone {
         bounty_id: u64,
@@ -78,8 +82,11 @@ impl ProposalKind {
         match self {
             ProposalKind::ChangeConfig { .. } => "config",
             ProposalKind::ChangePolicy { .. } => "policy",
+            ProposalKind::AddMemberToRole { .. } => "add_member_to_role",
+            ProposalKind::RemoveMemberFromRole { .. } => "remove_member_from_role",
             ProposalKind::FunctionCall { .. } => "call",
-            ProposalKind::Upgrade { .. } => "upgrade",
+            ProposalKind::UpgradeSelf { .. } => "upgrade_self",
+            ProposalKind::UpgradeRemote { .. } => "upgrade_remote",
             ProposalKind::Transfer { .. } => "transfer",
             ProposalKind::Mint { .. } => "mint",
             ProposalKind::Burn { .. } => "burn",
@@ -197,6 +204,14 @@ impl Contract {
                 self.policy = policy.clone();
                 PromiseOrValue::Value(())
             }
+            ProposalKind::AddMemberToRole { member_id, role } => {
+                self.policy.add_member_to_role(role, member_id);
+                PromiseOrValue::Value(())
+            }
+            ProposalKind::RemoveMemberFromRole { member_id, role } => {
+                self.policy.remove_member_from_role(role, member_id);
+                PromiseOrValue::Value(())
+            }
             ProposalKind::FunctionCall {
                 receiver_id,
                 method_name,
@@ -211,11 +226,31 @@ impl Contract {
                     *gas,
                 )
                 .into(),
-            ProposalKind::Upgrade => {
-                env::storage_remove(KEY_STAGE_CODE);
-                let code = env::storage_get_evicted().expect("ERR_NO_CODE_STAGED");
+            ProposalKind::UpgradeSelf { hash } => {
+                let code = env::storage_read(&hash.0).expect("ERR_NO_CODE_STAGED");
                 Promise::new(env::current_account_id())
                     .deploy_contract(code)
+                    .function_call(
+                        "migrate".as_bytes().to_vec(),
+                        vec![],
+                        NO_DEPOSIT,
+                        env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_SELF_DEPLOY,
+                    )
+                    .into()
+            }
+            ProposalKind::UpgradeRemote {
+                receiver_id,
+                method_name,
+                hash,
+            } => {
+                let code = env::storage_read(&hash.0).expect("ERR_NO_CODE_STAGED");
+                Promise::new(receiver_id.clone())
+                    .function_call(
+                        method_name.clone().into_bytes(),
+                        code,
+                        NO_DEPOSIT,
+                        env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_REMOTE_PROMISE,
+                    )
                     .into()
             }
             ProposalKind::Transfer {
@@ -248,10 +283,6 @@ impl Contract {
     /// Process rejecting proposal.
     fn internal_reject_proposal(&mut self, proposal: &Proposal) -> PromiseOrValue<()> {
         match &proposal.kind {
-            ProposalKind::Upgrade => {
-                env::storage_remove(KEY_STAGE_CODE);
-                PromiseOrValue::Value(())
-            }
             ProposalKind::BountyDone {
                 bounty_id,
                 receiver_id,
@@ -276,7 +307,10 @@ impl Contract {
     pub fn add_proposal(&mut self, proposal: ProposalInput) -> u64 {
         // 0. validate bond attached.
         // TODO: consider bond in the token of this DAO.
-        assert!(env::attached_deposit() >= self.config.bond.0);
+        assert!(
+            env::attached_deposit() >= self.config.bond.0,
+            "ERR_MIN_BOND"
+        );
 
         // 1. validate proposal.
         // TODO: ???

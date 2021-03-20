@@ -1,7 +1,6 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{WrappedDuration, WrappedTimestamp, U128};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::test_utils::VMContextBuilder;
 use near_sdk::{env, near_bindgen, AccountId, Promise, PromiseOrValue};
 
 use crate::*;
@@ -186,7 +185,7 @@ impl Contract {
 
 #[cfg(test)]
 mod tests {
-    use near_sdk::test_utils::accounts;
+    use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::{testing_env, MockedBlockchain};
     use near_sdk_sim::to_yocto;
 
