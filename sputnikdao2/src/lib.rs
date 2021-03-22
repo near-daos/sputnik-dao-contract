@@ -4,6 +4,8 @@ use near_contract_standards::fungible_token::metadata::{
 use near_contract_standards::fungible_token::FungibleToken;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::LookupMap;
+#[cfg(target_arch = "wasm32")]
+use near_sdk::env::BLOCKCHAIN_INTERFACE;
 use near_sdk::json_types::{Base64VecU8, ValidAccountId, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, near_bindgen, AccountId, Balance, PanicOnDefault, Promise, PromiseOrValue};
@@ -20,6 +22,9 @@ mod types;
 pub mod views;
 
 near_sdk::setup_alloc!();
+
+#[cfg(target_arch = "wasm32")]
+const BLOCKCHAIN_INTERFACE_NOT_SET_ERR: &str = "Blockchain interface not set.";
 
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
@@ -84,18 +89,6 @@ impl Contract {
         this
     }
 
-    /// Stores a blob of data under an account paid by the caller.
-    // #[payable]
-    // pub fn store_blob(&mut self, #[serializer(borsh)] blob: Vec<u8>) -> Base64VecU8 {
-    //     let storage_cost = ((blob.len() + 32) as u128) * env::storage_byte_cost();
-    //     assert!(env::attached_deposit() >= storage_cost, format!("ERR_NOT_ENOUGH_DEPOSIT:{}", (blob.len() as u128) * env::storage_byte_cost()));
-    //     let hash = env::sha256(&blob);
-    //     self.blobs.insert(&hash, &env::predecessor_account_id());
-    //     env::storage_write(&hash, &blob);
-    //     self.locked_amount += storage_cost;
-    //     Base64VecU8(hash)
-    // }
-
     /// Remove blob from contract storage and pay back to original storer.
     /// Only original storer can call this.
     pub fn remove_blob(&mut self, hash: Base64VecU8) -> Promise {
@@ -106,30 +99,79 @@ impl Contract {
             "ERR_INVALID_CALLER"
         );
         env::storage_remove(&hash.0);
-        let blob = env::storage_get_evicted().unwrap();
-        let storage_cost = ((blob.len() + 32) as u128) * env::storage_byte_cost();
+        let blob_len = env::register_len(u64::MAX - 1).unwrap();
+        let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
         self.locked_amount -= storage_cost;
         Promise::new(account_id).transfer(storage_cost)
     }
 }
 
+/// Optimal version for storing input data into storage.
+/// Avoids parsing / loading into WASM the arguments.
+#[cfg(target_arch = "wasm32")]
 #[no_mangle]
 pub extern "C" fn store_blob() {
-    let this = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
-    let blob = env::input()
-    let storage_cost = ((blob.len() + 32) as u128) * env::storage_byte_cost();
-    assert!(
-        env::attached_deposit() >= storage_cost,
-        format!(
-            "ERR_NOT_ENOUGH_DEPOSIT:{}",
-            (blob.len() as u128) * env::storage_byte_cost()
-        )
-    );
-    let hash = env::sha256(&blob);
-    self.blobs.insert(&hash, &env::predecessor_account_id());
-    env::storage_write(&hash, &blob);
-    self.locked_amount += storage_cost;
-    Base64VecU8(hash)
+    env::setup_panic_hook();
+    env::set_blockchain_interface(Box::new(near_blockchain::NearBlockchain {}));
+    let mut this: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
+    unsafe {
+        BLOCKCHAIN_INTERFACE.with(|b| {
+            // Load input into register 0.
+            b.borrow()
+                .as_ref()
+                .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
+                .input(0);
+            // Compute sha256 hash of register 0 and store in 1.
+            b.borrow()
+                .as_ref()
+                .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
+                .sha256(u64::MAX as _, 0 as _, 1);
+            // Check if such blob already stored.
+            assert_eq!(
+                b.borrow()
+                    .as_ref()
+                    .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
+                    .storage_has_key(u64::MAX as _, 1 as _),
+                0,
+                "ERR_ALREADY_EXISTS"
+            );
+            // Get length of the input argument and check that enough $NEAR has been attached.
+            let blob_len = b
+                .borrow()
+                .as_ref()
+                .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
+                .register_len(0);
+            let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
+            assert!(
+                env::attached_deposit() >= storage_cost,
+                "ERR_NOT_ENOUGH_DEPOSIT:{}",
+                storage_cost
+            );
+            this.locked_amount += storage_cost;
+            // Store value of register 0 into key = register 1.
+            b.borrow()
+                .as_ref()
+                .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
+                .storage_write(u64::MAX as _, 1 as _, u64::MAX as _, 0 as _, 2);
+            // Load register 1 into blob_hash and save into LookupMap.
+            let blob_hash = vec![0u8; 32];
+            b.borrow()
+                .as_ref()
+                .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
+                .read_register(1, blob_hash.as_ptr() as _);
+            this.blobs
+                .insert(&blob_hash, &env::predecessor_account_id());
+            // Return from function value of register 1.
+            let blob_hash_str = near_sdk::serde_json::to_string(&Base64VecU8(blob_hash))
+                .unwrap()
+                .into_bytes();
+            b.borrow()
+                .as_ref()
+                .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
+                .value_return(blob_hash_str.len() as _, blob_hash_str.as_ptr() as _);
+        });
+    }
+    env::state_write(&this);
 }
 
 near_contract_standards::impl_fungible_token_core!(Contract, token);

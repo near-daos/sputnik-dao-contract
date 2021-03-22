@@ -18,10 +18,9 @@ panic = "abort"
 overflow-checks = true
 
 [dependencies]
-near-sdk = { git = "https://github.com/near/near-sdk-rs", rev = "9d99077c6acfde68c06845f2a1eb2b5ed7983401" }
-near-contract-standards = { git = "https://github.com/near/near-sdk-rs", rev = "9d99077c6acfde68c06845f2a1eb2b5ed7983401" }
-regex = "1"
+near-sdk = { git = "https://github.com/near/near-sdk-rs", rev = "76c4180dc68f01ab5527faa0dd9c6985d900060c" }
+near-contract-standards = { git = "https://github.com/near/near-sdk-rs", rev = "76c4180dc68f01ab5527faa0dd9c6985d900060c" }
 hex = "0.4.2"
 
 [dev-dependencies]
-near-sdk-sim = { git = "https://github.com/near/near-sdk-rs", rev = "9d99077c6acfde68c06845f2a1eb2b5ed7983401" }
+near-sdk-sim = { git = "https://github.com/near/near-sdk-rs", rev = "76c4180dc68f01ab5527faa0dd9c6985d900060c" }

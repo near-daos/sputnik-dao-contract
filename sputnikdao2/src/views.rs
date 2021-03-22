@@ -1,5 +1,6 @@
-use crate::*;
 use std::cmp::min;
+
+use crate::*;
 
 #[near_bindgen]
 impl Contract {

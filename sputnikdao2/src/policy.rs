@@ -1,13 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::json_types::{WrappedDuration, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, AccountId, Balance};
-use regex::Regex;
 
 use crate::proposals::{Proposal, ProposalKind, ProposalStatus, Vote};
 use crate::types::Action;
-use near_sdk::json_types::{WrappedDuration, U128};
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
@@ -20,8 +19,6 @@ pub enum RoleKind {
     MemberBalance(Balance),
     /// Set of accounts.
     Group(HashSet<AccountId>),
-    /// Set of accounts matches by regex.
-    Regex(String),
 }
 
 impl RoleKind {
@@ -32,9 +29,6 @@ impl RoleKind {
             RoleKind::Member => user.amount.is_some(),
             RoleKind::MemberBalance(amount) => user.amount.unwrap_or_default() >= *amount,
             RoleKind::Group(accounts) => accounts.contains(&user.account_id),
-            RoleKind::Regex(regex) => Regex::new(regex)
-                .expect("Invalid regex")
-                .is_match(&user.account_id),
         }
     }
 
