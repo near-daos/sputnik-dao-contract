@@ -1,7 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedSet;
-use near_sdk::json_types::{Base58PublicKey, Base64VecU8};
-use near_sdk::{env, near_bindgen, AccountId, Promise};
+use near_sdk::json_types::{Base58PublicKey, Base64VecU8, U128};
+use near_sdk::{assert_self, env, ext_contract, near_bindgen, AccountId, Promise};
 
 #[global_allocator]
 static ALLOC: near_sdk::wee_alloc::WeeAlloc<'_> = near_sdk::wee_alloc::WeeAlloc::INIT;
@@ -10,6 +10,18 @@ const CODE: &[u8] = include_bytes!("../../sputnikdao2/res/sputnikdao2.wasm");
 
 /// This gas spent on the call & account creation, the rest goes to the `new` call.
 const CREATE_CALL_GAS: u64 = 40_000_000_000_000;
+
+const ON_CREATE_CALL_GAS: u64 = 20_000_000_000_000;
+
+#[ext_contract(ext_self)]
+pub trait ExtSelf {
+    fn on_create(
+        &mut self,
+        account_id: AccountId,
+        attached_deposit: U128,
+        predecessor_account_id: AccountId,
+    ) -> bool;
+}
 
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -45,45 +57,73 @@ impl SputnikDAOFactory {
         args: Base64VecU8,
     ) -> Promise {
         let account_id = format!("{}.{}", name, env::current_account_id());
-        self.daos.insert(&account_id);
-        let mut promise = Promise::new(account_id)
+        let mut promise = Promise::new(account_id.clone())
             .create_account()
             .deploy_contract(CODE.to_vec())
             .transfer(env::attached_deposit());
         if let Some(key) = public_key {
             promise = promise.add_full_access_key(key.into())
         }
-        promise.function_call(
-            b"new".to_vec(),
-            args.into(),
-            0,
-            env::prepaid_gas() - CREATE_CALL_GAS,
-        )
-        // promise.th
+        promise
+            .function_call(
+                b"new".to_vec(),
+                args.into(),
+                0,
+                env::prepaid_gas() - CREATE_CALL_GAS - ON_CREATE_CALL_GAS,
+            )
+            .then(ext_self::on_create(
+                account_id,
+                U128(env::attached_deposit()),
+                env::predecessor_account_id(),
+                &env::current_account_id(),
+                0,
+                ON_CREATE_CALL_GAS,
+            ))
+    }
+
+    pub fn on_create(
+        &mut self,
+        account_id: AccountId,
+        attached_deposit: U128,
+        predecessor_account_id: AccountId,
+    ) -> bool {
+        assert_self();
+        if near_sdk::is_promise_success() {
+            self.daos.insert(&account_id);
+            true
+        } else {
+            Promise::new(predecessor_account_id).transfer(attached_deposit.0);
+            false
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use near_sdk::test_utils::{accounts, VMContextBuilder};
-    use near_sdk::{testing_env, MockedBlockchain};
+    use near_sdk::test_utils::{accounts, testing_env_with_promise_results, VMContextBuilder};
+    use near_sdk::{testing_env, MockedBlockchain, PromiseResult};
 
     use super::*;
 
     #[test]
     fn test_basics() {
-        testing_env!(VMContextBuilder::new()
-            .current_account_id(accounts(0))
-            .build());
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.current_account_id(accounts(0)).build());
         let mut factory = SputnikDAOFactory::new();
-        testing_env!(VMContextBuilder::new()
-            .current_account_id(accounts(0))
-            .attached_deposit(10)
-            .build());
+        testing_env!(context.attached_deposit(10).build());
         factory.create(
             "test".to_string(),
             Some(Base58PublicKey(vec![])),
             "{}".as_bytes().to_vec().into(),
+        );
+        testing_env_with_promise_results(
+            context.predecessor_account_id(accounts(0)).build(),
+            PromiseResult::Successful(vec![]),
+        );
+        factory.on_create(
+            format!("test.{}", accounts(0)),
+            U128(10),
+            accounts(0).to_string(),
         );
         assert_eq!(
             factory.get_dao_list(),
