@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::Base64VecU8;
+use near_sdk::json_types::{Base64VecU8, WrappedTimestamp};
 use near_sdk::{AccountId, Balance, Gas, PromiseOrValue};
 
 use crate::policy::UserInfo;
@@ -24,6 +24,8 @@ pub enum ProposalStatus {
     /// If quorum voted to remove (e.g. spam), this proposal is rejected and bond is not returned.
     /// Interfaces shouldn't show removed proposals.
     Removed,
+    /// Expired after period of time.
+    Expired,
     /// If proposal was moved to Hub or somewhere else.
     Moved,
 }
@@ -133,6 +135,8 @@ pub struct Proposal {
     pub vote_counts: [Balance; 3],
     /// Map of who voted and how.
     pub votes: HashMap<AccountId, Vote>,
+    /// Submission time (for voting period).
+    pub submission_time: WrappedTimestamp,
 }
 
 impl Proposal {
@@ -161,6 +165,7 @@ impl From<ProposalInput> for Proposal {
             status: ProposalStatus::InProgress,
             vote_counts: [0; 3],
             votes: HashMap::default(),
+            submission_time: WrappedTimestamp::from(env::block_timestamp()),
         }
     }
 }
@@ -195,6 +200,8 @@ impl Contract {
 
     /// Executes given proposal and updates the contract's state.
     fn internal_execute_proposal(&mut self, proposal: &Proposal) -> PromiseOrValue<()> {
+        // Return the bond.
+        Promise::new(proposal.proposer.clone()).transfer(self.policy.bounty_bond.0);
         match &proposal.kind {
             ProposalKind::ChangeConfig { config } => {
                 self.config = config.clone();
@@ -281,7 +288,15 @@ impl Contract {
     }
 
     /// Process rejecting proposal.
-    fn internal_reject_proposal(&mut self, proposal: &Proposal) -> PromiseOrValue<()> {
+    fn internal_reject_proposal(
+        &mut self,
+        proposal: &Proposal,
+        return_bond: bool,
+    ) -> PromiseOrValue<()> {
+        if return_bond {
+            // Return bond to the proposer.
+            Promise::new(proposal.proposer.clone()).transfer(self.policy.bounty_bond.0);
+        }
         match &proposal.kind {
             ProposalKind::BountyDone {
                 bounty_id,
@@ -372,16 +387,28 @@ impl Contract {
                     self.internal_execute_proposal(&proposal);
                     true
                 } else if proposal.status == ProposalStatus::Removed {
-                    self.internal_reject_proposal(&proposal);
+                    self.internal_reject_proposal(&proposal, false);
                     self.proposals.remove(&id);
                     false
                 } else if proposal.status == ProposalStatus::Rejected {
-                    self.internal_reject_proposal(&proposal);
+                    self.internal_reject_proposal(&proposal, true);
                     true
                 } else {
-                    // Still in progress.
+                    // Still in progress or expired.
                     true
                 }
+            }
+            Action::Finalize => {
+                proposal.status = self
+                    .policy
+                    .proposal_status(&proposal, self.ft_total_supply().0);
+                assert_eq!(
+                    proposal.status,
+                    ProposalStatus::Expired,
+                    "ERR_PROPOSAL_NOT_EXPIRED"
+                );
+                self.internal_reject_proposal(&proposal, true);
+                true
             }
             Action::MoveToHub => false,
         };

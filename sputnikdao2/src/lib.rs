@@ -202,30 +202,50 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn test_basics() {
-        let mut context = VMContextBuilder::new();
-        testing_env!(context.predecessor_account_id(accounts(1)).build());
-        let mut contract = Contract::new(Config::test_config(), None);
+    fn create_proposal(context: &mut VMContextBuilder, contract: &mut Contract) -> u64 {
         testing_env!(context.attached_deposit(to_yocto("1")).build());
         contract.add_proposal(ProposalInput {
-            description: "test".to_string(),
-            kind: ProposalKind::ChangeConfig {
-                config: Config::test_config(),
-            },
-        });
-        assert_eq!(contract.get_proposal(0).description, "test");
-        contract.act_proposal(0, Action::RemoveProposal);
-
-        let id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
                 token_id: BASE_TOKEN.to_string(),
                 receiver_id: accounts(2).into(),
                 amount: to_yocto("100"),
             },
-        });
+        })
+    }
+
+    #[test]
+    fn test_basics() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        let mut contract = Contract::new(Config::test_config(), None);
+        let id = create_proposal(&mut context, &mut contract);
+        assert_eq!(contract.get_proposal(id).description, "test");
+        contract.act_proposal(id, Action::RemoveProposal);
+        assert_eq!(contract.get_proposals(0, 10).len(), 0);
+
+        let id = create_proposal(&mut context, &mut contract);
         contract.act_proposal(id, Action::VoteApprove);
         assert_eq!(contract.get_proposal(id).status, ProposalStatus::Approved);
+
+        let id = create_proposal(&mut context, &mut contract);
+        // proposal expired, finalize.
+        testing_env!(context
+            .block_timestamp(1_000_000_000 * 24 * 60 * 60 * 8)
+            .build());
+        contract.act_proposal(id, Action::Finalize);
+        assert_eq!(contract.get_proposal(id).status, ProposalStatus::Expired);
+    }
+
+    #[test]
+    fn test_vote_expired_proposal() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        let mut contract = Contract::new(Config::test_config(), None);
+        let id = create_proposal(&mut context, &mut contract);
+        testing_env!(context
+            .block_timestamp(1_000_000_000 * 24 * 60 * 60 * 8)
+            .build());
+        contract.act_proposal(id, Action::VoteApprove);
     }
 }

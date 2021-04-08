@@ -139,6 +139,8 @@ pub struct Policy {
     pub bounty_bond: U128,
     /// Period in which giving up on bounty is not punished.
     pub bounty_forgiveness_period: WrappedDuration,
+    /// Expiration period for proposals.
+    pub proposal_period: WrappedDuration,
 }
 
 impl Default for Policy {
@@ -168,6 +170,7 @@ impl Default for Policy {
             vote_policy: HashMap::default(),
             bounty_bond: U128(10u128.pow(24)),
             bounty_forgiveness_period: WrappedDuration::from(1_000_000_000 * 60 * 60 * 24),
+            proposal_period: WrappedDuration::from(1_000_000_000 * 60 * 60 * 24 * 7),
         }
     }
 }
@@ -261,6 +264,10 @@ impl Policy {
             ProposalStatus::InProgress,
             "ERR_PROPOSAL_NOT_IN_PROGRESS"
         );
+        if proposal.submission_time.0 + self.proposal_period.0 < env::block_timestamp() {
+            // Proposal expired.
+            return ProposalStatus::Expired;
+        };
         let vote_policy = self
             .vote_policy
             .get(&proposal.kind.to_policy_label().to_string())
@@ -275,7 +282,7 @@ impl Policy {
                     .expect("ERR_UNSUPPORTED_ROLE") as Balance
             }
         };
-        // Check if there is anything voted above the threshold specificed by policy.
+        // Check if there is anything voted above the threshold specified by policy.
         if proposal.vote_counts[Vote::Approve as usize] >= threshold {
             ProposalStatus::Approved
         } else if proposal.vote_counts[Vote::Reject as usize] >= threshold {
