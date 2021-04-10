@@ -11,8 +11,8 @@ use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, near_bindgen, AccountId, Balance, PanicOnDefault, Promise, PromiseOrValue};
 
 use crate::bounties::{Bounty, BountyClaim};
-use crate::policy::Policy;
-pub use crate::proposals::{Proposal, ProposalInput, ProposalKind};
+pub use crate::policy::{Policy, RoleKind};
+pub use crate::proposals::{Proposal, ProposalInput, ProposalKind, ProposalStatus};
 pub use crate::types::{Action, Config};
 
 mod bounties;
@@ -58,7 +58,7 @@ impl Contract {
     #[init]
     pub fn new(config: Config, policy: Option<Policy>) -> Self {
         assert!(!env::state_exists(), "ERR_CONTRACT_IS_INITIALIZED");
-        Self {
+        let mut this = Self {
             config,
             policy: policy.unwrap_or_default(),
             token: FungibleToken::new(b"t".to_vec()),
@@ -71,7 +71,11 @@ impl Contract {
             blobs: LookupMap::new(b"d".to_vec()),
             // TODO: this doesn't account for this state object. Can just add fixed size of it.
             locked_amount: env::storage_byte_cost() * (env::storage_usage() as u128),
-        }
+        };
+        // Register balance for given contract itself.
+        this.token
+            .internal_register_account(&env::current_account_id());
+        this
     }
 
     /// Should only be called by this contract on migration.
@@ -209,7 +213,7 @@ mod tests {
             kind: ProposalKind::Transfer {
                 token_id: BASE_TOKEN.to_string(),
                 receiver_id: accounts(2).into(),
-                amount: to_yocto("100"),
+                amount: U128(to_yocto("100")),
             },
         })
     }

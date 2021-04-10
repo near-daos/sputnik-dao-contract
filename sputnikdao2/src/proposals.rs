@@ -6,8 +6,8 @@ use near_sdk::{AccountId, Balance, Gas, PromiseOrValue};
 
 use crate::policy::UserInfo;
 use crate::types::{
-    ext_fungible_token, Action, Config, BASE_TOKEN, GAS_FOR_FT_TRANSFER,
-    GAS_FOR_UPGRADE_REMOTE_PROMISE, GAS_FOR_UPGRADE_SELF_DEPLOY, NO_DEPOSIT, ONE_YOCTO_NEAR,
+    ext_fungible_token, upgrade_self, Action, Config, BASE_TOKEN, GAS_FOR_FT_TRANSFER,
+    GAS_FOR_UPGRADE_REMOTE_PROMISE, NO_DEPOSIT, ONE_YOCTO_NEAR,
 };
 use crate::*;
 use std::collections::HashMap;
@@ -31,7 +31,8 @@ pub enum ProposalStatus {
 }
 
 /// Kinds of proposals, doing different action.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[cfg_attr(feature = "test", derive(Clone, Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub enum ProposalKind {
     /// Change the DAO config.
@@ -46,7 +47,7 @@ pub enum ProposalKind {
         receiver_id: AccountId,
         method_name: String,
         args: Base64VecU8,
-        deposit: Balance,
+        deposit: U128,
         gas: Gas,
     },
     /// Upgrade this contract with given hash from blob store.
@@ -61,12 +62,12 @@ pub enum ProposalKind {
     Transfer {
         token_id: AccountId,
         receiver_id: AccountId,
-        amount: Balance,
+        amount: U128,
     },
     /// Mints new tokens inside this DAO.
-    Mint { amount: Balance },
+    Mint { amount: U128 },
     /// Burns tokens inside this DAO.
-    Burn { amount: Balance },
+    Burn { amount: U128 },
     /// Add new bounty.
     AddBounty { bounty: Bounty },
     /// Indicates that given bounty is done by given user.
@@ -120,7 +121,8 @@ impl From<Action> for Vote {
 }
 
 /// Proposal that are sent to this DAO.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[cfg_attr(feature = "test", derive(Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct Proposal {
     /// Original proposer.
@@ -229,21 +231,13 @@ impl Contract {
                 .function_call(
                     method_name.clone().into_bytes(),
                     args.clone().into(),
-                    *deposit,
+                    deposit.0,
                     *gas,
                 )
                 .into(),
             ProposalKind::UpgradeSelf { hash } => {
-                let code = env::storage_read(&hash.0).expect("ERR_NO_CODE_STAGED");
-                Promise::new(env::current_account_id())
-                    .deploy_contract(code)
-                    .function_call(
-                        "migrate".as_bytes().to_vec(),
-                        vec![],
-                        NO_DEPOSIT,
-                        env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_SELF_DEPLOY,
-                    )
-                    .into()
+                upgrade_self(&hash.0);
+                PromiseOrValue::Value(())
             }
             ProposalKind::UpgradeRemote {
                 receiver_id,
@@ -264,15 +258,15 @@ impl Contract {
                 token_id,
                 receiver_id,
                 amount,
-            } => self.internal_payout(token_id, receiver_id, *amount),
+            } => self.internal_payout(token_id, receiver_id, amount.0),
             ProposalKind::Mint { amount } => {
                 self.token
-                    .internal_deposit(&env::current_account_id(), *amount);
+                    .internal_deposit(&env::current_account_id(), amount.0);
                 PromiseOrValue::Value(())
             }
             ProposalKind::Burn { amount } => {
                 self.token
-                    .internal_withdraw(&env::current_account_id(), *amount);
+                    .internal_withdraw(&env::current_account_id(), amount.0);
                 PromiseOrValue::Value(())
             }
             ProposalKind::AddBounty { bounty } => {

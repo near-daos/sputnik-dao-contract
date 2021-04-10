@@ -4,24 +4,34 @@ use crate::*;
 
 #[near_bindgen]
 impl Contract {
+    /// Returns semver of this contract.
+    pub fn version(&self) -> String {
+        env!("CARGO_PKG_VERSION").to_string()
+    }
+
+    /// Returns config of this contract.
     pub fn get_config(&self) -> Config {
         self.config.clone()
     }
 
+    /// Returns policy of this contract.
     pub fn get_policy(&self) -> Policy {
         self.policy.clone()
     }
 
+    /// Last proposal's id.
     pub fn get_last_proposal_id(&self) -> u64 {
         self.last_proposal_id
     }
 
+    /// Get proposals in paginated view.
     pub fn get_proposals(&self, from_index: u64, limit: u64) -> Vec<Proposal> {
         (from_index..min(self.last_proposal_id, from_index + limit))
             .filter_map(|id| self.proposals.get(&id))
             .collect()
     }
 
+    /// Get specific proposal.
     pub fn get_proposal(&self, id: u64) -> Proposal {
         self.proposals.get(&id).expect("ERR_NO_PROPOSAL")
     }

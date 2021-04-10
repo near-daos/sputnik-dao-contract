@@ -1,4 +1,3 @@
-use near_sdk::borsh::BorshSerialize;
 use near_sdk::json_types::{Base64VecU8, U128};
 use near_sdk_sim::{call, deploy, init_simulator, to_yocto, view};
 use sputnikdao2::{Action, Config, ContractContract as Contract, ProposalInput, ProposalKind};
@@ -19,6 +18,7 @@ fn test_upgrade() {
         decimals: 24,
         purpose: "to test".to_string(),
         bond: U128(to_yocto("1")),
+        metadata: Base64VecU8(vec![]),
     };
     let dao = deploy!(
         contract: Contract,
@@ -32,7 +32,7 @@ fn test_upgrade() {
         .call(
             dao.user_account.account_id.clone(),
             "store_blob",
-            &DAO_WASM_BYTES.try_to_vec().unwrap(),
+            &DAO_WASM_BYTES,
             near_sdk_sim::DEFAULT_GAS,
             to_yocto("200"),
         )
@@ -48,4 +48,5 @@ fn test_upgrade() {
     .assert_success();
     assert_eq!(view!(dao.get_last_proposal_id()).unwrap_json::<u64>(), 1);
     call!(root, dao.act_proposal(0, Action::VoteApprove)).assert_success();
+    assert_eq!(view!(dao.version()).unwrap_json::<String>(), "2.0.0");
 }

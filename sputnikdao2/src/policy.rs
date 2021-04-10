@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
@@ -8,7 +9,8 @@ use near_sdk::{env, AccountId, Balance};
 use crate::proposals::{Proposal, ProposalKind, ProposalStatus, Vote};
 use crate::types::Action;
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
 #[serde(crate = "near_sdk::serde")]
 pub enum RoleKind {
     /// Matches everyone, who is not matched by other roles.
@@ -61,14 +63,17 @@ impl RoleKind {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "test", derive(Debug, PartialEq))]
 #[serde(crate = "near_sdk::serde")]
 pub struct RolePermission {
-    name: String,
-    kind: RoleKind,
+    /// Name of the role to display to the user.
+    pub name: String,
+    /// Kind of the role: defines which users this permissions apply.
+    pub kind: RoleKind,
     /// Set of actions on which proposals that this role is allowed to execute.
     /// <proposal_kind>:<action>
-    permissions: HashSet<String>,
+    pub permissions: HashSet<String>,
 }
 
 pub struct UserInfo {
@@ -77,7 +82,8 @@ pub struct UserInfo {
 }
 
 /// Direct weight or ratio to total weight, used for the voting policy.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "test", derive(Debug))]
 #[serde(crate = "near_sdk::serde")]
 #[serde(untagged)]
 pub enum WeightOrRatio {
@@ -89,14 +95,18 @@ impl WeightOrRatio {
     /// Convert weight or ratio to specific weight given total weight.
     pub fn to_weight(&self, total_weight: Balance) -> Balance {
         match self {
-            WeightOrRatio::Weight(weight) => weight.0,
-            WeightOrRatio::Ratio(nom, denom) => (*nom as u128 * total_weight) / *denom as u128,
+            WeightOrRatio::Weight(weight) => min(weight.0, total_weight),
+            WeightOrRatio::Ratio(num, denom) => min(
+                (*num as u128 * total_weight) / *denom as u128 + 1,
+                total_weight,
+            ),
         }
     }
 }
 
 /// How the voting policy votes get weigthed.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "test", derive(Debug))]
 #[serde(crate = "near_sdk::serde")]
 #[serde(untagged)]
 pub enum WeightKind {
@@ -107,7 +117,8 @@ pub enum WeightKind {
 }
 
 /// Defines configuration of the vote.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "test", derive(Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct VotePolicy {
     /// Kind of weight to use for votes.
@@ -126,7 +137,8 @@ impl Default for VotePolicy {
 }
 
 /// Defines voting / decision making policy of this DAO.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "test", derive(Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct Policy {
     /// List of roles and permissions for them in the current policy.
@@ -247,10 +259,10 @@ impl Policy {
         }
     }
 
-    fn internal_get_role(&self, name: &String) -> Option<RolePermission> {
+    fn internal_get_role(&self, name: &String) -> Option<&RolePermission> {
         for role in self.roles.iter() {
             if role.name == *name {
-                return Some(role.clone());
+                return Some(role);
             }
         }
         None
@@ -274,13 +286,13 @@ impl Policy {
             .unwrap_or(&self.default_vote_policy);
         let threshold = match &vote_policy.weight_kind {
             WeightKind::TokenWeight => vote_policy.threshold.to_weight(total_supply),
-            WeightKind::RoleWeight(role) => {
+            WeightKind::RoleWeight(role) => vote_policy.threshold.to_weight(
                 self.internal_get_role(role)
                     .expect("ERR_MISSING_ROLE")
                     .kind
                     .get_role_size()
-                    .expect("ERR_UNSUPPORTED_ROLE") as Balance
-            }
+                    .expect("ERR_UNSUPPORTED_ROLE") as Balance,
+            ),
         };
         // Check if there is anything voted above the threshold specified by policy.
         if proposal.vote_counts[Vote::Approve as usize] >= threshold {
@@ -292,5 +304,22 @@ impl Policy {
         } else {
             proposal.status.clone()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_vote_policy() {
+        let r1 = WeightOrRatio::Weight(U128(100));
+        assert_eq!(r1.to_weight(1_000_000), 100);
+        let r2 = WeightOrRatio::Ratio(1, 2);
+        assert_eq!(r2.to_weight(2), 2);
+        let r2 = WeightOrRatio::Ratio(1, 2);
+        assert_eq!(r2.to_weight(5), 3);
+        let r2 = WeightOrRatio::Ratio(1, 1);
+        assert_eq!(r2.to_weight(5), 5);
     }
 }
