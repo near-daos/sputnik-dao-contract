@@ -48,20 +48,37 @@ near call $CONTRACT_ID new --accountId $CONTRACT_ID
 Step 2. Create new Sputnik DAO:
 ```
 # bash
-ARGS=`echo '{"config": {"name": "genesis", "symbol": "GENESIS", "decimals": 24, "purpose": "test", "bond": "1000000000000000000000000", "metadata": ""}}' | base64`
+ARGS=`echo '{"config": {"name": "genesis", "symbol": "GENESIS", "decimals": 24, "purpose": "test", "bond": "1000000000000000000000000", "metadata": ""}, "policy": ["testmewell.testnet", "sputnik2.testnet"]}' | base64`
 # fish
-set ARGS (echo '{"config": {"name": "genesis", "symbol": "GENESIS", "decimals": 24, "purpose": "test", "bond": "1000000000000000000000000", "metadata": ""}}' | base64)
+set ARGS (echo '{"config": {"name": "genesis", "symbol": "GENESIS", "decimals": 24, "purpose": "test", "bond": "1000000000000000000000000", "metadata": ""}, "policy": ["testmewell.testnet", "sputnik2.testnet"]}' | base64)
 
 # Create a new DAO with the given parameters.
 near call $CONTRACT_ID create "{\"name\": \"genesis\", \"args\": \"$ARGS\"}"  --accountId $CONTRACT_ID --amount 5 --gas 150000000000000
 ```
 
+Set `export SPUTNIK_ID=genesis.$CONTRACT_ID`.
+
 Validate that it went through and current policy:
 ```
-near view genesis.$CONTRACT_ID get_policy
+near view $SPUTNIK_ID get_policy
 ```
 
 To create a proposal:
 ```
-near call genesis.$CONTRACT_ID add_proposal '{"proposal": {"description": "test", "kind": {"AddMemberToRole": {"member_id": "testmewell.testnet", "role": "council"}}}}' --accountId testmewell.testnet --amount 1
+near call $SPUTNIK_ID add_proposal '{"proposal": {"description": "test", "kind": {"AddMemberToRole": {"member_id": "testmewell.testnet", "role": "council"}}}}' --accountId testmewell.testnet --amount 1
+```
+
+Vote "Approve" for the proposal:
+```
+near call $SPUTNIK_ID act_proposal '{"id": 0, "action": "VoteApprove"}' --accountId testmewell.testnet
+```
+
+View proposal:
+```
+near view $SPUTNIK_ID get_proposal '{"id": 0}'
+```
+
+View first 10 proposals:
+```
+near view $SPUTNIK_ID get_proposals '{"from_index": 0, "limit": 10}'
 ```

@@ -231,10 +231,11 @@ impl Policy {
                     .add_member_to_group(member_id)
                     .unwrap_or_else(|()| {
                         env::log(&format!("ERR_ROLE_WRONG_KIND:{}", role).into_bytes());
-                    })
+                    });
+                return;
             }
         }
-        env::log(&format!("ERR_ROLE_NOT_FOUNDER:{}", role).into_bytes());
+        env::log(&format!("ERR_ROLE_NOT_FOUND:{}", role).into_bytes());
     }
 
     pub fn remove_member_from_role(&mut self, role: &String, member_id: &AccountId) {
@@ -245,10 +246,11 @@ impl Policy {
                     .remove_member_from_group(member_id)
                     .unwrap_or_else(|()| {
                         env::log(&format!("ERR_ROLE_WRONG_KIND:{}", role).into_bytes());
-                    })
+                    });
+                return;
             }
         }
-        env::log(&format!("ERR_ROLE_NOT_FOUNDER:{}", role).into_bytes());
+        env::log(&format!("ERR_ROLE_NOT_FOUND:{}", role).into_bytes());
     }
 
     /// Returns set of permissions for given user across all the roles it's member of.
