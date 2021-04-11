@@ -155,34 +155,67 @@ pub struct Policy {
     pub proposal_period: WrappedDuration,
 }
 
-impl Default for Policy {
-    /// Defines default policy:
-    ///     - everyone can add proposals
-    ///     - group consisting of the call can do all actions, consists of caller.
-    ///     - non token weighted voting, requires 1/2 of the group to vote
-    ///     - bounty bond is 1N
-    ///     - bounty forgiveness period is 1 day
-    fn default() -> Self {
-        Self {
-            roles: vec![
-                RolePermission {
-                    name: "all".to_string(),
-                    kind: RoleKind::Everyone,
-                    permissions: vec!["*:add_proposal".to_string()].into_iter().collect(),
-                },
-                RolePermission {
-                    name: "council".to_string(),
-                    kind: RoleKind::Group(
-                        vec![env::predecessor_account_id()].into_iter().collect(),
-                    ),
-                    permissions: vec!["*:*".to_string()].into_iter().collect(),
-                },
-            ],
-            default_vote_policy: VotePolicy::default(),
-            vote_policy: HashMap::default(),
-            bounty_bond: U128(10u128.pow(24)),
-            bounty_forgiveness_period: WrappedDuration::from(1_000_000_000 * 60 * 60 * 24),
-            proposal_period: WrappedDuration::from(1_000_000_000 * 60 * 60 * 24 * 7),
+/// Versioned policy.
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[cfg_attr(feature = "test", derive(Debug))]
+#[serde(crate = "near_sdk::serde", untagged)]
+pub enum VersionedPolicy {
+    /// Default policy with given accounts as council.
+    Default(Vec<AccountId>),
+    Current(Policy),
+}
+
+/// Defines default policy:
+///     - everyone can add proposals
+///     - group consisting of the call can do all actions, consists of caller.
+///     - non token weighted voting, requires 1/2 of the group to vote
+///     - bounty bond is 1N
+///     - bounty forgiveness period is 1 day
+fn default_policy(council: Vec<AccountId>) -> Policy {
+    Policy {
+        roles: vec![
+            RolePermission {
+                name: "all".to_string(),
+                kind: RoleKind::Everyone,
+                permissions: vec!["*:AddProposal".to_string()].into_iter().collect(),
+            },
+            RolePermission {
+                name: "council".to_string(),
+                kind: RoleKind::Group(council.into_iter().collect()),
+                permissions: vec!["*:*".to_string()].into_iter().collect(),
+            },
+        ],
+        default_vote_policy: VotePolicy::default(),
+        vote_policy: HashMap::default(),
+        bounty_bond: U128(10u128.pow(24)),
+        bounty_forgiveness_period: WrappedDuration::from(1_000_000_000 * 60 * 60 * 24),
+        proposal_period: WrappedDuration::from(1_000_000_000 * 60 * 60 * 24 * 7),
+    }
+}
+
+impl VersionedPolicy {
+    /// Upgrades either version of policy into the latest.
+    pub fn upgrade(self) -> Self {
+        match self {
+            VersionedPolicy::Default(accounts) => {
+                VersionedPolicy::Current(default_policy(accounts))
+            }
+            VersionedPolicy::Current(policy) => VersionedPolicy::Current(policy),
+        }
+    }
+
+    /// Return recent version of policy.
+    pub fn to_policy(&self) -> &Policy {
+        match self {
+            VersionedPolicy::Current(policy) => policy,
+            _ => unimplemented!(),
+        }
+    }
+
+    pub fn to_policy_mut(&mut self) -> &mut Policy {
+        match self {
+            VersionedPolicy::Current(policy) => policy,
+            _ => unimplemented!(),
         }
     }
 }

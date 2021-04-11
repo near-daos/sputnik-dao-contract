@@ -11,7 +11,7 @@ use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, near_bindgen, AccountId, Balance, PanicOnDefault, Promise, PromiseOrValue};
 
 use crate::bounties::{Bounty, BountyClaim};
-pub use crate::policy::{Policy, RoleKind};
+pub use crate::policy::{Policy, RoleKind, VersionedPolicy};
 pub use crate::proposals::{Proposal, ProposalInput, ProposalKind, ProposalStatus};
 pub use crate::types::{Action, Config};
 
@@ -26,51 +26,68 @@ near_sdk::setup_alloc!();
 #[cfg(target_arch = "wasm32")]
 const BLOCKCHAIN_INTERFACE_NOT_SET_ERR: &str = "Blockchain interface not set.";
 
+/// Container for all contract data.
+#[derive(BorshSerialize, BorshDeserialize)]
+pub struct ContractData {
+    /// DAO configuration.
+    pub config: Config,
+    /// Voting and permissions policy.
+    pub policy: VersionedPolicy,
+    /// Last available id for the proposals.
+    pub last_proposal_id: u64,
+    /// Proposal map from ID to proposal information.
+    pub proposals: LookupMap<u64, Proposal>,
+    /// Last available id for the bounty.
+    pub last_bounty_id: u64,
+    /// Bounties map from ID to bounty information.
+    pub bounties: LookupMap<u64, Bounty>,
+    /// Bounty claimers map per user. Allows quickly to query for each users their claims.
+    pub bounty_claimers: LookupMap<AccountId, Vec<BountyClaim>>,
+    /// Count of claims per bounty.
+    pub bounty_claims_count: LookupMap<u64, u32>,
+    /// Large blob storage.
+    pub blobs: LookupMap<Vec<u8>, AccountId>,
+    /// Amount of $NEAR locked for storage / bonds.
+    pub locked_amount: Balance,
+}
+
+/// Versioned contract data. Allows to easily upgrade contracts.
+#[derive(BorshSerialize, BorshDeserialize)]
+pub enum VersionedContractData {
+    Current(ContractData),
+}
+
+impl VersionedContractData {}
+
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
 pub struct Contract {
-    /// DAO configuration.
-    config: Config,
-    /// Voting and permissions policy.
-    policy: Policy,
     /// Fungible token information and logic.
-    token: FungibleToken,
-    /// Last available id for the proposals.
-    last_proposal_id: u64,
-    /// Proposal map from ID to proposal information.
-    proposals: LookupMap<u64, Proposal>,
-    /// Last available id for the bounty.
-    last_bounty_id: u64,
-    /// Bounties map from ID to bounty information.
-    bounties: LookupMap<u64, Bounty>,
-    /// Bounty claimers map per user. Allows quickly to query for each users their claims.
-    bounty_claimers: LookupMap<AccountId, Vec<BountyClaim>>,
-    /// Count of claims per bounty.
-    bounty_claims_count: LookupMap<u64, u32>,
-    /// Large blob storage.
-    blobs: LookupMap<Vec<u8>, AccountId>,
-    /// Amount of $NEAR locked for storage / bonds.
-    locked_amount: Balance,
+    pub token: FungibleToken,
+    /// Rest of data versioned.
+    data: VersionedContractData,
 }
 
 #[near_bindgen]
 impl Contract {
     #[init]
-    pub fn new(config: Config, policy: Option<Policy>) -> Self {
+    pub fn new(config: Config, policy: VersionedPolicy) -> Self {
         assert!(!env::state_exists(), "ERR_CONTRACT_IS_INITIALIZED");
         let mut this = Self {
-            config,
-            policy: policy.unwrap_or_default(),
             token: FungibleToken::new(b"t".to_vec()),
-            last_proposal_id: 0,
-            proposals: LookupMap::new(b"p".to_vec()),
-            last_bounty_id: 0,
-            bounties: LookupMap::new(b"b".to_vec()),
-            bounty_claimers: LookupMap::new(b"u".to_vec()),
-            bounty_claims_count: LookupMap::new(b"c".to_vec()),
-            blobs: LookupMap::new(b"d".to_vec()),
-            // TODO: this doesn't account for this state object. Can just add fixed size of it.
-            locked_amount: env::storage_byte_cost() * (env::storage_usage() as u128),
+            data: VersionedContractData::Current(ContractData {
+                config,
+                policy: policy.upgrade(),
+                last_proposal_id: 0,
+                proposals: LookupMap::new(b"p".to_vec()),
+                last_bounty_id: 0,
+                bounties: LookupMap::new(b"b".to_vec()),
+                bounty_claimers: LookupMap::new(b"u".to_vec()),
+                bounty_claims_count: LookupMap::new(b"c".to_vec()),
+                blobs: LookupMap::new(b"d".to_vec()),
+                // TODO: this doesn't account for this state object. Can just add fixed size of it.
+                locked_amount: env::storage_byte_cost() * (env::storage_usage() as u128),
+            }),
         };
         // Register balance for given contract itself.
         this.token
@@ -96,7 +113,7 @@ impl Contract {
     /// Remove blob from contract storage and pay back to original storer.
     /// Only original storer can call this.
     pub fn remove_blob(&mut self, hash: Base64VecU8) -> Promise {
-        let account_id = self.blobs.remove(&hash.0).expect("ERR_NO_BLOB");
+        let account_id = self.data_mut().blobs.remove(&hash.0).expect("ERR_NO_BLOB");
         assert_eq!(
             env::predecessor_account_id(),
             account_id,
@@ -105,8 +122,22 @@ impl Contract {
         env::storage_remove(&hash.0);
         let blob_len = env::register_len(u64::MAX - 1).unwrap();
         let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
-        self.locked_amount -= storage_cost;
+        self.data_mut().locked_amount -= storage_cost;
         Promise::new(account_id).transfer(storage_cost)
+    }
+}
+
+impl Contract {
+    fn data(&self) -> &ContractData {
+        match &self.data {
+            VersionedContractData::Current(data) => data,
+        }
+    }
+
+    fn data_mut(&mut self) -> &mut ContractData {
+        match &mut self.data {
+            VersionedContractData::Current(data) => data,
+        }
     }
 }
 
@@ -117,7 +148,8 @@ impl Contract {
 pub extern "C" fn store_blob() {
     env::setup_panic_hook();
     env::set_blockchain_interface(Box::new(near_blockchain::NearBlockchain {}));
-    let mut this: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
+    let mut contract: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
+    let this = contract.data_mut();
     unsafe {
         BLOCKCHAIN_INTERFACE.with(|b| {
             // Load input into register 0.
@@ -175,7 +207,7 @@ pub extern "C" fn store_blob() {
                 .value_return(blob_hash_str.len() as _, blob_hash_str.as_ptr() as _);
         });
     }
-    env::state_write(&this);
+    env::state_write(&contract);
 }
 
 near_contract_standards::impl_fungible_token_core!(Contract, token);
@@ -185,12 +217,12 @@ impl FungibleTokenMetadataProvider for Contract {
     fn ft_metadata(&self) -> FungibleTokenMetadata {
         FungibleTokenMetadata {
             spec: FT_METADATA_SPEC.to_string(),
-            name: self.config.name.clone(),
-            symbol: self.config.symbol.clone(),
-            icon: self.config.icon.clone(),
-            reference: self.config.reference.clone(),
-            reference_hash: self.config.reference_hash.clone(),
-            decimals: self.config.decimals,
+            name: self.data().config.name.clone(),
+            symbol: self.data().config.symbol.clone(),
+            icon: self.data().config.icon.clone(),
+            reference: self.data().config.reference.clone(),
+            reference_hash: self.data().config.reference_hash.clone(),
+            decimals: self.data().config.decimals,
         }
     }
 }
@@ -222,7 +254,10 @@ mod tests {
     fn test_basics() {
         let mut context = VMContextBuilder::new();
         testing_env!(context.predecessor_account_id(accounts(1)).build());
-        let mut contract = Contract::new(Config::test_config(), None);
+        let mut contract = Contract::new(
+            Config::test_config(),
+            VersionedPolicy::Default(vec![accounts(1).into()]),
+        );
         let id = create_proposal(&mut context, &mut contract);
         assert_eq!(contract.get_proposal(id).description, "test");
         contract.act_proposal(id, Action::RemoveProposal);
@@ -239,13 +274,29 @@ mod tests {
             .build());
         contract.act_proposal(id, Action::Finalize);
         assert_eq!(contract.get_proposal(id).status, ProposalStatus::Expired);
+
+        // non council adding proposal per default policy.
+        testing_env!(context
+            .predecessor_account_id(accounts(2))
+            .attached_deposit(to_yocto("1"))
+            .build());
+        let _id = contract.add_proposal(ProposalInput {
+            description: "test".to_string(),
+            kind: ProposalKind::AddMemberToRole {
+                member_id: accounts(2).into(),
+                role: "council".to_string(),
+            },
+        });
     }
 
     #[test]
     fn test_vote_expired_proposal() {
         let mut context = VMContextBuilder::new();
         testing_env!(context.predecessor_account_id(accounts(1)).build());
-        let mut contract = Contract::new(Config::test_config(), None);
+        let mut contract = Contract::new(
+            Config::test_config(),
+            VersionedPolicy::Default(vec![accounts(1).into()]),
+        );
         let id = create_proposal(&mut context, &mut contract);
         testing_env!(context
             .block_timestamp(1_000_000_000 * 24 * 60 * 60 * 8)

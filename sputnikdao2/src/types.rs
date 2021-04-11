@@ -2,7 +2,7 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::env::BLOCKCHAIN_INTERFACE;
 use near_sdk::json_types::{Base64VecU8, U128};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, ext_contract, serde_json, Balance, Gas};
+use near_sdk::{env, ext_contract, Balance, Gas};
 
 const BLOCKCHAIN_INTERFACE_NOT_SET_ERR: &str = "Blockchain interface not set.";
 
@@ -73,7 +73,7 @@ pub trait FungibleTokenExt {
 }
 
 /// Set of possible action to take.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub enum Action {
     /// Action to add proposal. Used internally.
@@ -95,7 +95,7 @@ pub enum Action {
 
 impl Action {
     pub fn to_policy_label(&self) -> String {
-        serde_json::to_string(&self).expect("Must serialize")
+        format!("{:?}", self)
     }
 }
 

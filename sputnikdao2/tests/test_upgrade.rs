@@ -1,6 +1,8 @@
 use near_sdk::json_types::{Base64VecU8, U128};
 use near_sdk_sim::{call, deploy, init_simulator, to_yocto, view};
-use sputnikdao2::{Action, Config, ContractContract as Contract, ProposalInput, ProposalKind};
+use sputnikdao2::{
+    Action, Config, ContractContract as Contract, ProposalInput, ProposalKind, VersionedPolicy,
+};
 
 near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
     DAO_WASM_BYTES => "res/sputnikdao2.wasm"
@@ -26,7 +28,7 @@ fn test_upgrade() {
         bytes: &DAO_WASM_BYTES,
         signer_account: root,
         deposit: to_yocto("200"),
-        init_method: new(config, None)
+        init_method: new(config, VersionedPolicy::Default(vec![root.account_id.clone()]))
     );
     let hash = root
         .call(

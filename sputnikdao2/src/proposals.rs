@@ -38,7 +38,7 @@ pub enum ProposalKind {
     /// Change the DAO config.
     ChangeConfig { config: Config },
     /// Change the full policy.
-    ChangePolicy { policy: Policy },
+    ChangePolicy { policy: VersionedPolicy },
     /// Add member to given role in the policy. This is short cut to updating the whole policy.
     AddMemberToRole { member_id: AccountId, role: String },
     /// Remove member to given role in the policy. This is short cut to updating the whole policy.
@@ -203,22 +203,29 @@ impl Contract {
     /// Executes given proposal and updates the contract's state.
     fn internal_execute_proposal(&mut self, proposal: &Proposal) -> PromiseOrValue<()> {
         // Return the bond.
-        Promise::new(proposal.proposer.clone()).transfer(self.policy.bounty_bond.0);
+        Promise::new(proposal.proposer.clone())
+            .transfer(self.data_mut().policy.to_policy().bounty_bond.0);
         match &proposal.kind {
             ProposalKind::ChangeConfig { config } => {
-                self.config = config.clone();
+                self.data_mut().config = config.clone();
                 PromiseOrValue::Value(())
             }
             ProposalKind::ChangePolicy { policy } => {
-                self.policy = policy.clone();
+                self.data_mut().policy = policy.clone();
                 PromiseOrValue::Value(())
             }
             ProposalKind::AddMemberToRole { member_id, role } => {
-                self.policy.add_member_to_role(role, member_id);
+                self.data_mut()
+                    .policy
+                    .to_policy_mut()
+                    .add_member_to_role(role, member_id);
                 PromiseOrValue::Value(())
             }
             ProposalKind::RemoveMemberFromRole { member_id, role } => {
-                self.policy.remove_member_from_role(role, member_id);
+                self.data_mut()
+                    .policy
+                    .to_policy_mut()
+                    .remove_member_from_role(role, member_id);
                 PromiseOrValue::Value(())
             }
             ProposalKind::FunctionCall {
@@ -289,7 +296,8 @@ impl Contract {
     ) -> PromiseOrValue<()> {
         if return_bond {
             // Return bond to the proposer.
-            Promise::new(proposal.proposer.clone()).transfer(self.policy.bounty_bond.0);
+            Promise::new(proposal.proposer.clone())
+                .transfer(self.data().policy.to_policy().bounty_bond.0);
         }
         match &proposal.kind {
             ProposalKind::BountyDone {
@@ -317,7 +325,7 @@ impl Contract {
         // 0. validate bond attached.
         // TODO: consider bond in the token of this DAO.
         assert!(
-            env::attached_deposit() >= self.config.bond.0,
+            env::attached_deposit() >= self.data().config.bond.0,
             "ERR_MIN_BOND"
         );
 
@@ -326,7 +334,7 @@ impl Contract {
 
         // 2. check permission of caller to add proposal.
         assert!(
-            self.policy.can_execute_action(
+            self.data().policy.to_policy().can_execute_action(
                 self.internal_user_info(),
                 &proposal.kind,
                 &Action::AddProposal
@@ -335,18 +343,18 @@ impl Contract {
         );
 
         // 3. actually add proposal to current list.
-        self.proposals
-            .insert(&self.last_proposal_id, &proposal.into());
-        self.last_proposal_id += 1;
-        self.last_proposal_id - 1
+        let id = self.data().last_proposal_id;
+        self.data_mut().proposals.insert(&id, &proposal.into());
+        self.data_mut().last_proposal_id += 1;
+        id
     }
 
     /// Act on given proposal by id, if permissions allow.
     pub fn act_proposal(&mut self, id: u64, action: Action) {
-        let mut proposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL");
+        let mut proposal = self.data_mut().proposals.get(&id).expect("ERR_NO_PROPOSAL");
         // Check permissions for given action.
         assert!(
-            self.policy.can_execute_action(
+            self.data().policy.to_policy().can_execute_action(
                 self.internal_user_info(),
                 &proposal.kind,
                 &Action::RemoveProposal
@@ -358,7 +366,7 @@ impl Contract {
         let update = match action {
             Action::AddProposal => env::panic(b"ERR_WRONG_ACTION"),
             Action::RemoveProposal => {
-                self.proposals.remove(&id);
+                self.data_mut().proposals.remove(&id);
                 false
             }
             Action::VoteApprove | Action::VoteReject | Action::VoteRemove => {
@@ -367,7 +375,12 @@ impl Contract {
                     ProposalStatus::InProgress,
                     "ERR_PROPOSAL_NOT_IN_PROGRESS"
                 );
-                let amount = if self.policy.is_token_weighted(&proposal.kind) {
+                let amount = if self
+                    .data()
+                    .policy
+                    .to_policy()
+                    .is_token_weighted(&proposal.kind)
+                {
                     self.ft_balance_of(sender_id.clone().try_into().unwrap()).0
                 } else {
                     1
@@ -375,14 +388,16 @@ impl Contract {
                 proposal.update_votes(sender_id, Vote::from(action), amount);
                 // Updates proposal status with new votes using the policy.
                 proposal.status = self
+                    .data()
                     .policy
+                    .to_policy()
                     .proposal_status(&proposal, self.ft_total_supply().0);
                 if proposal.status == ProposalStatus::Approved {
                     self.internal_execute_proposal(&proposal);
                     true
                 } else if proposal.status == ProposalStatus::Removed {
                     self.internal_reject_proposal(&proposal, false);
-                    self.proposals.remove(&id);
+                    self.data_mut().proposals.remove(&id);
                     false
                 } else if proposal.status == ProposalStatus::Rejected {
                     self.internal_reject_proposal(&proposal, true);
@@ -394,7 +409,9 @@ impl Contract {
             }
             Action::Finalize => {
                 proposal.status = self
+                    .data()
                     .policy
+                    .to_policy()
                     .proposal_status(&proposal, self.ft_total_supply().0);
                 assert_eq!(
                     proposal.status,
@@ -407,7 +424,7 @@ impl Contract {
             Action::MoveToHub => false,
         };
         if update {
-            self.proposals.insert(&id, &proposal);
+            self.data_mut().proposals.insert(&id, &proposal);
         }
     }
 }

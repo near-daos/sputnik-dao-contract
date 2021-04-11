@@ -7,7 +7,7 @@ use near_sdk_sim::{
 
 use sputnikdao2::{
     Action, Config, ContractContract as DAOContract, Policy, Proposal, ProposalInput, ProposalKind,
-    ProposalStatus, RoleKind,
+    ProposalStatus, RoleKind, VersionedPolicy,
 };
 
 type Contract = ContractAccount<DAOContract>;
@@ -42,7 +42,7 @@ fn setup_dao() -> (UserAccount, Contract) {
         bytes: &DAO_WASM_BYTES,
         signer_account: root,
         deposit: to_yocto("200"),
-        init_method: new(config, None)
+        init_method: new(config, VersionedPolicy::Default(vec![root.account_id.clone()]))
     );
     (root, dao)
 }
@@ -106,8 +106,6 @@ fn test_create_dao_and_mint() {
     let (root, dao) = setup_dao();
     let user2 = root.create_user("user2".to_string(), to_yocto("1000"));
     let user3 = root.create_user("user3".to_string(), to_yocto("1000"));
-    // Not a member can not submit adding members.
-    should_fail(add_member_proposal(&user2, &dao, user2.account_id.clone()));
     add_member_proposal(&root, &dao, user2.account_id.clone()).assert_success();
     assert_eq!(view!(dao.get_last_proposal_id()).unwrap_json::<u64>(), 1);
     // Voting by user who is not member should fail.

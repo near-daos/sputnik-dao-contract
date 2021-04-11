@@ -30,3 +30,38 @@ Blob lifecycle:
 
 Blob can be removed only by the original storer.
 
+## Testing
+
+Use `export CONTRACT_ID=sputnik2.testnet`, to set the account to deploy the factory.
+
+Step 1. Deploy factory:
+```
+near create-account ...
+near deploy $CONTRACT_ID --wasmFile=sputnikdao_factory2/res/sputnikdao_factory2.wasm
+```
+
+Step 2. Initiatlize factory
+```
+near call $CONTRACT_ID new --accountId $CONTRACT_ID
+```
+
+Step 2. Create new Sputnik DAO:
+```
+# bash
+ARGS=`echo '{"config": {"name": "genesis", "symbol": "GENESIS", "decimals": 24, "purpose": "test", "bond": "1000000000000000000000000", "metadata": ""}}' | base64`
+# fish
+set ARGS (echo '{"config": {"name": "genesis", "symbol": "GENESIS", "decimals": 24, "purpose": "test", "bond": "1000000000000000000000000", "metadata": ""}}' | base64)
+
+# Create a new DAO with the given parameters.
+near call $CONTRACT_ID create "{\"name\": \"genesis\", \"args\": \"$ARGS\"}"  --accountId $CONTRACT_ID --amount 5 --gas 150000000000000
+```
+
+Validate that it went through and current policy:
+```
+near view genesis.$CONTRACT_ID get_policy
+```
+
+To create a proposal:
+```
+near call genesis.$CONTRACT_ID add_proposal '{"proposal": {"description": "test", "kind": {"AddMemberToRole": {"member_id": "testmewell.testnet", "role": "council"}}}}' --accountId testmewell.testnet --amount 1
+```
