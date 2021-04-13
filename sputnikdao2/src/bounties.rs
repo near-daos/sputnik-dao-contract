@@ -240,7 +240,7 @@ mod tests {
         contract.act_proposal(0, Action::VoteApprove);
 
         assert_eq!(contract.get_last_bounty_id(), 1);
-        assert_eq!(contract.get_bounty(0).times, 2);
+        assert_eq!(contract.get_bounty(0).bounty.times, 2);
 
         contract.bounty_claim(0, WrappedDuration::from(500));
         assert_eq!(contract.get_bounty_claims(accounts(1)).len(), 1);
@@ -259,13 +259,13 @@ mod tests {
 
         assert_eq!(contract.get_last_proposal_id(), 2);
         assert_eq!(
-            contract.get_proposal(1).kind.to_policy_label(),
+            contract.get_proposal(1).proposal.kind.to_policy_label(),
             "bounty_done"
         );
 
         contract.act_proposal(1, Action::VoteApprove);
 
         assert_eq!(contract.get_bounty_claims(accounts(1)).len(), 0);
-        assert_eq!(contract.get_bounty(0).times, 1);
+        assert_eq!(contract.get_bounty(0).bounty.times, 1);
     }
 }

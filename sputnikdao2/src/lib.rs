@@ -259,13 +259,16 @@ mod tests {
             VersionedPolicy::Default(vec![accounts(1).into()]),
         );
         let id = create_proposal(&mut context, &mut contract);
-        assert_eq!(contract.get_proposal(id).description, "test");
+        assert_eq!(contract.get_proposal(id).proposal.description, "test");
         contract.act_proposal(id, Action::RemoveProposal);
         assert_eq!(contract.get_proposals(0, 10).len(), 0);
 
         let id = create_proposal(&mut context, &mut contract);
         contract.act_proposal(id, Action::VoteApprove);
-        assert_eq!(contract.get_proposal(id).status, ProposalStatus::Approved);
+        assert_eq!(
+            contract.get_proposal(id).proposal.status,
+            ProposalStatus::Approved
+        );
 
         let id = create_proposal(&mut context, &mut contract);
         // proposal expired, finalize.
@@ -273,7 +276,10 @@ mod tests {
             .block_timestamp(1_000_000_000 * 24 * 60 * 60 * 8)
             .build());
         contract.act_proposal(id, Action::Finalize);
-        assert_eq!(contract.get_proposal(id).status, ProposalStatus::Expired);
+        assert_eq!(
+            contract.get_proposal(id).proposal.status,
+            ProposalStatus::Expired
+        );
 
         // non council adding proposal per default policy.
         testing_env!(context
