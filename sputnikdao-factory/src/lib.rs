@@ -64,21 +64,21 @@ impl SputnikDAOFactory {
 
 #[cfg(test)]
 mod tests {
-    use near_std::context::{accounts, VMContextBuilder};
     use near_sdk::{testing_env, MockedBlockchain};
 
     use super::*;
+    use near_sdk::test_utils::{accounts, VMContextBuilder};
 
     #[test]
     fn test_basics() {
         testing_env!(VMContextBuilder::new()
             .current_account_id(accounts(0))
-            .finish());
+            .build());
         let mut factory = SputnikDAOFactory::new();
         testing_env!(VMContextBuilder::new()
             .current_account_id(accounts(0))
             .attached_deposit(10)
-            .finish());
+            .build());
         factory.create(
             "test".to_string(),
             Some(Base58PublicKey(vec![])),

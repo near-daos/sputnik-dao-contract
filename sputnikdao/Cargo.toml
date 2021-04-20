@@ -18,5 +18,4 @@ panic = "abort"
 overflow-checks = true
 
 [dependencies]
-near-sdk = { git = "https://github.com/near/near-sdk-rs", rev = "703a37db70d198d4b37fa248ebe75ddfa2ebd6a2" }
-near-std = { git = "https://github.com/near/near-sdk-rs", rev = "703a37db70d198d4b37fa248ebe75ddfa2ebd6a2" }
+near-sdk = "3.1.0"
