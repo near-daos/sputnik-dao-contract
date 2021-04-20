@@ -142,10 +142,13 @@ pub struct Proposal {
 }
 
 impl Proposal {
-    /// Update count and map of votes.
+    /// Adds vote of the given user with given `amount` of weight. If user already voted, fails.
     pub fn update_votes(&mut self, account_id: AccountId, vote: Vote, amount: Balance) {
         self.vote_counts[vote.clone() as usize] += amount;
-        self.votes.insert(account_id, vote);
+        assert!(
+            self.votes.insert(account_id, vote).is_none(),
+            "ERR_ALREADY_VOTED"
+        );
     }
 }
 
@@ -201,31 +204,36 @@ impl Contract {
     }
 
     /// Executes given proposal and updates the contract's state.
-    fn internal_execute_proposal(&mut self, proposal: &Proposal) -> PromiseOrValue<()> {
-        // Return the bond.
-        Promise::new(proposal.proposer.clone())
-            .transfer(self.data_mut().policy.to_policy().bounty_bond.0);
+    fn internal_execute_proposal(
+        &mut self,
+        policy: &Policy,
+        proposal: &Proposal,
+    ) -> PromiseOrValue<()> {
+        // Return the proposal bond.
+        Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond.0);
         match &proposal.kind {
             ProposalKind::ChangeConfig { config } => {
-                self.data_mut().config = config.clone();
+                self.data_mut().config.set(config);
                 PromiseOrValue::Value(())
             }
             ProposalKind::ChangePolicy { policy } => {
-                self.data_mut().policy = policy.clone();
+                self.data_mut().policy.set(policy);
                 PromiseOrValue::Value(())
             }
             ProposalKind::AddMemberToRole { member_id, role } => {
+                let mut new_policy = policy.clone();
+                new_policy.add_member_to_role(role, member_id);
                 self.data_mut()
                     .policy
-                    .to_policy_mut()
-                    .add_member_to_role(role, member_id);
+                    .set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
             ProposalKind::RemoveMemberFromRole { member_id, role } => {
+                let mut new_policy = policy.clone();
+                new_policy.remove_member_from_role(role, member_id);
                 self.data_mut()
                     .policy
-                    .to_policy_mut()
-                    .remove_member_from_role(role, member_id);
+                    .set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
             ProposalKind::FunctionCall {
@@ -291,13 +299,13 @@ impl Contract {
     /// Process rejecting proposal.
     fn internal_reject_proposal(
         &mut self,
+        policy: &Policy,
         proposal: &Proposal,
         return_bond: bool,
     ) -> PromiseOrValue<()> {
         if return_bond {
             // Return bond to the proposer.
-            Promise::new(proposal.proposer.clone())
-                .transfer(self.data().policy.to_policy().bounty_bond.0);
+            Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond.0);
         }
         match &proposal.kind {
             ProposalKind::BountyDone {
@@ -324,8 +332,9 @@ impl Contract {
     pub fn add_proposal(&mut self, proposal: ProposalInput) -> u64 {
         // 0. validate bond attached.
         // TODO: consider bond in the token of this DAO.
+        let policy = self.data().policy.get().unwrap().to_policy();
         assert!(
-            env::attached_deposit() >= self.data().config.bond.0,
+            env::attached_deposit() >= policy.proposal_bond.0,
             "ERR_MIN_BOND"
         );
 
@@ -334,7 +343,7 @@ impl Contract {
 
         // 2. check permission of caller to add proposal.
         assert!(
-            self.data().policy.to_policy().can_execute_action(
+            policy.can_execute_action(
                 self.internal_user_info(),
                 &proposal.kind,
                 &Action::AddProposal
@@ -352,9 +361,10 @@ impl Contract {
     /// Act on given proposal by id, if permissions allow.
     pub fn act_proposal(&mut self, id: u64, action: Action) {
         let mut proposal = self.data_mut().proposals.get(&id).expect("ERR_NO_PROPOSAL");
+        let policy = self.data().policy.get().unwrap().to_policy();
         // Check permissions for given action.
         assert!(
-            self.data().policy.to_policy().can_execute_action(
+            policy.can_execute_action(
                 self.internal_user_info(),
                 &proposal.kind,
                 &Action::RemoveProposal
@@ -375,32 +385,23 @@ impl Contract {
                     ProposalStatus::InProgress,
                     "ERR_PROPOSAL_NOT_IN_PROGRESS"
                 );
-                let amount = if self
-                    .data()
-                    .policy
-                    .to_policy()
-                    .is_token_weighted(&proposal.kind)
-                {
+                let amount = if policy.is_token_weighted(&proposal.kind) {
                     self.ft_balance_of(sender_id.clone().try_into().unwrap()).0
                 } else {
                     1
                 };
                 proposal.update_votes(sender_id, Vote::from(action), amount);
                 // Updates proposal status with new votes using the policy.
-                proposal.status = self
-                    .data()
-                    .policy
-                    .to_policy()
-                    .proposal_status(&proposal, self.ft_total_supply().0);
+                proposal.status = policy.proposal_status(&proposal, self.ft_total_supply().0);
                 if proposal.status == ProposalStatus::Approved {
-                    self.internal_execute_proposal(&proposal);
+                    self.internal_execute_proposal(&policy, &proposal);
                     true
                 } else if proposal.status == ProposalStatus::Removed {
-                    self.internal_reject_proposal(&proposal, false);
+                    self.internal_reject_proposal(&policy, &proposal, false);
                     self.data_mut().proposals.remove(&id);
                     false
                 } else if proposal.status == ProposalStatus::Rejected {
-                    self.internal_reject_proposal(&proposal, true);
+                    self.internal_reject_proposal(&policy, &proposal, true);
                     true
                 } else {
                     // Still in progress or expired.
@@ -408,17 +409,13 @@ impl Contract {
                 }
             }
             Action::Finalize => {
-                proposal.status = self
-                    .data()
-                    .policy
-                    .to_policy()
-                    .proposal_status(&proposal, self.ft_total_supply().0);
+                proposal.status = policy.proposal_status(&proposal, self.ft_total_supply().0);
                 assert_eq!(
                     proposal.status,
                     ProposalStatus::Expired,
                     "ERR_PROPOSAL_NOT_EXPIRED"
                 );
-                self.internal_reject_proposal(&proposal, true);
+                self.internal_reject_proposal(&policy, &proposal, true);
                 true
             }
             Action::MoveToHub => false,

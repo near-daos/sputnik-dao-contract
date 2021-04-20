@@ -1,4 +1,4 @@
-use near_sdk::json_types::{Base64VecU8, U128};
+use near_sdk::json_types::Base64VecU8;
 use near_sdk_sim::{call, deploy, init_simulator, to_yocto, view};
 use sputnikdao2::{
     Action, Config, ContractContract as Contract, ProposalInput, ProposalKind, VersionedPolicy,
@@ -19,7 +19,6 @@ fn test_upgrade() {
         reference_hash: None,
         decimals: 24,
         purpose: "to test".to_string(),
-        bond: U128(to_yocto("1")),
         metadata: Base64VecU8(vec![]),
     };
     let dao = deploy!(

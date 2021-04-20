@@ -147,12 +147,14 @@ pub struct Policy {
     pub default_vote_policy: VotePolicy,
     /// For each proposal kind, defines voting policy.
     pub vote_policy: HashMap<String, VotePolicy>,
+    /// Proposal bond.
+    pub proposal_bond: U128,
+    /// Expiration period for proposals.
+    pub proposal_period: WrappedDuration,
     /// Bond for claiming a bounty.
     pub bounty_bond: U128,
     /// Period in which giving up on bounty is not punished.
     pub bounty_forgiveness_period: WrappedDuration,
-    /// Expiration period for proposals.
-    pub proposal_period: WrappedDuration,
 }
 
 /// Versioned policy.
@@ -169,8 +171,8 @@ pub enum VersionedPolicy {
 ///     - everyone can add proposals
 ///     - group consisting of the call can do all actions, consists of caller.
 ///     - non token weighted voting, requires 1/2 of the group to vote
-///     - bounty bond is 1N
-///     - bounty forgiveness period is 1 day
+///     - proposal & bounty bond is 1N
+///     - proposal & bounty forgiveness period is 1 day
 fn default_policy(council: Vec<AccountId>) -> Policy {
     Policy {
         roles: vec![
@@ -187,9 +189,10 @@ fn default_policy(council: Vec<AccountId>) -> Policy {
         ],
         default_vote_policy: VotePolicy::default(),
         vote_policy: HashMap::default(),
+        proposal_bond: U128(10u128.pow(24)),
+        proposal_period: WrappedDuration::from(1_000_000_000 * 60 * 60 * 24 * 7),
         bounty_bond: U128(10u128.pow(24)),
         bounty_forgiveness_period: WrappedDuration::from(1_000_000_000 * 60 * 60 * 24),
-        proposal_period: WrappedDuration::from(1_000_000_000 * 60 * 60 * 24 * 7),
     }
 }
 
@@ -205,7 +208,7 @@ impl VersionedPolicy {
     }
 
     /// Return recent version of policy.
-    pub fn to_policy(&self) -> &Policy {
+    pub fn to_policy(self) -> Policy {
         match self {
             VersionedPolicy::Current(policy) => policy,
             _ => unimplemented!(),

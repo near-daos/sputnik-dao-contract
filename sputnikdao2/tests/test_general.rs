@@ -33,7 +33,6 @@ fn setup_dao() -> (UserAccount, Contract) {
         reference_hash: None,
         decimals: 24,
         purpose: "to test".to_string(),
-        bond: U128(to_yocto("1")),
         metadata: Base64VecU8(vec![]),
     };
     let dao = deploy!(

@@ -42,8 +42,6 @@ pub struct Config {
     pub decimals: u8,
     /// Purpose of this DAO.
     pub purpose: String,
-    /// Minimal bond attached with proposal.
-    pub bond: U128,
     /// Generic metadata. Can be used by specific UI to store additional data.
     /// This is not used by anything in the contract.
     pub metadata: Base64VecU8,
@@ -59,7 +57,6 @@ impl Config {
             reference: None,
             reference_hash: None,
             decimals: 24,
-            bond: U128(10u128.pow(24)),
             symbol: "TEST".to_string(),
             metadata: Base64VecU8(vec![]),
         }

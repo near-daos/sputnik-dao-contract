@@ -86,9 +86,10 @@ impl Contract {
     #[payable]
     pub fn bounty_claim(&mut self, id: u64, deadline: WrappedDuration) {
         let bounty = self.data_mut().bounties.get(&id).expect("ERR_NO_BOUNTY");
+        let policy = self.data_mut().policy.get().unwrap().to_policy();
         assert_eq!(
             env::attached_deposit(),
-            self.data_mut().policy.to_policy().bounty_bond.0,
+            policy.bounty_bond.0,
             "ERR_BOUNTY_WRONG_BOND"
         );
         let claims_count = self
@@ -179,21 +180,17 @@ impl Contract {
 
     /// Give up working on the bounty.
     pub fn bounty_giveup(&mut self, id: u64) -> PromiseOrValue<()> {
+        let policy = self.data_mut().policy.get().unwrap().to_policy();
         let (claims, claim_idx) = self.internal_get_claims(id, &env::predecessor_account_id());
         let result = if env::block_timestamp() - claims[claim_idx].start_time.0
-            > self
-                .data_mut()
-                .policy
-                .to_policy()
-                .bounty_forgiveness_period
-                .0
+            > policy.bounty_forgiveness_period.0
         {
             // If user over the forgiveness period.
             PromiseOrValue::Value(())
         } else {
             // Within forgiveness period.
             Promise::new(env::predecessor_account_id())
-                .transfer(self.data().policy.to_policy().bounty_bond.0)
+                .transfer(policy.bounty_bond.0)
                 .into()
         };
         self.internal_remove_claim(id, claims, claim_idx);

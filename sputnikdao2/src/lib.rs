@@ -3,12 +3,15 @@ use near_contract_standards::fungible_token::metadata::{
 };
 use near_contract_standards::fungible_token::FungibleToken;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::LookupMap;
+use near_sdk::collections::{LazyOption, LookupMap};
 #[cfg(target_arch = "wasm32")]
 use near_sdk::env::BLOCKCHAIN_INTERFACE;
-use near_sdk::json_types::{Base64VecU8, ValidAccountId, U128};
+use near_sdk::json_types::{Base58CryptoHash, ValidAccountId, U128};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, near_bindgen, AccountId, Balance, PanicOnDefault, Promise, PromiseOrValue};
+use near_sdk::{
+    env, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash, PanicOnDefault, Promise,
+    PromiseOrValue,
+};
 
 use crate::bounties::{Bounty, BountyClaim};
 pub use crate::policy::{Policy, RoleKind, VersionedPolicy};
@@ -26,13 +29,25 @@ near_sdk::setup_alloc!();
 #[cfg(target_arch = "wasm32")]
 const BLOCKCHAIN_INTERFACE_NOT_SET_ERR: &str = "Blockchain interface not set.";
 
+#[derive(BorshStorageKey, BorshSerialize)]
+pub enum StorageKeys {
+    Token,
+    Config,
+    Policy,
+    Proposals,
+    Bounties,
+    BountyClaimers,
+    BountyClaimCounts,
+    Blobs,
+}
+
 /// Container for all contract data.
 #[derive(BorshSerialize, BorshDeserialize)]
 pub struct ContractData {
     /// DAO configuration.
-    pub config: Config,
+    pub config: LazyOption<Config>,
     /// Voting and permissions policy.
-    pub policy: VersionedPolicy,
+    pub policy: LazyOption<VersionedPolicy>,
     /// Last available id for the proposals.
     pub last_proposal_id: u64,
     /// Proposal map from ID to proposal information.
@@ -46,7 +61,7 @@ pub struct ContractData {
     /// Count of claims per bounty.
     pub bounty_claims_count: LookupMap<u64, u32>,
     /// Large blob storage.
-    pub blobs: LookupMap<Vec<u8>, AccountId>,
+    pub blobs: LookupMap<CryptoHash, AccountId>,
     /// Amount of $NEAR locked for storage / bonds.
     pub locked_amount: Balance,
 }
@@ -72,19 +87,18 @@ pub struct Contract {
 impl Contract {
     #[init]
     pub fn new(config: Config, policy: VersionedPolicy) -> Self {
-        assert!(!env::state_exists(), "ERR_CONTRACT_IS_INITIALIZED");
         let mut this = Self {
-            token: FungibleToken::new(b"t".to_vec()),
+            token: FungibleToken::new(StorageKeys::Token),
             data: VersionedContractData::Current(ContractData {
-                config,
-                policy: policy.upgrade(),
+                config: LazyOption::new(StorageKeys::Config, Some(&config)),
+                policy: LazyOption::new(StorageKeys::Policy, Some(&policy.upgrade())),
                 last_proposal_id: 0,
-                proposals: LookupMap::new(b"p".to_vec()),
+                proposals: LookupMap::new(StorageKeys::Proposals),
                 last_bounty_id: 0,
-                bounties: LookupMap::new(b"b".to_vec()),
-                bounty_claimers: LookupMap::new(b"u".to_vec()),
-                bounty_claims_count: LookupMap::new(b"c".to_vec()),
-                blobs: LookupMap::new(b"d".to_vec()),
+                bounties: LookupMap::new(StorageKeys::Bounties),
+                bounty_claimers: LookupMap::new(StorageKeys::BountyClaimers),
+                bounty_claims_count: LookupMap::new(StorageKeys::BountyClaimCounts),
+                blobs: LookupMap::new(StorageKeys::Blobs),
                 // TODO: this doesn't account for this state object. Can just add fixed size of it.
                 locked_amount: env::storage_byte_cost() * (env::storage_usage() as u128),
             }),
@@ -99,7 +113,7 @@ impl Contract {
     /// This is NOOP implementation. KEEP IT if you haven't changed contract state.
     /// If you have changed state, you need to implement migration from old state (keep the old struct with different name to deserialize it first).
     /// After migrate goes live on MainNet, return this implementation for next updates.
-    #[init]
+    #[init(ignore_state)]
     pub fn migrate() -> Self {
         assert_eq!(
             env::predecessor_account_id(),
@@ -112,14 +126,15 @@ impl Contract {
 
     /// Remove blob from contract storage and pay back to original storer.
     /// Only original storer can call this.
-    pub fn remove_blob(&mut self, hash: Base64VecU8) -> Promise {
-        let account_id = self.data_mut().blobs.remove(&hash.0).expect("ERR_NO_BLOB");
+    pub fn remove_blob(&mut self, hash: Base58CryptoHash) -> Promise {
+        let hash: CryptoHash = hash.into();
+        let account_id = self.data_mut().blobs.remove(&hash).expect("ERR_NO_BLOB");
         assert_eq!(
             env::predecessor_account_id(),
             account_id,
             "ERR_INVALID_CALLER"
         );
-        env::storage_remove(&hash.0);
+        env::storage_remove(&hash);
         let blob_len = env::register_len(u64::MAX - 1).unwrap();
         let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
         self.data_mut().locked_amount -= storage_cost;
@@ -190,7 +205,7 @@ pub extern "C" fn store_blob() {
                 .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
                 .storage_write(u64::MAX as _, 1 as _, u64::MAX as _, 0 as _, 2);
             // Load register 1 into blob_hash and save into LookupMap.
-            let blob_hash = vec![0u8; 32];
+            let blob_hash = [0u8; 32];
             b.borrow()
                 .as_ref()
                 .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
@@ -198,7 +213,7 @@ pub extern "C" fn store_blob() {
             this.blobs
                 .insert(&blob_hash, &env::predecessor_account_id());
             // Return from function value of register 1.
-            let blob_hash_str = near_sdk::serde_json::to_string(&Base64VecU8(blob_hash))
+            let blob_hash_str = near_sdk::serde_json::to_string(&Base58CryptoHash::from(blob_hash))
                 .unwrap()
                 .into_bytes();
             b.borrow()
@@ -213,16 +228,18 @@ pub extern "C" fn store_blob() {
 near_contract_standards::impl_fungible_token_core!(Contract, token);
 near_contract_standards::impl_fungible_token_storage!(Contract, token);
 
+#[near_bindgen]
 impl FungibleTokenMetadataProvider for Contract {
     fn ft_metadata(&self) -> FungibleTokenMetadata {
+        let config = self.data().config.get().unwrap();
         FungibleTokenMetadata {
             spec: FT_METADATA_SPEC.to_string(),
-            name: self.data().config.name.clone(),
-            symbol: self.data().config.symbol.clone(),
-            icon: self.data().config.icon.clone(),
-            reference: self.data().config.reference.clone(),
-            reference_hash: self.data().config.reference_hash.clone(),
-            decimals: self.data().config.decimals,
+            name: config.name.clone(),
+            symbol: config.symbol.clone(),
+            icon: config.icon.clone(),
+            reference: config.reference.clone(),
+            reference_hash: config.reference_hash.clone(),
+            decimals: config.decimals,
         }
     }
 }
@@ -307,6 +324,20 @@ mod tests {
         testing_env!(context
             .block_timestamp(1_000_000_000 * 24 * 60 * 60 * 8)
             .build());
+        contract.act_proposal(id, Action::VoteApprove);
+    }
+
+    #[test]
+    #[should_panic(expected = "ERR_ALREADY_VOTED")]
+    fn test_vote_twice() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        let mut contract = Contract::new(
+            Config::test_config(),
+            VersionedPolicy::Default(vec![accounts(1).into(), accounts(2).into()]),
+        );
+        let id = create_proposal(&mut context, &mut contract);
+        contract.act_proposal(id, Action::VoteApprove);
         contract.act_proposal(id, Action::VoteApprove);
     }
 }

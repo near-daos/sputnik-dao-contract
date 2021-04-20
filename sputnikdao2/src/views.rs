@@ -31,12 +31,12 @@ impl Contract {
 
     /// Returns config of this contract.
     pub fn get_config(&self) -> Config {
-        self.data().config.clone()
+        self.data().config.get().unwrap().clone()
     }
 
     /// Returns policy of this contract.
     pub fn get_policy(&self) -> Policy {
-        self.data().policy.to_policy().clone()
+        self.data().policy.get().unwrap().to_policy().clone()
     }
 
     /// Last proposal's id.
