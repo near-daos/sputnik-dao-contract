@@ -39,6 +39,11 @@ impl Contract {
         self.data().policy.get().unwrap().to_policy().clone()
     }
 
+    /// Full user information.
+    pub fn get_user(&self, account_id: ValidAccountId) -> User {
+        self.internal_get_user(account_id.as_ref())
+    }
+
     /// Last proposal's id.
     pub fn get_last_proposal_id(&self) -> u64 {
         self.data().last_proposal_id

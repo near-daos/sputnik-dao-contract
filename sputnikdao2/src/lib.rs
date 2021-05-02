@@ -1,7 +1,3 @@
-use near_contract_standards::fungible_token::metadata::{
-    FungibleTokenMetadata, FungibleTokenMetadataProvider, FT_METADATA_SPEC,
-};
-use near_contract_standards::fungible_token::FungibleToken;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 #[cfg(target_arch = "wasm32")]
@@ -10,18 +6,21 @@ use near_sdk::json_types::{Base58CryptoHash, ValidAccountId, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     env, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash, PanicOnDefault, Promise,
-    PromiseOrValue,
 };
 
 use crate::bounties::{Bounty, BountyClaim};
 pub use crate::policy::{Policy, RoleKind, VersionedPolicy};
 pub use crate::proposals::{Proposal, ProposalInput, ProposalKind, ProposalStatus};
 pub use crate::types::{Action, Config};
+pub use crate::user::{User, VersionedUser};
 
 mod bounties;
 mod policy;
 mod proposals;
+mod storage_impl;
+mod token;
 mod types;
+mod user;
 pub mod views;
 
 near_sdk::setup_alloc!();
@@ -31,9 +30,9 @@ const BLOCKCHAIN_INTERFACE_NOT_SET_ERR: &str = "Blockchain interface not set.";
 
 #[derive(BorshStorageKey, BorshSerialize)]
 pub enum StorageKeys {
-    Token,
     Config,
     Policy,
+    Users,
     Proposals,
     Bounties,
     BountyClaimers,
@@ -48,6 +47,12 @@ pub struct ContractData {
     pub config: LazyOption<Config>,
     /// Voting and permissions policy.
     pub policy: LazyOption<VersionedPolicy>,
+    /// Voting token id.
+    pub vote_token_id: Option<AccountId>,
+    /// Vote token total amount.
+    pub vote_token_total_amount: Balance,
+    /// Users.
+    pub users: LookupMap<AccountId, VersionedUser>,
     /// Last available id for the proposals.
     pub last_proposal_id: u64,
     /// Proposal map from ID to proposal information.
@@ -77,9 +82,7 @@ impl VersionedContractData {}
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
 pub struct Contract {
-    /// Fungible token information and logic.
-    pub token: FungibleToken,
-    /// Rest of data versioned.
+    /// Versioned contract data.
     data: VersionedContractData,
 }
 
@@ -87,11 +90,13 @@ pub struct Contract {
 impl Contract {
     #[init]
     pub fn new(config: Config, policy: VersionedPolicy) -> Self {
-        let mut this = Self {
-            token: FungibleToken::new(StorageKeys::Token),
+        Self {
             data: VersionedContractData::Current(ContractData {
                 config: LazyOption::new(StorageKeys::Config, Some(&config)),
                 policy: LazyOption::new(StorageKeys::Policy, Some(&policy.upgrade())),
+                vote_token_id: None,
+                vote_token_total_amount: 0,
+                users: LookupMap::new(StorageKeys::Users),
                 last_proposal_id: 0,
                 proposals: LookupMap::new(StorageKeys::Proposals),
                 last_bounty_id: 0,
@@ -102,11 +107,7 @@ impl Contract {
                 // TODO: this doesn't account for this state object. Can just add fixed size of it.
                 locked_amount: env::storage_byte_cost() * (env::storage_usage() as u128),
             }),
-        };
-        // Register balance for given contract itself.
-        this.token
-            .internal_register_account(&env::current_account_id());
-        this
+        }
     }
 
     /// Should only be called by this contract on migration.
@@ -223,25 +224,6 @@ pub extern "C" fn store_blob() {
         });
     }
     env::state_write(&contract);
-}
-
-near_contract_standards::impl_fungible_token_core!(Contract, token);
-near_contract_standards::impl_fungible_token_storage!(Contract, token);
-
-#[near_bindgen]
-impl FungibleTokenMetadataProvider for Contract {
-    fn ft_metadata(&self) -> FungibleTokenMetadata {
-        let config = self.data().config.get().unwrap();
-        FungibleTokenMetadata {
-            spec: FT_METADATA_SPEC.to_string(),
-            name: config.name.clone(),
-            symbol: config.symbol.clone(),
-            icon: config.icon.clone(),
-            reference: config.reference.clone(),
-            reference_hash: config.reference_hash.clone(),
-            decimals: config.decimals,
-        }
-    }
 }
 
 #[cfg(test)]

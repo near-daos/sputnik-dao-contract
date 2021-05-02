@@ -1,4 +1,4 @@
-use std::convert::TryInto;
+use std::collections::HashMap;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{Base64VecU8, WrappedTimestamp};
@@ -10,7 +10,6 @@ use crate::types::{
     GAS_FOR_UPGRADE_REMOTE_PROMISE, NO_DEPOSIT, ONE_YOCTO_NEAR,
 };
 use crate::*;
-use std::collections::HashMap;
 
 /// Status of a proposal.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -64,10 +63,8 @@ pub enum ProposalKind {
         receiver_id: AccountId,
         amount: U128,
     },
-    /// Mints new tokens inside this DAO.
-    Mint { amount: U128 },
-    /// Burns tokens inside this DAO.
-    Burn { amount: U128 },
+    /// Sets vote token. Can only be used if vote token is not set yet.
+    SetVoteToken { vote_token_id: AccountId },
     /// Add new bounty.
     AddBounty { bounty: Bounty },
     /// Indicates that given bounty is done by given user.
@@ -91,8 +88,7 @@ impl ProposalKind {
             ProposalKind::UpgradeSelf { .. } => "upgrade_self",
             ProposalKind::UpgradeRemote { .. } => "upgrade_remote",
             ProposalKind::Transfer { .. } => "transfer",
-            ProposalKind::Mint { .. } => "mint",
-            ProposalKind::Burn { .. } => "burn",
+            ProposalKind::SetVoteToken { .. } => "set_vote_token",
             ProposalKind::AddBounty { .. } => "add_bounty",
             ProposalKind::BountyDone { .. } => "bounty_done",
             ProposalKind::Vote => "vote",
@@ -183,12 +179,7 @@ impl Contract {
         receiver_id: &AccountId,
         amount: Balance,
     ) -> PromiseOrValue<()> {
-        if token_id == &env::current_account_id() {
-            self.token
-                .internal_withdraw(&env::current_account_id(), amount);
-            self.token.internal_deposit(&receiver_id, amount);
-            PromiseOrValue::Value(())
-        } else if token_id == BASE_TOKEN {
+        if token_id == BASE_TOKEN {
             Promise::new(receiver_id.clone()).transfer(amount).into()
         } else {
             ext_fungible_token::ft_transfer(
@@ -274,14 +265,8 @@ impl Contract {
                 receiver_id,
                 amount,
             } => self.internal_payout(token_id, receiver_id, amount.0),
-            ProposalKind::Mint { amount } => {
-                self.token
-                    .internal_deposit(&env::current_account_id(), amount.0);
-                PromiseOrValue::Value(())
-            }
-            ProposalKind::Burn { amount } => {
-                self.token
-                    .internal_withdraw(&env::current_account_id(), amount.0);
+            ProposalKind::SetVoteToken { vote_token_id } => {
+                self.data_mut().vote_token_id = Some(vote_token_id.clone());
                 PromiseOrValue::Value(())
             }
             ProposalKind::AddBounty { bounty } => {
@@ -319,7 +304,7 @@ impl Contract {
     pub(crate) fn internal_user_info(&self) -> UserInfo {
         let account_id = env::predecessor_account_id();
         UserInfo {
-            amount: self.token.accounts.get(&account_id),
+            amount: self.get_user_weight(&account_id),
             account_id,
         }
     }
@@ -386,13 +371,14 @@ impl Contract {
                     "ERR_PROPOSAL_NOT_IN_PROGRESS"
                 );
                 let amount = if policy.is_token_weighted(&proposal.kind) {
-                    self.ft_balance_of(sender_id.clone().try_into().unwrap()).0
+                    self.get_user_weight(&sender_id)
                 } else {
                     1
                 };
                 proposal.update_votes(sender_id, Vote::from(action), amount);
                 // Updates proposal status with new votes using the policy.
-                proposal.status = policy.proposal_status(&proposal, self.ft_total_supply().0);
+                proposal.status =
+                    policy.proposal_status(&proposal, self.data().vote_token_total_amount);
                 if proposal.status == ProposalStatus::Approved {
                     self.internal_execute_proposal(&policy, &proposal);
                     true
@@ -409,7 +395,8 @@ impl Contract {
                 }
             }
             Action::Finalize => {
-                proposal.status = policy.proposal_status(&proposal, self.ft_total_supply().0);
+                proposal.status =
+                    policy.proposal_status(&proposal, self.data().vote_token_total_amount);
                 assert_eq!(
                     proposal.status,
                     ProposalStatus::Expired,

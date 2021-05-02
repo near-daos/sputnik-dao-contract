@@ -15,10 +15,8 @@ use crate::types::Action;
 pub enum RoleKind {
     /// Matches everyone, who is not matched by other roles.
     Everyone,
-    /// Member: has non zero balance on this DAOs' token.
-    Member,
-    /// Member with at least given balance (must be non 0).
-    MemberBalance(Balance),
+    /// Member greater or equal than given balance. Can use `1` as non-zero balance.
+    Member(Balance),
     /// Set of accounts.
     Group(HashSet<AccountId>),
 }
@@ -28,8 +26,7 @@ impl RoleKind {
     pub fn match_user(&self, user: &UserInfo) -> bool {
         match self {
             RoleKind::Everyone => true,
-            RoleKind::Member => user.amount.is_some(),
-            RoleKind::MemberBalance(amount) => user.amount.unwrap_or_default() >= *amount,
+            RoleKind::Member(amount) => user.amount >= *amount,
             RoleKind::Group(accounts) => accounts.contains(&user.account_id),
         }
     }
@@ -78,7 +75,7 @@ pub struct RolePermission {
 
 pub struct UserInfo {
     pub account_id: AccountId,
-    pub amount: Option<Balance>,
+    pub amount: Balance,
 }
 
 /// Direct weight or ratio to total weight, used for the voting policy.
