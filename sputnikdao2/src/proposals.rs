@@ -6,8 +6,8 @@ use near_sdk::{AccountId, Balance, Gas, PromiseOrValue};
 
 use crate::policy::UserInfo;
 use crate::types::{
-    ext_fungible_token, upgrade_self, Action, Config, BASE_TOKEN, GAS_FOR_FT_TRANSFER,
-    GAS_FOR_UPGRADE_REMOTE_PROMISE, NO_DEPOSIT, ONE_YOCTO_NEAR,
+    ext_fungible_token, upgrade_remote, upgrade_self, Action, Config, BASE_TOKEN,
+    GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR,
 };
 use crate::*;
 
@@ -250,15 +250,8 @@ impl Contract {
                 method_name,
                 hash,
             } => {
-                let code = env::storage_read(&hash.0).expect("ERR_NO_CODE_STAGED");
-                Promise::new(receiver_id.clone())
-                    .function_call(
-                        method_name.clone().into_bytes(),
-                        code,
-                        NO_DEPOSIT,
-                        env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_REMOTE_PROMISE,
-                    )
-                    .into()
+                upgrade_remote(receiver_id, method_name, &hash.0);
+                PromiseOrValue::Value(())
             }
             ProposalKind::Transfer {
                 token_id,
