@@ -200,6 +200,16 @@ fn test_create_dao_and_use_token() {
         dao.delegate_vote(user2_id.clone(), U128(to_yocto("5")))
     )
     .assert_success();
+    call!(
+        user2,
+        dao.undelegate_vote(user2_id.clone(), U128(to_yocto("1")))
+    )
+    .assert_success();
+    // should fail right after undelegation as need to wait for voting period before can delegate again.
+    should_fail(call!(
+        user2,
+        dao.delegate_vote(user2_id.clone(), U128(to_yocto("1")))
+    ));
     let user = view!(dao.get_user(user2_id.clone())).unwrap_json::<User>();
-    assert_eq!(user.vote_weight.0, to_yocto("5"));
+    assert_eq!(user.vote_weight.0, to_yocto("4"));
 }

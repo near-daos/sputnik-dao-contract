@@ -1,8 +1,9 @@
 //! User information of the given DAO.
 
-use near_sdk::{AccountId, Balance, StorageUsage};
+use near_sdk::{AccountId, Balance, Duration, StorageUsage};
 
 use crate::*;
+use near_sdk::json_types::WrappedTimestamp;
 
 const U64_LEN: StorageUsage = 8;
 const U128_LEN: StorageUsage = 16;
@@ -10,6 +11,8 @@ const ACCOUNT_MAX_LENGTH: StorageUsage = 64;
 
 /// User data.
 /// Recording deposited voting tokens, storage used and delegations for voting.
+/// Once delegated - the tokens are used in the votes. It records for each delegate when was the last vote.
+/// When undelegating - the new delegations or withdrawal are only available after cooldown period from last vote of the delegate.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct User {
@@ -23,6 +26,8 @@ pub struct User {
     pub vote_weight: U128,
     /// Delegations.
     pub delegated_weight: Vec<(AccountId, U128)>,
+    /// Withdrawal or next delegation available timestamp.
+    pub next_action_timestamp: WrappedTimestamp,
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -38,6 +43,7 @@ impl User {
             vote_amount: U128(0),
             delegated_weight: Vec::default(),
             vote_weight: U128(0),
+            next_action_timestamp: 0.into(),
         }
     }
 
@@ -65,14 +71,23 @@ impl User {
             self.delegated_amount() + amount <= self.vote_amount.0,
             "ERR_NOT_ENOUGH_AMOUNT"
         );
+        assert!(
+            env::block_timestamp() >= self.next_action_timestamp.0,
+            "ERR_NOT_ENOUGH_TIME"
+        );
         self.storage_used += delegate_id.len() as StorageUsage + U128_LEN;
         self.delegated_weight.push((delegate_id, U128(amount)));
         self.assert_storage();
     }
 
-    /// Remove given amount from delegates.
+    /// Remove given amount from delegates. Updates timestamp when next action can be called.
     /// Fails if delegate not found or not enough amount delegated.
-    pub fn undelegate(&mut self, delegate_id: &AccountId, amount: Balance) {
+    pub fn undelegate(
+        &mut self,
+        delegate_id: &AccountId,
+        amount: Balance,
+        undelegation_period: Duration,
+    ) {
         let f = self
             .delegated_weight
             .iter()
@@ -80,13 +95,14 @@ impl User {
             .find(|(_, (account_id, _))| account_id == delegate_id)
             .expect("ERR_NO_DELEGATE");
         let element = (f.0, ((f.1).1).0);
-        assert!(element.1 <= amount, "ERR_NOT_ENOUGH_AMOUNT");
+        assert!(element.1 >= amount, "ERR_NOT_ENOUGH_AMOUNT");
         if element.1 == amount {
             self.delegated_weight.remove(element.0);
             self.storage_used -= delegate_id.len() as StorageUsage + U128_LEN;
         } else {
             (self.delegated_weight[element.0].1).0 -= amount;
         }
+        self.next_action_timestamp = (env::block_timestamp() + undelegation_period).into();
     }
 
     /// Record when someone delegates to this account.
@@ -104,6 +120,10 @@ impl User {
         assert!(
             self.delegated_amount() + amount <= self.vote_amount.0,
             "ERR_NOT_ENOUGH_AVAILABLE_AMOUNT"
+        );
+        assert!(
+            env::block_timestamp() > self.next_action_timestamp.0,
+            "ERR_NOT_ENOUGH_TIME_PASSED"
         );
         self.vote_amount.0 -= amount;
     }
@@ -195,7 +215,7 @@ impl Contract {
         amount: Balance,
     ) {
         let mut sender = self.internal_get_user(&sender_id);
-        sender.undelegate(&delegate_id, amount);
+        sender.undelegate(&delegate_id, amount, self.get_policy().proposal_period.0);
         if delegate_id != sender_id {
             let mut delegate = self.internal_get_user(&delegate_id);
             delegate.delegate_from(amount);
