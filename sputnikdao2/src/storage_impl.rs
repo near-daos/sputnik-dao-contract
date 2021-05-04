@@ -22,7 +22,7 @@ impl StorageManagement for Contract {
             .unwrap_or_else(|| env::predecessor_account_id());
         let registration_only = registration_only.unwrap_or(false);
         let min_balance = User::min_storage() as Balance * env::storage_byte_cost();
-        let already_registered = self.data().users.contains_key(&account_id);
+        let already_registered = self.users.contains_key(&account_id);
         if amount < min_balance && !already_registered {
             env::panic(b"ERR_DEPOSIT_LESS_THAN_MIN_STORAGE");
         }
@@ -68,7 +68,7 @@ impl StorageManagement for Contract {
         if let Some(user) = self.internal_get_user_opt(&account_id) {
             // TODO: figure out force option logic.
             assert!(user.vote_amount.0 > 0, "ERR_STORAGE_UNREGISTER_NOT_EMPTY");
-            self.data_mut().users.remove(&account_id);
+            self.users.remove(&account_id);
             Promise::new(account_id.clone()).transfer(user.near_amount.0);
             true
         } else {

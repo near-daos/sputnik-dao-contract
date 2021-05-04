@@ -30,12 +30,9 @@ impl FungibleTokenReceiver for Contract {
         assert!(msg.is_empty(), "ERR_MSG_INCORRECT");
         assert_eq!(
             token_id,
-            self.data()
-                .vote_token_id
-                .clone()
-                .expect("ERR_NO_VOTE_TOKEN")
+            self.vote_token_id.clone().expect("ERR_NO_VOTE_TOKEN")
         );
-        self.internal_deposit(sender_id.as_ref(), amount.into());
+        self.internal_deposit(sender_id.as_ref(), amount.0);
         PromiseOrValue::Value(U128(0))
     }
 }
@@ -43,21 +40,17 @@ impl FungibleTokenReceiver for Contract {
 #[near_bindgen]
 impl Contract {
     pub fn ft_total_supply(&self) -> U128 {
-        assert!(self.data().vote_token_id.is_some(), "ERR_NO_VOTE_TOKEN");
-        U128(self.data().vote_token_total_amount)
+        assert!(self.vote_token_id.is_some(), "ERR_NO_VOTE_TOKEN");
+        U128(self.vote_token_total_amount)
     }
 
     pub fn ft_balance_of(&self, account_id: ValidAccountId) -> U128 {
-        assert!(self.data().vote_token_id.is_some(), "ERR_NO_VOTE_TOKEN");
+        assert!(self.vote_token_id.is_some(), "ERR_NO_VOTE_TOKEN");
         U128(self.internal_get_user(account_id.as_ref()).vote_amount.0)
     }
 
     pub fn withdraw(&mut self, receiver_id: ValidAccountId, amount: U128) {
-        let vote_token_id = self
-            .data()
-            .vote_token_id
-            .clone()
-            .expect("ERR_NO_VOTE_TOKEN");
+        let vote_token_id = self.vote_token_id.clone().expect("ERR_NO_VOTE_TOKEN");
         let sender_id = env::predecessor_account_id();
         self.internal_withdraw(&sender_id, amount.0);
         ext_fungible_token::ft_transfer(

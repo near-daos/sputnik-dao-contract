@@ -137,6 +137,21 @@ pub struct Proposal {
     pub submission_time: WrappedTimestamp,
 }
 
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[cfg_attr(feature = "test", derive(Debug))]
+#[serde(crate = "near_sdk::serde")]
+pub enum VersionedProposal {
+    Default(Proposal),
+}
+
+impl From<VersionedProposal> for Proposal {
+    fn from(v: VersionedProposal) -> Self {
+        match v {
+            VersionedProposal::Default(p) => p,
+        }
+    }
+}
+
 impl Proposal {
     /// Adds vote of the given user with given `amount` of weight. If user already voted, fails.
     pub fn update_votes(&mut self, account_id: AccountId, vote: Vote, amount: Balance) {
@@ -204,27 +219,23 @@ impl Contract {
         Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond.0);
         match &proposal.kind {
             ProposalKind::ChangeConfig { config } => {
-                self.data_mut().config.set(config);
+                self.config.set(config);
                 PromiseOrValue::Value(())
             }
             ProposalKind::ChangePolicy { policy } => {
-                self.data_mut().policy.set(policy);
+                self.policy.set(policy);
                 PromiseOrValue::Value(())
             }
             ProposalKind::AddMemberToRole { member_id, role } => {
                 let mut new_policy = policy.clone();
                 new_policy.add_member_to_role(role, member_id);
-                self.data_mut()
-                    .policy
-                    .set(&VersionedPolicy::Current(new_policy));
+                self.policy.set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
             ProposalKind::RemoveMemberFromRole { member_id, role } => {
                 let mut new_policy = policy.clone();
                 new_policy.remove_member_from_role(role, member_id);
-                self.data_mut()
-                    .policy
-                    .set(&VersionedPolicy::Current(new_policy));
+                self.policy.set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
             ProposalKind::FunctionCall {
@@ -259,7 +270,7 @@ impl Contract {
                 amount,
             } => self.internal_payout(token_id, receiver_id, amount.0),
             ProposalKind::SetVoteToken { vote_token_id } => {
-                self.data_mut().vote_token_id = Some(vote_token_id.clone());
+                self.vote_token_id = Some(vote_token_id.clone());
                 PromiseOrValue::Value(())
             }
             ProposalKind::AddBounty { bounty } => {
@@ -310,7 +321,7 @@ impl Contract {
     pub fn add_proposal(&mut self, proposal: ProposalInput) -> u64 {
         // 0. validate bond attached.
         // TODO: consider bond in the token of this DAO.
-        let policy = self.data().policy.get().unwrap().to_policy();
+        let policy = self.policy.get().unwrap().to_policy();
         assert!(
             env::attached_deposit() >= policy.proposal_bond.0,
             "ERR_MIN_BOND"
@@ -330,16 +341,17 @@ impl Contract {
         );
 
         // 3. actually add proposal to current list.
-        let id = self.data().last_proposal_id;
-        self.data_mut().proposals.insert(&id, &proposal.into());
-        self.data_mut().last_proposal_id += 1;
+        let id = self.last_proposal_id;
+        self.proposals
+            .insert(&id, &VersionedProposal::Default(proposal.into()));
+        self.last_proposal_id += 1;
         id
     }
 
     /// Act on given proposal by id, if permissions allow.
     pub fn act_proposal(&mut self, id: u64, action: Action) {
-        let mut proposal = self.data_mut().proposals.get(&id).expect("ERR_NO_PROPOSAL");
-        let policy = self.data().policy.get().unwrap().to_policy();
+        let mut proposal: Proposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL").into();
+        let policy = self.policy.get().unwrap().to_policy();
         // Check permissions for given action.
         assert!(
             policy.can_execute_action(
@@ -354,7 +366,7 @@ impl Contract {
         let update = match action {
             Action::AddProposal => env::panic(b"ERR_WRONG_ACTION"),
             Action::RemoveProposal => {
-                self.data_mut().proposals.remove(&id);
+                self.proposals.remove(&id);
                 false
             }
             Action::VoteApprove | Action::VoteReject | Action::VoteRemove => {
@@ -370,14 +382,13 @@ impl Contract {
                 };
                 proposal.update_votes(sender_id, Vote::from(action), amount);
                 // Updates proposal status with new votes using the policy.
-                proposal.status =
-                    policy.proposal_status(&proposal, self.data().vote_token_total_amount);
+                proposal.status = policy.proposal_status(&proposal, self.vote_token_total_amount);
                 if proposal.status == ProposalStatus::Approved {
                     self.internal_execute_proposal(&policy, &proposal);
                     true
                 } else if proposal.status == ProposalStatus::Removed {
                     self.internal_reject_proposal(&policy, &proposal, false);
-                    self.data_mut().proposals.remove(&id);
+                    self.proposals.remove(&id);
                     false
                 } else if proposal.status == ProposalStatus::Rejected {
                     self.internal_reject_proposal(&policy, &proposal, true);
@@ -388,8 +399,7 @@ impl Contract {
                 }
             }
             Action::Finalize => {
-                proposal.status =
-                    policy.proposal_status(&proposal, self.data().vote_token_total_amount);
+                proposal.status = policy.proposal_status(&proposal, self.vote_token_total_amount);
                 assert_eq!(
                     proposal.status,
                     ProposalStatus::Expired,
@@ -401,7 +411,8 @@ impl Contract {
             Action::MoveToHub => false,
         };
         if update {
-            self.data_mut().proposals.insert(&id, &proposal);
+            self.proposals
+                .insert(&id, &VersionedProposal::Default(proposal));
         }
     }
 }

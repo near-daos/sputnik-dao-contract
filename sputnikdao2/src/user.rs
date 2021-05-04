@@ -145,8 +145,7 @@ impl Contract {
     }
 
     pub fn internal_get_user_opt(&self, account_id: &AccountId) -> Option<User> {
-        self.data()
-            .users
+        self.users
             .get(account_id)
             .map(|versioned_user| match versioned_user {
                 VersionedUser::Default(user) => user,
@@ -154,9 +153,7 @@ impl Contract {
     }
 
     pub fn save_user(&mut self, account_id: &AccountId, user: User) {
-        self.data_mut()
-            .users
-            .insert(account_id, &VersionedUser::Default(user));
+        self.users.insert(account_id, &VersionedUser::Default(user));
     }
 
     pub fn get_user_weight(&self, account_id: &AccountId) -> Balance {
@@ -176,7 +173,7 @@ impl Contract {
         let mut sender = self.internal_get_user(&sender_id);
         sender.deposit(amount);
         self.save_user(&sender_id, sender);
-        self.data_mut().vote_token_total_amount += amount;
+        self.vote_token_total_amount += amount;
     }
 
     /// Withdraw voting token.
@@ -184,7 +181,8 @@ impl Contract {
         let mut sender = self.internal_get_user(&sender_id);
         sender.withdraw(amount);
         self.save_user(&sender_id, sender);
-        self.data_mut().vote_token_total_amount -= amount;
+        assert!(self.vote_token_total_amount >= amount, "ERR_INTERNAL");
+        self.vote_token_total_amount -= amount;
     }
 
     /// Given user delegates given amount of votes to another user.

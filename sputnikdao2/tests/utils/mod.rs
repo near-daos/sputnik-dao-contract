@@ -11,6 +11,7 @@ use near_sdk_sim::{
 use sputnikdao2::{
     Action, Config, ContractContract as DAOContract, ProposalInput, ProposalKind, VersionedPolicy,
 };
+use test_token::ContractContract as TestTokenContract;
 
 near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
     DAO_WASM_BYTES => "res/sputnikdao2.wasm",
@@ -47,6 +48,17 @@ pub fn setup_dao() -> (UserAccount, Contract) {
         init_method: new(config, VersionedPolicy::Default(vec![root.account_id.clone()]))
     );
     (root, dao)
+}
+
+pub fn setup_test_token(root: &UserAccount) -> ContractAccount<TestTokenContract> {
+    deploy!(
+        contract: TestTokenContract,
+        contract_id: "test_token".to_string(),
+        bytes: &TEST_TOKEN_WASM_BYTES,
+        signer_account: root,
+        deposit: to_yocto("200"),
+        init_method: new()
+    )
 }
 
 pub fn add_proposal(

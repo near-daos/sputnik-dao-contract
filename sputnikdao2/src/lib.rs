@@ -8,8 +8,9 @@ use near_sdk::{
     env, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash, PanicOnDefault, Promise,
 };
 
-use crate::bounties::{Bounty, BountyClaim};
+use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
 pub use crate::policy::{Policy, RoleKind, VersionedPolicy};
+use crate::proposals::VersionedProposal;
 pub use crate::proposals::{Proposal, ProposalInput, ProposalKind, ProposalStatus};
 pub use crate::types::{Action, Config};
 pub use crate::user::{User, VersionedUser};
@@ -40,9 +41,9 @@ pub enum StorageKeys {
     Blobs,
 }
 
-/// Container for all contract data.
-#[derive(BorshSerialize, BorshDeserialize)]
-pub struct ContractData {
+#[near_bindgen]
+#[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
+pub struct Contract {
     /// DAO configuration.
     pub config: LazyOption<Config>,
     /// Voting and permissions policy.
@@ -56,11 +57,11 @@ pub struct ContractData {
     /// Last available id for the proposals.
     pub last_proposal_id: u64,
     /// Proposal map from ID to proposal information.
-    pub proposals: LookupMap<u64, Proposal>,
+    pub proposals: LookupMap<u64, VersionedProposal>,
     /// Last available id for the bounty.
     pub last_bounty_id: u64,
     /// Bounties map from ID to bounty information.
-    pub bounties: LookupMap<u64, Bounty>,
+    pub bounties: LookupMap<u64, VersionedBounty>,
     /// Bounty claimers map per user. Allows quickly to query for each users their claims.
     pub bounty_claimers: LookupMap<AccountId, Vec<BountyClaim>>,
     /// Count of claims per bounty.
@@ -71,42 +72,25 @@ pub struct ContractData {
     pub locked_amount: Balance,
 }
 
-/// Versioned contract data. Allows to easily upgrade contracts.
-#[derive(BorshSerialize, BorshDeserialize)]
-pub enum VersionedContractData {
-    Current(ContractData),
-}
-
-impl VersionedContractData {}
-
-#[near_bindgen]
-#[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
-pub struct Contract {
-    /// Versioned contract data.
-    data: VersionedContractData,
-}
-
 #[near_bindgen]
 impl Contract {
     #[init]
     pub fn new(config: Config, policy: VersionedPolicy) -> Self {
         Self {
-            data: VersionedContractData::Current(ContractData {
-                config: LazyOption::new(StorageKeys::Config, Some(&config)),
-                policy: LazyOption::new(StorageKeys::Policy, Some(&policy.upgrade())),
-                vote_token_id: None,
-                vote_token_total_amount: 0,
-                users: LookupMap::new(StorageKeys::Users),
-                last_proposal_id: 0,
-                proposals: LookupMap::new(StorageKeys::Proposals),
-                last_bounty_id: 0,
-                bounties: LookupMap::new(StorageKeys::Bounties),
-                bounty_claimers: LookupMap::new(StorageKeys::BountyClaimers),
-                bounty_claims_count: LookupMap::new(StorageKeys::BountyClaimCounts),
-                blobs: LookupMap::new(StorageKeys::Blobs),
-                // TODO: this doesn't account for this state object. Can just add fixed size of it.
-                locked_amount: env::storage_byte_cost() * (env::storage_usage() as u128),
-            }),
+            config: LazyOption::new(StorageKeys::Config, Some(&config)),
+            policy: LazyOption::new(StorageKeys::Policy, Some(&policy.upgrade())),
+            vote_token_id: None,
+            vote_token_total_amount: 0,
+            users: LookupMap::new(StorageKeys::Users),
+            last_proposal_id: 0,
+            proposals: LookupMap::new(StorageKeys::Proposals),
+            last_bounty_id: 0,
+            bounties: LookupMap::new(StorageKeys::Bounties),
+            bounty_claimers: LookupMap::new(StorageKeys::BountyClaimers),
+            bounty_claims_count: LookupMap::new(StorageKeys::BountyClaimCounts),
+            blobs: LookupMap::new(StorageKeys::Blobs),
+            // TODO: only accounts for contract but not for this state object. Can just add fixed size of it.
+            locked_amount: env::storage_byte_cost() * (env::storage_usage() as u128),
         }
     }
 
@@ -129,7 +113,7 @@ impl Contract {
     /// Only original storer can call this.
     pub fn remove_blob(&mut self, hash: Base58CryptoHash) -> Promise {
         let hash: CryptoHash = hash.into();
-        let account_id = self.data_mut().blobs.remove(&hash).expect("ERR_NO_BLOB");
+        let account_id = self.blobs.remove(&hash).expect("ERR_NO_BLOB");
         assert_eq!(
             env::predecessor_account_id(),
             account_id,
@@ -138,34 +122,19 @@ impl Contract {
         env::storage_remove(&hash);
         let blob_len = env::register_len(u64::MAX - 1).unwrap();
         let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
-        self.data_mut().locked_amount -= storage_cost;
+        self.locked_amount -= storage_cost;
         Promise::new(account_id).transfer(storage_cost)
     }
 }
 
-impl Contract {
-    fn data(&self) -> &ContractData {
-        match &self.data {
-            VersionedContractData::Current(data) => data,
-        }
-    }
-
-    fn data_mut(&mut self) -> &mut ContractData {
-        match &mut self.data {
-            VersionedContractData::Current(data) => data,
-        }
-    }
-}
-
-/// Optimal version for storing input data into storage.
-/// Avoids parsing / loading into WASM the arguments.
+/// Stores attached data into blob store and returns hash of it.
+/// Implemented to avoid loading the data into WASM for optimal gas usage.
 #[cfg(target_arch = "wasm32")]
 #[no_mangle]
 pub extern "C" fn store_blob() {
     env::setup_panic_hook();
     env::set_blockchain_interface(Box::new(near_blockchain::NearBlockchain {}));
     let mut contract: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
-    let this = contract.data_mut();
     unsafe {
         BLOCKCHAIN_INTERFACE.with(|b| {
             // Load input into register 0.
@@ -199,7 +168,7 @@ pub extern "C" fn store_blob() {
                 "ERR_NOT_ENOUGH_DEPOSIT:{}",
                 storage_cost
             );
-            this.locked_amount += storage_cost;
+            contract.locked_amount += storage_cost;
             // Store value of register 0 into key = register 1.
             b.borrow()
                 .as_ref()
@@ -211,7 +180,8 @@ pub extern "C" fn store_blob() {
                 .as_ref()
                 .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
                 .read_register(1, blob_hash.as_ptr() as _);
-            this.blobs
+            contract
+                .blobs
                 .insert(&blob_hash, &env::predecessor_account_id());
             // Return from function value of register 1.
             let blob_hash_str = near_sdk::serde_json::to_string(&Base58CryptoHash::from(blob_hash))
