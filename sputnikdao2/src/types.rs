@@ -103,20 +103,23 @@ pub(crate) fn upgrade_self(hash: &[u8]) {
     let attached_gas = env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_SELF_DEPLOY;
     unsafe {
         BLOCKCHAIN_INTERFACE.with(|b| {
-            // Load input into register 0.
+            // Load input (wasm code) into register 0.
             b.borrow()
                 .as_ref()
                 .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
                 .storage_read(hash.len() as _, hash.as_ptr() as _, 0);
+            // schedule a Promise tx to this same contract
             let promise_id = b
                 .borrow()
                 .as_ref()
                 .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
                 .promise_batch_create(current_id.len() as _, current_id.as_ptr() as _);
+            // 1st item in the Tx: "deploy contract" (code is taken from register 0)
             b.borrow()
                 .as_ref()
                 .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
                 .promise_batch_action_deploy_contract(promise_id, u64::MAX as _, 0);
+            // 2nd item in the Tx: call this_contract.migrate() with remaining gas
             b.borrow()
                 .as_ref()
                 .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
