@@ -9,7 +9,7 @@ static ALLOC: near_sdk::wee_alloc::WeeAlloc<'_> = near_sdk::wee_alloc::WeeAlloc:
 const CODE: &[u8] = include_bytes!("../../sputnikdao2/res/sputnikdao2.wasm");
 
 /// Gas spent on the call & account creation.
-const CREATE_CALL_GAS: u64 = 65_000_000_000_000;
+const CREATE_CALL_GAS: u64 = 75_000_000_000_000;
 
 /// Gas allocated on the callback.
 const ON_CREATE_CALL_GAS: u64 = 10_000_000_000_000;

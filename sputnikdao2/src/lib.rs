@@ -13,15 +13,12 @@ pub use crate::policy::{Policy, RoleKind, VersionedPolicy};
 use crate::proposals::VersionedProposal;
 pub use crate::proposals::{Proposal, ProposalInput, ProposalKind, ProposalStatus};
 pub use crate::types::{Action, Config};
-pub use crate::user::{User, VersionedUser};
 
 mod bounties;
+mod delegation;
 mod policy;
 mod proposals;
-mod storage_impl;
-mod token;
 mod types;
-mod user;
 pub mod views;
 
 near_sdk::setup_alloc!();
@@ -33,7 +30,7 @@ const BLOCKCHAIN_INTERFACE_NOT_SET_ERR: &str = "Blockchain interface not set.";
 pub enum StorageKeys {
     Config,
     Policy,
-    Users,
+    Delegations,
     Proposals,
     Bounties,
     BountyClaimers,
@@ -48,16 +45,22 @@ pub struct Contract {
     pub config: LazyOption<Config>,
     /// Voting and permissions policy.
     pub policy: LazyOption<VersionedPolicy>,
-    /// Voting token id.
-    pub vote_token_id: Option<AccountId>,
-    /// Vote token total amount.
-    pub vote_token_total_amount: Balance,
-    /// Users.
-    pub users: LookupMap<AccountId, VersionedUser>,
+
+    /// Amount of $NEAR locked for storage / bonds.
+    pub locked_amount: Balance,
+
+    /// Vote staking contract id. That contract must have this account as owner.
+    pub staking_id: Option<AccountId>,
+    /// Delegated  token total amount.
+    pub total_delegation_amount: Balance,
+    /// Delegations per user.
+    pub delegations: LookupMap<AccountId, Balance>,
+
     /// Last available id for the proposals.
     pub last_proposal_id: u64,
     /// Proposal map from ID to proposal information.
     pub proposals: LookupMap<u64, VersionedProposal>,
+
     /// Last available id for the bounty.
     pub last_bounty_id: u64,
     /// Bounties map from ID to bounty information.
@@ -66,10 +69,9 @@ pub struct Contract {
     pub bounty_claimers: LookupMap<AccountId, Vec<BountyClaim>>,
     /// Count of claims per bounty.
     pub bounty_claims_count: LookupMap<u64, u32>,
+
     /// Large blob storage.
     pub blobs: LookupMap<CryptoHash, AccountId>,
-    /// Amount of $NEAR locked for storage / bonds.
-    pub locked_amount: Balance,
 }
 
 #[near_bindgen]
@@ -79,9 +81,9 @@ impl Contract {
         Self {
             config: LazyOption::new(StorageKeys::Config, Some(&config)),
             policy: LazyOption::new(StorageKeys::Policy, Some(&policy.upgrade())),
-            vote_token_id: None,
-            vote_token_total_amount: 0,
-            users: LookupMap::new(StorageKeys::Users),
+            staking_id: None,
+            total_delegation_amount: 0,
+            delegations: LookupMap::new(StorageKeys::Delegations),
             last_proposal_id: 0,
             proposals: LookupMap::new(StorageKeys::Proposals),
             last_bounty_id: 0,

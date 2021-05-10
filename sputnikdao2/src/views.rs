@@ -39,9 +39,23 @@ impl Contract {
         self.policy.get().unwrap().to_policy().clone()
     }
 
-    /// Full user information.
-    pub fn get_user(&self, account_id: ValidAccountId) -> User {
-        self.internal_get_user(account_id.as_ref())
+    /// Returns staking contract if available. Otherwise returns empty.
+    pub fn get_staking_contract(&self) -> AccountId {
+        self.staking_id.clone().unwrap_or_default()
+    }
+
+    /// Returns total delegated stake.
+    pub fn delegation_total_supply(&self) -> U128 {
+        U128(self.total_delegation_amount)
+    }
+
+    /// Returns delegated stake to given account.
+    pub fn delegation_balance_of(&self, account_id: ValidAccountId) -> U128 {
+        U128(
+            self.delegations
+                .get(account_id.as_ref())
+                .unwrap_or_default(),
+        )
     }
 
     /// Last proposal's id.

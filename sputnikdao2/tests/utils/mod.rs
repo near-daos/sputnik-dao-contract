@@ -1,13 +1,14 @@
 #![allow(dead_code)]
 use std::convert::TryFrom;
 
-use near_sdk::json_types::{Base64VecU8, ValidAccountId};
+use near_sdk::json_types::{Base64VecU8, ValidAccountId, U64};
 use near_sdk::AccountId;
 use near_sdk_sim::transaction::ExecutionStatus;
 use near_sdk_sim::{
     call, deploy, init_simulator, to_yocto, ContractAccount, ExecutionResult, UserAccount,
 };
 
+use sputnik_staking::ContractContract as StakingContract;
 use sputnikdao2::{
     Action, Config, ContractContract as DAOContract, ProposalInput, ProposalKind, VersionedPolicy,
 };
@@ -16,6 +17,7 @@ use test_token::ContractContract as TestTokenContract;
 near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
     DAO_WASM_BYTES => "res/sputnikdao2.wasm",
     TEST_TOKEN_WASM_BYTES => "../test-token/res/test_token.wasm",
+    STAKING_WASM_BYTES => "../sputnik-staking/res/sputnik_staking.wasm",
 }
 
 type Contract = ContractAccount<DAOContract>;
@@ -58,6 +60,17 @@ pub fn setup_test_token(root: &UserAccount) -> ContractAccount<TestTokenContract
         signer_account: root,
         deposit: to_yocto("200"),
         init_method: new()
+    )
+}
+
+pub fn setup_staking(root: &UserAccount) -> ContractAccount<StakingContract> {
+    deploy!(
+        contract: StakingContract,
+        contract_id: "staking".to_string(),
+        bytes: &STAKING_WASM_BYTES,
+        signer_account: root,
+        deposit: to_yocto("100"),
+        init_method: new(to_va("dao".to_string()), to_va("test_token".to_string()), U64(100_000_000_000))
     )
 }
 

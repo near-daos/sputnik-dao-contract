@@ -63,8 +63,8 @@ pub enum ProposalKind {
         receiver_id: AccountId,
         amount: U128,
     },
-    /// Sets vote token. Can only be used if vote token is not set yet.
-    SetVoteToken { vote_token_id: AccountId },
+    /// Sets staking contract. Can only be proposed if staking contract is not set yet.
+    SetStakingContract { staking_id: AccountId },
     /// Add new bounty.
     AddBounty { bounty: Bounty },
     /// Indicates that given bounty is done by given user.
@@ -88,7 +88,7 @@ impl ProposalKind {
             ProposalKind::UpgradeSelf { .. } => "upgrade_self",
             ProposalKind::UpgradeRemote { .. } => "upgrade_remote",
             ProposalKind::Transfer { .. } => "transfer",
-            ProposalKind::SetVoteToken { .. } => "set_vote_token",
+            ProposalKind::SetStakingContract { .. } => "set_vote_token",
             ProposalKind::AddBounty { .. } => "add_bounty",
             ProposalKind::BountyDone { .. } => "bounty_done",
             ProposalKind::Vote => "vote",
@@ -269,8 +269,9 @@ impl Contract {
                 receiver_id,
                 amount,
             } => self.internal_payout(token_id, receiver_id, amount.0),
-            ProposalKind::SetVoteToken { vote_token_id } => {
-                self.vote_token_id = Some(vote_token_id.clone());
+            ProposalKind::SetStakingContract { staking_id } => {
+                assert!(self.staking_id.is_none(), "ERR_INVALID_STAKING_CHANGE");
+                self.staking_id = Some(staking_id.clone());
                 PromiseOrValue::Value(())
             }
             ProposalKind::AddBounty { bounty } => {
@@ -328,7 +329,14 @@ impl Contract {
         );
 
         // 1. validate proposal.
-        // TODO: ???
+        match proposal.kind {
+            ProposalKind::SetStakingContract { .. } => assert!(
+                self.staking_id.is_none(),
+                "ERR_STAKING_CONTRACT_CANT_CHANGE"
+            ),
+            // TODO: add more verifications.
+            _ => {}
+        };
 
         // 2. check permission of caller to add proposal.
         assert!(
@@ -382,7 +390,7 @@ impl Contract {
                 };
                 proposal.update_votes(sender_id, Vote::from(action), amount);
                 // Updates proposal status with new votes using the policy.
-                proposal.status = policy.proposal_status(&proposal, self.vote_token_total_amount);
+                proposal.status = policy.proposal_status(&proposal, self.total_delegation_amount);
                 if proposal.status == ProposalStatus::Approved {
                     self.internal_execute_proposal(&policy, &proposal);
                     true
@@ -399,7 +407,7 @@ impl Contract {
                 }
             }
             Action::Finalize => {
-                proposal.status = policy.proposal_status(&proposal, self.vote_token_total_amount);
+                proposal.status = policy.proposal_status(&proposal, self.total_delegation_amount);
                 assert_eq!(
                     proposal.status,
                     ProposalStatus::Expired,
