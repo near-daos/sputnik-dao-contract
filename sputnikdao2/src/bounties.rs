@@ -20,7 +20,8 @@ pub struct BountyClaim {
 }
 
 /// Bounty information.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct Bounty {
     /// Description of the bounty.
@@ -36,7 +37,7 @@ pub struct Bounty {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-#[cfg_attr(feature = "test", derive(Debug))]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub enum VersionedBounty {
     Default(Bounty),
@@ -53,9 +54,10 @@ impl From<VersionedBounty> for Bounty {
 impl Contract {
     /// Adds bounty to the storage and returns it's id.
     /// Must not fail.
-    pub(crate) fn internal_add_bounty(&mut self, bounty: Bounty) -> u64 {
+    pub(crate) fn internal_add_bounty(&mut self, bounty: &Bounty) -> u64 {
         let id = self.last_bounty_id;
-        self.bounties.insert(&id, &VersionedBounty::Default(bounty));
+        self.bounties
+            .insert(&id, &VersionedBounty::Default(bounty.clone()));
         self.last_bounty_id += 1;
         id
     }

@@ -1,13 +1,14 @@
 #![allow(dead_code)]
 use std::convert::TryFrom;
 
-use near_sdk::json_types::{Base64VecU8, ValidAccountId, U64};
-use near_sdk::AccountId;
+pub use near_sdk::json_types::{Base64VecU8, ValidAccountId, WrappedDuration, U64};
+use near_sdk::{AccountId, Balance};
 use near_sdk_sim::transaction::ExecutionStatus;
 use near_sdk_sim::{
     call, deploy, init_simulator, to_yocto, ContractAccount, ExecutionResult, UserAccount,
 };
 
+use near_sdk::json_types::U128;
 use sputnik_staking::ContractContract as StakingContract;
 use sputnikdao2::{
     Action, Config, ContractContract as DAOContract, ProposalInput, ProposalKind, VersionedPolicy,
@@ -33,11 +34,6 @@ pub fn setup_dao() -> (UserAccount, Contract) {
     let root = init_simulator(None);
     let config = Config {
         name: "test".to_string(),
-        symbol: "TEST".to_string(),
-        icon: None,
-        reference: None,
-        reference_hash: None,
-        decimals: 24,
         purpose: "to test".to_string(),
         metadata: Base64VecU8(vec![]),
     };
@@ -95,6 +91,26 @@ pub fn add_member_proposal(
             kind: ProposalKind::AddMemberToRole {
                 member_id,
                 role: "council".to_string(),
+            },
+        },
+    )
+}
+
+pub fn add_transfer_proposal(
+    root: &UserAccount,
+    dao: &Contract,
+    receiver_id: AccountId,
+    amount: Balance,
+) -> ExecutionResult {
+    add_proposal(
+        root,
+        dao,
+        ProposalInput {
+            description: "test".to_string(),
+            kind: ProposalKind::Transfer {
+                token_id: "".to_string(),
+                receiver_id,
+                amount: U128(amount),
             },
         },
     )

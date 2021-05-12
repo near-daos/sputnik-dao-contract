@@ -1,20 +1,86 @@
+use std::collections::HashMap;
+
 use near_sdk::json_types::U128;
+use near_sdk::AccountId;
 use near_sdk_sim::{call, to_yocto, view};
 
-use crate::utils::*;
-use near_sdk::AccountId;
 use sputnik_staking::User;
 use sputnikdao2::{
     Action, Policy, Proposal, ProposalInput, ProposalKind, ProposalStatus, RoleKind,
+    RolePermission, VersionedPolicy, VotePolicy,
 };
 
+use crate::utils::*;
+
 mod utils;
+
+fn user(id: u32) -> String {
+    format!("user{}", id)
+}
+
+#[test]
+fn test_multi_council() {
+    let (root, dao) = setup_dao();
+    let user1 = root.create_user(user(1), to_yocto("1000"));
+    let user2 = root.create_user(user(2), to_yocto("1000"));
+    let user3 = root.create_user(user(3), to_yocto("1000"));
+    let new_policy = Policy {
+        roles: vec![
+            RolePermission {
+                name: "all".to_string(),
+                kind: RoleKind::Everyone,
+                permissions: vec!["*:AddProposal".to_string()].into_iter().collect(),
+                vote_policy: HashMap::default(),
+            },
+            RolePermission {
+                name: "council".to_string(),
+                kind: RoleKind::Group(vec![user(1), user(2)].into_iter().collect()),
+                permissions: vec!["*:*".to_string()].into_iter().collect(),
+                vote_policy: HashMap::default(),
+            },
+            RolePermission {
+                name: "community".to_string(),
+                kind: RoleKind::Group(vec![user(1), user(3), user(4)].into_iter().collect()),
+                permissions: vec!["*:*".to_string()].into_iter().collect(),
+                vote_policy: HashMap::default(),
+            },
+        ],
+        default_vote_policy: VotePolicy::default(),
+        proposal_bond: U128(10u128.pow(24)),
+        proposal_period: WrappedDuration::from(1_000_000_000 * 60 * 60 * 24 * 7),
+        bounty_bond: U128(10u128.pow(24)),
+        bounty_forgiveness_period: WrappedDuration::from(1_000_000_000 * 60 * 60 * 24),
+    };
+    add_proposal(
+        &root,
+        &dao,
+        ProposalInput {
+            description: "new policy".to_string(),
+            kind: ProposalKind::ChangePolicy {
+                policy: VersionedPolicy::Current(new_policy.clone()),
+            },
+        },
+    )
+    .assert_success();
+    vote(vec![&root], &dao, 0);
+    assert_eq!(view!(dao.get_policy()).unwrap_json::<Policy>(), new_policy);
+    add_transfer_proposal(&root, &dao, user(1), 1_000_000).assert_success();
+    vote(vec![&user2], &dao, 1);
+    vote(vec![&user3], &dao, 1);
+    let proposal = view!(dao.get_proposal(1)).unwrap_json::<Proposal>();
+    // Votes from members in different councils.
+    assert_eq!(proposal.status, ProposalStatus::InProgress);
+    // Finish with vote that is in both councils, which approves the proposal.
+    vote(vec![&user1], &dao, 1);
+    let proposal = view!(dao.get_proposal(1)).unwrap_json::<Proposal>();
+    assert_eq!(proposal.status, ProposalStatus::Approved);
+}
 
 #[test]
 fn test_create_dao_and_use_token() {
     let (root, dao) = setup_dao();
-    let user2 = root.create_user("user2".to_string(), to_yocto("1000"));
-    let user3 = root.create_user("user3".to_string(), to_yocto("1000"));
+    let user2 = root.create_user(user(2), to_yocto("1000"));
+    let user3 = root.create_user(user(3), to_yocto("1000"));
     let test_token = setup_test_token(&root);
     let staking = setup_staking(&root);
 

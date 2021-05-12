@@ -31,7 +31,7 @@ pub enum ProposalStatus {
 
 /// Kinds of proposals, doing different action.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-#[cfg_attr(feature = "test", derive(Clone, Debug))]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub enum ProposalKind {
     /// Change the DAO config.
@@ -118,7 +118,7 @@ impl From<Action> for Vote {
 
 /// Proposal that are sent to this DAO.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-#[cfg_attr(feature = "test", derive(Debug))]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct Proposal {
     /// Original proposer.
@@ -129,8 +129,8 @@ pub struct Proposal {
     pub kind: ProposalKind,
     /// Current status of the proposal.
     pub status: ProposalStatus,
-    /// Count of votes per decision: yes / no / spam.
-    pub vote_counts: [Balance; 3],
+    /// Count of votes per role per decision: yes / no / spam.
+    pub vote_counts: HashMap<String, [Balance; 3]>,
     /// Map of who voted and how.
     pub votes: HashMap<AccountId, Vote>,
     /// Submission time (for voting period).
@@ -138,7 +138,7 @@ pub struct Proposal {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-#[cfg_attr(feature = "test", derive(Debug))]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub enum VersionedProposal {
     Default(Proposal),
@@ -154,10 +154,26 @@ impl From<VersionedProposal> for Proposal {
 
 impl Proposal {
     /// Adds vote of the given user with given `amount` of weight. If user already voted, fails.
-    pub fn update_votes(&mut self, account_id: AccountId, vote: Vote, amount: Balance) {
-        self.vote_counts[vote.clone() as usize] += amount;
+    pub fn update_votes(
+        &mut self,
+        account_id: &AccountId,
+        roles: &[String],
+        vote: Vote,
+        policy: &Policy,
+        user_weight: Balance,
+    ) {
+        for role in roles {
+            let amount = if policy.is_token_weighted(role, &self.kind.to_policy_label().to_string())
+            {
+                user_weight
+            } else {
+                1
+            };
+            self.vote_counts.entry(role.clone()).or_insert([0u128; 3])[vote.clone() as usize] +=
+                amount;
+        }
         assert!(
-            self.votes.insert(account_id, vote).is_none(),
+            self.votes.insert(account_id.clone(), vote).is_none(),
             "ERR_ALREADY_VOTED"
         );
     }
@@ -179,7 +195,7 @@ impl From<ProposalInput> for Proposal {
             description: input.description,
             kind: input.kind,
             status: ProposalStatus::InProgress,
-            vote_counts: [0; 3],
+            vote_counts: HashMap::default(),
             votes: HashMap::default(),
             submission_time: WrappedTimestamp::from(env::block_timestamp()),
         }
@@ -275,7 +291,7 @@ impl Contract {
                 PromiseOrValue::Value(())
             }
             ProposalKind::AddBounty { bounty } => {
-                self.internal_add_bounty(bounty.clone());
+                self.internal_add_bounty(bounty);
                 PromiseOrValue::Value(())
             }
             ProposalKind::BountyDone {
@@ -340,11 +356,13 @@ impl Contract {
 
         // 2. check permission of caller to add proposal.
         assert!(
-            policy.can_execute_action(
-                self.internal_user_info(),
-                &proposal.kind,
-                &Action::AddProposal
-            ),
+            policy
+                .can_execute_action(
+                    self.internal_user_info(),
+                    &proposal.kind,
+                    &Action::AddProposal
+                )
+                .1,
             "ERR_PERMISSION_DENIED"
         );
 
@@ -361,14 +379,12 @@ impl Contract {
         let mut proposal: Proposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL").into();
         let policy = self.policy.get().unwrap().to_policy();
         // Check permissions for given action.
-        assert!(
-            policy.can_execute_action(
-                self.internal_user_info(),
-                &proposal.kind,
-                &Action::RemoveProposal
-            ),
-            "ERR_PERMISSION_DENIED"
+        let (roles, allowed) = policy.can_execute_action(
+            self.internal_user_info(),
+            &proposal.kind,
+            &Action::RemoveProposal,
         );
+        assert!(allowed, "ERR_PERMISSION_DENIED");
         let sender_id = env::predecessor_account_id();
         // Update proposal given action. Returns true if should be updated in storage.
         let update = match action {
@@ -383,14 +399,16 @@ impl Contract {
                     ProposalStatus::InProgress,
                     "ERR_PROPOSAL_NOT_IN_PROGRESS"
                 );
-                let amount = if policy.is_token_weighted(&proposal.kind) {
-                    self.get_user_weight(&sender_id)
-                } else {
-                    1
-                };
-                proposal.update_votes(sender_id, Vote::from(action), amount);
+                proposal.update_votes(
+                    &sender_id,
+                    &roles,
+                    Vote::from(action),
+                    &policy,
+                    self.get_user_weight(&sender_id),
+                );
                 // Updates proposal status with new votes using the policy.
-                proposal.status = policy.proposal_status(&proposal, self.total_delegation_amount);
+                proposal.status =
+                    policy.proposal_status(&proposal, roles, self.total_delegation_amount);
                 if proposal.status == ProposalStatus::Approved {
                     self.internal_execute_proposal(&policy, &proposal);
                     true
@@ -407,7 +425,11 @@ impl Contract {
                 }
             }
             Action::Finalize => {
-                proposal.status = policy.proposal_status(&proposal, self.total_delegation_amount);
+                proposal.status = policy.proposal_status(
+                    &proposal,
+                    policy.roles.iter().map(|r| r.name.clone()).collect(),
+                    self.total_delegation_amount,
+                );
                 assert_eq!(
                     proposal.status,
                     ProposalStatus::Expired,
