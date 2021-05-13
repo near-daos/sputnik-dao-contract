@@ -1,8 +1,8 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::env::BLOCKCHAIN_INTERFACE;
-use near_sdk::json_types::{Base64VecU8, U128};
+use near_sdk::json_types::Base64VecU8;
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, ext_contract, AccountId, Balance, Gas};
+use near_sdk::{env, AccountId, Balance, Gas};
 
 const BLOCKCHAIN_INTERFACE_NOT_SET_ERR: &str = "Blockchain interface not set.";
 
@@ -42,12 +42,6 @@ impl Config {
             metadata: Base64VecU8(vec![]),
         }
     }
-}
-
-/// External interface for Fungible tokens.
-#[ext_contract(ext_fungible_token)]
-pub trait FungibleTokenExt {
-    fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
 }
 
 /// Set of possible action to take.

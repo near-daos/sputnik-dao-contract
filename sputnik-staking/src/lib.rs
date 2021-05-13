@@ -1,3 +1,4 @@
+use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::LookupMap;
@@ -28,12 +29,6 @@ pub const GAS_FOR_REGISTER: Gas = 10_000_000_000_000;
 
 /// Amount of gas for undelegate action.
 pub const GAS_FOR_UNDELEGATE: Gas = 10_000_000_000_000;
-
-/// TODO: this should be in the near_standard_contracts
-#[ext_contract(ext_fungible_token)]
-pub trait FungibleToken {
-    fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
-}
 
 #[ext_contract(ext_sputnik)]
 pub trait Sputnik {
@@ -183,12 +178,13 @@ impl FungibleTokenReceiver for Contract {
 #[cfg(test)]
 mod tests {
     use near_contract_standards::storage_management::StorageManagement;
+    use near_sdk::json_types::U64;
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::{testing_env, MockedBlockchain};
+
     use near_sdk_sim::to_yocto;
 
     use super::*;
-    use near_sdk::json_types::U64;
 
     #[test]
     fn test_basics() {
