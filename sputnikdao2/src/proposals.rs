@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{Base64VecU8, WrappedTimestamp};
-use near_sdk::{AccountId, Balance, Gas, PromiseOrValue};
+use near_sdk::json_types::{Base64VecU8, WrappedTimestamp, U64};
+use near_sdk::{AccountId, Balance, PromiseOrValue};
 
 use crate::policy::UserInfo;
 use crate::types::{
@@ -29,6 +29,17 @@ pub enum ProposalStatus {
     Moved,
 }
 
+/// Function call arguments.
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
+#[serde(crate = "near_sdk::serde")]
+pub struct ActionCall {
+    method_name: String,
+    args: Base64VecU8,
+    deposit: U128,
+    gas: U64,
+}
+
 /// Kinds of proposals, doing different action.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
@@ -42,12 +53,11 @@ pub enum ProposalKind {
     AddMemberToRole { member_id: AccountId, role: String },
     /// Remove member to given role in the policy. This is short cut to updating the whole policy.
     RemoveMemberFromRole { member_id: AccountId, role: String },
+    /// Calls `receiver_id` with list of method names in a single promise.
+    /// Allows this contract to execute any arbitrary set of actions in other contracts.
     FunctionCall {
         receiver_id: AccountId,
-        method_name: String,
-        args: Base64VecU8,
-        deposit: U128,
-        gas: Gas,
+        actions: Vec<ActionCall>,
     },
     /// Upgrade this contract with given hash from blob store.
     UpgradeSelf { hash: Base64VecU8 },
@@ -256,18 +266,19 @@ impl Contract {
             }
             ProposalKind::FunctionCall {
                 receiver_id,
-                method_name,
-                args,
-                deposit,
-                gas,
-            } => Promise::new(receiver_id.clone())
-                .function_call(
-                    method_name.clone().into_bytes(),
-                    args.clone().into(),
-                    deposit.0,
-                    *gas,
-                )
-                .into(),
+                actions,
+            } => {
+                let mut promise = Promise::new(receiver_id.clone());
+                for action in actions {
+                    promise = promise.function_call(
+                        action.method_name.clone().into_bytes(),
+                        action.args.clone().into(),
+                        action.deposit.0,
+                        action.gas.0,
+                    )
+                }
+                promise.into()
+            }
             ProposalKind::UpgradeSelf { hash } => {
                 upgrade_self(&hash.0);
                 PromiseOrValue::Value(())
