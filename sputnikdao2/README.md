@@ -5,6 +5,16 @@
 Proposals is the main way to interact with the DAO.
 Each action on the DAO is done by creating and approving proposal.
 
+## Token voting
+
+DAO votes to select some token to become voting token (only can be done once, can't change later).
+
+User flow is next:
+- User's deposit the token into the DAO.
+- They can then choose who to delegate these tokens. It can be to themself or to other users to increase their vote weight.
+- When users vote for proposals, their vote is weighted by all the delegations to them.
+- Undelegating will block delegating / withdrawing until one voting period passes.
+- Undelegated tokens can be withdrawn by the user.
 
 ## Bounties
 

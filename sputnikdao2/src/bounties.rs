@@ -20,7 +20,8 @@ pub struct BountyClaim {
 }
 
 /// Bounty information.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct Bounty {
     /// Description of the bounty.
@@ -35,13 +36,29 @@ pub struct Bounty {
     pub max_deadline: WrappedDuration,
 }
 
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
+#[serde(crate = "near_sdk::serde")]
+pub enum VersionedBounty {
+    Default(Bounty),
+}
+
+impl From<VersionedBounty> for Bounty {
+    fn from(v: VersionedBounty) -> Self {
+        match v {
+            VersionedBounty::Default(b) => b,
+        }
+    }
+}
+
 impl Contract {
     /// Adds bounty to the storage and returns it's id.
     /// Must not fail.
-    pub(crate) fn internal_add_bounty(&mut self, bounty: Bounty) -> u64 {
-        let id = self.data().last_bounty_id;
-        self.data_mut().bounties.insert(&id, &bounty.into());
-        self.data_mut().last_bounty_id += 1;
+    pub(crate) fn internal_add_bounty(&mut self, bounty: &Bounty) -> u64 {
+        let id = self.last_bounty_id;
+        self.bounties
+            .insert(&id, &VersionedBounty::Default(bounty.clone()));
+        self.last_bounty_id += 1;
         id
     }
 
@@ -52,17 +69,18 @@ impl Contract {
         receiver_id: &AccountId,
         success: bool,
     ) -> PromiseOrValue<()> {
-        let mut bounty = self.data_mut().bounties.get(&id).expect("ERR_NO_BOUNTY");
+        let mut bounty: Bounty = self.bounties.get(&id).expect("ERR_NO_BOUNTY").into();
         let (claims, claim_idx) = self.internal_get_claims(id, &receiver_id);
         self.internal_remove_claim(id, claims, claim_idx);
         if success {
+            let res = self.internal_payout(&bounty.token, receiver_id, bounty.amount.0);
             if bounty.times == 0 {
-                self.data_mut().bounties.remove(&id);
+                self.bounties.remove(&id);
             } else {
                 bounty.times -= 1;
-                self.data_mut().bounties.insert(&id, &bounty);
+                self.bounties.insert(&id, &VersionedBounty::Default(bounty));
             }
-            self.internal_payout(&bounty.token, receiver_id, bounty.amount.0)
+            res
         } else {
             PromiseOrValue::Value(())
         }
@@ -85,28 +103,21 @@ impl Contract {
     /// Fails if already claimed `repeat` times.
     #[payable]
     pub fn bounty_claim(&mut self, id: u64, deadline: WrappedDuration) {
-        let bounty = self.data_mut().bounties.get(&id).expect("ERR_NO_BOUNTY");
-        let policy = self.data_mut().policy.get().unwrap().to_policy();
+        let bounty: Bounty = self.bounties.get(&id).expect("ERR_NO_BOUNTY").into();
+        let policy = self.policy.get().unwrap().to_policy();
         assert_eq!(
             env::attached_deposit(),
             policy.bounty_bond.0,
             "ERR_BOUNTY_WRONG_BOND"
         );
-        let claims_count = self
-            .data_mut()
-            .bounty_claims_count
-            .get(&id)
-            .unwrap_or_default();
+        let claims_count = self.bounty_claims_count.get(&id).unwrap_or_default();
         assert!(claims_count < bounty.times, "ERR_BOUNTY_ALL_CLAIMED");
         assert!(
             deadline.0 <= bounty.max_deadline.0,
             "ERR_BOUNTY_WRONG_DEADLINE"
         );
-        self.data_mut()
-            .bounty_claims_count
-            .insert(&id, &(claims_count + 1));
+        self.bounty_claims_count.insert(&id, &(claims_count + 1));
         let mut claims = self
-            .data_mut()
             .bounty_claimers
             .get(&env::predecessor_account_id())
             .unwrap_or_default();
@@ -116,8 +127,7 @@ impl Contract {
             deadline,
             completed: false,
         });
-        self.data_mut()
-            .bounty_claimers
+        self.bounty_claimers
             .insert(&env::predecessor_account_id(), &claims);
     }
 
@@ -125,21 +135,17 @@ impl Contract {
     fn internal_remove_claim(&mut self, id: u64, mut claims: Vec<BountyClaim>, claim_idx: usize) {
         claims.remove(claim_idx);
         if claims.len() == 0 {
-            self.data_mut()
-                .bounty_claimers
-                .remove(&env::predecessor_account_id());
+            self.bounty_claimers.remove(&env::predecessor_account_id());
         } else {
-            self.data_mut()
-                .bounty_claimers
+            self.bounty_claimers
                 .insert(&env::predecessor_account_id(), &claims);
         }
-        let count = self.data().bounty_claims_count.get(&id).unwrap() - 1;
-        self.data_mut().bounty_claims_count.insert(&id, &count);
+        let count = self.bounty_claims_count.get(&id).unwrap() - 1;
+        self.bounty_claims_count.insert(&id, &count);
     }
 
     fn internal_get_claims(&mut self, id: u64, sender_id: &AccountId) -> (Vec<BountyClaim>, usize) {
         let claims = self
-            .data_mut()
             .bounty_claimers
             .get(&sender_id)
             .expect("ERR_NO_BOUNTY_CLAIMS");
@@ -174,13 +180,13 @@ impl Contract {
                 },
             });
             claims[claim_idx].completed = true;
-            self.data_mut().bounty_claimers.insert(&sender_id, &claims);
+            self.bounty_claimers.insert(&sender_id, &claims);
         }
     }
 
     /// Give up working on the bounty.
     pub fn bounty_giveup(&mut self, id: u64) -> PromiseOrValue<()> {
-        let policy = self.data_mut().policy.get().unwrap().to_policy();
+        let policy = self.policy.get().unwrap().to_policy();
         let (claims, claim_idx) = self.internal_get_claims(id, &env::predecessor_account_id());
         let result = if env::block_timestamp() - claims[claim_idx].start_time.0
             > policy.bounty_forgiveness_period.0

@@ -1,8 +1,8 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::env::BLOCKCHAIN_INTERFACE;
-use near_sdk::json_types::{Base64VecU8, U128};
+use near_sdk::json_types::Base64VecU8;
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, ext_contract, Balance, Gas};
+use near_sdk::{env, AccountId, Balance, Gas};
 
 const BLOCKCHAIN_INTERFACE_NOT_SET_ERR: &str = "Blockchain interface not set.";
 
@@ -15,31 +15,17 @@ pub const ONE_YOCTO_NEAR: Balance = 1;
 /// Gas for single ft_transfer call.
 pub const GAS_FOR_FT_TRANSFER: Gas = 10_000_000_000_000;
 
-/// No deposit.
-pub const NO_DEPOSIT: Balance = 0;
-
-/// Gas for upgrading remote contract on promise creation.
-pub const GAS_FOR_UPGRADE_REMOTE_PROMISE: Gas = 30_000_000_000_000;
-
 /// Gas for upgrading this contract on promise creation + deploying new contract.
 pub const GAS_FOR_UPGRADE_SELF_DEPLOY: Gas = 30_000_000_000_000;
+
+pub const GAS_FOR_UPGRADE_REMOTE_DEPLOY: Gas = 10_000_000_000_000;
 
 /// Configuration of the DAO.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Config {
-    /// Name of the DAO and of the token.
+    /// Name of the DAO.
     pub name: String,
-    /// Token metadata: symbol.
-    pub symbol: String,
-    /// Token metadata: Url for icon.
-    pub icon: Option<String>,
-    /// Token metadata: link to reference.
-    pub reference: Option<String>,
-    /// Token metadata: reference hash to validate that reference link fetches correct data.
-    pub reference_hash: Option<Base64VecU8>,
-    /// Number of decimals in the token.
-    pub decimals: u8,
     /// Purpose of this DAO.
     pub purpose: String,
     /// Generic metadata. Can be used by specific UI to store additional data.
@@ -53,20 +39,9 @@ impl Config {
         Self {
             name: "Test".to_string(),
             purpose: "to test".to_string(),
-            icon: None,
-            reference: None,
-            reference_hash: None,
-            decimals: 24,
-            symbol: "TEST".to_string(),
             metadata: Base64VecU8(vec![]),
         }
     }
-}
-
-/// External interface for Fungible tokens.
-#[ext_contract(ext_fungible_token)]
-pub trait FungibleTokenExt {
-    fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
 }
 
 /// Set of possible action to take.
@@ -125,6 +100,36 @@ pub(crate) fn upgrade_self(hash: &[u8]) {
                     method_name.len() as _,
                     method_name.as_ptr() as _,
                     0 as _,
+                    0 as _,
+                    0 as _,
+                    attached_gas,
+                );
+        });
+    }
+}
+
+pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &[u8]) {
+    unsafe {
+        BLOCKCHAIN_INTERFACE.with(|b| {
+            // Load input into register 0.
+            b.borrow()
+                .as_ref()
+                .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
+                .storage_read(hash.len() as _, hash.as_ptr() as _, 0);
+            let promise_id = b
+                .borrow()
+                .as_ref()
+                .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
+                .promise_batch_create(receiver_id.len() as _, receiver_id.as_ptr() as _);
+            let attached_gas = env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_REMOTE_DEPLOY;
+            b.borrow()
+                .as_ref()
+                .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
+                .promise_batch_action_function_call(
+                    promise_id,
+                    method_name.len() as _,
+                    method_name.as_ptr() as _,
+                    u64::MAX as _,
                     0 as _,
                     0 as _,
                     attached_gas,

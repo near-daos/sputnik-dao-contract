@@ -63,7 +63,8 @@ fn vote_requirement(policy: &[PolicyItem], num_council: u64, amount: Option<Bala
     policy[policy.len() - 1].num_votes(num_council)
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Eq, PartialEq, Debug, Serialize, Deserialize, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug, Eq, PartialEq))]
 #[serde(crate = "near_sdk::serde")]
 pub enum ProposalStatus {
     /// Proposal is in active voting stage.
@@ -241,8 +242,8 @@ impl SputnikDAO {
             vote_no: 0,
             votes: HashMap::default(),
         };
-        self.data_mut().proposals.push(&p);
-        self.data_mut().proposals.len() - 1
+        self.proposals.push(&p);
+        self.proposals.len() - 1
     }
 
     pub fn get_vote_period(&self) -> WrappedDuration {
@@ -258,12 +259,12 @@ impl SputnikDAO {
     }
 
     pub fn get_num_proposals(&self) -> u64 {
-        self.data_mut().proposals.len()
+        self.proposals.len()
     }
 
     pub fn get_proposals(&self, from_index: u64, limit: u64) -> Vec<Proposal> {
-        (from_index..std::cmp::min(from_index + limit, self.data_mut().proposals.len()))
-            .map(|index| self.data_mut().proposals.get(index).unwrap())
+        (from_index..std::cmp::min(from_index + limit, self.proposals.len()))
+            .map(|index| self.proposals.get(index).unwrap())
             .collect()
     }
 
@@ -273,17 +274,14 @@ impl SputnikDAO {
         from_index: u64,
         limit: u64,
     ) -> HashMap<u64, Proposal> {
-        let filtered_proposal_ids: Vec<u64> = (0..self.data_mut().proposals.len())
-            .filter(|index| self.data_mut().proposals.get(index.clone()).unwrap().status == status)
+        let filtered_proposal_ids: Vec<u64> = (0..self.proposals.len())
+            .filter(|index| self.proposals.get(index.clone()).unwrap().status == status)
             .collect();
 
         (from_index..std::cmp::min(from_index + limit, filtered_proposal_ids.len() as u64))
             .map(|index| {
                 let proposal_id: u64 = filtered_proposal_ids[index as usize];
-                (
-                    proposal_id,
-                    self.data_mut().proposals.get(proposal_id).unwrap(),
-                )
+                (proposal_id, self.proposals.get(proposal_id).unwrap())
             })
             .collect()
     }
@@ -294,28 +292,20 @@ impl SputnikDAO {
         from_index: u64,
         limit: u64,
     ) -> HashMap<u64, Proposal> {
-        let filtered_proposal_ids: Vec<u64> = (0..self.data_mut().proposals.len())
-            .filter(|index| {
-                statuses.contains(&self.data_mut().proposals.get(index.clone()).unwrap().status)
-            })
+        let filtered_proposal_ids: Vec<u64> = (0..self.proposals.len())
+            .filter(|index| statuses.contains(&self.proposals.get(index.clone()).unwrap().status))
             .collect();
 
         (from_index..std::cmp::min(from_index + limit, filtered_proposal_ids.len() as u64))
             .map(|index| {
                 let proposal_id: u64 = filtered_proposal_ids[index as usize];
-                (
-                    proposal_id,
-                    self.data_mut().proposals.get(proposal_id).unwrap(),
-                )
+                (proposal_id, self.proposals.get(proposal_id).unwrap())
             })
             .collect()
     }
 
     pub fn get_proposal(&self, id: u64) -> Proposal {
-        self.data_mut()
-            .proposals
-            .get(id)
-            .expect("Proposal not found")
+        self.proposals.get(id).expect("Proposal not found")
     }
 
     pub fn get_purpose(&self) -> String {
@@ -327,11 +317,7 @@ impl SputnikDAO {
             self.council.contains(&env::predecessor_account_id()),
             "Only council can vote"
         );
-        let mut proposal = self
-            .data_mut()
-            .proposals
-            .get(id)
-            .expect("No proposal with such id");
+        let mut proposal = self.proposals.get(id).expect("No proposal with such id");
         assert_eq!(
             proposal.status,
             ProposalStatus::Vote,
@@ -357,7 +343,7 @@ impl SputnikDAO {
             proposal.vote_period_end = env::block_timestamp() + self.grace_period;
             proposal.status = post_status.clone();
         }
-        self.data_mut().proposals.replace(id, &proposal);
+        self.proposals.replace(id, &proposal);
         // Finalize if this vote is done.
         if post_status.is_finalized() {
             self.finalize(id);
@@ -365,11 +351,7 @@ impl SputnikDAO {
     }
 
     pub fn finalize(&mut self, id: u64) {
-        let mut proposal = self
-            .data_mut()
-            .proposals
-            .get(id)
-            .expect("No proposal with such id");
+        let mut proposal = self.proposals.get(id).expect("No proposal with such id");
         assert!(
             !proposal.status.is_finalized(),
             "Proposal already finalized"
@@ -416,7 +398,7 @@ impl SputnikDAO {
                 env::panic(b"voting period has not expired and no majority vote yet")
             }
         }
-        self.data_mut().proposals.replace(id, &proposal);
+        self.proposals.replace(id, &proposal);
     }
 }
 

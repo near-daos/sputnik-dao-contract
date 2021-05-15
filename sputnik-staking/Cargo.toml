@@ -1,6 +1,6 @@
 [package]
-name = "sputnikdao2"
-version = "2.0.0"
+name = "sputnik-staking"
+version = "1.0.0"
 authors = ["Sputnik Devs <near-daos@protonmail.com>"]
 edition = "2018"
 publish = false
@@ -25,4 +25,3 @@ hex = "0.4.2"
 [dev-dependencies]
 near-sdk-sim = "3.1.0"
 test-token = { path = "../test-token" }
-sputnik-staking = { path = "../sputnik-staking" }

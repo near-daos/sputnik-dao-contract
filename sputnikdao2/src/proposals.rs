@@ -1,16 +1,15 @@
-use std::convert::TryInto;
+use std::collections::HashMap;
 
+use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{Base64VecU8, WrappedTimestamp};
-use near_sdk::{AccountId, Balance, Gas, PromiseOrValue};
+use near_sdk::json_types::{Base64VecU8, WrappedTimestamp, U64};
+use near_sdk::{AccountId, Balance, PromiseOrValue};
 
 use crate::policy::UserInfo;
 use crate::types::{
-    ext_fungible_token, upgrade_self, Action, Config, BASE_TOKEN, GAS_FOR_FT_TRANSFER,
-    GAS_FOR_UPGRADE_REMOTE_PROMISE, NO_DEPOSIT, ONE_YOCTO_NEAR,
+    upgrade_remote, upgrade_self, Action, Config, BASE_TOKEN, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR,
 };
 use crate::*;
-use std::collections::HashMap;
 
 /// Status of a proposal.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -30,9 +29,20 @@ pub enum ProposalStatus {
     Moved,
 }
 
+/// Function call arguments.
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
+#[serde(crate = "near_sdk::serde")]
+pub struct ActionCall {
+    method_name: String,
+    args: Base64VecU8,
+    deposit: U128,
+    gas: U64,
+}
+
 /// Kinds of proposals, doing different action.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-#[cfg_attr(feature = "test", derive(Clone, Debug))]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub enum ProposalKind {
     /// Change the DAO config.
@@ -43,20 +53,19 @@ pub enum ProposalKind {
     AddMemberToRole { member_id: AccountId, role: String },
     /// Remove member to given role in the policy. This is short cut to updating the whole policy.
     RemoveMemberFromRole { member_id: AccountId, role: String },
+    /// Calls `receiver_id` with list of method names in a single promise.
+    /// Allows this contract to execute any arbitrary set of actions in other contracts.
     FunctionCall {
         receiver_id: AccountId,
-        method_name: String,
-        args: Base64VecU8,
-        deposit: U128,
-        gas: Gas,
+        actions: Vec<ActionCall>,
     },
     /// Upgrade this contract with given hash from blob store.
-    UpgradeSelf { hash: Base64VecU8 },
+    UpgradeSelf { hash: Base58CryptoHash },
     /// Upgrade another contract, by calling method with the code from given hash from blob store.
     UpgradeRemote {
         receiver_id: AccountId,
         method_name: String,
-        hash: Base64VecU8,
+        hash: Base58CryptoHash,
     },
     /// Transfers given amount of `token_id` from this DAO to `receiver_id`.
     Transfer {
@@ -64,10 +73,8 @@ pub enum ProposalKind {
         receiver_id: AccountId,
         amount: U128,
     },
-    /// Mints new tokens inside this DAO.
-    Mint { amount: U128 },
-    /// Burns tokens inside this DAO.
-    Burn { amount: U128 },
+    /// Sets staking contract. Can only be proposed if staking contract is not set yet.
+    SetStakingContract { staking_id: AccountId },
     /// Add new bounty.
     AddBounty { bounty: Bounty },
     /// Indicates that given bounty is done by given user.
@@ -91,8 +98,7 @@ impl ProposalKind {
             ProposalKind::UpgradeSelf { .. } => "upgrade_self",
             ProposalKind::UpgradeRemote { .. } => "upgrade_remote",
             ProposalKind::Transfer { .. } => "transfer",
-            ProposalKind::Mint { .. } => "mint",
-            ProposalKind::Burn { .. } => "burn",
+            ProposalKind::SetStakingContract { .. } => "set_vote_token",
             ProposalKind::AddBounty { .. } => "add_bounty",
             ProposalKind::BountyDone { .. } => "bounty_done",
             ProposalKind::Vote => "vote",
@@ -122,7 +128,7 @@ impl From<Action> for Vote {
 
 /// Proposal that are sent to this DAO.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-#[cfg_attr(feature = "test", derive(Debug))]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct Proposal {
     /// Original proposer.
@@ -133,20 +139,51 @@ pub struct Proposal {
     pub kind: ProposalKind,
     /// Current status of the proposal.
     pub status: ProposalStatus,
-    /// Count of votes per decision: yes / no / spam.
-    pub vote_counts: [Balance; 3],
+    /// Count of votes per role per decision: yes / no / spam.
+    pub vote_counts: HashMap<String, [Balance; 3]>,
     /// Map of who voted and how.
     pub votes: HashMap<AccountId, Vote>,
     /// Submission time (for voting period).
     pub submission_time: WrappedTimestamp,
 }
 
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[serde(crate = "near_sdk::serde")]
+pub enum VersionedProposal {
+    Default(Proposal),
+}
+
+impl From<VersionedProposal> for Proposal {
+    fn from(v: VersionedProposal) -> Self {
+        match v {
+            VersionedProposal::Default(p) => p,
+        }
+    }
+}
+
 impl Proposal {
     /// Adds vote of the given user with given `amount` of weight. If user already voted, fails.
-    pub fn update_votes(&mut self, account_id: AccountId, vote: Vote, amount: Balance) {
-        self.vote_counts[vote.clone() as usize] += amount;
+    pub fn update_votes(
+        &mut self,
+        account_id: &AccountId,
+        roles: &[String],
+        vote: Vote,
+        policy: &Policy,
+        user_weight: Balance,
+    ) {
+        for role in roles {
+            let amount = if policy.is_token_weighted(role, &self.kind.to_policy_label().to_string())
+            {
+                user_weight
+            } else {
+                1
+            };
+            self.vote_counts.entry(role.clone()).or_insert([0u128; 3])[vote.clone() as usize] +=
+                amount;
+        }
         assert!(
-            self.votes.insert(account_id, vote).is_none(),
+            self.votes.insert(account_id.clone(), vote).is_none(),
             "ERR_ALREADY_VOTED"
         );
     }
@@ -168,7 +205,7 @@ impl From<ProposalInput> for Proposal {
             description: input.description,
             kind: input.kind,
             status: ProposalStatus::InProgress,
-            vote_counts: [0; 3],
+            vote_counts: HashMap::default(),
             votes: HashMap::default(),
             submission_time: WrappedTimestamp::from(env::block_timestamp()),
         }
@@ -183,12 +220,7 @@ impl Contract {
         receiver_id: &AccountId,
         amount: Balance,
     ) -> PromiseOrValue<()> {
-        if token_id == &env::current_account_id() {
-            self.token
-                .internal_withdraw(&env::current_account_id(), amount);
-            self.token.internal_deposit(&receiver_id, amount);
-            PromiseOrValue::Value(())
-        } else if token_id == BASE_TOKEN {
+        if token_id == BASE_TOKEN {
             Promise::new(receiver_id.clone()).transfer(amount).into()
         } else {
             ext_fungible_token::ft_transfer(
@@ -213,45 +245,42 @@ impl Contract {
         Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond.0);
         match &proposal.kind {
             ProposalKind::ChangeConfig { config } => {
-                self.data_mut().config.set(config);
+                self.config.set(config);
                 PromiseOrValue::Value(())
             }
             ProposalKind::ChangePolicy { policy } => {
-                self.data_mut().policy.set(policy);
+                self.policy.set(policy);
                 PromiseOrValue::Value(())
             }
             ProposalKind::AddMemberToRole { member_id, role } => {
                 let mut new_policy = policy.clone();
                 new_policy.add_member_to_role(role, member_id);
-                self.data_mut()
-                    .policy
-                    .set(&VersionedPolicy::Current(new_policy));
+                self.policy.set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
             ProposalKind::RemoveMemberFromRole { member_id, role } => {
                 let mut new_policy = policy.clone();
                 new_policy.remove_member_from_role(role, member_id);
-                self.data_mut()
-                    .policy
-                    .set(&VersionedPolicy::Current(new_policy));
+                self.policy.set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
             ProposalKind::FunctionCall {
                 receiver_id,
-                method_name,
-                args,
-                deposit,
-                gas,
-            } => Promise::new(receiver_id.clone())
-                .function_call(
-                    method_name.clone().into_bytes(),
-                    args.clone().into(),
-                    deposit.0,
-                    *gas,
-                )
-                .into(),
+                actions,
+            } => {
+                let mut promise = Promise::new(receiver_id.clone());
+                for action in actions {
+                    promise = promise.function_call(
+                        action.method_name.clone().into_bytes(),
+                        action.args.clone().into(),
+                        action.deposit.0,
+                        action.gas.0,
+                    )
+                }
+                promise.into()
+            }
             ProposalKind::UpgradeSelf { hash } => {
-                upgrade_self(&hash.0);
+                upgrade_self(&CryptoHash::from(hash.clone()));
                 PromiseOrValue::Value(())
             }
             ProposalKind::UpgradeRemote {
@@ -259,33 +288,21 @@ impl Contract {
                 method_name,
                 hash,
             } => {
-                let code = env::storage_read(&hash.0).expect("ERR_NO_CODE_STAGED");
-                Promise::new(receiver_id.clone())
-                    .function_call(
-                        method_name.clone().into_bytes(),
-                        code,
-                        NO_DEPOSIT,
-                        env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_REMOTE_PROMISE,
-                    )
-                    .into()
+                upgrade_remote(receiver_id, method_name, &CryptoHash::from(hash.clone()));
+                PromiseOrValue::Value(())
             }
             ProposalKind::Transfer {
                 token_id,
                 receiver_id,
                 amount,
             } => self.internal_payout(token_id, receiver_id, amount.0),
-            ProposalKind::Mint { amount } => {
-                self.token
-                    .internal_deposit(&env::current_account_id(), amount.0);
-                PromiseOrValue::Value(())
-            }
-            ProposalKind::Burn { amount } => {
-                self.token
-                    .internal_withdraw(&env::current_account_id(), amount.0);
+            ProposalKind::SetStakingContract { staking_id } => {
+                assert!(self.staking_id.is_none(), "ERR_INVALID_STAKING_CHANGE");
+                self.staking_id = Some(staking_id.clone());
                 PromiseOrValue::Value(())
             }
             ProposalKind::AddBounty { bounty } => {
-                self.internal_add_bounty(bounty.clone());
+                self.internal_add_bounty(bounty);
                 PromiseOrValue::Value(())
             }
             ProposalKind::BountyDone {
@@ -319,7 +336,7 @@ impl Contract {
     pub(crate) fn internal_user_info(&self) -> UserInfo {
         let account_id = env::predecessor_account_id();
         UserInfo {
-            amount: self.token.accounts.get(&account_id),
+            amount: self.get_user_weight(&account_id),
             account_id,
         }
     }
@@ -332,51 +349,59 @@ impl Contract {
     pub fn add_proposal(&mut self, proposal: ProposalInput) -> u64 {
         // 0. validate bond attached.
         // TODO: consider bond in the token of this DAO.
-        let policy = self.data().policy.get().unwrap().to_policy();
+        let policy = self.policy.get().unwrap().to_policy();
         assert!(
             env::attached_deposit() >= policy.proposal_bond.0,
             "ERR_MIN_BOND"
         );
 
         // 1. validate proposal.
-        // TODO: ???
+        match proposal.kind {
+            ProposalKind::SetStakingContract { .. } => assert!(
+                self.staking_id.is_none(),
+                "ERR_STAKING_CONTRACT_CANT_CHANGE"
+            ),
+            // TODO: add more verifications.
+            _ => {}
+        };
 
         // 2. check permission of caller to add proposal.
         assert!(
-            policy.can_execute_action(
-                self.internal_user_info(),
-                &proposal.kind,
-                &Action::AddProposal
-            ),
+            policy
+                .can_execute_action(
+                    self.internal_user_info(),
+                    &proposal.kind,
+                    &Action::AddProposal
+                )
+                .1,
             "ERR_PERMISSION_DENIED"
         );
 
         // 3. actually add proposal to current list.
-        let id = self.data().last_proposal_id;
-        self.data_mut().proposals.insert(&id, &proposal.into());
-        self.data_mut().last_proposal_id += 1;
+        let id = self.last_proposal_id;
+        self.proposals
+            .insert(&id, &VersionedProposal::Default(proposal.into()));
+        self.last_proposal_id += 1;
         id
     }
 
     /// Act on given proposal by id, if permissions allow.
     pub fn act_proposal(&mut self, id: u64, action: Action) {
-        let mut proposal = self.data_mut().proposals.get(&id).expect("ERR_NO_PROPOSAL");
-        let policy = self.data().policy.get().unwrap().to_policy();
+        let mut proposal: Proposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL").into();
+        let policy = self.policy.get().unwrap().to_policy();
         // Check permissions for given action.
-        assert!(
-            policy.can_execute_action(
-                self.internal_user_info(),
-                &proposal.kind,
-                &Action::RemoveProposal
-            ),
-            "ERR_PERMISSION_DENIED"
+        let (roles, allowed) = policy.can_execute_action(
+            self.internal_user_info(),
+            &proposal.kind,
+            &Action::RemoveProposal,
         );
+        assert!(allowed, "ERR_PERMISSION_DENIED");
         let sender_id = env::predecessor_account_id();
         // Update proposal given action. Returns true if should be updated in storage.
         let update = match action {
             Action::AddProposal => env::panic(b"ERR_WRONG_ACTION"),
             Action::RemoveProposal => {
-                self.data_mut().proposals.remove(&id);
+                self.proposals.remove(&id);
                 false
             }
             Action::VoteApprove | Action::VoteReject | Action::VoteRemove => {
@@ -385,20 +410,22 @@ impl Contract {
                     ProposalStatus::InProgress,
                     "ERR_PROPOSAL_NOT_IN_PROGRESS"
                 );
-                let amount = if policy.is_token_weighted(&proposal.kind) {
-                    self.ft_balance_of(sender_id.clone().try_into().unwrap()).0
-                } else {
-                    1
-                };
-                proposal.update_votes(sender_id, Vote::from(action), amount);
+                proposal.update_votes(
+                    &sender_id,
+                    &roles,
+                    Vote::from(action),
+                    &policy,
+                    self.get_user_weight(&sender_id),
+                );
                 // Updates proposal status with new votes using the policy.
-                proposal.status = policy.proposal_status(&proposal, self.ft_total_supply().0);
+                proposal.status =
+                    policy.proposal_status(&proposal, roles, self.total_delegation_amount);
                 if proposal.status == ProposalStatus::Approved {
                     self.internal_execute_proposal(&policy, &proposal);
                     true
                 } else if proposal.status == ProposalStatus::Removed {
                     self.internal_reject_proposal(&policy, &proposal, false);
-                    self.data_mut().proposals.remove(&id);
+                    self.proposals.remove(&id);
                     false
                 } else if proposal.status == ProposalStatus::Rejected {
                     self.internal_reject_proposal(&policy, &proposal, true);
@@ -409,7 +436,11 @@ impl Contract {
                 }
             }
             Action::Finalize => {
-                proposal.status = policy.proposal_status(&proposal, self.ft_total_supply().0);
+                proposal.status = policy.proposal_status(
+                    &proposal,
+                    policy.roles.iter().map(|r| r.name.clone()).collect(),
+                    self.total_delegation_amount,
+                );
                 assert_eq!(
                     proposal.status,
                     ProposalStatus::Expired,
@@ -421,7 +452,8 @@ impl Contract {
             Action::MoveToHub => false,
         };
         if update {
-            self.data_mut().proposals.insert(&id, &proposal);
+            self.proposals
+                .insert(&id, &VersionedProposal::Default(proposal));
         }
     }
 }
