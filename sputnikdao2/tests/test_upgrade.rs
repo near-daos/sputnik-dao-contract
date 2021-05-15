@@ -1,5 +1,5 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{Base64VecU8, ValidAccountId};
+use near_sdk::json_types::{Base58CryptoHash, ValidAccountId};
 use near_sdk::serde_json::json;
 use near_sdk_sim::{call, to_yocto, view, DEFAULT_GAS};
 use sputnikdao2::{Action, ProposalInput, ProposalKind};
@@ -23,7 +23,7 @@ fn test_upgrade() {
             near_sdk_sim::DEFAULT_GAS,
             to_yocto("200"),
         )
-        .unwrap_json::<Base64VecU8>();
+        .unwrap_json::<Base58CryptoHash>();
     call!(
         root,
         dao.add_proposal(ProposalInput {
@@ -36,6 +36,8 @@ fn test_upgrade() {
     assert_eq!(view!(dao.get_last_proposal_id()).unwrap_json::<u64>(), 1);
     call!(root, dao.act_proposal(0, Action::VoteApprove)).assert_success();
     assert_eq!(view!(dao.version()).unwrap_json::<String>(), "2.0.0");
+    call!(root, dao.remove_blob(hash)).assert_success();
+    should_fail(call!(root, dao.remove_blob(hash)));
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -72,7 +74,7 @@ fn test_upgrade_other() {
             near_sdk_sim::DEFAULT_GAS,
             to_yocto("200"),
         )
-        .unwrap_json::<Base64VecU8>();
+        .unwrap_json::<Base58CryptoHash>();
     add_proposal(
         &root,
         &dao,

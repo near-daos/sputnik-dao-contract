@@ -44,6 +44,16 @@ impl Contract {
         self.staking_id.clone().unwrap_or_default()
     }
 
+    /// Returns if blob with given hash is stored.
+    pub fn has_blob(&self, hash: Base58CryptoHash) -> bool {
+        env::storage_read(&CryptoHash::from(hash)).is_some()
+    }
+
+    /// Returns available amount of NEAR that can be spent (outside of amount for storage and bonds).
+    pub fn get_available_amount(&self) -> U128 {
+        U128(env::account_balance() - self.locked_amount)
+    }
+
     /// Returns total delegated stake.
     pub fn delegation_total_supply(&self) -> U128 {
         U128(self.total_delegation_amount)

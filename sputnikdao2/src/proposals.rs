@@ -60,12 +60,12 @@ pub enum ProposalKind {
         actions: Vec<ActionCall>,
     },
     /// Upgrade this contract with given hash from blob store.
-    UpgradeSelf { hash: Base64VecU8 },
+    UpgradeSelf { hash: Base58CryptoHash },
     /// Upgrade another contract, by calling method with the code from given hash from blob store.
     UpgradeRemote {
         receiver_id: AccountId,
         method_name: String,
-        hash: Base64VecU8,
+        hash: Base58CryptoHash,
     },
     /// Transfers given amount of `token_id` from this DAO to `receiver_id`.
     Transfer {
@@ -280,7 +280,7 @@ impl Contract {
                 promise.into()
             }
             ProposalKind::UpgradeSelf { hash } => {
-                upgrade_self(&hash.0);
+                upgrade_self(&CryptoHash::from(hash.clone()));
                 PromiseOrValue::Value(())
             }
             ProposalKind::UpgradeRemote {
@@ -288,7 +288,7 @@ impl Contract {
                 method_name,
                 hash,
             } => {
-                upgrade_remote(receiver_id, method_name, &hash.0);
+                upgrade_remote(receiver_id, method_name, &CryptoHash::from(hash.clone()));
                 PromiseOrValue::Value(())
             }
             ProposalKind::Transfer {
