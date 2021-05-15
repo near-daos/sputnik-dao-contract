@@ -92,3 +92,62 @@ View first 10 proposals:
 ```
 near view $SPUTNIK_ID get_proposals '{"from_index": 0, "limit": 10}'
 ```
+
+## Proposal Kinds
+
+Each kind of proposal represents an operation the DAO can perform. Proposal kinds are:
+```
+ProposalKind::ChangeConfig { .. } => "config",
+ProposalKind::ChangePolicy { .. } => "policy",
+ProposalKind::AddMemberToRole { .. } => "add_member_to_role",
+ProposalKind::RemoveMemberFromRole { .. } => "remove_member_from_role",
+ProposalKind::FunctionCall { .. } => "call",
+ProposalKind::UpgradeSelf { .. } => "upgrade_self",
+ProposalKind::UpgradeRemote { .. } => "upgrade_remote",
+ProposalKind::Transfer { .. } => "transfer",
+ProposalKind::Mint { .. } => "mint",
+ProposalKind::Burn { .. } => "burn",
+ProposalKind::AddBounty { .. } => "add_bounty",
+ProposalKind::BountyDone { .. } => "bounty_done",
+ProposalKind::Vote => "vote",
+```
+### Voting Policy
+
+You can set a different vote policy for each one of the proposal kinds.
+
+Vote policy can be: `TokenWeight`, meaning members vote with tokens, or `RoleWeight(role)` where all users with such role (e.g."council") can vote.
+
+Also a vote policy has a "threshold". The threshold could be a ratio. e.g. `threshold:[1,2]` => 1/2 or 50% of the votes approve the proposal, or the threshold could be a fixed number (weight), so you can say that you need 3 votes to approve a proposal disregarding the amount of people in the rol, and you can say that you need 1m tokens to approve a proposal disregarding total token supply.
+
+When vote policy is `TokenWeight`, vote % is measured against total toke supply, and each member vote weight is based on tokens owned. So if threshold is 1/2 you need half the token supply to vote "yes" to pass a proposal.
+
+When vote policy is `RoleWeight(role)`, vote % is measured against the count of people with that role, and each member has one vote. So if threshold is 1/2 you need half the members with the role to vote "yes" to pass a proposal.
+
+## Roles & Permissions
+
+The DAO can have several roles, and you can define permissions for each role. A permission is a combination of `proposal_kind:VotingAction` so they can become very specific.
+
+Actions are:
+```
+/// Action to add proposal. Used internally.
+AddProposal,
+/// Action to remove given proposal. Used for immediate deletion in special cases.
+RemoveProposal,
+/// Vote to approve given proposal or bounty.
+VoteApprove,
+/// Vote to reject given proposal or bounty.
+VoteReject,
+/// Vote to remove given proposal or bounty (because it's spam).
+VoteRemove,
+/// Finalize proposal, called when it's expired to return the funds
+/// (or in the future can be used for early proposal closure).
+Finalize,
+/// Move a proposal to the hub to shift into another DAO.
+MoveToHub
+```
+
+so, for example a role with: `["mint:VoteReject","mint:VoteRemove"]` means the users with that role can only vote to *reject or remove a mint proposal*, but they can't vote to approve.
+
+You can use `*` as a wildcard, so for example a role with `mint:*` can perform any vote action on mint proposals.
+
+You can also use `*:*` for unlimited permission, normally the `council` role has `*:*` as its configured permission so they can perform any vote action on any kind of proposal.
