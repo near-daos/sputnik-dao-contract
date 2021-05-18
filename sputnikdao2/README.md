@@ -42,16 +42,16 @@ Blob can be removed only by the original storer.
 
 ## Testing
 
-To test the sputnik2 DAO you will need a testnet account. If you don't have one yet create it [https://wallet.testnet.near.org/](in this link).
+To test the sputnik2 DAO you will need a testnet account. If you don't have one yet create it in https://wallet.testnet.near.org/.
 
 Lets assume your account is 'sputnik2.testnet', and you want to deploy your first DAO in 'genesis.sputnik2.testnet'
 
-Step 1. Login with your account:
+#### Step 1. Login with your account:
 ```
 near login
 ```
 
-Step 2. Deploy factory:
+#### Step 2. Deploy factory:
 
 Use `export CONTRACT_ID=sputnik2.testnet` in the terminal to set the account where to deploy the factory. Then, execute the following command from the root of this repository. 
 
@@ -59,12 +59,12 @@ Use `export CONTRACT_ID=sputnik2.testnet` in the terminal to set the account whe
 near deploy $CONTRACT_ID --wasmFile=sputnikdao_factory2/res/sputnikdao_factory2.wasm
 ```
 
-Step 3. Initialize factory:
+#### Step 3. Initialize factory:
 ```
 near call $CONTRACT_ID new --accountId $CONTRACT_ID
 ```
 
-Step 4. Define the parameters of the new DAO, its council and create it:
+#### Step 4. Define the parameters of the new DAO, its council and create it:
 
 Define the council of your DAO: `export COUNCIL='["councilmember.testnet", "sputnik2.testnet"]'`
 
@@ -86,9 +86,9 @@ Validate that it went through, and that it correctly set the policy:
 near view $SPUTNIK_ID get_policy
 ```
 
-Step 5. Create a proposal and interact with it:
+#### Step 5. Create a proposal and interact with it:
 
-Lets use a third user, called `another-account.testnet` to create a proposal. The proposal asks for `another-account.testnet` they joins the council. The proposal will be votable for only a minute (`"submission\_time":"60000000000"`).
+Lets use a third user, called `another-account.testnet` to create a proposal. The proposal asks for `another-account.testnet` they joins the council. The proposal will be votable for only a minute (`"submission_time":"60000000000"`).
 
 ```
 near call $SPUTNIK_ID add_proposal '{"proposal": {"description": "test", "submission_time":"60000000000", "kind": {"AddMemberToRole": {"member_id": "another-account.testnet", "role": "council"}}}}' --accountId another-account.testnet --amount 1
@@ -114,6 +114,7 @@ View first 10 proposals:
 ```
 near view $SPUTNIK_ID get_proposals '{"from_index": 0, "limit": 10}'
 ```
+
 
 ## Proposal Kinds
 
