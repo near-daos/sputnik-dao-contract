@@ -42,25 +42,38 @@ Blob can be removed only by the original storer.
 
 ## Testing
 
-Use `export CONTRACT_ID=sputnik2.testnet`, to set the account to deploy the factory.
+To test the sputnik2 DAO you will need a testnet account. If you don't have one yet create it in https://wallet.testnet.near.org/.
 
-Step 1. Deploy factory:
+Lets assume your account is 'sputnik2.testnet', and you want to deploy your first DAO in 'genesis.sputnik2.testnet'
+
+#### Step 1. Login with your account:
 ```
-near create-account ...
+near login
+```
+
+#### Step 2. Deploy factory:
+
+Use `export CONTRACT_ID=sputnik2.testnet` in the terminal to set the account where to deploy the factory. Then, execute the following command from the root of this repository. 
+
+```
 near deploy $CONTRACT_ID --wasmFile=sputnikdao_factory2/res/sputnikdao_factory2.wasm
 ```
 
-Step 2. Initiatlize factory
+#### Step 3. Initialize factory:
 ```
 near call $CONTRACT_ID new --accountId $CONTRACT_ID
 ```
 
-Step 2. Create new Sputnik DAO:
+#### Step 4. Define the parameters of the new DAO, its council and create it:
+
+Define the council of your DAO: `export COUNCIL='["councilmember.testnet", "sputnik2.testnet"]'`
+
 ```
 # bash
-ARGS=`echo '{"config": {"name": "genesis", "symbol": "GENESIS", "decimals": 24, "purpose": "test", "bond": "1000000000000000000000000", "metadata": ""}, "policy": ["testmewell.testnet", "sputnik2.testnet"]}' | base64`
+ARGS=`echo '{"config": {"name": "genesis", "symbol": "GENESIS", "decimals": 24, "purpose": "test", "bond": "1000000000000000000000000", "metadata": ""}, "policy": '$COUNCIL'}' | base64 -w 0`
+
 # fish
-set ARGS (echo '{"config": {"name": "genesis", "symbol": "GENESIS", "decimals": 24, "purpose": "test", "bond": "1000000000000000000000000", "metadata": ""}, "policy": ["testmewell.testnet", "sputnik2.testnet"]}' | base64)
+set ARGS (echo '{"config": {"name": "genesis", "symbol": "GENESIS", "decimals": 24, "purpose": "test", "bond": "1000000000000000000000000", "metadata": ""}, "policy": '$COUNCIL'}' | base64 -w 0)
 
 # Create a new DAO with the given parameters.
 near call $CONTRACT_ID create "{\"name\": \"genesis\", \"args\": \"$ARGS\"}"  --accountId $CONTRACT_ID --amount 5 --gas 150000000000000
@@ -68,19 +81,23 @@ near call $CONTRACT_ID create "{\"name\": \"genesis\", \"args\": \"$ARGS\"}"  --
 
 Set `export SPUTNIK_ID=genesis.$CONTRACT_ID`.
 
-Validate that it went through and current policy:
+Validate that it went through, and that it correctly set the policy:
 ```
 near view $SPUTNIK_ID get_policy
 ```
 
-To create a proposal:
+#### Step 5. Create a proposal and interact with it:
+
+Lets use a third user, called `another-account.testnet` to create a proposal. The proposal asks for `another-account.testnet` they joins the council. The proposal will be votable for only a minute (`"submission_time":"60000000000"`).
+
 ```
-near call $SPUTNIK_ID add_proposal '{"proposal": {"description": "test", "kind": {"AddMemberToRole": {"member_id": "testmewell.testnet", "role": "council"}}}}' --accountId testmewell.testnet --amount 1
+near call $SPUTNIK_ID add_proposal '{"proposal": {"description": "test", "submission_time":"60000000000", "kind": {"AddMemberToRole": {"member_id": "another-account.testnet", "role": "council"}}}}' --accountId another-account.testnet --amount 1
 ```
 
-Vote "Approve" for the proposal:
+Vote "Approve" using the **council members**:
 ```
-near call $SPUTNIK_ID act_proposal '{"id": 0, "action": "VoteApprove"}' --accountId testmewell.testnet
+near call $SPUTNIK_ID act_proposal '{"id": 0, "action": "VoteApprove"}' --accountId sputnik2.testnet
+near call $SPUTNIK_ID act_proposal '{"id": 0, "action": "VoteApprove"}' --accountId councilmember.testnet 
 ```
 
 View proposal:
@@ -88,10 +105,16 @@ View proposal:
 near view $SPUTNIK_ID get_proposal '{"id": 0}'
 ```
 
+After one minute, the user "another-account.testnet" will be added to the council
+```
+near view $SPUTNIK_ID get_policy
+```
+
 View first 10 proposals:
 ```
 near view $SPUTNIK_ID get_proposals '{"from_index": 0, "limit": 10}'
 ```
+
 
 ## Proposal Kinds
 
