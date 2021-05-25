@@ -108,7 +108,7 @@ impl WeightOrRatio {
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
 #[serde(crate = "near_sdk::serde")]
 pub enum WeightKind {
-    /// Using token amounts and total supply.
+    /// Using token amounts and total delegated at the moment.
     TokenWeight,
     /// Weight of the group role. Roles that don't have scoped group are not supported.
     RoleWeight,
@@ -121,6 +121,12 @@ pub enum WeightKind {
 pub struct VotePolicy {
     /// Kind of weight to use for votes.
     pub weight_kind: WeightKind,
+    /// Minimum number required for vote to finalize.
+    /// If weight kind is TokenWeight - this is minimum number of tokens required.
+    ///     This allows to avoid situation where the number of staked tokens from total supply is too small.
+    /// If RoleWeight - this is minimum umber of votes.
+    ///     This allows to avoid situation where the role is got too small but policy kept at 1/2, for example.
+    pub quorum: U128,
     /// How many votes to pass this vote.
     pub threshold: WeightOrRatio,
 }
@@ -129,6 +135,7 @@ impl Default for VotePolicy {
     fn default() -> Self {
         VotePolicy {
             weight_kind: WeightKind::RoleWeight,
+            quorum: U128(0),
             threshold: WeightOrRatio::Ratio(1, 2),
         }
     }
@@ -181,7 +188,16 @@ fn default_policy(council: Vec<AccountId>) -> Policy {
             RolePermission {
                 name: "council".to_string(),
                 kind: RoleKind::Group(council.into_iter().collect()),
-                permissions: vec!["*:*".to_string()].into_iter().collect(),
+                // All actions except RemoveProposal are allowed by council.
+                permissions: vec![
+                    "*:AddProposal".to_string(),
+                    "*:VoteApprove".to_string(),
+                    "*:VoteReject".to_string(),
+                    "*:VoteRemove".to_string(),
+                    "*:Finalize".to_string(),
+                ]
+                .into_iter()
+                .collect(),
                 vote_policy: HashMap::default(),
             },
         ],
@@ -342,15 +358,18 @@ impl Policy {
                 .vote_policy
                 .get(&proposal.kind.to_policy_label().to_string())
                 .unwrap_or(&self.default_vote_policy);
-            let threshold = match &vote_policy.weight_kind {
-                WeightKind::TokenWeight => vote_policy.threshold.to_weight(total_supply),
-                WeightKind::RoleWeight => vote_policy.threshold.to_weight(
-                    role_info
-                        .kind
-                        .get_role_size()
-                        .expect("ERR_UNSUPPORTED_ROLE") as Balance,
-                ),
-            };
+            let threshold = std::cmp::max(
+                vote_policy.quorum.0,
+                match &vote_policy.weight_kind {
+                    WeightKind::TokenWeight => vote_policy.threshold.to_weight(total_supply),
+                    WeightKind::RoleWeight => vote_policy.threshold.to_weight(
+                        role_info
+                            .kind
+                            .get_role_size()
+                            .expect("ERR_UNSUPPORTED_ROLE") as Balance,
+                    ),
+                },
+            );
             // Check if there is anything voted above the threshold specified by policy for given role.
             let vote_counts = proposal.vote_counts.get(&role).expect("ERR_MISSING_ROLE");
             if vote_counts[Vote::Approve as usize] >= threshold {

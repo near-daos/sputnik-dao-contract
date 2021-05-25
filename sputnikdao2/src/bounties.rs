@@ -100,7 +100,7 @@ impl Contract {
 impl Contract {
     /// Claim given bounty by caller with given expected duration to execute.
     /// Bond must be attached to the claim.
-    /// Fails if already claimed `repeat` times.
+    /// Fails if already claimed `times` times.
     #[payable]
     pub fn bounty_claim(&mut self, id: u64, deadline: WrappedDuration) {
         let bounty: Bounty = self.bounties.get(&id).expect("ERR_NO_BOUNTY").into();
@@ -158,7 +158,7 @@ impl Contract {
     /// Report that bounty is done. Creates a proposal to vote for paying out the bounty.
     /// Only creator of the claim can call `done` on bounty that is still in progress.
     /// On expired, anyone can call it to free up the claim slot.
-    pub fn bounty_done(&mut self, id: u64, account_id: Option<AccountId>) {
+    pub fn bounty_done(&mut self, id: u64, account_id: Option<AccountId>, description: String) {
         let sender_id = account_id.unwrap_or_else(|| env::predecessor_account_id());
         let (mut claims, claim_idx) = self.internal_get_claims(id, &sender_id);
         assert!(!claims[claim_idx].completed, "ERR_BOUNTY_CLAIM_COMPLETED");
@@ -173,7 +173,7 @@ impl Contract {
                 "ERR_BOUNTY_DONE_MUST_BE_SELF"
             );
             self.add_proposal(ProposalInput {
-                description: format!("Bounty {} done", id),
+                description,
                 kind: ProposalKind::BountyDone {
                     bounty_id: id,
                     receiver_id: sender_id.clone(),
@@ -257,7 +257,7 @@ mod tests {
         assert_eq!(contract.get_bounty_claims(accounts(1)).len(), 1);
         assert_eq!(contract.get_bounty_number_of_claims(0), 1);
 
-        contract.bounty_done(0, None);
+        contract.bounty_done(0, None, "Bounty is done".to_string());
         assert!(contract.get_bounty_claims(accounts(1))[0].completed);
 
         assert_eq!(contract.get_last_proposal_id(), 2);
