@@ -231,8 +231,7 @@ mod tests {
         );
         let id = create_proposal(&mut context, &mut contract);
         assert_eq!(contract.get_proposal(id).proposal.description, "test");
-        contract.act_proposal(id, Action::RemoveProposal);
-        assert_eq!(contract.get_proposals(0, 10).len(), 0);
+        assert_eq!(contract.get_proposals(0, 10).len(), 1);
 
         let id = create_proposal(&mut context, &mut contract);
         contract.act_proposal(id, Action::VoteApprove);
@@ -264,6 +263,35 @@ mod tests {
                 role: "council".to_string(),
             },
         });
+    }
+
+    #[test]
+    #[should_panic(expected = "ERR_PERMISSION_DENIED")]
+    fn test_remove_proposal_denied() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        let mut contract = Contract::new(
+            Config::test_config(),
+            VersionedPolicy::Default(vec![accounts(1).into()]),
+        );
+        let id = create_proposal(&mut context, &mut contract);
+        assert_eq!(contract.get_proposal(id).proposal.description, "test");
+        contract.act_proposal(id, Action::RemoveProposal);
+    }
+
+    #[test]
+    fn test_remove_proposal_allowed() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        let mut policy = VersionedPolicy::Default(vec![accounts(1).into()]).upgrade();
+        policy.to_policy_mut().roles[1]
+            .permissions
+            .insert("*:RemoveProposal".to_string());
+        let mut contract = Contract::new(Config::test_config(), policy);
+        let id = create_proposal(&mut context, &mut contract);
+        assert_eq!(contract.get_proposal(id).proposal.description, "test");
+        contract.act_proposal(id, Action::RemoveProposal);
+        assert_eq!(contract.get_proposals(0, 10).len(), 0);
     }
 
     #[test]

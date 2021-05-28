@@ -389,12 +389,9 @@ impl Contract {
     pub fn act_proposal(&mut self, id: u64, action: Action) {
         let mut proposal: Proposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL").into();
         let policy = self.policy.get().unwrap().to_policy();
-        // Check permissions for given action.
-        let (roles, allowed) = policy.can_execute_action(
-            self.internal_user_info(),
-            &proposal.kind,
-            &Action::RemoveProposal,
-        );
+        // Check permissions for the given action.
+        let (roles, allowed) =
+            policy.can_execute_action(self.internal_user_info(), &proposal.kind, &action);
         assert!(allowed, "ERR_PERMISSION_DENIED");
         let sender_id = env::predecessor_account_id();
         // Update proposal given action. Returns true if should be updated in storage.
