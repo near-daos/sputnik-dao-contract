@@ -64,7 +64,7 @@ fn test_multi_council() {
     .assert_success();
     vote(vec![&root], &dao, 0);
     assert_eq!(view!(dao.get_policy()).unwrap_json::<Policy>(), new_policy);
-    add_transfer_proposal(&root, &dao, user(1), 1_000_000).assert_success();
+    add_transfer_proposal(&root, &dao, base_token(), user(1), 1_000_000, None).assert_success();
     vote(vec![&user2], &dao, 1);
     vote(vec![&user3], &dao, 1);
     let proposal = view!(dao.get_proposal(1)).unwrap_json::<Proposal>();
@@ -90,10 +90,10 @@ fn test_create_dao_and_use_token() {
     add_member_proposal(&root, &dao, user2.account_id.clone()).assert_success();
     assert_eq!(view!(dao.get_last_proposal_id()).unwrap_json::<u64>(), 1);
     // Voting by user who is not member should fail.
-    should_fail(call!(user2, dao.act_proposal(0, Action::VoteApprove)));
-    call!(root, dao.act_proposal(0, Action::VoteApprove)).assert_success();
+    should_fail(call!(user2, dao.act_proposal(0, Action::VoteApprove, None)));
+    call!(root, dao.act_proposal(0, Action::VoteApprove, None)).assert_success();
     // voting second time should fail.
-    should_fail(call!(root, dao.act_proposal(0, Action::VoteApprove)));
+    should_fail(call!(root, dao.act_proposal(0, Action::VoteApprove, None)));
     // Add 3rd member.
     add_member_proposal(&user2, &dao, user3.account_id.clone()).assert_success();
     vote(vec![&root, &user2], &dao, 1);
@@ -117,7 +117,7 @@ fn test_create_dao_and_use_token() {
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::SetStakingContract {
-                staking_id: "staking".to_string(),
+                staking_id: to_va("staking".to_string()),
             },
         },
     )
@@ -219,4 +219,26 @@ fn test_create_dao_and_use_token() {
             .0,
         to_yocto("4")
     );
+}
+
+/// Test various cases that must fail.
+#[test]
+fn test_failures() {
+    let (root, dao) = setup_dao();
+    should_fail(add_transfer_proposal(
+        &root,
+        &dao,
+        base_token(),
+        user(1),
+        1_000_000,
+        Some("some".to_string()),
+    ));
+    should_fail(add_transfer_proposal(
+        &root,
+        &dao,
+        "not:a^valid.token@".to_string(),
+        user(1),
+        1_000_000,
+        None,
+    ));
 }

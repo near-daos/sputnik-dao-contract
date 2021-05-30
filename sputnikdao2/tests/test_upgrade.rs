@@ -34,7 +34,7 @@ fn test_upgrade() {
     )
     .assert_success();
     assert_eq!(view!(dao.get_last_proposal_id()).unwrap_json::<u64>(), 1);
-    call!(root, dao.act_proposal(0, Action::VoteApprove)).assert_success();
+    call!(root, dao.act_proposal(0, Action::VoteApprove, None)).assert_success();
     assert_eq!(view!(dao.version()).unwrap_json::<String>(), "2.0.0");
     call!(root, dao.remove_blob(hash)).assert_success();
     should_fail(call!(root, dao.remove_blob(hash)));
@@ -81,12 +81,12 @@ fn test_upgrade_other() {
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::UpgradeRemote {
-                receiver_id: ref_account_id.clone(),
+                receiver_id: to_va(ref_account_id.clone()),
                 method_name: "upgrade".to_string(),
                 hash,
             },
         },
     )
     .assert_success();
-    call!(root, dao.act_proposal(0, Action::VoteApprove)).assert_success();
+    call!(root, dao.act_proposal(0, Action::VoteApprove, None)).assert_success();
 }

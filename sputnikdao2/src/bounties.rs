@@ -1,3 +1,5 @@
+use std::convert::TryFrom;
+
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{WrappedDuration, WrappedTimestamp, U128};
 use near_sdk::serde::{Deserialize, Serialize};
@@ -182,7 +184,7 @@ impl Contract {
                 description,
                 kind: ProposalKind::BountyDone {
                     bounty_id: id,
-                    receiver_id: sender_id.clone(),
+                    receiver_id: ValidAccountId::try_from(sender_id.clone()).unwrap(),
                 },
             });
             claims[claim_idx].completed = true;

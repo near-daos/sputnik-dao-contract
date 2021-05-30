@@ -51,20 +51,26 @@ pub enum ProposalKind {
     /// Change the full policy.
     ChangePolicy { policy: VersionedPolicy },
     /// Add member to given role in the policy. This is short cut to updating the whole policy.
-    AddMemberToRole { member_id: AccountId, role: String },
+    AddMemberToRole {
+        member_id: ValidAccountId,
+        role: String,
+    },
     /// Remove member to given role in the policy. This is short cut to updating the whole policy.
-    RemoveMemberFromRole { member_id: AccountId, role: String },
+    RemoveMemberFromRole {
+        member_id: ValidAccountId,
+        role: String,
+    },
     /// Calls `receiver_id` with list of method names in a single promise.
     /// Allows this contract to execute any arbitrary set of actions in other contracts.
     FunctionCall {
-        receiver_id: AccountId,
+        receiver_id: ValidAccountId,
         actions: Vec<ActionCall>,
     },
     /// Upgrade this contract with given hash from blob store.
     UpgradeSelf { hash: Base58CryptoHash },
     /// Upgrade another contract, by calling method with the code from given hash from blob store.
     UpgradeRemote {
-        receiver_id: AccountId,
+        receiver_id: ValidAccountId,
         method_name: String,
         hash: Base58CryptoHash,
     },
@@ -72,19 +78,20 @@ pub enum ProposalKind {
     /// If `msg` is not None, calls `ft_transfer_call` with given `msg`. Fails if this base token.
     /// For `ft_transfer` and `ft_transfer_call` `memo` is the `description` of the proposal.
     Transfer {
+        /// Can be "" for $NEAR or a valid account id.
         token_id: AccountId,
-        receiver_id: AccountId,
+        receiver_id: ValidAccountId,
         amount: U128,
         msg: Option<String>,
     },
     /// Sets staking contract. Can only be proposed if staking contract is not set yet.
-    SetStakingContract { staking_id: AccountId },
+    SetStakingContract { staking_id: ValidAccountId },
     /// Add new bounty.
     AddBounty { bounty: Bounty },
     /// Indicates that given bounty is done by given user.
     BountyDone {
         bounty_id: u64,
-        receiver_id: AccountId,
+        receiver_id: ValidAccountId,
     },
     /// Just a signaling vote, with no execution.
     Vote,
@@ -273,13 +280,13 @@ impl Contract {
             }
             ProposalKind::AddMemberToRole { member_id, role } => {
                 let mut new_policy = policy.clone();
-                new_policy.add_member_to_role(role, member_id);
+                new_policy.add_member_to_role(role, &member_id.clone().into());
                 self.policy.set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
             ProposalKind::RemoveMemberFromRole { member_id, role } => {
                 let mut new_policy = policy.clone();
-                new_policy.remove_member_from_role(role, member_id);
+                new_policy.remove_member_from_role(role, &member_id.clone().into());
                 self.policy.set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
@@ -287,7 +294,7 @@ impl Contract {
                 receiver_id,
                 actions,
             } => {
-                let mut promise = Promise::new(receiver_id.clone());
+                let mut promise = Promise::new(receiver_id.clone().into());
                 for action in actions {
                     promise = promise.function_call(
                         action.method_name.clone().into_bytes(),
@@ -307,7 +314,11 @@ impl Contract {
                 method_name,
                 hash,
             } => {
-                upgrade_remote(receiver_id, method_name, &CryptoHash::from(hash.clone()));
+                upgrade_remote(
+                    &receiver_id.clone().into(),
+                    method_name,
+                    &CryptoHash::from(hash.clone()),
+                );
                 PromiseOrValue::Value(())
             }
             ProposalKind::Transfer {
@@ -317,14 +328,14 @@ impl Contract {
                 msg,
             } => self.internal_payout(
                 token_id,
-                receiver_id,
+                &receiver_id.clone().into(),
                 amount.0,
                 proposal.description.clone(),
                 msg.clone(),
             ),
             ProposalKind::SetStakingContract { staking_id } => {
                 assert!(self.staking_id.is_none(), "ERR_INVALID_STAKING_CHANGE");
-                self.staking_id = Some(staking_id.clone());
+                self.staking_id = Some(staking_id.clone().into());
                 PromiseOrValue::Value(())
             }
             ProposalKind::AddBounty { bounty } => {
@@ -334,7 +345,7 @@ impl Contract {
             ProposalKind::BountyDone {
                 bounty_id,
                 receiver_id,
-            } => self.internal_execute_bounty_payout(*bounty_id, receiver_id, true),
+            } => self.internal_execute_bounty_payout(*bounty_id, &receiver_id.clone().into(), true),
             ProposalKind::Vote => PromiseOrValue::Value(()),
         }
     }
@@ -354,7 +365,9 @@ impl Contract {
             ProposalKind::BountyDone {
                 bounty_id,
                 receiver_id,
-            } => self.internal_execute_bounty_payout(*bounty_id, receiver_id, false),
+            } => {
+                self.internal_execute_bounty_payout(*bounty_id, &receiver_id.clone().into(), false)
+            }
             _ => PromiseOrValue::Value(()),
         }
     }
