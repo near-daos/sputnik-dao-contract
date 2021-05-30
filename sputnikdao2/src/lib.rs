@@ -217,6 +217,7 @@ mod tests {
                 token_id: BASE_TOKEN.to_string(),
                 receiver_id: accounts(2).into(),
                 amount: U128(to_yocto("100")),
+                msg: None,
             },
         })
     }
@@ -234,7 +235,7 @@ mod tests {
         assert_eq!(contract.get_proposals(0, 10).len(), 1);
 
         let id = create_proposal(&mut context, &mut contract);
-        contract.act_proposal(id, Action::VoteApprove);
+        contract.act_proposal(id, Action::VoteApprove, None);
         assert_eq!(
             contract.get_proposal(id).proposal.status,
             ProposalStatus::Approved
@@ -245,7 +246,7 @@ mod tests {
         testing_env!(context
             .block_timestamp(1_000_000_000 * 24 * 60 * 60 * 8)
             .build());
-        contract.act_proposal(id, Action::Finalize);
+        contract.act_proposal(id, Action::Finalize, None);
         assert_eq!(
             contract.get_proposal(id).proposal.status,
             ProposalStatus::Expired
@@ -276,7 +277,7 @@ mod tests {
         );
         let id = create_proposal(&mut context, &mut contract);
         assert_eq!(contract.get_proposal(id).proposal.description, "test");
-        contract.act_proposal(id, Action::RemoveProposal);
+        contract.act_proposal(id, Action::RemoveProposal, None);
     }
 
     #[test]
@@ -290,7 +291,7 @@ mod tests {
         let mut contract = Contract::new(Config::test_config(), policy);
         let id = create_proposal(&mut context, &mut contract);
         assert_eq!(contract.get_proposal(id).proposal.description, "test");
-        contract.act_proposal(id, Action::RemoveProposal);
+        contract.act_proposal(id, Action::RemoveProposal, None);
         assert_eq!(contract.get_proposals(0, 10).len(), 0);
     }
 
@@ -306,7 +307,7 @@ mod tests {
         testing_env!(context
             .block_timestamp(1_000_000_000 * 24 * 60 * 60 * 8)
             .build());
-        contract.act_proposal(id, Action::VoteApprove);
+        contract.act_proposal(id, Action::VoteApprove, None);
     }
 
     #[test]
@@ -319,7 +320,7 @@ mod tests {
             VersionedPolicy::Default(vec![accounts(1).into(), accounts(2).into()]),
         );
         let id = create_proposal(&mut context, &mut contract);
-        contract.act_proposal(id, Action::VoteApprove);
-        contract.act_proposal(id, Action::VoteApprove);
+        contract.act_proposal(id, Action::VoteApprove, None);
+        contract.act_proposal(id, Action::VoteApprove, None);
     }
 }
