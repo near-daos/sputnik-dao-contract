@@ -23,6 +23,10 @@ near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
 
 type Contract = ContractAccount<DAOContract>;
 
+pub fn base_token() -> String {
+    "".to_string()
+}
+
 pub fn should_fail(r: ExecutionResult) {
     match r.status() {
         ExecutionStatus::Failure(_) => {}
@@ -89,7 +93,7 @@ pub fn add_member_proposal(
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::AddMemberToRole {
-                member_id,
+                member_id: to_va(member_id),
                 role: "council".to_string(),
             },
         },
@@ -99,8 +103,10 @@ pub fn add_member_proposal(
 pub fn add_transfer_proposal(
     root: &UserAccount,
     dao: &Contract,
+    token_id: AccountId,
     receiver_id: AccountId,
     amount: Balance,
+    msg: Option<String>,
 ) -> ExecutionResult {
     add_proposal(
         root,
@@ -108,9 +114,10 @@ pub fn add_transfer_proposal(
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
-                token_id: "".to_string(),
-                receiver_id,
+                token_id,
+                receiver_id: to_va(receiver_id),
                 amount: U128(amount),
+                msg,
             },
         },
     )
@@ -118,7 +125,11 @@ pub fn add_transfer_proposal(
 
 pub fn vote(users: Vec<&UserAccount>, dao: &Contract, proposal_id: u64) {
     for user in users.into_iter() {
-        call!(user, dao.act_proposal(proposal_id, Action::VoteApprove)).assert_success();
+        call!(
+            user,
+            dao.act_proposal(proposal_id, Action::VoteApprove, None)
+        )
+        .assert_success();
     }
 }
 
