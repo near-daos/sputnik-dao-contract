@@ -46,7 +46,7 @@ impl Contract {
 
     /// Returns if blob with given hash is stored.
     pub fn has_blob(&self, hash: Base58CryptoHash) -> bool {
-        env::storage_read(&CryptoHash::from(hash)).is_some()
+        env::storage_has_key(&CryptoHash::from(hash))
     }
 
     /// Returns available amount of NEAR that can be spent (outside of amount for storage and bonds).
