@@ -396,6 +396,10 @@ impl Contract {
 
         // 1. Validate proposal.
         match &proposal.kind {
+            ProposalKind::ChangePolicy { policy } => match policy {
+                VersionedPolicy::Current(_) => {}
+                _ => panic!("ERR_INVALID_POLICY"),
+            },
             ProposalKind::Transfer { token_id, msg, .. } => {
                 assert!(
                     !(token_id == BASE_TOKEN) || msg.is_none(),
