@@ -1,19 +1,19 @@
 # Sputnik DAO v2
 
-> Sputnik DAO v2 ...
+> Sputnik DAO v2 offers all of the functionality of v1 but with more features and enhanced configuration options.
 
 ## Overview
 
-| Name                                            | Description                                               |
-| ----------------------------------------------- | --------------------------------------------------------- |
-| [Setup](#setup)                                 | Step-by-step guide to deploy DAO factory and DAO contract |
-| [Roles & Permissions](#roles-and-permissions)   |                                                           |
-| [Proposals](#proposals)                         |                                                           |
-| [Voting Policy](#voting-policy)                 |                                                           |
-| [Token Voting](#token-voting)                   |                                                           |
-| [Bounties](#bounties)                           |                                                           |
-| [Blob Storage](#blob-storage)                   |                                                           |
-| [Examples](../examples/sputnikdao2-examples.md) |                                                           |
+| Name                                          | Description                                                           |
+| --------------------------------------------- | --------------------------------------------------------------------- |
+| [Setup](#setup)                               | Step-by-step guide to deploy a DAO factory and DAO contracts.            |
+| [Roles & Permissions](#roles-and-permissions) | Setup roles and define permissions for each role.                     |
+| [Proposals](#proposals)                       | Each action on the DAO is done by creating and approving a proposal.  |
+| [Voting Policy](#voting-policy)               | Configure voting policies for proposal types.                         |
+| [Token Voting](#token-voting)                 | DAO can decide to use a governance token for voting purposes.         |
+| [Bounties](#bounties)                         | Add and configure bounties.                                           |
+| [Blob Storage](#blob-storage)                 | Store large data blobs and content and index them by the data's hash. |
+| [Examples](./examples/README.md)              | Examples and guides for interacting with Sputnik DAO v2.              |
 
 ---
 
@@ -271,20 +271,28 @@ ProposalKind::BountyDone { .. } => "bounty_done",
 ProposalKind::Vote => "vote",
 ```
 
-### Add a proposal
+### Add proposal
 
 - By default, anyone can add a proposal. Use the following `near-cli` command to call `add_proposal` on your DAO contract.
 
 ```
-near call YOUR_SPUTNIK_DAO_CONTRACT.testnet add_proposal '{"proposal": {"description": "Add New Council", "kind": {"AddMemberToRole": {"member_id": "council_member_3.testnet", "role": "council"}}}}' --accountId proposer.testnet --amount 1
+near call YOUR_SPUTNIK_DAO_CONTRACT add_proposal '{"proposal": {"description": "Add New Council", "kind": {"AddMemberToRole": {"member_id": "council_member_3.testnet", "role": "council"}}}}' --accountId proposer.testnet --amount 1
 ```
 
-### Approve a proposal
+### Approve proposal
 
 - Only council members can approve a proposal. Use the following `near-cli` command to call `act_proposal` on your DAO contract.
 
 ```
-near call genesis.sputnik.testnet act_proposal '{"id": ID_from_previous_call, "action": "VoteApprove"}' --accountId council_member_1.testnet
+near call YOUR_DAO_ACCOUNT act_proposal '{"id": ID_from_previous_call, "action": "VoteApprove"}' --accountId council_member_1.testnet
+```
+
+### View proposal
+
+View proposal:
+
+```
+near view YOUR_DAO_ACCOUNT get_proposal '{"id": 0}'
 ```
 
 record ID returned from this call.
@@ -321,9 +329,7 @@ User flow is next:
 
 ## Bounties
 
-// TODO: add bounty blurb
-
-> Bounties... (add blurb)
+> Add and configure bounties using `AddBounty` proposal.
 
 The lifecycle of a bounty is the next:
 
