@@ -1,5 +1,8 @@
 # Sputnik DAO v2
 
+// TODO: add short intro blurb
+> Sputnik DAO v2 ...
+
 ## Overview
 
 | Name                | Description                                               |
@@ -61,7 +64,13 @@ cd sputnik-dao-contract/sputnikdao-factory2 && ./build.sh
 
 ### 4. Deploy factory:
 
-Use `export CONTRACT_ID=YOUR_ACCOUNT.testnet` in the terminal to set the account ID where the factory contract will be deployed. Then, execute the following command from your current directory `sputnik-dao-contract/sputnikdao-factory2`:
+- Create an env variable replacing `YOUR_ACCOUNT.testnet` with the name of the account you logged in with earlier:
+
+```
+export CONTRACT_ID=YOUR_ACCOUNT.testnet
+```
+
+- Deploy factory contract by running the following command from your current directory _(`sputnik-dao-contract/sputnikdao-factory2`)_:
 
 ```
 near deploy $CONTRACT_ID --wasmFile=res/sputnikdao_factory2.wasm --accountId $CONTRACT_ID
@@ -75,33 +84,60 @@ near call $CONTRACT_ID new --accountId $CONTRACT_ID
 
 ### 6. Define the parameters of the new DAO, its council, and create it:
 
-a) Define the council of your DAO: 
+- Define the council of your DAO: 
 
 ```
-export COUNCIL='["council-member.testnet", $CONTRACT_ID]'
+export COUNCIL='["council-member.testnet", "YOUR_ACCOUNT.testnet"]'
 ```
 
-b) Configure the name, purpose, and initial council members of the DAO:
+- Configure the name, purpose, and initial council members of the DAO and convert the arguments in base64:
 
 ```
-export ARGS=`echo '{"config": {"name": "genesis", "purpose": "Genesis DAO", "metadata":""}, "policy": ["council_member_1.testnet","council_member_2.testnet"]}' | base64`
+export ARGS=`echo '{"config": {"name": "genesis", "purpose": "Genesis DAO", "metadata":""}, "policy": '$COUNCIL'}' | base64`
 ```
 
-c) Create the new DAO!:
+- Create the new DAO!:
 
 ```
 near call $CONTRACT_ID create "{\"name\": \"genesis\", \"args\": \"$ARGS\"}" --accountId $CONTRACT_ID --amount 5 --gas 150000000000000
 ```
 
-This will create a DAO with the following default values:
+<details>
+<summary>Example Response:</summary>
+<p>
+
+```bash
+Scheduling a call: sputnik-v2.testnet.create({"name": "genesis", "args": "eyJjb25maWciOiB7Im5hbWUiOiAiZ2VuZXNpcyIsICJwdXJwb3NlIjogIkdlbmVzaXMgREFPIiwgIm1ldGFkYXRhIjoiIn0sICJwb2xpY3kiOiBbImNvdW5jaWwtbWVtYmVyLnRlc3RuZXQiLCAiWU9VUl9BQ0NPVU5ULnRlc3RuZXQiXX0K"}) with attached 5 NEAR
+Transaction Id 5beqy8ZMkzpzw7bTLPMv6qswukqqowfzYXZnMAitRVS7
+To see the transaction in the transaction explorer, please open this url in your browser
+https://explorer.testnet.near.org/transactions/5beqy8ZMkzpzw7bTLPMv6qswukqqowfzYXZnMAitRVS7
+true
+```
+**Note:** If you see `false` at the bottom (after the transaction link) something went wrong. Check your arguments passed and target contracts and re-deploy.
+
+</p>
+</details>
+
+### 7. Verify successful deployment and policy configuration:
+
+The DAO deployment will create a new [sub-account](https://docs.near.org/docs/concepts/account#subaccounts) ( `genesis.YOUR_ACCOUNT.testnet` ) and deploy a Sputnik v2 DAO contract to it. 
+
+- Setup another env variable for your DAO contract:
+
+```
+export SPUTNIK_ID=genesis.$CONTRACT_ID
+```
+
+- Now call `get_policy` on this contract using [`near view`](https://docs.near.org/docs/tools/near-cli#near-view)
+
+```
+near view $SPUTNIK_ID get_policy
+```
+
+- Verify that the name, purpose, metadata, and council are all configured correctly. Also note the following default values:
+
 
 ```json
-
-{
-  name: 'genesis',
-  purpose: 'Genesis DAO',
-  metadata: ''
-}
 {
   roles: [
     {
@@ -112,12 +148,18 @@ This will create a DAO with the following default values:
     },
     {
       name: 'council',
-      kind: { Group: [ 'council_member_1.testnet', 'council_member_2.testnet' ] },
-      permissions: [ '*:*' ],
+      kind: { Group: [ 'council-member.testnet', 'YOUR_ACCOUNT.testnet' ] },
+      permissions: [
+        '*:Finalize',
+        '*:AddProposal',
+        '*:VoteApprove',
+        '*:VoteReject',
+        '*:VoteRemove'
+      ],
       vote_policy: {}
     }
   ],
-  default_vote_policy: { weight_kind: 'RoleWeight', threshold: [ 1, 2 ] },
+  default_vote_policy: { weight_kind: 'RoleWeight', quorum: '0', threshold: [ 1, 2 ] },
   proposal_bond: '1000000000000000000000000',
   proposal_period: '604800000000000',
   bounty_bond: '1000000000000000000000000',
@@ -126,14 +168,6 @@ This will create a DAO with the following default values:
 ```
 
 ---
-
-Set `export SPUTNIK_ID=genesis.$CONTRACT_ID`.
-
-Validate that it went through, and that it correctly set the policy:
-
-```
-near view $SPUTNIK_ID get_policy
-```
 
 ## Proposals
 
