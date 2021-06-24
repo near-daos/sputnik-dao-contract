@@ -1,5 +1,140 @@
 # Sputnik DAO v2
 
+## Overview
+
+| Name                | Description                                               |
+| ------------------- | --------------------------------------------------------- |
+| [**Setup**](#setup) | Step-by-step guide to deploy DAO factory and DAO contract |
+
+---
+
+## Prerequisites
+
+1. [NEAR Account](https://wallet.testnet.near.org)
+2. [NEAR-CLI](https://docs.near.org/docs/tools/near-cli#setup)
+3. [Rust](https://www.rust-lang.org)
+
+> If you have not previously installed Rust as well as configured your current shell and WASM target please perform the following 3-Step Rust Installation:
+
+1) Install Rustup:
+
+```
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+[_(Taken from official installation guide)_](https://www.rust-lang.org/tools/install)
+
+2) Configure your current shell:
+
+```
+source $HOME/.cargo/env
+```
+
+3) Add Wasm target to your toolchain:
+
+```
+rustup target add wasm32-unknown-unknown
+```
+
+---
+
+## Setup
+
+### 1. Login with your account:
+
+Using [`near-cli`](https://docs.near.org/docs/tools/near-cli#near-login), login to your account which will save your credentials locally:
+
+```
+near login
+```
+
+### 2. Clone repository:
+
+```
+git clone https://github.com/near-daos/sputnik-dao-contract
+```
+
+### 3. Build factory contract:
+
+```
+cd sputnik-dao-contract/sputnikdao-factory2 && ./build.sh
+```
+
+### 4. Deploy factory:
+
+Use `export CONTRACT_ID=YOUR_ACCOUNT.testnet` in the terminal to set the account ID where the factory contract will be deployed. Then, execute the following command from your current directory `sputnik-dao-contract/sputnikdao-factory2`:
+
+```
+near deploy $CONTRACT_ID --wasmFile=res/sputnikdao_factory2.wasm --accountId $CONTRACT_ID
+```
+
+### 5. Initialize factory:
+
+```
+near call $CONTRACT_ID new --accountId $CONTRACT_ID
+```
+
+### 6. Define the parameters of the new DAO, its council, and create it:
+
+a) Define the council of your DAO: 
+
+```
+export COUNCIL='["council-member.testnet", $CONTRACT_ID]'
+```
+
+b) Configure the name, purpose, and initial council members of the DAO:
+
+```
+export ARGS=`echo '{"config": {"name": "genesis", "purpose": "Genesis DAO", "metadata":""}, "policy": ["council_member_1.testnet","council_member_2.testnet"]}' | base64`
+```
+
+c) Create the new DAO!:
+
+```
+near call $CONTRACT_ID create "{\"name\": \"genesis\", \"args\": \"$ARGS\"}" --accountId $CONTRACT_ID --amount 5 --gas 150000000000000
+```
+
+This will create a DAO with the following default values:
+
+```json
+
+{
+  name: 'genesis',
+  purpose: 'Genesis DAO',
+  metadata: ''
+}
+{
+  roles: [
+    {
+      name: 'all',
+      kind: 'Everyone',
+      permissions: [ '*:AddProposal' ],
+      vote_policy: {}
+    },
+    {
+      name: 'council',
+      kind: { Group: [ 'council_member_1.testnet', 'council_member_2.testnet' ] },
+      permissions: [ '*:*' ],
+      vote_policy: {}
+    }
+  ],
+  default_vote_policy: { weight_kind: 'RoleWeight', threshold: [ 1, 2 ] },
+  proposal_bond: '1000000000000000000000000',
+  proposal_period: '604800000000000',
+  bounty_bond: '1000000000000000000000000',
+  bounty_forgiveness_period: '86400000000000'
+}
+```
+
+---
+
+Set `export SPUTNIK_ID=genesis.$CONTRACT_ID`.
+
+Validate that it went through, and that it correctly set the policy:
+
+```
+near view $SPUTNIK_ID get_policy
+```
+
 ## Proposals
 
 Proposals is the main way to interact with the DAO.
@@ -10,6 +145,7 @@ Each action on the DAO is done by creating and approving proposal.
 DAO votes to select some token to become voting token (only can be done once, can't change later).
 
 User flow is next:
+
 - User's deposit the token into the DAO.
 - They can then choose who to delegate these tokens. It can be to themself or to other users to increase their vote weight.
 - When users vote for proposals, their vote is weighted by all the delegations to them.
@@ -20,12 +156,12 @@ User flow is next:
 
 The lifecycle of a bounty is the next:
 
- - Anyone with permission can add proposal `AddBounty` which contains the bounty information, including `token` to pay the reward in and `amount` to pay it out.
- - This proposal gets voted in by the current voting policy
- - After proposal passed, the bounty get added. Now it has an `id` in the bounty list. Which can be queries via `get_bounties`
- - Anyone can claim a bounty by calling `bounty_claim(id, deadline)` up to `repeat` times which was specified in the bounty. This allows to have repeatative bounties or multiple working collaboratively. `deadline` specifies how long it will take the sender to complete the bounty.
- - If claimer decides to give up, they can call `bounty_giveup(id)`, and within `forgiveness_period` their claim bond will be returned. After this period, their bond is kept in the DAO.
- - When bounty is complete, call `bounty_done(id)`, which will start add a proposal `BountyDone` that when voted will pay to whoever done the bounty.
+- Anyone with permission can add proposal `AddBounty` which contains the bounty information, including `token` to pay the reward in and `amount` to pay it out.
+- This proposal gets voted in by the current voting policy
+- After proposal passed, the bounty get added. Now it has an `id` in the bounty list. Which can be queries via `get_bounties`
+- Anyone can claim a bounty by calling `bounty_claim(id, deadline)` up to `repeat` times which was specified in the bounty. This allows to have repeatative bounties or multiple working collaboratively. `deadline` specifies how long it will take the sender to complete the bounty.
+- If claimer decides to give up, they can call `bounty_giveup(id)`, and within `forgiveness_period` their claim bond will be returned. After this period, their bond is kept in the DAO.
+- When bounty is complete, call `bounty_done(id)`, which will start add a proposal `BountyDone` that when voted will pay to whoever done the bounty.
 
 ## Blob storage
 
@@ -33,58 +169,13 @@ DAO supports storing larger blobs of data and content indexing them by hash of t
 This is done to allow upgrading the DAO itself and other contracts.
 
 Blob lifecycle:
- - Store blob in the DAO
- - Create upgradability proposal
- - Proposal passes or fails
- - Remove blob and receive funds locked for storage back
+
+- Store blob in the DAO
+- Create upgradability proposal
+- Proposal passes or fails
+- Remove blob and receive funds locked for storage back
 
 Blob can be removed only by the original storer.
-
-## Testing
-
-To test the sputnik2 DAO you will need a testnet account. If you don't have one yet create it in https://wallet.testnet.near.org/.
-
-Lets assume your account is 'sputnik2.testnet', and you want to deploy your first DAO in 'genesis.sputnik2.testnet'
-
-#### Step 1. Login with your account:
-```
-near login
-```
-
-#### Step 2. Deploy factory:
-
-Use `export CONTRACT_ID=sputnik2.testnet` in the terminal to set the account where to deploy the factory. Then, execute the following command from the root of this repository. 
-
-```
-near deploy $CONTRACT_ID --wasmFile=sputnikdao_factory2/res/sputnikdao_factory2.wasm
-```
-
-#### Step 3. Initialize factory:
-```
-near call $CONTRACT_ID new --accountId $CONTRACT_ID
-```
-
-#### Step 4. Define the parameters of the new DAO, its council and create it:
-
-Define the council of your DAO: `export COUNCIL='["councilmember.testnet", "sputnik2.testnet"]'`
-
-```
-# bash
-ARGS=`echo '{"config": {"name": "genesis", "symbol": "GENESIS", "decimals": 24, "purpose": "test", "bond": "1000000000000000000000000", "metadata": ""}, "policy": '$COUNCIL'}' | base64 -w 0`
-
-# fish
-set ARGS (echo '{"config": {"name": "genesis", "symbol": "GENESIS", "decimals": 24, "purpose": "test", "bond": "1000000000000000000000000", "metadata": ""}, "policy": '$COUNCIL'}' | base64 -w 0)
-
-# Create a new DAO with the given parameters.
-near call $CONTRACT_ID create "{\"name\": \"genesis\", \"args\": \"$ARGS\"}"  --accountId $CONTRACT_ID --amount 5 --gas 150000000000000
-```
-
-Set `export SPUTNIK_ID=genesis.$CONTRACT_ID`.
-
-Validate that it went through, and that it correctly set the policy:
-```
-near view $SPUTNIK_ID get_policy
-```
 
 #### Step 5. Create a proposal and interact with it:
 
@@ -95,30 +186,34 @@ near call $SPUTNIK_ID add_proposal '{"proposal": {"description": "test", "submis
 ```
 
 Vote "Approve" using the **council members**:
+
 ```
 near call $SPUTNIK_ID act_proposal '{"id": 0, "action": "VoteApprove"}' --accountId sputnik2.testnet
-near call $SPUTNIK_ID act_proposal '{"id": 0, "action": "VoteApprove"}' --accountId councilmember.testnet 
+near call $SPUTNIK_ID act_proposal '{"id": 0, "action": "VoteApprove"}' --accountId councilmember.testnet
 ```
 
 View proposal:
+
 ```
 near view $SPUTNIK_ID get_proposal '{"id": 0}'
 ```
 
 After one minute, the user "another-account.testnet" will be added to the council
+
 ```
 near view $SPUTNIK_ID get_policy
 ```
 
 View first 10 proposals:
+
 ```
 near view $SPUTNIK_ID get_proposals '{"from_index": 0, "limit": 10}'
 ```
 
-
 ## Proposal Kinds
 
 Each kind of proposal represents an operation the DAO can perform. Proposal kinds are:
+
 ```
 ProposalKind::ChangeConfig { .. } => "config",
 ProposalKind::ChangePolicy { .. } => "policy",
@@ -134,6 +229,7 @@ ProposalKind::AddBounty { .. } => "add_bounty",
 ProposalKind::BountyDone { .. } => "bounty_done",
 ProposalKind::Vote => "vote",
 ```
+
 ### Voting Policy
 
 You can set a different vote policy for each one of the proposal kinds.
@@ -151,6 +247,7 @@ When vote policy is `RoleWeight(role)`, vote % is measured against the count of 
 The DAO can have several roles, and you can define permissions for each role. A permission is a combination of `proposal_kind:VotingAction` so they can become very specific.
 
 Actions are:
+
 ```
 /// Action to add proposal. Used internally.
 AddProposal,
@@ -169,7 +266,7 @@ Finalize,
 MoveToHub
 ```
 
-so, for example a role with: `["mint:VoteReject","mint:VoteRemove"]` means the users with that role can only vote to *reject or remove a mint proposal*, but they can't vote to approve.
+so, for example a role with: `["mint:VoteReject","mint:VoteRemove"]` means the users with that role can only vote to _reject or remove a mint proposal_, but they can't vote to approve.
 
 You can use `*` as a wildcard, so for example a role with `mint:*` can perform any vote action on mint proposals.
 
