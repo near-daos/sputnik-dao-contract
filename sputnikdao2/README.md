@@ -1,13 +1,21 @@
 # Sputnik DAO v2
 
 // TODO: add short intro blurb
+
 > Sputnik DAO v2 ...
 
 ## Overview
 
-| Name                | Description                                               |
-| ------------------- | --------------------------------------------------------- |
-| [**Setup**](#setup) | Step-by-step guide to deploy DAO factory and DAO contract |
+| Name                          | Description                                               |
+| ----------------------------- | --------------------------------------------------------- |
+| [Setup](#setup)               | Step-by-step guide to deploy DAO factory and DAO contract |
+|[Roles & Permissions](#roles-and-permissions)||
+| [Proposals](#proposals)       |                                                           |
+|[Voting Policy](#voting-policy)||
+| [Token Voting](#token-voting) |                                                           |
+| [Bounties](#bounties)         |                                                           |
+| [Blob Storage](#blob-storage) |                                                           |
+| [Examples](#examples)                    |                                                           |
 
 ---
 
@@ -21,20 +29,21 @@
 <summary>3-Step Rust Installation.</summary>
 <p>
 
-1) Install Rustup:
+1. Install Rustup:
 
 ```
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
+
 [_(Taken from official installation guide)_](https://www.rust-lang.org/tools/install)
 
-2) Configure your current shell:
+2. Configure your current shell:
 
 ```
 source $HOME/.cargo/env
 ```
 
-3) Add Wasm target to your toolchain:
+3. Add Wasm target to your toolchain:
 
 ```
 rustup target add wasm32-unknown-unknown
@@ -70,7 +79,6 @@ git clone https://github.com/near-daos/sputnik-dao-contract
 
 </p>
 </details>
-
 
 <details>
 <summary>3. Build factory contract.</summary>
@@ -117,7 +125,7 @@ near call $CONTRACT_ID new --accountId $CONTRACT_ID
 <summary>6. Define the parameters of the new DAO, its council, and create it.</summary>
 <p>
 
-- Define the council of your DAO: 
+- Define the council of your DAO:
 
 ```
 export COUNCIL='["council-member.testnet", "YOUR_ACCOUNT.testnet"]'
@@ -144,6 +152,7 @@ To see the transaction in the transaction explorer, please open this url in your
 https://explorer.testnet.near.org/transactions/5beqy8ZMkzpzw7bTLPMv6qswukqqowfzYXZnMAitRVS7
 true
 ```
+
 **Note:** If you see `false` at the bottom (after the transaction link) something went wrong. Check your arguments passed and target contracts and re-deploy.
 
 </p>
@@ -153,7 +162,7 @@ true
 <summary>7. Verify successful deployment and policy configuration.</summary>
 <p>
 
-The DAO deployment will create a new [sub-account](https://docs.near.org/docs/concepts/account#subaccounts) ( `genesis.YOUR_ACCOUNT.testnet` ) and deploy a Sputnik v2 DAO contract to it. 
+The DAO deployment will create a new [sub-account](https://docs.near.org/docs/concepts/account#subaccounts) ( `genesis.YOUR_ACCOUNT.testnet` ) and deploy a Sputnik v2 DAO contract to it.
 
 - Setup another env variable for your DAO contract:
 
@@ -169,34 +178,37 @@ near view $SPUTNIK_ID get_policy
 
 - Verify that the name, purpose, metadata, and council are all configured correctly. Also note the following default values:
 
-
 ```json
 {
-  roles: [
+  "roles": [
     {
-      name: 'all',
-      kind: 'Everyone',
-      permissions: [ '*:AddProposal' ],
-      vote_policy: {}
+      "name": "all",
+      "kind": "Everyone",
+      "permissions": ["*:AddProposal"],
+      "vote_policy": {}
     },
     {
-      name: 'council',
-      kind: { Group: [ 'council-member.testnet', 'YOUR_ACCOUNT.testnet' ] },
-      permissions: [
-        '*:Finalize',
-        '*:AddProposal',
-        '*:VoteApprove',
-        '*:VoteReject',
-        '*:VoteRemove'
+      "name": "council",
+      "kind": { "Group": ["council-member.testnet", "YOUR_ACCOUNT.testnet"] },
+      "permissions": [
+        "*:Finalize",
+        "*:AddProposal",
+        "*:VoteApprove",
+        "*:VoteReject",
+        "*:VoteRemove"
       ],
-      vote_policy: {}
+      "vote_policy": {}
     }
   ],
-  default_vote_policy: { weight_kind: 'RoleWeight', quorum: '0', threshold: [ 1, 2 ] },
-  proposal_bond: '1000000000000000000000000',
-  proposal_period: '604800000000000',
-  bounty_bond: '1000000000000000000000000',
-  bounty_forgiveness_period: '86400000000000'
+  "default_vote_policy": {
+    "weight_kind": "RoleWeight",
+    "quorum": "0",
+    "threshold": [1, 2]
+  },
+  "proposal_bond": "1000000000000000000000000",
+  "proposal_period": "604800000000000",
+  "bounty_bond": "1000000000000000000000000",
+  "bounty_forgiveness_period": "86400000000000"
 }
 ```
 
@@ -205,10 +217,80 @@ near view $SPUTNIK_ID get_policy
 
 ---
 
+
+## Roles and Permissions
+
+The DAO can have several roles, and you can define permissions for each role. A permission is a combination of `proposal_kind:VotingAction` so they can become very specific.
+
+Actions are:
+
+```
+/// Action to add proposal. Used internally.
+AddProposal,
+/// Action to remove given proposal. Used for immediate deletion in special cases.
+RemoveProposal,
+/// Vote to approve given proposal or bounty.
+VoteApprove,
+/// Vote to reject given proposal or bounty.
+VoteReject,
+/// Vote to remove given proposal or bounty (because it's spam).
+VoteRemove,
+/// Finalize proposal, called when it's expired to return the funds
+/// (or in the future can be used for early proposal closure).
+Finalize,
+/// Move a proposal to the hub to shift into another DAO.
+MoveToHub
+```
+
+- For example, a role with: `["mint:VoteReject","mint:VoteRemove"]` means the users with that role can only vote to _reject or remove a mint proposal_, but they can't vote to approve.
+
+- You can use `*` as a wildcard, so for example a role with `mint:*` can perform any vote action on mint proposals.
+
+- You can also use `*:*` for unlimited permission, normally the `council` role has `*:*` as its configured permission so they can perform any vote action on any kind of proposal.
+
+---
+
 ## Proposals
 
 Proposals is the main way to interact with the DAO.
 Each action on the DAO is done by creating and approving proposal.
+
+
+### Proposal Kinds
+
+Each kind of proposal represents an operation the DAO can perform. Proposal kinds are:
+
+```
+ProposalKind::ChangeConfig { .. } => "config",
+ProposalKind::ChangePolicy { .. } => "policy",
+ProposalKind::AddMemberToRole { .. } => "add_member_to_role",
+ProposalKind::RemoveMemberFromRole { .. } => "remove_member_from_role",
+ProposalKind::FunctionCall { .. } => "call",
+ProposalKind::UpgradeSelf { .. } => "upgrade_self",
+ProposalKind::UpgradeRemote { .. } => "upgrade_remote",
+ProposalKind::Transfer { .. } => "transfer",
+ProposalKind::Mint { .. } => "mint",
+ProposalKind::Burn { .. } => "burn",
+ProposalKind::AddBounty { .. } => "add_bounty",
+ProposalKind::BountyDone { .. } => "bounty_done",
+ProposalKind::Vote => "vote",
+```
+
+---
+
+## Voting Policy
+
+You can set a different vote policy for each one of the proposal kinds.
+
+Vote policy can be: `TokenWeight`, meaning members vote with tokens, or `RoleWeight(role)` where all users with such role (e.g."council") can vote.
+
+Also a vote policy has a "threshold". The threshold could be a ratio. e.g. `threshold:[1,2]` => 1/2 or 50% of the votes approve the proposal, or the threshold could be a fixed number (weight), so you can say that you need 3 votes to approve a proposal disregarding the amount of people in the rol, and you can say that you need 1m tokens to approve a proposal disregarding total token supply.
+
+When vote policy is `TokenWeight`, vote % is measured against total toke supply, and each member vote weight is based on tokens owned. So if threshold is 1/2 you need half the token supply to vote "yes" to pass a proposal.
+
+When vote policy is `RoleWeight(role)`, vote % is measured against the count of people with that role, and each member has one vote. So if threshold is 1/2 you need half the members with the role to vote "yes" to pass a proposal.
+
+---
 
 ## Token voting
 
@@ -222,6 +304,8 @@ User flow is next:
 - Undelegating will block delegating / withdrawing until one voting period passes.
 - Undelegated tokens can be withdrawn by the user.
 
+---
+
 ## Bounties
 
 The lifecycle of a bounty is the next:
@@ -232,6 +316,8 @@ The lifecycle of a bounty is the next:
 - Anyone can claim a bounty by calling `bounty_claim(id, deadline)` up to `repeat` times which was specified in the bounty. This allows to have repeatative bounties or multiple working collaboratively. `deadline` specifies how long it will take the sender to complete the bounty.
 - If claimer decides to give up, they can call `bounty_giveup(id)`, and within `forgiveness_period` their claim bond will be returned. After this period, their bond is kept in the DAO.
 - When bounty is complete, call `bounty_done(id)`, which will start add a proposal `BountyDone` that when voted will pay to whoever done the bounty.
+
+---
 
 ## Blob storage
 
@@ -246,6 +332,11 @@ Blob lifecycle:
 - Remove blob and receive funds locked for storage back
 
 Blob can be removed only by the original storer.
+
+---
+
+## Examples
+
 
 #### Step 5. Create a proposal and interact with it:
 
@@ -279,65 +370,3 @@ View first 10 proposals:
 ```
 near view $SPUTNIK_ID get_proposals '{"from_index": 0, "limit": 10}'
 ```
-
-## Proposal Kinds
-
-Each kind of proposal represents an operation the DAO can perform. Proposal kinds are:
-
-```
-ProposalKind::ChangeConfig { .. } => "config",
-ProposalKind::ChangePolicy { .. } => "policy",
-ProposalKind::AddMemberToRole { .. } => "add_member_to_role",
-ProposalKind::RemoveMemberFromRole { .. } => "remove_member_from_role",
-ProposalKind::FunctionCall { .. } => "call",
-ProposalKind::UpgradeSelf { .. } => "upgrade_self",
-ProposalKind::UpgradeRemote { .. } => "upgrade_remote",
-ProposalKind::Transfer { .. } => "transfer",
-ProposalKind::Mint { .. } => "mint",
-ProposalKind::Burn { .. } => "burn",
-ProposalKind::AddBounty { .. } => "add_bounty",
-ProposalKind::BountyDone { .. } => "bounty_done",
-ProposalKind::Vote => "vote",
-```
-
-### Voting Policy
-
-You can set a different vote policy for each one of the proposal kinds.
-
-Vote policy can be: `TokenWeight`, meaning members vote with tokens, or `RoleWeight(role)` where all users with such role (e.g."council") can vote.
-
-Also a vote policy has a "threshold". The threshold could be a ratio. e.g. `threshold:[1,2]` => 1/2 or 50% of the votes approve the proposal, or the threshold could be a fixed number (weight), so you can say that you need 3 votes to approve a proposal disregarding the amount of people in the rol, and you can say that you need 1m tokens to approve a proposal disregarding total token supply.
-
-When vote policy is `TokenWeight`, vote % is measured against total toke supply, and each member vote weight is based on tokens owned. So if threshold is 1/2 you need half the token supply to vote "yes" to pass a proposal.
-
-When vote policy is `RoleWeight(role)`, vote % is measured against the count of people with that role, and each member has one vote. So if threshold is 1/2 you need half the members with the role to vote "yes" to pass a proposal.
-
-## Roles & Permissions
-
-The DAO can have several roles, and you can define permissions for each role. A permission is a combination of `proposal_kind:VotingAction` so they can become very specific.
-
-Actions are:
-
-```
-/// Action to add proposal. Used internally.
-AddProposal,
-/// Action to remove given proposal. Used for immediate deletion in special cases.
-RemoveProposal,
-/// Vote to approve given proposal or bounty.
-VoteApprove,
-/// Vote to reject given proposal or bounty.
-VoteReject,
-/// Vote to remove given proposal or bounty (because it's spam).
-VoteRemove,
-/// Finalize proposal, called when it's expired to return the funds
-/// (or in the future can be used for early proposal closure).
-Finalize,
-/// Move a proposal to the hub to shift into another DAO.
-MoveToHub
-```
-
-so, for example a role with: `["mint:VoteReject","mint:VoteRemove"]` means the users with that role can only vote to _reject or remove a mint proposal_, but they can't vote to approve.
-
-You can use `*` as a wildcard, so for example a role with `mint:*` can perform any vote action on mint proposals.
-
-You can also use `*:*` for unlimited permission, normally the `council` role has `*:*` as its configured permission so they can perform any vote action on any kind of proposal.
