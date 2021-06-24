@@ -1,21 +1,19 @@
 # Sputnik DAO v2
 
-// TODO: add short intro blurb
-
 > Sputnik DAO v2 ...
 
 ## Overview
 
-| Name                          | Description                                               |
-| ----------------------------- | --------------------------------------------------------- |
-| [Setup](#setup)               | Step-by-step guide to deploy DAO factory and DAO contract |
-|[Roles & Permissions](#roles-and-permissions)||
-| [Proposals](#proposals)       |                                                           |
-|[Voting Policy](#voting-policy)||
-| [Token Voting](#token-voting) |                                                           |
-| [Bounties](#bounties)         |                                                           |
-| [Blob Storage](#blob-storage) |                                                           |
-| [Examples](#examples)                    |                                                           |
+| Name                                            | Description                                               |
+| ----------------------------------------------- | --------------------------------------------------------- |
+| [Setup](#setup)                                 | Step-by-step guide to deploy DAO factory and DAO contract |
+| [Roles & Permissions](#roles-and-permissions)   |                                                           |
+| [Proposals](#proposals)                         |                                                           |
+| [Voting Policy](#voting-policy)                 |                                                           |
+| [Token Voting](#token-voting)                   |                                                           |
+| [Bounties](#bounties)                           |                                                           |
+| [Blob Storage](#blob-storage)                   |                                                           |
+| [Examples](../examples/sputnikdao2-examples.md) |                                                           |
 
 ---
 
@@ -217,7 +215,6 @@ near view $SPUTNIK_ID get_policy
 
 ---
 
-
 ## Roles and Permissions
 
 > The DAO can have several roles, and you can define permissions for each role. A permission is a combination of `proposal_kind:VotingAction` so they can become very specific.
@@ -274,6 +271,24 @@ ProposalKind::BountyDone { .. } => "bounty_done",
 ProposalKind::Vote => "vote",
 ```
 
+### Add a proposal
+
+- By default, anyone can add a proposal. Use the following `near-cli` command to call `add_proposal` on your DAO contract.
+
+```
+near call YOUR_SPUTNIK_DAO_CONTRACT.testnet add_proposal '{"proposal": {"description": "Add New Council", "kind": {"AddMemberToRole": {"member_id": "council_member_3.testnet", "role": "council"}}}}' --accountId proposer.testnet --amount 1
+```
+
+### Approve a proposal
+
+- Only council members can approve a proposal. Use the following `near-cli` command to call `act_proposal` on your DAO contract.
+
+```
+near call genesis.sputnik.testnet act_proposal '{"id": ID_from_previous_call, "action": "VoteApprove"}' --accountId council_member_1.testnet
+```
+
+record ID returned from this call.
+
 ---
 
 ## Voting Policy
@@ -307,6 +322,7 @@ User flow is next:
 ## Bounties
 
 // TODO: add bounty blurb
+
 > Bounties... (add blurb)
 
 The lifecycle of a bounty is the next:
@@ -314,7 +330,7 @@ The lifecycle of a bounty is the next:
 - Anyone with permission can add proposal `AddBounty` which contains the bounty information including `token` to pay the reward in and `amount` to pay it out.
 - This proposal gets voted in by the current voting policy.
 - After proposal is passed, the bounty gets added. Now it has an `id` in the bounty list which can be queried via `get_bounties`.
-- Anyone can claim a bounty by calling `bounty_claim(id, deadline)` up to `repeat` times which was specified in the bounty. This allows to have repetitive bounties or multiple working collaboratively. 
+- Anyone can claim a bounty by calling `bounty_claim(id, deadline)` up to `repeat` times which was specified in the bounty. This allows to have repetitive bounties or multiple working collaboratively.
 - `deadline` specifies how long it will take the sender to complete the bounty.
 - If claimer decides to give up, they can call `bounty_giveup(id)`, and within `forgiveness_period` their claim bond will be returned. After this period, their bond is forfeited and is kept in the DAO.
 - When a bounty is complete, call `bounty_done(id)`, which will add a proposal `BountyDone` that, when voted, will pay to whoever completed the bounty.
@@ -335,39 +351,3 @@ Blob lifecycle:
 Blob can be removed only by the original storer.
 
 ---
-
-## Examples
-
-
-#### Step 5. Create a proposal and interact with it:
-
-Lets use a third user, called `another-account.testnet` to create a proposal. The proposal asks for `another-account.testnet` they joins the council. The proposal will be votable for only a minute (`"submission_time":"60000000000"`).
-
-```
-near call $SPUTNIK_ID add_proposal '{"proposal": {"description": "test", "submission_time":"60000000000", "kind": {"AddMemberToRole": {"member_id": "another-account.testnet", "role": "council"}}}}' --accountId another-account.testnet --amount 1
-```
-
-Vote "Approve" using the **council members**:
-
-```
-near call $SPUTNIK_ID act_proposal '{"id": 0, "action": "VoteApprove"}' --accountId sputnik2.testnet
-near call $SPUTNIK_ID act_proposal '{"id": 0, "action": "VoteApprove"}' --accountId councilmember.testnet
-```
-
-View proposal:
-
-```
-near view $SPUTNIK_ID get_proposal '{"id": 0}'
-```
-
-After one minute, the user "another-account.testnet" will be added to the council
-
-```
-near view $SPUTNIK_ID get_policy
-```
-
-View first 10 proposals:
-
-```
-near view $SPUTNIK_ID get_proposals '{"from_index": 0, "limit": 10}'
-```
