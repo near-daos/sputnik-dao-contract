@@ -220,7 +220,7 @@ near view $SPUTNIK_ID get_policy
 
 ## Roles and Permissions
 
-The DAO can have several roles, and you can define permissions for each role. A permission is a combination of `proposal_kind:VotingAction` so they can become very specific.
+> The DAO can have several roles, and you can define permissions for each role. A permission is a combination of `proposal_kind:VotingAction` so they can become very specific.
 
 Actions are:
 
@@ -252,13 +252,11 @@ MoveToHub
 
 ## Proposals
 
-Proposals is the main way to interact with the DAO.
-Each action on the DAO is done by creating and approving proposal.
-
+> Proposals are the main way to interact with the DAO. Each action on the DAO is done by creating and approving a proposal.
 
 ### Proposal Kinds
 
-Each kind of proposal represents an operation the DAO can perform. Proposal kinds are:
+Each kind of proposal represents an operation the DAO can perform. Here are the proposal options:
 
 ```
 ProposalKind::ChangeConfig { .. } => "config",
@@ -280,7 +278,7 @@ ProposalKind::Vote => "vote",
 
 ## Voting Policy
 
-You can set a different vote policy for each one of the proposal kinds.
+> You can set a different vote policy for each one of the proposal kinds.
 
 Vote policy can be: `TokenWeight`, meaning members vote with tokens, or `RoleWeight(role)` where all users with such role (e.g."council") can vote.
 
@@ -294,7 +292,7 @@ When vote policy is `RoleWeight(role)`, vote % is measured against the count of 
 
 ## Token voting
 
-DAO votes to select some token to become voting token (only can be done once, can't change later).
+> DAO votes to select some token to become voting token (only can be done once, can't change later).
 
 User flow is next:
 
@@ -308,28 +306,31 @@ User flow is next:
 
 ## Bounties
 
+// TODO: add bounty blurb
+> Bounties... (add blurb)
+
 The lifecycle of a bounty is the next:
 
-- Anyone with permission can add proposal `AddBounty` which contains the bounty information, including `token` to pay the reward in and `amount` to pay it out.
-- This proposal gets voted in by the current voting policy
-- After proposal passed, the bounty get added. Now it has an `id` in the bounty list. Which can be queries via `get_bounties`
-- Anyone can claim a bounty by calling `bounty_claim(id, deadline)` up to `repeat` times which was specified in the bounty. This allows to have repeatative bounties or multiple working collaboratively. `deadline` specifies how long it will take the sender to complete the bounty.
-- If claimer decides to give up, they can call `bounty_giveup(id)`, and within `forgiveness_period` their claim bond will be returned. After this period, their bond is kept in the DAO.
-- When bounty is complete, call `bounty_done(id)`, which will start add a proposal `BountyDone` that when voted will pay to whoever done the bounty.
+- Anyone with permission can add proposal `AddBounty` which contains the bounty information including `token` to pay the reward in and `amount` to pay it out.
+- This proposal gets voted in by the current voting policy.
+- After proposal is passed, the bounty gets added. Now it has an `id` in the bounty list which can be queried via `get_bounties`.
+- Anyone can claim a bounty by calling `bounty_claim(id, deadline)` up to `repeat` times which was specified in the bounty. This allows to have repetitive bounties or multiple working collaboratively. 
+- `deadline` specifies how long it will take the sender to complete the bounty.
+- If claimer decides to give up, they can call `bounty_giveup(id)`, and within `forgiveness_period` their claim bond will be returned. After this period, their bond is forfeited and is kept in the DAO.
+- When a bounty is complete, call `bounty_done(id)`, which will add a proposal `BountyDone` that, when voted, will pay to whoever completed the bounty.
 
 ---
 
 ## Blob storage
 
-DAO supports storing larger blobs of data and content indexing them by hash of the data.
-This is done to allow upgrading the DAO itself and other contracts.
+> DAO supports storing larger blobs of data and content indexing them by hash of the data. This is done to allow upgrading the DAO itself and other contracts.
 
 Blob lifecycle:
 
-- Store blob in the DAO
-- Create upgradability proposal
-- Proposal passes or fails
-- Remove blob and receive funds locked for storage back
+- Store blob in the DAO.
+- Create upgradability proposal.
+- Proposal passes or fails.
+- Remove blob and receive funds locked for storage back.
 
 Blob can be removed only by the original storer.
 
