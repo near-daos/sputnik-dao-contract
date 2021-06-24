@@ -17,7 +17,9 @@
 2. [NEAR-CLI](https://docs.near.org/docs/tools/near-cli#setup)
 3. [Rust](https://www.rust-lang.org)
 
-> If you have not previously installed Rust as well as configured your current shell and WASM target please perform the following 3-Step Rust Installation:
+<details>
+<summary>3-Step Rust Installation.</summary>
+<p>
 
 1) Install Rustup:
 
@@ -38,11 +40,16 @@ source $HOME/.cargo/env
 rustup target add wasm32-unknown-unknown
 ```
 
+</p>
+</details>
+
 ---
 
 ## Setup
 
-### 1. Login with your account:
+<details>
+<summary>1. Login with your account.</summary>
+<p>
 
 Using [`near-cli`](https://docs.near.org/docs/tools/near-cli#near-login), login to your account which will save your credentials locally:
 
@@ -50,19 +57,35 @@ Using [`near-cli`](https://docs.near.org/docs/tools/near-cli#near-login), login 
 near login
 ```
 
-### 2. Clone repository:
+</p>
+</details>
+
+<details>
+<summary>2. Clone repository.</summary>
+<p>
 
 ```
 git clone https://github.com/near-daos/sputnik-dao-contract
 ```
 
-### 3. Build factory contract:
+</p>
+</details>
+
+
+<details>
+<summary>3. Build factory contract.</summary>
+<p>
 
 ```
 cd sputnik-dao-contract/sputnikdao-factory2 && ./build.sh
 ```
 
-### 4. Deploy factory:
+</p>
+</details>
+
+<details>
+<summary>4. Deploy factory.</summary>
+<p>
 
 - Create an env variable replacing `YOUR_ACCOUNT.testnet` with the name of the account you logged in with earlier:
 
@@ -76,13 +99,23 @@ export CONTRACT_ID=YOUR_ACCOUNT.testnet
 near deploy $CONTRACT_ID --wasmFile=res/sputnikdao_factory2.wasm --accountId $CONTRACT_ID
 ```
 
-### 5. Initialize factory:
+</p>
+</details>
+
+<details>
+<summary>5. Initialize factory.</summary>
+<p>
 
 ```
 near call $CONTRACT_ID new --accountId $CONTRACT_ID
 ```
 
-### 6. Define the parameters of the new DAO, its council, and create it:
+</p>
+</details>
+
+<details>
+<summary>6. Define the parameters of the new DAO, its council, and create it.</summary>
+<p>
 
 - Define the council of your DAO: 
 
@@ -102,9 +135,7 @@ export ARGS=`echo '{"config": {"name": "genesis", "purpose": "Genesis DAO", "met
 near call $CONTRACT_ID create "{\"name\": \"genesis\", \"args\": \"$ARGS\"}" --accountId $CONTRACT_ID --amount 5 --gas 150000000000000
 ```
 
-<details>
-<summary>Example Response:</summary>
-<p>
+**Example Response:**
 
 ```bash
 Scheduling a call: sputnik-v2.testnet.create({"name": "genesis", "args": "eyJjb25maWciOiB7Im5hbWUiOiAiZ2VuZXNpcyIsICJwdXJwb3NlIjogIkdlbmVzaXMgREFPIiwgIm1ldGFkYXRhIjoiIn0sICJwb2xpY3kiOiBbImNvdW5jaWwtbWVtYmVyLnRlc3RuZXQiLCAiWU9VUl9BQ0NPVU5ULnRlc3RuZXQiXX0K"}) with attached 5 NEAR
@@ -118,7 +149,9 @@ true
 </p>
 </details>
 
-### 7. Verify successful deployment and policy configuration:
+<details>
+<summary>7. Verify successful deployment and policy configuration.</summary>
+<p>
 
 The DAO deployment will create a new [sub-account](https://docs.near.org/docs/concepts/account#subaccounts) ( `genesis.YOUR_ACCOUNT.testnet` ) and deploy a Sputnik v2 DAO contract to it. 
 
@@ -166,6 +199,9 @@ near view $SPUTNIK_ID get_policy
   bounty_forgiveness_period: '86400000000000'
 }
 ```
+
+</p>
+</details>
 
 ---
 
