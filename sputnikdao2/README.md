@@ -216,7 +216,7 @@ near view $SPUTNIK_ID get_policy
 
 ## Roles and Permissions
 
-> The DAO can have several roles, each of which allows for permission configuring. These permissions are a combination of [`proposal_kind`](#proposal-kinds) and `VotingAction`. Due to this combination these permissions can be scoped to be very specific or you can use wildcards to allow roles to have greater access.
+> The DAO can have several roles, each of which allows for permission configuring. These permissions are a combination of [`proposal_kind`](#proposal-types) and `VotingAction`. Due to this combination these permissions can be scoped to be very specific or you can use wildcards to allow roles to have greater access.
 
 _Example:_
 
@@ -228,15 +228,13 @@ _Example:_
 
 **Here is a list of all seven actions:**
 
-| Action           | Description                                                                       |
-| ---------------- | --------------------------------------------------------------------------------- |
-| `AddProposal`    | Adds proposal which is used internally.                                           |
-| `RemoveProposal` | Removes given proposal which is used for immediate deletion in special cases.     |
-| `VoteApprove`    | Votes to approve given proposal or bounty.                                        |
-| `VoteReject`     | Votes to reject given proposal or bounty.                                         |
-| `VoteRemove`     | Votes to remove given proposal or bounty (because it's spam).                     |
-| `Finalize`       | Finalizes proposal which is canalled when proposal has expired and returns funds. |
-| `MoveToHub`      | Move a proposal to the hub to shift into another DAO.                             |
+- `AddProposal` - _Adds proposal which is used internally._
+- `RemoveProposal` - _Removes given proposal which is used for immediate deletion in special cases._
+- `VoteApprove` - _Votes to approve given proposal or bounty._
+- `VoteReject` - _Votes to reject given proposal or bounty._
+- `VoteRemove` - _Votes to remove given proposal or bounty (because it's spam)._
+- `Finalize` - _Finalizes proposal which is canalled when proposal has expired and returns funds._
+- `MoveToHub` - _Move a proposal to the hub to shift into another DAO._
 
 ---
 
@@ -244,22 +242,20 @@ _Example:_
 
 > Proposals are the main way to interact with the DAO. Each action on the DAO is performed by creating and approving a proposal.
 
-### Overview
+| Contents                                            |
+| --------------------------------------------------- |
+| [Proposal types](#proposal-types)                   |
+| [Add a proposal](#add-proposal)                     |
+| [View a proposal](#view-proposal)                   |
+| [Get number of proposals](#get-number-of-proposals) |
+| [Get proposals by status](#get-proposals-by-status) |
+| [Vote on a proposal](#vote-on-a-proposal)           |
 
-| Action                                               | Description                                      |
-| ---------------------------------------------------- | ------------------------------------------------ |
-| [Proposal Kinds](#proposal-kinds)                    | Types of proposals you can create on the DAO.    |
-| **METHODS**                                          |                                                  |
-| [`add_proposal`](#add-proposal)                      | Adds proposal to the DAO.                        |
-| [`view_proposal`](#view-proposal)                    | Views proposal by ID.                            |
-| [`get_num_proposals`](#get-proposal-count)           | Gets total count of active proposals on the DAO. |
-| [`get_proposals_by_status`](#get-proposal-by-status) | Gets all proposals by status.                    |
-| [`approve_proposal`](#approve-proposal)              | Approves the proposal.                           |
-| [`finalize`](#finalize)                              |                                                  |
+---
 
-### Proposal Kinds
+### Proposal types
 
-- Each kind of proposal represents an operation the DAO can perform. Here are the proposal options:
+- Each kind of proposal represents an operation the DAO can perform. Here are the kinds of proposals:
 
 ```rs
 ProposalKind::ChangeConfig { .. } => "config",
@@ -276,6 +272,8 @@ ProposalKind::AddBounty { .. } => "add_bounty",
 ProposalKind::BountyDone { .. } => "bounty_done",
 ProposalKind::Vote => "vote",
 ```
+
+---
 
 ### Add proposal
 
@@ -303,6 +301,8 @@ Example of ARG Structure:
 near call YOUR_SPUTNIK_DAO_CONTRACT add_proposal '{"proposal": {"description": "Add New Council", "kind": {"AddMemberToRole": {"member_id": "council_member_3.testnet", "role": "council"}}}}' --accountId proposer.testnet --amount 1
 ```
 
+---
+
 ### View proposal
 
 - Anyone can view a proposal by calling `get_proposal` and passing the `id` of the proposal they wish to view:
@@ -311,13 +311,19 @@ near call YOUR_SPUTNIK_DAO_CONTRACT add_proposal '{"proposal": {"description": "
 near view YOUR_DAO_ACCOUNT get_proposal '{"id": 0}'
 ```
 
-### Get proposal count
+---
+
+### Get number of proposals
 
 - Gets total number of proposals on DAO
+
+---
 
 ### Get proposals by status
 
 - Gets proposals by status or multiple statuses depending on method used.
+
+---
 
 ### Approve proposal
 
@@ -335,7 +341,7 @@ near call YOUR_DAO_ACCOUNT act_proposal '{"id": ID_from_previous_call, "action":
 
 >
 
-### Voting on a proposal
+### Vote on a proposal
 
 > Only council members are allowed to vote on a proposal.
 
