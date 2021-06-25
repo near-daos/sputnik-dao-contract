@@ -1,12 +1,12 @@
 # Sputnik DAO v2
 
-> Sputnik DAO v2 offers all of the functionality of v1 but with more features and enhanced configuration options.
+> Building on the functionality of v1, Sputnik DAO v2 offers even more features and enhanced configuration ability.
 
 ## Overview
 
 | Name                                          | Description                                                           |
 | --------------------------------------------- | --------------------------------------------------------------------- |
-| [Setup](#setup)                               | Step-by-step guide to deploy a DAO factory and DAO contracts.            |
+| [Setup](#setup)                               | Step-by-step guide to deploy a DAO factory and DAO contracts.         |
 | [Roles & Permissions](#roles-and-permissions) | Setup roles and define permissions for each role.                     |
 | [Proposals](#proposals)                       | Each action on the DAO is done by creating and approving a proposal.  |
 | [Voting Policy](#voting-policy)               | Configure voting policies for proposal types.                         |
@@ -217,33 +217,26 @@ near view $SPUTNIK_ID get_policy
 
 ## Roles and Permissions
 
-> The DAO can have several roles, and you can define permissions for each role. A permission is a combination of `proposal_kind:VotingAction` so they can become very specific.
+> The DAO can have several roles, each of which allows for permission configuring. These permissions are a combination of [`proposal_kind`](#proposal-kinds) and `VotingAction`. Due to this combination these permissions can be scoped to be very specific or you can use wildcards to allow roles to have greater access.
 
-Actions are:
+Example: 
+- A role with: `["mint:VoteReject","mint:VoteRemove"]` means they can only vote to *reject* or *remove* a `mint` proposal but they can't vote to approve.
 
-```
-/// Action to add proposal. Used internally.
-AddProposal,
-/// Action to remove given proposal. Used for immediate deletion in special cases.
-RemoveProposal,
-/// Vote to approve given proposal or bounty.
-VoteApprove,
-/// Vote to reject given proposal or bounty.
-VoteReject,
-/// Vote to remove given proposal or bounty (because it's spam).
-VoteRemove,
-/// Finalize proposal, called when it's expired to return the funds
-/// (or in the future can be used for early proposal closure).
-Finalize,
-/// Move a proposal to the hub to shift into another DAO.
-MoveToHub
-```
+- A role with: `["mint:*"]` can perform any vote action on `mint` proposals.
 
-- For example, a role with: `["mint:VoteReject","mint:VoteRemove"]` means the users with that role can only vote to _reject or remove a mint proposal_, but they can't vote to approve.
+- A role with: `["*:*"]` has *unlimited* permission. Normally, the `council` role has `*:*` as its permission so they can perform _any_ vote action on _any_ kind of proposal.
 
-- You can use `*` as a wildcard, so for example a role with `mint:*` can perform any vote action on mint proposals.
+*Here is a list of all seven actions:*
 
-- You can also use `*:*` for unlimited permission, normally the `council` role has `*:*` as its configured permission so they can perform any vote action on any kind of proposal.
+| Action           | Description                                                                       |
+| ---------------- | --------------------------------------------------------------------------------- |
+| `AddProposal`    | Adds proposal which is used internally.                                           |
+| `RemoveProposal` | Removes given proposal which is used for immediate deletion in special cases.     |
+| `VoteApprove`    | Votes to approve given proposal or bounty.                                        |
+| `VoteReject`     | Votes to reject given proposal or bounty.                                         |
+| `VoteRemove`     | Votes to remove given proposal or bounty (because it's spam).                     |
+| `Finalize`       | Finalizes proposal which is canalled when proposal has expired and returns funds. |
+| `MoveToHub`      | Move a proposal to the hub to shift into another DAO.                             |
 
 ---
 
@@ -256,6 +249,7 @@ MoveToHub
 Each kind of proposal represents an operation the DAO can perform. Here are the proposal options:
 
 ```
+
 ProposalKind::ChangeConfig { .. } => "config",
 ProposalKind::ChangePolicy { .. } => "policy",
 ProposalKind::AddMemberToRole { .. } => "add_member_to_role",
@@ -269,6 +263,7 @@ ProposalKind::Burn { .. } => "burn",
 ProposalKind::AddBounty { .. } => "add_bounty",
 ProposalKind::BountyDone { .. } => "bounty_done",
 ProposalKind::Vote => "vote",
+
 ```
 
 ### Add proposal
@@ -276,7 +271,9 @@ ProposalKind::Vote => "vote",
 - By default, anyone can add a proposal. Use the following `near-cli` command to call `add_proposal` on your DAO contract.
 
 ```
+
 near call YOUR_SPUTNIK_DAO_CONTRACT add_proposal '{"proposal": {"description": "Add New Council", "kind": {"AddMemberToRole": {"member_id": "council_member_3.testnet", "role": "council"}}}}' --accountId proposer.testnet --amount 1
+
 ```
 
 ### Approve proposal
@@ -284,7 +281,9 @@ near call YOUR_SPUTNIK_DAO_CONTRACT add_proposal '{"proposal": {"description": "
 - Only council members can approve a proposal. Use the following `near-cli` command to call `act_proposal` on your DAO contract.
 
 ```
+
 near call YOUR_DAO_ACCOUNT act_proposal '{"id": ID_from_previous_call, "action": "VoteApprove"}' --accountId council_member_1.testnet
+
 ```
 
 ### View proposal
@@ -292,7 +291,9 @@ near call YOUR_DAO_ACCOUNT act_proposal '{"id": ID_from_previous_call, "action":
 View proposal:
 
 ```
+
 near view YOUR_DAO_ACCOUNT get_proposal '{"id": 0}'
+
 ```
 
 record ID returned from this call.
@@ -357,3 +358,7 @@ Blob lifecycle:
 Blob can be removed only by the original storer.
 
 ---
+
+```
+
+```
