@@ -9,8 +9,7 @@
 | [Setup](#setup)                               | Step-by-step guide to deploy a DAO factory and DAO contracts.         |
 | [Roles & Permissions](#roles-and-permissions) | Setup roles and define permissions for each role.                     |
 | [Proposals](#proposals)                       | Each action on the DAO is done by creating and approving a proposal.  |
-| [Voting Policy](#voting-policy)               | Configure voting policies for proposal types.                         |
-| [Token Voting](#token-voting)                 | DAO can decide to use a governance token for voting purposes.         |
+| [Voting](#voting)                             | Configure policies, setup governance tokens, and vote on proposals.   |
 | [Bounties](#bounties)                         | Add and configure bounties.                                           |
 | [Blob Storage](#blob-storage)                 | Store large data blobs and content and index them by the data's hash. |
 | [Examples](./examples/README.md)              | Examples and guides for interacting with Sputnik DAO v2.              |
@@ -60,7 +59,7 @@ rustup target add wasm32-unknown-unknown
 
 Using [`near-cli`](https://docs.near.org/docs/tools/near-cli#near-login), login to your account which will save your credentials locally:
 
-```
+```bash
 near login
 ```
 
@@ -71,7 +70,7 @@ near login
 <summary>2. Clone repository.</summary>
 <p>
 
-```
+```bash
 git clone https://github.com/near-daos/sputnik-dao-contract
 ```
 
@@ -82,7 +81,7 @@ git clone https://github.com/near-daos/sputnik-dao-contract
 <summary>3. Build factory contract.</summary>
 <p>
 
-```
+```bash
 cd sputnik-dao-contract/sputnikdao-factory2 && ./build.sh
 ```
 
@@ -95,13 +94,13 @@ cd sputnik-dao-contract/sputnikdao-factory2 && ./build.sh
 
 - Create an env variable replacing `YOUR_ACCOUNT.testnet` with the name of the account you logged in with earlier:
 
-```
+```bash
 export CONTRACT_ID=YOUR_ACCOUNT.testnet
 ```
 
 - Deploy factory contract by running the following command from your current directory _(`sputnik-dao-contract/sputnikdao-factory2`)_:
 
-```
+```bash
 near deploy $CONTRACT_ID --wasmFile=res/sputnikdao_factory2.wasm --accountId $CONTRACT_ID
 ```
 
@@ -112,7 +111,7 @@ near deploy $CONTRACT_ID --wasmFile=res/sputnikdao_factory2.wasm --accountId $CO
 <summary>5. Initialize factory.</summary>
 <p>
 
-```
+```bash
 near call $CONTRACT_ID new --accountId $CONTRACT_ID
 ```
 
@@ -125,19 +124,19 @@ near call $CONTRACT_ID new --accountId $CONTRACT_ID
 
 - Define the council of your DAO:
 
-```
+```bash
 export COUNCIL='["council-member.testnet", "YOUR_ACCOUNT.testnet"]'
 ```
 
 - Configure the name, purpose, and initial council members of the DAO and convert the arguments in base64:
 
-```
+```bash
 export ARGS=`echo '{"config": {"name": "genesis", "purpose": "Genesis DAO", "metadata":""}, "policy": '$COUNCIL'}' | base64`
 ```
 
 - Create the new DAO!:
 
-```
+```bash
 near call $CONTRACT_ID create "{\"name\": \"genesis\", \"args\": \"$ARGS\"}" --accountId $CONTRACT_ID --amount 5 --gas 150000000000000
 ```
 
@@ -164,13 +163,13 @@ The DAO deployment will create a new [sub-account](https://docs.near.org/docs/co
 
 - Setup another env variable for your DAO contract:
 
-```
+```bash
 export SPUTNIK_ID=genesis.$CONTRACT_ID
 ```
 
 - Now call `get_policy` on this contract using [`near view`](https://docs.near.org/docs/tools/near-cli#near-view)
 
-```
+```bash
 near view $SPUTNIK_ID get_policy
 ```
 
@@ -219,14 +218,15 @@ near view $SPUTNIK_ID get_policy
 
 > The DAO can have several roles, each of which allows for permission configuring. These permissions are a combination of [`proposal_kind`](#proposal-kinds) and `VotingAction`. Due to this combination these permissions can be scoped to be very specific or you can use wildcards to allow roles to have greater access.
 
-Example: 
-- A role with: `["mint:VoteReject","mint:VoteRemove"]` means they can only vote to *reject* or *remove* a `mint` proposal but they can't vote to approve.
+_Example:_
+
+- A role with: `["mint:VoteReject","mint:VoteRemove"]` means they can only vote to _reject_ or _remove_ a `mint` proposal but they can't vote to approve.
 
 - A role with: `["mint:*"]` can perform any vote action on `mint` proposals.
 
-- A role with: `["*:*"]` has *unlimited* permission. Normally, the `council` role has `*:*` as its permission so they can perform _any_ vote action on _any_ kind of proposal.
+- A role with: `["*:*"]` has _unlimited_ permission. Normally, the `council` role has `*:*` as its permission so they can perform _any_ vote action on _any_ kind of proposal.
 
-*Here is a list of all seven actions:*
+**Here is a list of all seven actions:**
 
 | Action           | Description                                                                       |
 | ---------------- | --------------------------------------------------------------------------------- |
@@ -242,14 +242,26 @@ Example:
 
 ## Proposals
 
-> Proposals are the main way to interact with the DAO. Each action on the DAO is done by creating and approving a proposal.
+> Proposals are the main way to interact with the DAO. Each action on the DAO is performed by creating and approving a proposal.
+
+### Overview
+
+| Action                                               | Description                                      |
+| ---------------------------------------------------- | ------------------------------------------------ |
+| [Proposal Kinds](#proposal-kinds)                    | Types of proposals you can create on the DAO.    |
+| **METHODS**                                          |                                                  |
+| [`add_proposal`](#add-proposal)                      | Adds proposal to the DAO.                        |
+| [`view_proposal`](#view-proposal)                    | Views proposal by ID.                            |
+| [`get_num_proposals`](#get-proposal-count)           | Gets total count of active proposals on the DAO. |
+| [`get_proposals_by_status`](#get-proposal-by-status) | Gets all proposals by status.                    |
+| [`approve_proposal`](#approve-proposal)              | Approves the proposal.                           |
+| [`finalize`](#finalize)                              |                                                  |
 
 ### Proposal Kinds
 
-Each kind of proposal represents an operation the DAO can perform. Here are the proposal options:
+- Each kind of proposal represents an operation the DAO can perform. Here are the proposal options:
 
-```
-
+```rs
 ProposalKind::ChangeConfig { .. } => "config",
 ProposalKind::ChangePolicy { .. } => "policy",
 ProposalKind::AddMemberToRole { .. } => "add_member_to_role",
@@ -263,50 +275,77 @@ ProposalKind::Burn { .. } => "burn",
 ProposalKind::AddBounty { .. } => "add_bounty",
 ProposalKind::BountyDone { .. } => "bounty_done",
 ProposalKind::Vote => "vote",
-
 ```
 
 ### Add proposal
 
-- By default, anyone can add a proposal. Use the following `near-cli` command to call `add_proposal` on your DAO contract.
+- By default, anyone can add a proposal. Adding a proposal is performed by calling `add_proposal` on your DAO contract.
 
+Example of ARG Structure:
+
+```json
+{
+  "proposal": {
+    "description": "Add New Council",
+    "kind": {
+      "AddMemberToRole": {
+        "member_id": "council_member_3.testnet",
+        "role": "council"
+      }
+    }
+  }
+}
 ```
 
+**Example `near-cli` command:**
+
+```bash
 near call YOUR_SPUTNIK_DAO_CONTRACT add_proposal '{"proposal": {"description": "Add New Council", "kind": {"AddMemberToRole": {"member_id": "council_member_3.testnet", "role": "council"}}}}' --accountId proposer.testnet --amount 1
-
-```
-
-### Approve proposal
-
-- Only council members can approve a proposal. Use the following `near-cli` command to call `act_proposal` on your DAO contract.
-
-```
-
-near call YOUR_DAO_ACCOUNT act_proposal '{"id": ID_from_previous_call, "action": "VoteApprove"}' --accountId council_member_1.testnet
-
 ```
 
 ### View proposal
 
-View proposal:
+- Anyone can view a proposal by calling `get_proposal` and passing the `id` of the proposal they wish to view:
 
-```
-
+```bash
 near view YOUR_DAO_ACCOUNT get_proposal '{"id": 0}'
-
 ```
 
-record ID returned from this call.
+### Get proposal count
+
+- Gets total number of proposals on DAO
+
+### Get proposals by status
+
+- Gets proposals by status or multiple statuses depending on method used.
+
+### Approve proposal
+
+- Only council members can approve a proposal. Approving a proposal is performed by calling `act_proposal` and passing an `id` and `action` with `VoteApprove` as the value.
+
+**Example:**
+
+```bash
+near call YOUR_DAO_ACCOUNT act_proposal '{"id": ID_from_previous_call, "action": "VoteApprove"}' --accountId council_member_1.testnet
+```
 
 ---
 
-## Voting Policy
+## Voting
+
+>
+
+### Voting on a proposal
+
+> Only council members are allowed to vote on a proposal.
+
+### Voting policy
 
 > You can set a different vote policy for each one of the proposal kinds.
 
 Vote policy can be: `TokenWeight`, meaning members vote with tokens, or `RoleWeight(role)` where all users with such role (e.g."council") can vote.
 
-Also a vote policy has a "threshold". The threshold could be a ratio. e.g. `threshold:[1,2]` => 1/2 or 50% of the votes approve the proposal, or the threshold could be a fixed number (weight), so you can say that you need 3 votes to approve a proposal disregarding the amount of people in the rol, and you can say that you need 1m tokens to approve a proposal disregarding total token supply.
+Also a vote policy has a "threshold". The threshold could be a ratio. e.g. `threshold:[1,2]` => 1/2 or 50% of the votes approve the proposal, or the threshold could be a fixed number (weight), so you can say that you need 3 votes to approve a proposal disregarding the amount of people in the role, and you can say that you need 1m tokens to approve a proposal disregarding total token supply.
 
 When vote policy is `TokenWeight`, vote % is measured against total toke supply, and each member vote weight is based on tokens owned. So if threshold is 1/2 you need half the token supply to vote "yes" to pass a proposal.
 
@@ -314,7 +353,7 @@ When vote policy is `RoleWeight(role)`, vote % is measured against the count of 
 
 ---
 
-## Token voting
+### Token voting
 
 > DAO votes to select some token to become voting token (only can be done once, can't change later).
 
