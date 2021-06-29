@@ -380,6 +380,64 @@ near view genesis.sputnik-v2.testnet get_proposal '{"id": 0}'
 
 ---
 
+### View multiple proposals
+
+> Returns multiple proposal details by passing the index ("ID") starting point and a limit of how many records you would like returned.
+
+- method: `get_proposals`
+- params: 
+  - `from_index`
+  - `limit`
+
+<details>
+<summary>Example near-cli command:</summary>
+<p>
+
+```bash
+near view genesis.sputnik-v2.testnet get_proposals '{"from_index": 1, "limit": 2}'
+```
+
+</p>
+</details>
+
+<details>
+<summary>Example response:</summary>
+<p>
+
+```js
+[
+  {
+    id: 1,
+    proposer: 'near-example.testnet',
+    description: 'Add New Council',
+    kind: {
+      AddMemberToRole: { member_id: 'council_member_4.testnet', role: 'council' }
+    },
+    status: 'InProgress',
+    vote_counts: {},
+    votes: {},
+    submission_time: '1624947785010147691'
+  },
+  {
+    id: 2,
+    proposer: 'near-example.testnet',
+    description: 'Add New Council',
+    kind: {
+      AddMemberToRole: { member_id: 'council_member_5.testnet', role: 'council' }
+    },
+    status: 'InProgress',
+    vote_counts: {},
+    votes: {},
+    submission_time: '1624947838518330827'
+  }
+]
+```
+
+</p>
+</details>
+
+---
+
 ---
 
 ### Approve proposal
