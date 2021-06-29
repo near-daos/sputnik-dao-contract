@@ -335,6 +335,51 @@ https://explorer.testnet.near.org/transactions/HbJdK9AnZrvjuuoys2z1PojdkyFiuWBvr
 
 ---
 
+### View proposal
+
+> Returns proposal details by passing the ID or index of a given proposal.
+
+- method: `get_proposal`
+  - params: `id`
+
+<details>
+<summary>Example near-cli command:</summary>
+<p>
+
+```bash
+near view genesis.sputnik-v2.testnet get_proposal '{"id": 0}'
+```
+
+</p>
+</details>
+
+<details>
+<summary>Example response:</summary>
+<p>
+
+```json
+{
+  "id": 0,
+  "proposer": "near-example.testnet",
+  "description": "Add New Council",
+  "kind": {
+    "AddMemberToRole": {
+      "member_id": "council_member_3.testnet",
+      "role": "council"
+    }
+  },
+  "status": "InProgress",
+  "vote_counts": {},
+  "votes": {},
+  "submission_time": "1624947631810665051"
+}
+```
+
+</p>
+</details>
+
+---
+
 ---
 
 ### Approve proposal
