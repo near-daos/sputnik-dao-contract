@@ -216,9 +216,9 @@ near view $SPUTNIK_ID get_policy
 
 ## Roles and Permissions
 
-> The DAO can have several roles, each of which allows for permission configuring. These permissions are a combination of [`proposal_kind`](#proposal-types) and `VotingAction`. Due to this combination these permissions can be scoped to be very specific or you can use wildcards to allow roles to have greater access.
+> The DAO can have several roles, each of which allows for permission configuring. These permissions are a combination of [`proposal_kind`](#proposal-types) and `VotingAction`. Due to this combination these permissions can be scoped to be very specific or you can use wildcards to grant greater access.
 
-_Example:_
+**Examples:**
 
 - A role with: `["mint:VoteReject","mint:VoteRemove"]` means they can only vote to _reject_ or _remove_ a `mint` proposal but they can't vote to approve.
 
@@ -226,7 +226,7 @@ _Example:_
 
 - A role with: `["*:*"]` has _unlimited_ permission. Normally, the `council` role has `*:*` as its permission so they can perform _any_ vote action on _any_ kind of proposal.
 
-**Here is a list of all seven actions:**
+**Here is a list of actions:**
 
 - `AddProposal` - _Adds proposal which is used internally._
 - `RemoveProposal` - _Removes given proposal which is used for immediate deletion in special cases._
@@ -255,7 +255,7 @@ _Example:_
 
 ### Proposal types
 
-- Each kind of proposal represents an operation the DAO can perform. Here are the kinds of proposals:
+> Each kind of proposal represents an operation the DAO can perform. Here are the kinds of proposals:
 
 ```rs
 ProposalKind::ChangeConfig { .. } => "config",
@@ -277,9 +277,19 @@ ProposalKind::Vote => "vote",
 
 ### Add proposal
 
-- By default, anyone can add a proposal. Adding a proposal is performed by calling `add_proposal` on your DAO contract.
+> Adds a proposal to the DAO contract and returns the index number of the proposal or "proposal ID". By default, anyone can add a proposal but it requires a minimum 1 Ⓝ bond (attached deposit).
 
-Example of ARG Structure:
+- method: `add_proposal`
+- params:
+  - `proposal`
+    - `description`
+    - `kind`
+- proposer account ID
+- attached deposit (minimum 1 Ⓝ)
+
+<details>
+<summary>Example argument structure:</summary>
+<p>
 
 ```json
 {
@@ -295,33 +305,35 @@ Example of ARG Structure:
 }
 ```
 
-**Example `near-cli` command:**
+</p>
+</details>
+
+<details>
+<summary>Example near-cli command:</summary>
+<p>
 
 ```bash
-near call YOUR_SPUTNIK_DAO_CONTRACT add_proposal '{"proposal": {"description": "Add New Council", "kind": {"AddMemberToRole": {"member_id": "council_member_3.testnet", "role": "council"}}}}' --accountId proposer.testnet --amount 1
+near call genesis.sputnik-v2.testnet add_proposal \
+'{"proposal": {"description": "Add New Council", "kind": {"AddMemberToRole": {"member_id": "council_member_3.testnet", "role": "council"}}}}' \
+--accountId proposer.testnet \
+--amount 1
 ```
 
----
-
-### View proposal
-
-- Anyone can view a proposal by calling `get_proposal` and passing the `id` of the proposal they wish to view:
+**RESPONSE:**
 
 ```bash
-near view YOUR_DAO_ACCOUNT get_proposal '{"id": 0}'
+Transaction Id HbJdK9AnZrvjuuoys2z1PojdkyFiuWBvrDbXsAf5ndvu
+To see the transaction in the transaction explorer, please open this url in your browser
+https://explorer.testnet.near.org/transactions/HbJdK9AnZrvjuuoys2z1PojdkyFiuWBvrDbXsAf5ndvu
+0
 ```
 
+**Note:** The number under the transaction link is the proposal ID.
+
+</p>
+</details>
+
 ---
-
-### Get number of proposals
-
-- Gets total number of proposals on DAO
-
----
-
-### Get proposals by status
-
-- Gets proposals by status or multiple statuses depending on method used.
 
 ---
 
@@ -332,7 +344,8 @@ near view YOUR_DAO_ACCOUNT get_proposal '{"id": 0}'
 **Example:**
 
 ```bash
-near call YOUR_DAO_ACCOUNT act_proposal '{"id": ID_from_previous_call, "action": "VoteApprove"}' --accountId council_member_1.testnet
+near call genesis.sputnik-v2.testnet act_proposal '{"id": ID_from_previous_call, "action": "VoteApprove"}' \
+--accountId council_member_1.testnet
 ```
 
 ---
