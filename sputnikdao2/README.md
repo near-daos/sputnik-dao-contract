@@ -247,8 +247,7 @@ near view $SPUTNIK_ID get_policy
 | [Proposal types](#proposal-types)                   |
 | [Add a proposal](#add-proposal)                     |
 | [View a proposal](#view-proposal)                   |
-| [Get number of proposals](#get-number-of-proposals) |
-| [Get proposals by status](#get-proposals-by-status) |
+| [View multiple proposals](#view-multiple-proposals) |
 | [Vote on a proposal](#vote-on-a-proposal)           |
 
 ---
@@ -416,7 +415,7 @@ near view genesis.sputnik-v2.testnet get_proposals '{"from_index": 1, "limit": 2
     status: 'InProgress',
     vote_counts: {},
     votes: {},
-    submission_time: '1624947785010147691'
+  submission_time: '1624947785010147691'
   },
   {
     id: 2,
@@ -438,18 +437,24 @@ near view genesis.sputnik-v2.testnet get_proposals '{"from_index": 1, "limit": 2
 
 ---
 
----
-
 ### Approve proposal
 
-- Only council members can approve a proposal. Approving a proposal is performed by calling `act_proposal` and passing an `id` and `action` with `VoteApprove` as the value.
+> Approves proposal by ID. Only council members can approve a proposal
+
+- method: `act_proposal`
+- params:
+  - `id`
+  - `action`
+- account ID that is a council member.
 
 **Example:**
 
 ```bash
-near call genesis.sputnik-v2.testnet act_proposal '{"id": ID_from_previous_call, "action": "VoteApprove"}' \
+near call genesis.sputnik-v2.testnet act_proposal '{"id": 0, "action": "VoteApprove"}' \
 --accountId council_member_1.testnet
 ```
+
+//TODO: add example response (testnet down)
 
 ---
 
