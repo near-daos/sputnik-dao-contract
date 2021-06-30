@@ -228,13 +228,13 @@ near view $SPUTNIK_ID get_policy
 
 **Here is a list of actions:**
 
-- `AddProposal` - _Adds proposal which is used internally._
-- `RemoveProposal` - _Removes given proposal which is used for immediate deletion in special cases._
+- `AddProposal` - _Adds given proposal to the DAO (this is the primary mechanism for getting things done)._
+- `RemoveProposal` - _Removes given proposal (this is used for immediate deletion in special cases)._
 - `VoteApprove` - _Votes to approve given proposal or bounty._
 - `VoteReject` - _Votes to reject given proposal or bounty._
-- `VoteRemove` - _Votes to remove given proposal or bounty (because it's spam)._
-- `Finalize` - _Finalizes proposal which is canalled when proposal has expired and returns funds._
-- `MoveToHub` - _Move a proposal to the hub to shift into another DAO._
+- `VoteRemove` - _Votes to remove given proposal or bounty (this may be because the proposal is spam or otherwise invalid)._
+- `Finalize` - _Finalizes proposal which is cancelled when proposal has expired (this action also returns funds)._
+- `MoveToHub` - _Moves a proposal to the hub (this is used to move a proposal into another DAO)._
 
 ---
 
@@ -271,6 +271,20 @@ ProposalKind::AddBounty { .. } => "add_bounty",
 ProposalKind::BountyDone { .. } => "bounty_done",
 ProposalKind::Vote => "vote",
 ```
+
+- **ChangeConfig** - used to change the configuration of the DAO
+- **ChangePolicy** - used to change the policy of the DAO
+- **AddMemberToRole** - used to add a member to a role in the DAO
+- **RemoveMemberFromRole** - used to remove a member from a role in the DAO
+- **FunctionCall** - used to a call a function on any valid account on the network including the DAO itself, any other DAO, or any other contract. This is a useful mechanism for extending the capabilities of the DAO without modifying or complicating the DAO contract code.  One can imagine a family of contracts built specifically to serve the DAO as agents, proxies, oracles and banks, for example.
+- **UpgradeSelf** - used to upgrade the DAO contract itself.  Consider using `FunctionCall` to extend the capabilities of the DAO before modifying DAO contract code directly.
+- **UpgradeRemote** - used to upgrade other contracts.  This capability pairs nicely with the `FunctionCall` proposal type.
+- **Transfer** - used to move assets from this DAO to any other another account on the network.
+- **Mint** - used to mint tokens controlled by the DAO
+- **Burn** - used to burn tokens controlled by the DAO
+- **AddBounty** - used to add a bounty to encourage members of the DAO community to contribute their time and attention to the needs of the DAO
+- **BountyDone** - used to mark the completion of an available bounty
+- **Vote** - used to vote on existing proposals
 
 ---
 
@@ -384,7 +398,7 @@ near view genesis.sputnik-v2.testnet get_proposal '{"id": 0}'
 > Returns multiple proposal details by passing the index ("ID") starting point and a limit of how many records you would like returned.
 
 - method: `get_proposals`
-- params: 
+- params:
   - `from_index`
   - `limit`
 
