@@ -479,6 +479,14 @@ impl Contract {
                 false
             }
             Action::VoteApprove | Action::VoteReject | Action::VoteRemove => {
+                // If Transfer proposal, ensure there's enough balance to pay out
+                match proposal.kind {
+                    ProposalKind::Transfer { amount, .. } => {
+                        env::log(b"Not enough balance to pay out. Please transfer more NEAR to the DAO contract.");
+                        assert!(env::account_balance() >= amount.0, "ERR_NOT_ENOUGH_BALANCE");
+                    }
+                    _ => {}
+                }
                 assert_eq!(
                     proposal.status,
                     ProposalStatus::InProgress,
