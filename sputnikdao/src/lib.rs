@@ -63,7 +63,7 @@ fn vote_requirement(policy: &[PolicyItem], num_council: u64, amount: Option<Bala
     policy[policy.len() - 1].num_votes(num_council)
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Clone, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Debug, Clone)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Eq))]
 #[serde(crate = "near_sdk::serde")]
 pub enum ProposalStatus {
