@@ -400,7 +400,7 @@ impl Contract {
                 VersionedPolicy::Current(_) => {}
                 _ => panic!("ERR_INVALID_POLICY"),
             },
-            ProposalKind::Transfer { token_id, msg, .. } => {
+            ProposalKind::Transfer { token_id, msg, amount, .. } => {
                 assert!(
                     !(token_id == BASE_TOKEN) || msg.is_none(),
                     "ERR_BASE_TOKEN_NO_MSG"
@@ -410,6 +410,9 @@ impl Contract {
                         ValidAccountId::try_from(token_id.clone()).is_ok(),
                         "ERR_TOKEN_ID_INVALID"
                     );
+                } else {
+                    // Don't create a Transfer proposal for Ⓝ that cannot be paid.
+                    assert!(env::account_balance() >= amount.0, "ERR_NOT_ENOUGH_BALANCE")
                 }
             }
             ProposalKind::SetStakingContract { .. } => assert!(
