@@ -443,6 +443,24 @@ impl Contract {
         id
     }
 
+    /// Checks to see if a proposal is ready for voting.
+    /// Returns a tuple with the:
+    /// - element whether voting is ready
+    /// - a status code (not human-readable)
+    /// Note: it's up to a frontend to provide a human-readable message from the status code
+    pub fn proposal_voting_ready(&self, id: u64) -> (bool, &str) {
+        let proposal: Proposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL").into();
+        match proposal.kind {
+            ProposalKind::Transfer { amount, token_id, ..} => {
+                if token_id.is_empty() && amount.0 > env::account_balance() {
+                    return (false, "WARN_NOT_ENOUGH_BALANCE")
+                }
+            }
+            _ => {}
+        }
+        (true, "")
+    }
+
     /// Act on given proposal by id, if permissions allow.
     /// Memo is logged but not stored in the state. Can be used to leave notes or explain the action.
     pub fn act_proposal(&mut self, id: u64, action: Action, memo: Option<String>) {
