@@ -363,4 +363,33 @@ mod tests {
             },
         });
     }
+
+    #[test]
+    #[should_panic(expected = "ERR_NOT_ENOUGH_BALANCE")]
+    fn test_failure_creating_transfer_proposal() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(1)).account_balance(1).build());
+        let mut contract = Contract::new(
+            Config::test_config(),
+            VersionedPolicy::Default(vec![accounts(1).into()]),
+        );
+        let id = create_proposal(&mut context, &mut contract);
+
+        contract.act_proposal(id, Action::VoteApprove, None);
+    }
+
+    #[test]
+    #[should_panic(expected = "ERR_NOT_ENOUGH_BALANCE")]
+    fn test_failure_voting_low_balance() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        let mut contract = Contract::new(
+            Config::test_config(),
+            VersionedPolicy::Default(vec![accounts(1).into()]),
+        );
+        let id = create_proposal(&mut context, &mut contract);
+        testing_env!(context.account_balance(1).build());
+
+        contract.act_proposal(id, Action::VoteApprove, None);
+    }
 }
