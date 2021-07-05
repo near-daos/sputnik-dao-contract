@@ -124,6 +124,8 @@ impl Contract {
             deadline.0 <= bounty.max_deadline.0,
             "ERR_BOUNTY_WRONG_DEADLINE"
         );
+        // Check that account hasn't already claimed this bounty
+        assert!(!self.bounty_claimers.contains_key(&env::predecessor_account_id()), "ERR_ALREADY_CLAIMED");
         self.bounty_claims_count.insert(&id, &(claims_count + 1));
         let mut claims = self
             .bounty_claimers
