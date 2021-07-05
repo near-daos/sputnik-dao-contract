@@ -14,10 +14,6 @@ use crate::utils::*;
 
 mod utils;
 
-fn user(id: u32) -> String {
-    format!("user{}", id)
-}
-
 #[test]
 fn test_multi_council() {
     let (root, dao) = setup_dao();

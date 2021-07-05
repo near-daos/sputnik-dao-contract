@@ -416,6 +416,11 @@ impl Contract {
                 self.staking_id.is_none(),
                 "ERR_STAKING_CONTRACT_CANT_CHANGE"
             ),
+            ProposalKind::AddBounty { bounty } => assert_ne!(
+                bounty.times,
+                0,
+                "ERR_BOUNTY_TIMES_ZERO"
+            ),
             // TODO: add more verifications.
             _ => {}
         };

@@ -21,7 +21,7 @@ near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
     STAKING_WASM_BYTES => "../sputnik-staking/res/sputnik_staking.wasm",
 }
 
-type Contract = ContractAccount<DAOContract>;
+pub type Contract = ContractAccount<DAOContract>;
 
 pub fn base_token() -> String {
     "".to_string()
@@ -135,4 +135,8 @@ pub fn vote(users: Vec<&UserAccount>, dao: &Contract, proposal_id: u64) {
 
 pub fn to_va(a: AccountId) -> ValidAccountId {
     ValidAccountId::try_from(a).unwrap()
+}
+
+pub fn user(id: u32) -> String {
+    format!("user{}", id)
 }
