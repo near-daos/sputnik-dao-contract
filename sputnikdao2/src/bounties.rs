@@ -276,13 +276,6 @@ mod tests {
         contract.act_proposal(1, Action::VoteApprove, None);
 
         assert_eq!(contract.get_bounty_claims(accounts(1)).len(), 0);
-        assert_eq!(contract.get_bounty(0).bounty.times, 1);
-
-        contract.bounty_claim(0, WrappedDuration::from(500));
-        contract.bounty_done(0, None, "Bounty is done 2".to_string());
-        contract.act_proposal(2, Action::VoteApprove, None);
-
-        assert_eq!(contract.get_bounty(0).bounty.times, 0);
     }
 
     #[test]
