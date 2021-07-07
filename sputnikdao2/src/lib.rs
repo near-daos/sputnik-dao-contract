@@ -4,9 +4,7 @@ use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::env::BLOCKCHAIN_INTERFACE;
 use near_sdk::json_types::{Base58CryptoHash, ValidAccountId, U128};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{
-    env, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash, PanicOnDefault, Promise,
-};
+use near_sdk::{env, ext_contract, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash, PanicOnDefault, Promise, PromiseResult};
 
 use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
 pub use crate::policy::{Policy, RoleKind, RolePermission, VersionedPolicy, VotePolicy};
@@ -36,6 +34,13 @@ pub enum StorageKeys {
     BountyClaimers,
     BountyClaimCounts,
     Blobs,
+}
+
+// After payouts, allows a callback
+#[ext_contract(ext_self)]
+pub trait ExtSelf {
+    // These return true if payout was successful
+    fn callback_after_payout(&mut self, proposal_id: u64) -> bool;
 }
 
 #[near_bindgen]
@@ -128,6 +133,45 @@ impl Contract {
         Promise::new(account_id).transfer(storage_cost)
     }
 }
+
+// Cross-contract calls
+
+#[near_bindgen]
+impl Contract {
+    /// If a bounty or transfer is paid out via native NEAR or via fungible tokens
+    /// without a provided msg, where simple transfer takes place.
+    /// This is the private callback checking that the promise succeeded.
+    #[allow(dead_code)]
+    #[private]
+    pub fn callback_after_payout(&mut self, proposal_id: u64) -> bool {
+        let mut proposal: Proposal = self.proposals.get(&proposal_id).expect("ERR_NO_PROPOSAL").into();
+        assert_eq!(env::promise_results_count(), 1, "ERR_UNEXPECTED_CALLBACK_PROMISES");
+        match env::promise_result(0) {
+            PromiseResult::NotReady => unreachable!(),
+            PromiseResult::Successful(_) => {
+                if let ProposalKind::BountyDone { bounty_id, .. } = proposal.kind {
+                    let mut bounty: Bounty = self.bounties.get(&bounty_id).expect("ERR_NO_BOUNTY").into();
+                    if bounty.times == 0 {
+                        self.bounties.remove(&bounty_id);
+                    } else {
+                        bounty.times -= 1;
+                        self.bounties.insert(&bounty_id, &VersionedBounty::Default(bounty));
+                    }
+                }
+                proposal.status = ProposalStatus::Approved;
+                self.proposals.insert(&proposal_id, &VersionedProposal::Default(proposal.into()));
+            }
+            PromiseResult::Failed => {
+                proposal.status = ProposalStatus::PayoutFailed;
+                self.proposals.insert(&proposal_id, &VersionedProposal::Default(proposal.into()));
+                return false
+            }
+        }
+        true
+    }
+}
+
+// Upgrading the contract
 
 /// Stores attached data into blob store and returns hash of it.
 /// Implemented to avoid loading the data into WASM for optimal gas usage.

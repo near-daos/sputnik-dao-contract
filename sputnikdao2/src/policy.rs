@@ -195,6 +195,7 @@ fn default_policy(council: Vec<AccountId>) -> Policy {
                     "*:VoteReject".to_string(),
                     "*:VoteRemove".to_string(),
                     "*:Finalize".to_string(),
+                    "*:RetryPayout".to_string(),
                 ]
                 .into_iter()
                 .collect(),

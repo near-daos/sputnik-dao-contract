@@ -242,3 +242,66 @@ fn test_failures() {
         None,
     ));
 }
+
+/// Test payments that fail
+#[test]
+fn test_payment_failures() {
+    let (root, dao) = setup_dao();
+    let user1 = root.create_user(user(1), to_yocto("1000"));
+    let whale = root.create_user(user(2), to_yocto("1000"));
+
+    // Add user1
+    add_member_proposal(&root, &dao, user1.account_id.clone()).assert_success();
+    vote(vec![&root], &dao, 0);
+
+    // Set up fungible tokens and give 5 to the dao
+    let test_token = setup_test_token(&root);
+    call!(
+        dao.user_account,
+        test_token.mint(to_va(dao.user_account.account_id.clone()), U128(5))
+    )
+    .assert_success();
+    call!(
+        user1,
+        test_token.storage_deposit(Some(to_va(user1.account_id.clone())),Some(true)),
+        deposit = to_yocto("125")
+    )
+    .assert_success();
+
+    // Attempt to transfer more than it has
+    add_transfer_proposal(
+        &root,
+        &dao,
+        test_token.account_id(),
+        user(1),
+        10,
+        None
+    )
+    .assert_success();
+
+    // Vote in the transfer
+    vote(vec![&root, &user1], &dao, 1);
+    let mut proposal = view!(dao.get_proposal(1)).unwrap_json::<Proposal>();
+    assert_eq!(proposal.status, ProposalStatus::PayoutFailed);
+
+    // Set up benefactor whale who will donate the needed tokens
+    call!(
+        whale,
+        test_token.mint(to_va(whale.account_id.clone()), U128(6_000_000_000))
+    )
+    .assert_success();
+    call!(
+        whale,
+        test_token.ft_transfer(to_va(dao.account_id()), U128::from(1000), Some("Heard you're in a pinch, let me help.".to_string())),
+        deposit = 1
+    ).assert_success();
+
+    // Council member retries payment via an action
+    call!(
+        root,
+        dao.act_proposal(1, Action::RetryPayout, Some("Sorry! We topped up our tokens. Thanks.".to_string()))
+    ).assert_success();
+
+    proposal = view!(dao.get_proposal(1)).unwrap_json::<Proposal>();
+    assert_eq!(proposal.status, ProposalStatus::Approved, "Did not return to approved status.");
+}

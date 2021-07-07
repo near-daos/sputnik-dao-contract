@@ -28,6 +28,8 @@ pub enum ProposalStatus {
     Expired,
     /// If proposal was moved to Hub or somewhere else.
     Moved,
+    /// If an attempted, legitimate payout has failed
+    PayoutFailed,
 }
 
 /// Function call arguments.
@@ -231,10 +233,18 @@ impl Contract {
         receiver_id: &AccountId,
         amount: Balance,
         memo: String,
+        proposal_id: u64,
         msg: Option<String>,
     ) -> PromiseOrValue<()> {
         if token_id == BASE_TOKEN {
-            Promise::new(receiver_id.clone()).transfer(amount).into()
+            Promise::new(receiver_id.clone()).transfer(amount)
+                .then(ext_self::callback_after_payout(
+                    proposal_id,
+                    &env::current_account_id(),
+                    0,
+                    GAS_FOR_FT_TRANSFER
+                ))
+                .into()
         } else {
             if let Some(msg) = msg {
                 ext_fungible_token::ft_transfer_call(
@@ -245,7 +255,12 @@ impl Contract {
                     &token_id,
                     ONE_YOCTO_NEAR,
                     GAS_FOR_FT_TRANSFER,
-                )
+                ).then(ext_self::callback_after_payout(
+                    proposal_id,
+                    &env::current_account_id(),
+                    0,
+                    GAS_FOR_FT_TRANSFER
+                ))
                 .into()
             } else {
                 ext_fungible_token::ft_transfer(
@@ -255,7 +270,12 @@ impl Contract {
                     &token_id,
                     ONE_YOCTO_NEAR,
                     GAS_FOR_FT_TRANSFER,
-                )
+                ).then(ext_self::callback_after_payout(
+                    proposal_id,
+                    &env::current_account_id(),
+                    0,
+                    GAS_FOR_FT_TRANSFER
+                ))
                 .into()
             }
         }
@@ -266,9 +286,13 @@ impl Contract {
         &mut self,
         policy: &Policy,
         proposal: &Proposal,
+        proposal_id: u64
     ) -> PromiseOrValue<()> {
-        // Return the proposal bond.
-        Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond.0);
+        // Return proposal bond unless transferring a payout that might fail and be retried
+        if !matches!(&proposal.kind, ProposalKind::Transfer { .. } | ProposalKind::BountyDone { .. }) {
+            Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond.0);
+        }
+
         match &proposal.kind {
             ProposalKind::ChangeConfig { config } => {
                 self.config.set(config);
@@ -331,6 +355,7 @@ impl Contract {
                 &receiver_id.clone().into(),
                 amount.0,
                 proposal.description.clone(),
+                proposal_id,
                 msg.clone(),
             ),
             ProposalKind::SetStakingContract { staking_id } => {
@@ -345,7 +370,7 @@ impl Contract {
             ProposalKind::BountyDone {
                 bounty_id,
                 receiver_id,
-            } => self.internal_execute_bounty_payout(*bounty_id, &receiver_id.clone().into(), true),
+            } => self.internal_execute_bounty_payout(*bounty_id, &receiver_id.clone().into(), true, proposal_id),
             ProposalKind::Vote => PromiseOrValue::Value(()),
         }
     }
@@ -356,6 +381,7 @@ impl Contract {
         policy: &Policy,
         proposal: &Proposal,
         return_bond: bool,
+        proposal_id: u64
     ) -> PromiseOrValue<()> {
         if return_bond {
             // Return bond to the proposer.
@@ -366,7 +392,7 @@ impl Contract {
                 bounty_id,
                 receiver_id,
             } => {
-                self.internal_execute_bounty_payout(*bounty_id, &receiver_id.clone().into(), false)
+                self.internal_execute_bounty_payout(*bounty_id, &receiver_id.clone().into(), false, proposal_id)
             }
             _ => PromiseOrValue::Value(()),
         }
@@ -458,10 +484,10 @@ impl Contract {
                 false
             }
             Action::VoteApprove | Action::VoteReject | Action::VoteRemove => {
-                assert_eq!(
+                assert!(matches!(
                     proposal.status,
-                    ProposalStatus::InProgress,
-                    "ERR_PROPOSAL_NOT_IN_PROGRESS"
+                    ProposalStatus::InProgress | ProposalStatus::PayoutFailed),
+                    "ERR_PROPOSAL_NOT_READY_FOR_VOTE"
                 );
                 proposal.update_votes(
                     &sender_id,
@@ -474,14 +500,14 @@ impl Contract {
                 proposal.status =
                     policy.proposal_status(&proposal, roles, self.total_delegation_amount);
                 if proposal.status == ProposalStatus::Approved {
-                    self.internal_execute_proposal(&policy, &proposal);
+                    self.internal_execute_proposal(&policy, &proposal, id);
                     true
                 } else if proposal.status == ProposalStatus::Removed {
-                    self.internal_reject_proposal(&policy, &proposal, false);
+                    self.internal_reject_proposal(&policy, &proposal, false, id);
                     self.proposals.remove(&id);
                     false
                 } else if proposal.status == ProposalStatus::Rejected {
-                    self.internal_reject_proposal(&policy, &proposal, true);
+                    self.internal_reject_proposal(&policy, &proposal, true, id);
                     true
                 } else {
                     // Still in progress or expired.
@@ -499,10 +525,50 @@ impl Contract {
                     ProposalStatus::Expired,
                     "ERR_PROPOSAL_NOT_EXPIRED"
                 );
-                self.internal_reject_proposal(&policy, &proposal, true);
+                self.internal_reject_proposal(&policy, &proposal, true, id);
                 true
             }
             Action::MoveToHub => false,
+            Action::RetryPayout => {
+                assert_eq!(
+                    proposal.status,
+                    ProposalStatus::PayoutFailed,
+                    "ERR_PROPOSAL_PAYOUT_NOT_FAILED"
+                );
+
+                // Note that at this point, the bond has already been paid.
+                // Call internal payout method for applicable proposal kinds.
+                match &proposal.kind {
+                    ProposalKind::Transfer {
+                        token_id,
+                        receiver_id,
+                        amount,
+                        msg } => {
+                        self.internal_payout(
+                            &token_id,
+                            receiver_id.as_ref(),
+                            amount.0,
+                            proposal.description.clone(),
+                            id,
+                            msg.clone(),
+                        );
+                    }
+                    ProposalKind::BountyDone { bounty_id, receiver_id } => {
+                        // Get details from bounty
+                        let bounty = self.get_bounty(*bounty_id);
+                        self.internal_payout(
+                            &bounty.bounty.token,
+                            receiver_id.as_ref(),
+                            bounty.bounty.amount.0,
+                            format!("Bounty {} payout (retrying)", id),
+                            id,
+                            None,
+                        );
+                    }
+                    _ => env::panic(b"ERR_RETRY_PAYOUT_WRONG_KIND")
+                };
+                false
+            }
         };
         if update {
             self.proposals

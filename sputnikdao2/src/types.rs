@@ -63,6 +63,8 @@ pub enum Action {
     Finalize,
     /// Move a proposal to the hub to shift into another DAO.
     MoveToHub,
+    /// Retry a failed payout
+    RetryPayout,
 }
 
 impl Action {

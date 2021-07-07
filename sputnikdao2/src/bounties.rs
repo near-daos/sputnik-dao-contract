@@ -70,25 +70,20 @@ impl Contract {
         id: u64,
         receiver_id: &AccountId,
         success: bool,
+        proposal_id: u64,
     ) -> PromiseOrValue<()> {
-        let mut bounty: Bounty = self.bounties.get(&id).expect("ERR_NO_BOUNTY").into();
+        let bounty: Bounty = self.bounties.get(&id).expect("ERR_NO_BOUNTY").into();
         let (claims, claim_idx) = self.internal_get_claims(id, &receiver_id);
         self.internal_remove_claim(id, claims, claim_idx);
         if success {
-            let res = self.internal_payout(
+            self.internal_payout(
                 &bounty.token,
                 receiver_id,
                 bounty.amount.0,
                 format!("Bounty {} payout", id),
+                proposal_id,
                 None,
-            );
-            if bounty.times == 0 {
-                self.bounties.remove(&id);
-            } else {
-                bounty.times -= 1;
-                self.bounties.insert(&id, &VersionedBounty::Default(bounty));
-            }
-            res
+            )
         } else {
             PromiseOrValue::Value(())
         }
@@ -202,7 +197,7 @@ impl Contract {
             // If user over the forgiveness period.
             PromiseOrValue::Value(())
         } else {
-            // Within forgiveness period.
+            // Within forgiveness period. Return bond.
             Promise::new(env::predecessor_account_id())
                 .transfer(policy.bounty_bond.0)
                 .into()
@@ -281,13 +276,6 @@ mod tests {
         contract.act_proposal(1, Action::VoteApprove, None);
 
         assert_eq!(contract.get_bounty_claims(accounts(1)).len(), 0);
-        assert_eq!(contract.get_bounty(0).bounty.times, 1);
-
-        contract.bounty_claim(0, WrappedDuration::from(500));
-        contract.bounty_done(0, None, "Bounty is done 2".to_string());
-        contract.act_proposal(2, Action::VoteApprove, None);
-
-        assert_eq!(contract.get_bounty(0).bounty.times, 0);
     }
 
     #[test]
