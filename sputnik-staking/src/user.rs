@@ -40,7 +40,7 @@ impl User {
             near_amount: U128(near_amount),
             vote_amount: U128(0),
             delegated_amounts: vec![],
-            next_action_timestamp: Timestamp::from(0),
+            next_action_timestamp: Timestamp::from(0u64),
         }
     }
 
@@ -72,10 +72,10 @@ impl User {
             "ERR_NOT_ENOUGH_AMOUNT"
         );
         assert!(
-            env::block_timestamp() >= self.next_action_timestamp.0,
+            env::block_timestamp() >= self.next_action_timestamp,
             "ERR_NOT_ENOUGH_TIME_PASSED"
         );
-        self.storage_used += delegate_id.len() as StorageUsage + U128_LEN;
+        self.storage_used += delegate_id.as_str().len() as StorageUsage + U128_LEN;
         self.delegated_amounts.push((delegate_id, U128(amount)));
         self.assert_storage();
     }
@@ -98,7 +98,7 @@ impl User {
         assert!(element.1 >= amount, "ERR_NOT_ENOUGH_AMOUNT");
         if element.1 == amount {
             self.delegated_amounts.remove(element.0);
-            self.storage_used -= delegate_id.len() as StorageUsage + U128_LEN;
+            self.storage_used -= delegate_id.as_str().len() as StorageUsage + U128_LEN;
         } else {
             (self.delegated_amounts[element.0].1).0 -= amount;
         }
@@ -113,7 +113,7 @@ impl User {
             "ERR_NOT_ENOUGH_AVAILABLE_AMOUNT"
         );
         assert!(
-            env::block_timestamp() >= self.next_action_timestamp.0,
+            env::block_timestamp() >= self.next_action_timestamp,
             "ERR_NOT_ENOUGH_TIME_PASSED"
         );
         self.vote_amount.0 -= amount;
@@ -153,7 +153,7 @@ impl Contract {
         self.save_user(sender_id, user);
         ext_sputnik::register_delegation(
             sender_id.clone(),
-            &self.owner_id,
+            self.owner_id.clone(),
             (U128_LEN as Balance) * env::storage_byte_cost(),
             GAS_FOR_REGISTER,
         );

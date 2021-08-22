@@ -7,6 +7,7 @@ use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     env, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash, PanicOnDefault, Promise,
 };
+use near_cli::{Yocto,YoctoString};
 
 use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
 pub use crate::policy::{Policy, RoleKind, RolePermission, VersionedPolicy, VotePolicy};
@@ -202,7 +203,6 @@ pub extern "C" fn store_blob() {
 mod tests {
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::{testing_env, MockedBlockchain};
-    use near_sdk_sim::to_yocto;
 
     use crate::proposals::ProposalStatus;
     use crate::types::BASE_TOKEN;
@@ -211,13 +211,13 @@ mod tests {
     use std::str::FromStr;
 
     fn create_proposal(context: &mut VMContextBuilder, contract: &mut Contract) -> u64 {
-        testing_env!(context.attached_deposit(to_yocto("1")).build());
+        testing_env!(context.attached_deposit(1u128.near()).build());
         contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
-                token_id: AccountId::from_str(BASE_TOKEN).unwrap(),
+                token_id: AccountId::from_str("a.near").unwrap(),
                 receiver_id: accounts(2).into(),
-                amount: U128(to_yocto("100")),
+                amount: U128(100),
                 msg: None,
             },
         })
@@ -256,7 +256,7 @@ mod tests {
         // non council adding proposal per default policy.
         testing_env!(context
             .predecessor_account_id(accounts(2))
-            .attached_deposit(to_yocto("1"))
+            .attached_deposit(1u128.near())
             .build());
         let _id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
@@ -333,7 +333,7 @@ mod tests {
             Config::test_config(),
             VersionedPolicy::Default(vec![accounts(1).into()]),
         );
-        testing_env!(context.attached_deposit(to_yocto("1")).build());
+        testing_env!(context.attached_deposit(1u128.near()).build());
         let id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::AddMemberToRole {
@@ -356,7 +356,7 @@ mod tests {
             Config::test_config(),
             VersionedPolicy::Default(vec![accounts(1).into()]),
         );
-        testing_env!(context.attached_deposit(to_yocto("1")).build());
+        testing_env!(context.attached_deposit(1u128.near()).build());
         let _id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::ChangePolicy {

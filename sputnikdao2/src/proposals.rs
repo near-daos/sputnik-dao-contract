@@ -3,8 +3,8 @@ use std::convert::TryFrom;
 
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{Base64VecU8, WrappedTimestamp, U64};
-use near_sdk::{log, AccountId, Balance, PromiseOrValue, Gas};
+use near_sdk::json_types::{Base64VecU8, U64};
+use near_sdk::{log, AccountId, Balance, PromiseOrValue, Gas, Timestamp};
 
 use crate::policy::UserInfo;
 use crate::types::{
@@ -155,7 +155,7 @@ pub struct Proposal {
     /// Map of who voted and how.
     pub votes: HashMap<AccountId, Vote>,
     /// Submission time (for voting period).
-    pub submission_time: WrappedTimestamp,
+    pub submission_time: Timestamp,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -218,7 +218,7 @@ impl From<ProposalInput> for Proposal {
             status: ProposalStatus::InProgress,
             vote_counts: HashMap::default(),
             votes: HashMap::default(),
-            submission_time: WrappedTimestamp::from(env::block_timestamp()),
+            submission_time: Timestamp::from(env::block_timestamp()),
         }
     }
 }
@@ -233,7 +233,7 @@ impl Contract {
         memo: String,
         msg: Option<String>,
     ) -> PromiseOrValue<()> {
-        if token_id == BASE_TOKEN {
+        if token_id.as_str() == BASE_TOKEN {
             Promise::new(receiver_id.clone()).transfer(amount).into()
         } else {
             if let Some(msg) = msg {
@@ -242,7 +242,7 @@ impl Contract {
                     U128(amount),
                     Some(memo),
                     msg,
-                    &token_id,
+                    token_id.clone(),
                     ONE_YOCTO_NEAR,
                     GAS_FOR_FT_TRANSFER,
                 )
@@ -252,7 +252,7 @@ impl Contract {
                     receiver_id.clone(),
                     U128(amount),
                     Some(memo),
-                    &token_id,
+                    token_id.clone(),
                     ONE_YOCTO_NEAR,
                     GAS_FOR_FT_TRANSFER,
                 )
@@ -389,6 +389,7 @@ impl Contract {
         // 0. validate bond attached.
         // TODO: consider bond in the token of this DAO.
         let policy = self.policy.get().unwrap().to_policy();
+        println!("{:?} =? {}",policy.proposal_bond.0,env::attached_deposit());
         assert!(
             env::attached_deposit() >= policy.proposal_bond.0,
             "ERR_MIN_BOND"
@@ -402,12 +403,12 @@ impl Contract {
             },
             ProposalKind::Transfer { token_id, msg, .. } => {
                 assert!(
-                    !(token_id == BASE_TOKEN) || msg.is_none(),
+                    !(token_id.as_str() == BASE_TOKEN) || msg.is_none(),
                     "ERR_BASE_TOKEN_NO_MSG"
                 );
-                if token_id != BASE_TOKEN {
+                if token_id.as_str() != BASE_TOKEN {
                     assert!(
-                        AccountId::from(token_id.clone()).is_ok(),
+                        AccountId::try_from(token_id.to_string()).is_ok(),
                         "ERR_TOKEN_ID_INVALID"
                     );
                 }

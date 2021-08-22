@@ -6,8 +6,6 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{U128};
 use near_sdk::{near_bindgen, AccountId, PanicOnDefault, PromiseOrValue, env};
 
-near_sdk::setup_alloc!();
-
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
 pub struct Contract {
@@ -48,7 +46,7 @@ impl FungibleTokenMetadataProvider for Contract {
 #[cfg(test)]
 mod tests {
     use near_sdk::test_utils::{accounts, VMContextBuilder};
-    use near_sdk::{env, testing_env, MockedBlockchain};
+    use near_sdk::{env, testing_env};
 
     use super::*;
 

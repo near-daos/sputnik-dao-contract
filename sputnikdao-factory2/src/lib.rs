@@ -31,7 +31,7 @@ pub struct SputnikDAOFactory {
 
 impl Default for SputnikDAOFactory {
     fn default() -> Self {
-        env::panic(b"SputnikDAOFactory should be initialized before usage")
+        env::panic_str("SputnikDAOFactory should be initialized before usage")
     }
 }
 
@@ -101,11 +101,9 @@ impl SputnikDAOFactory {
 #[cfg(test)]
 mod tests {
     use near_sdk::test_utils::{accounts, testing_env_with_promise_results, VMContextBuilder};
-    use near_sdk::{testing_env, MockedBlockchain, PromiseResult};
+    use near_sdk::{testing_env, PromiseResult};
 
     use super::*;
-    use std::convert::TryFrom;
-    use near_sdk::json_types::Base58CryptoHash;
 
     #[test]
     fn test_basics() {

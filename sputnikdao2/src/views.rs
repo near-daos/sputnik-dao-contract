@@ -41,7 +41,7 @@ impl Contract {
 
     /// Returns staking contract if available. Otherwise returns empty.
     pub fn get_staking_contract(&self) -> AccountId {
-        self.staking_id.clone().unwrap_or_default()
+        self.staking_id.clone().unwrap_or(AccountId::new_unchecked("".into()))
     }
 
     /// Returns if blob with given hash is stored.

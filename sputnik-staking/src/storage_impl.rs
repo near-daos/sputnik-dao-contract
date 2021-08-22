@@ -24,7 +24,7 @@ impl StorageManagement for Contract {
         let min_balance = User::min_storage() as Balance * env::storage_byte_cost();
         let already_registered = self.users.contains_key(&account_id);
         if amount < min_balance && !already_registered {
-            env::panic(b"ERR_DEPOSIT_LESS_THAN_MIN_STORAGE");
+            env::panic_str("ERR_DEPOSIT_LESS_THAN_MIN_STORAGE");
         }
         if registration_only {
             // Registration only setups the account but doesn't leave space for tokens.
