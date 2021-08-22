@@ -4,7 +4,7 @@ use std::convert::TryFrom;
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{Base64VecU8, WrappedTimestamp, U64};
-use near_sdk::{log, AccountId, Balance, PromiseOrValue};
+use near_sdk::{log, AccountId, Balance, PromiseOrValue, Gas};
 
 use crate::policy::UserInfo;
 use crate::types::{
@@ -52,25 +52,25 @@ pub enum ProposalKind {
     ChangePolicy { policy: VersionedPolicy },
     /// Add member to given role in the policy. This is short cut to updating the whole policy.
     AddMemberToRole {
-        member_id: ValidAccountId,
+        member_id: AccountId,
         role: String,
     },
     /// Remove member to given role in the policy. This is short cut to updating the whole policy.
     RemoveMemberFromRole {
-        member_id: ValidAccountId,
+        member_id: AccountId,
         role: String,
     },
     /// Calls `receiver_id` with list of method names in a single promise.
     /// Allows this contract to execute any arbitrary set of actions in other contracts.
     FunctionCall {
-        receiver_id: ValidAccountId,
+        receiver_id: AccountId,
         actions: Vec<ActionCall>,
     },
     /// Upgrade this contract with given hash from blob store.
     UpgradeSelf { hash: Base58CryptoHash },
     /// Upgrade another contract, by calling method with the code from given hash from blob store.
     UpgradeRemote {
-        receiver_id: ValidAccountId,
+        receiver_id: AccountId,
         method_name: String,
         hash: Base58CryptoHash,
     },
@@ -80,18 +80,18 @@ pub enum ProposalKind {
     Transfer {
         /// Can be "" for $NEAR or a valid account id.
         token_id: AccountId,
-        receiver_id: ValidAccountId,
+        receiver_id: AccountId,
         amount: U128,
         msg: Option<String>,
     },
     /// Sets staking contract. Can only be proposed if staking contract is not set yet.
-    SetStakingContract { staking_id: ValidAccountId },
+    SetStakingContract { staking_id: AccountId },
     /// Add new bounty.
     AddBounty { bounty: Bounty },
     /// Indicates that given bounty is done by given user.
     BountyDone {
         bounty_id: u64,
-        receiver_id: ValidAccountId,
+        receiver_id: AccountId,
     },
     /// Just a signaling vote, with no execution.
     Vote,
@@ -297,10 +297,10 @@ impl Contract {
                 let mut promise = Promise::new(receiver_id.clone().into());
                 for action in actions {
                     promise = promise.function_call(
-                        action.method_name.clone().into_bytes(),
+                        action.method_name.clone(),
                         action.args.clone().into(),
                         action.deposit.0,
-                        action.gas.0,
+                        Gas(action.gas.0),
                     )
                 }
                 promise.into()
@@ -407,7 +407,7 @@ impl Contract {
                 );
                 if token_id != BASE_TOKEN {
                     assert!(
-                        ValidAccountId::try_from(token_id.clone()).is_ok(),
+                        AccountId::from(token_id.clone()).is_ok(),
                         "ERR_TOKEN_ID_INVALID"
                     );
                 }

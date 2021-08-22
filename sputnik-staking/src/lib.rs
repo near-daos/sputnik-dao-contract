@@ -2,7 +2,7 @@ use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::LookupMap;
-use near_sdk::json_types::{ValidAccountId, WrappedDuration, U128};
+use near_sdk::json_types::{U128};
 use near_sdk::{
     env, ext_contract, near_bindgen, AccountId, Balance, BorshStorageKey, Duration, Gas,
     PanicOnDefault, Promise, PromiseOrValue, PromiseResult,
@@ -19,16 +19,16 @@ enum StorageKeys {
 }
 
 /// Amount of gas for fungible token transfers.
-pub const GAS_FOR_FT_TRANSFER: Gas = 10_000_000_000_000;
+pub const GAS_FOR_FT_TRANSFER: Gas = Gas(10_000_000_000_000);
 
 /// Amount of gas for delegate action.
-pub const GAS_FOR_DELEGATE: Gas = 10_000_000_000_000;
+pub const GAS_FOR_DELEGATE: Gas = Gas(10_000_000_000_000);
 
 /// Amount of gas for register action.
-pub const GAS_FOR_REGISTER: Gas = 10_000_000_000_000;
+pub const GAS_FOR_REGISTER: Gas = Gas(10_000_000_000_000);
 
 /// Amount of gas for undelegate action.
-pub const GAS_FOR_UNDELEGATE: Gas = 10_000_000_000_000;
+pub const GAS_FOR_UNDELEGATE: Gas = Gas(10_000_000_000_000);
 
 #[ext_contract(ext_sputnik)]
 pub trait Sputnik {
@@ -61,16 +61,16 @@ pub trait Contract {
 impl Contract {
     #[init]
     pub fn new(
-        owner_id: ValidAccountId,
-        token_id: ValidAccountId,
-        unstake_period: WrappedDuration,
+        owner_id: AccountId,
+        token_id: AccountId,
+        unstake_period: near_sdk::Duration,
     ) -> Self {
         Self {
             owner_id: owner_id.into(),
             vote_token_id: token_id.into(),
             users: LookupMap::new(StorageKeys::Users),
             total_amount: 0,
-            unstake_period: unstake_period.0,
+            unstake_period,
         }
     }
 
@@ -80,37 +80,37 @@ impl Contract {
     }
 
     /// Total number of tokens staked by given user.
-    pub fn ft_balance_of(&self, account_id: ValidAccountId) -> U128 {
-        U128(self.internal_get_user(account_id.as_ref()).vote_amount.0)
+    pub fn ft_balance_of(&self, account_id: AccountId) -> U128 {
+        U128(self.internal_get_user(&account_id).vote_amount.0)
     }
 
     /// Returns user information.
-    pub fn get_user(&self, account_id: ValidAccountId) -> User {
-        self.internal_get_user(account_id.as_ref())
+    pub fn get_user(&self, account_id: AccountId) -> User {
+        self.internal_get_user(&account_id)
     }
 
     /// Delegate give amount of votes to given account.
     /// If enough tokens and storage, forwards this to owner account.
-    pub fn delegate(&mut self, account_id: ValidAccountId, amount: U128) -> Promise {
+    pub fn delegate(&mut self, account_id: AccountId, amount: U128) -> Promise {
         let sender_id = env::predecessor_account_id();
         self.internal_delegate(sender_id, account_id.clone().into(), amount.0);
         ext_sputnik::delegate(
             account_id.into(),
             amount,
-            &self.owner_id,
+            self.owner_id,
             0,
             GAS_FOR_DELEGATE,
         )
     }
 
     /// Remove given amount of delegation.
-    pub fn undelegate(&mut self, account_id: ValidAccountId, amount: U128) -> Promise {
+    pub fn undelegate(&mut self, account_id: AccountId, amount: U128) -> Promise {
         let sender_id = env::predecessor_account_id();
         self.internal_undelegate(sender_id, account_id.clone().into(), amount.0);
         ext_sputnik::undelegate(
             account_id.into(),
             amount,
-            &self.owner_id,
+            self.owner_id,
             0,
             GAS_FOR_UNDELEGATE,
         )
@@ -125,14 +125,14 @@ impl Contract {
             sender_id.clone(),
             amount,
             None,
-            &self.vote_token_id,
+            self.vote_token_id,
             1,
             GAS_FOR_FT_TRANSFER,
         )
         .then(ext_self::exchange_callback_post_withdraw(
             sender_id,
             amount,
-            &env::current_account_id(),
+            env::current_account_id(),
             0,
             GAS_FOR_FT_TRANSFER,
         ))
@@ -160,7 +160,7 @@ impl Contract {
 impl FungibleTokenReceiver for Contract {
     fn ft_on_transfer(
         &mut self,
-        sender_id: ValidAccountId,
+        sender_id: AccountId,
         amount: U128,
         msg: String,
     ) -> PromiseOrValue<U128> {
@@ -170,7 +170,7 @@ impl FungibleTokenReceiver for Contract {
             "ERR_INVALID_TOKEN"
         );
         assert!(msg.is_empty(), "ERR_INVALID_MESSAGE");
-        self.internal_deposit(sender_id.as_ref(), amount.0);
+        self.internal_deposit(&sender_id, amount.0);
         PromiseOrValue::Value(U128(0))
     }
 }

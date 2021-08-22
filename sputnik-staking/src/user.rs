@@ -1,7 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{WrappedTimestamp, U128};
+use near_sdk::json_types::{U128};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, AccountId, Balance, Duration, StorageUsage};
+use near_sdk::{env, AccountId, Balance, Duration, StorageUsage, Timestamp};
 
 use crate::*;
 
@@ -23,7 +23,7 @@ pub struct User {
     /// Amount of staked token deposited.
     pub vote_amount: U128,
     /// Withdrawal or next delegation available timestamp.
-    pub next_action_timestamp: WrappedTimestamp,
+    pub next_action_timestamp: Timestamp,
     /// List of delegations to other accounts.
     pub delegated_amounts: Vec<(AccountId, U128)>,
 }
@@ -40,7 +40,7 @@ impl User {
             near_amount: U128(near_amount),
             vote_amount: U128(0),
             delegated_amounts: vec![],
-            next_action_timestamp: 0.into(),
+            next_action_timestamp: Timestamp::from(0),
         }
     }
 

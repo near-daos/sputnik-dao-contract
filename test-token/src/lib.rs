@@ -3,7 +3,7 @@ use near_contract_standards::fungible_token::metadata::{
 };
 use near_contract_standards::fungible_token::FungibleToken;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{ValidAccountId, U128};
+use near_sdk::json_types::{U128};
 use near_sdk::{near_bindgen, AccountId, PanicOnDefault, PromiseOrValue, env};
 
 near_sdk::setup_alloc!();
@@ -23,15 +23,15 @@ impl Contract {
         }
     }
 
-    pub fn mint(&mut self, account_id: ValidAccountId, amount: U128) {
-        self.token.internal_register_account(account_id.as_ref());
+    pub fn mint(&mut self, account_id: AccountId, amount: U128) {
+        self.token.internal_register_account(&account_id);
         self.token
-            .internal_deposit(account_id.as_ref(), amount.into());
+            .internal_deposit(&account_id, amount.into());
     }
 
-    pub fn burn(&mut self, account_id: ValidAccountId, amount: U128) {
+    pub fn burn(&mut self, account_id: AccountId, amount: U128) {
         self.token
-            .internal_withdraw(account_id.as_ref(), amount.into());
+            .internal_withdraw(&account_id, amount.into());
     }
 }
 

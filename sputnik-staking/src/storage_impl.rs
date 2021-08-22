@@ -13,7 +13,7 @@ impl StorageManagement for Contract {
     #[payable]
     fn storage_deposit(
         &mut self,
-        account_id: Option<ValidAccountId>,
+        account_id: Option<AccountId>,
         registration_only: Option<bool>,
     ) -> StorageBalance {
         let amount = env::attached_deposit();
@@ -83,8 +83,8 @@ impl StorageManagement for Contract {
         }
     }
 
-    fn storage_balance_of(&self, account_id: ValidAccountId) -> Option<StorageBalance> {
-        self.internal_get_user_opt(account_id.as_ref())
+    fn storage_balance_of(&self, account_id: AccountId) -> Option<StorageBalance> {
+        self.internal_get_user_opt(&account_id)
             .map(|user| StorageBalance {
                 total: user.near_amount,
                 available: U128(user.storage_available()),

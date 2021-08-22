@@ -2,7 +2,7 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 #[cfg(target_arch = "wasm32")]
 use near_sdk::env::BLOCKCHAIN_INTERFACE;
-use near_sdk::json_types::{Base58CryptoHash, ValidAccountId, U128};
+use near_sdk::json_types::{Base58CryptoHash, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     env, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash, PanicOnDefault, Promise,
@@ -208,13 +208,14 @@ mod tests {
     use crate::types::BASE_TOKEN;
 
     use super::*;
+    use std::str::FromStr;
 
     fn create_proposal(context: &mut VMContextBuilder, contract: &mut Contract) -> u64 {
         testing_env!(context.attached_deposit(to_yocto("1")).build());
         contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
-                token_id: BASE_TOKEN.to_string(),
+                token_id: AccountId::from_str(BASE_TOKEN).unwrap(),
                 receiver_id: accounts(2).into(),
                 amount: U128(to_yocto("100")),
                 msg: None,

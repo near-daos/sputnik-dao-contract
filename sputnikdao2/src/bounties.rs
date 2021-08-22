@@ -223,6 +223,7 @@ mod tests {
     use crate::{Action, Config};
 
     use super::*;
+    use std::str::FromStr;
 
     fn add_bounty(context: &mut VMContextBuilder, contract: &mut Contract, times: u32) -> u64 {
         testing_env!(context.attached_deposit(to_yocto("1")).build());
@@ -231,7 +232,7 @@ mod tests {
             kind: ProposalKind::AddBounty {
                 bounty: Bounty {
                     description: "test bounty".to_string(),
-                    token: BASE_TOKEN.to_string(),
+                    token: AccountId::from_str(BASE_TOKEN).unwrap(),
                     amount: U128(to_yocto("10")),
                     times,
                     max_deadline: WrappedDuration::from(1_000),

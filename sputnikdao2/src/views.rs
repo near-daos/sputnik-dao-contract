@@ -60,10 +60,10 @@ impl Contract {
     }
 
     /// Returns delegated stake to given account.
-    pub fn delegation_balance_of(&self, account_id: ValidAccountId) -> U128 {
+    pub fn delegation_balance_of(&self, account_id: AccountId) -> U128 {
         U128(
             self.delegations
-                .get(account_id.as_ref())
+                .get(&account_id)
                 .unwrap_or_default(),
         )
     }
@@ -121,9 +121,9 @@ impl Contract {
     }
 
     /// Get bounty claims for given user.
-    pub fn get_bounty_claims(&self, account_id: ValidAccountId) -> Vec<BountyClaim> {
+    pub fn get_bounty_claims(&self, account_id: AccountId) -> Vec<BountyClaim> {
         self.bounty_claimers
-            .get(account_id.as_ref())
+            .get(&account_id)
             .unwrap_or_default()
     }
 
