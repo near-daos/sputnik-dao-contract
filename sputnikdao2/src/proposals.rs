@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{Base64VecU8, WrappedTimestamp, U64};
+use near_sdk::json_types::{Base64VecU8, U64};
 use near_sdk::{log, AccountId, Balance, PromiseOrValue};
 
 use crate::policy::UserInfo;
@@ -155,7 +155,7 @@ pub struct Proposal {
     /// Map of who voted and how.
     pub votes: HashMap<AccountId, Vote>,
     /// Submission time (for voting period).
-    pub submission_time: WrappedTimestamp,
+    pub submission_time: U64,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -218,7 +218,7 @@ impl From<ProposalInput> for Proposal {
             status: ProposalStatus::InProgress,
             vote_counts: HashMap::default(),
             votes: HashMap::default(),
-            submission_time: WrappedTimestamp::from(env::block_timestamp()),
+            submission_time: U64::from(env::block_timestamp()),
         }
     }
 }

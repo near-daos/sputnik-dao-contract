@@ -1730,6 +1730,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "near-sdk-sim"
+version = "4.0.0-pre.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de2e4bf293c3d6d213f106638d083893949ad1e3d7a5ea44b2ea627d5bef469c"
+dependencies = [
+ "funty",
+ "lazy-static-include",
+ "near-crypto",
+ "near-pool",
+ "near-primitives",
+ "near-runtime",
+ "near-sdk 4.0.0-pre.2",
+ "near-store",
+ "near-vm-logic",
+]
+
+[[package]]
 name = "near-store"
 version = "0.1.0-pre.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2579,7 +2596,7 @@ dependencies = [
  "hex",
  "near-contract-standards 3.2.0",
  "near-sdk 3.1.0",
- "near-sdk-sim",
+ "near-sdk-sim 3.2.0",
  "test-token",
 ]
 
@@ -2609,10 +2626,11 @@ name = "sputnikdao2"
 version = "2.0.0"
 dependencies = [
  "hex",
- "near-contract-standards 3.2.0",
- "near-sdk 3.1.0",
- "near-sdk-sim",
+ "near-contract-standards 4.0.0-pre.2",
+ "near-sdk 4.0.0-pre.2",
+ "near-sdk-sim 4.0.0-pre.2",
  "sputnik-staking",
+ "test-nft",
  "test-token",
 ]
 
