@@ -73,27 +73,25 @@ impl Action {
 
 /// Self upgrade, optimizes gas by not loading into memory the code.
 pub(crate) fn upgrade_self(hash: &[u8]) {
-    let current_id = env::current_account_id().into_bytes();
-    let method_name = "migrate".as_bytes().to_vec();
+    let current_id = env::current_account_id();
+    let method_name = "migrate";
     let attached_gas = env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_SELF_DEPLOY;
-    unsafe {
-        // Load input (wasm code) into register 0.
-        storage_read(hash.len() as _, hash.as_ptr() as _, 0);
+
+        // Load input (wasm code).
+        let code = storage_read(hash);
         // schedule a Promise tx to this same contract
-        let promise_id = promise_batch_create(current_id.len() as _, current_id.as_ptr() as _);
-        // 1st item in the Tx: "deploy contract" (code is taken from register 0)
-        promise_batch_action_deploy_contract(promise_id, u64::MAX as _, 0);
+        let promise_id = promise_batch_create(&current_id);
+        // 1st item in the Tx: "deploy contract" (code is taken from variable)
+        promise_batch_action_deploy_contract(promise_id, &code.unwrap());
         // 2nd item in the Tx: call this_contract.migrate() with remaining gas
         promise_batch_action_function_call(
             promise_id,
-            method_name.len() as _,
-            method_name.as_ptr() as _,
-            0 as _,
-            0 as _,
-            0 as _,
+            method_name,
+            &vec![],
+            0,
             attached_gas,
         );
-    }
+    
 }
 
 pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &[u8]) {
