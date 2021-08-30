@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use std::convert::TryFrom;
 
-pub use near_sdk::json_types::{Base64VecU8, ValidAccountId, WrappedDuration, U64};
+pub use near_sdk::json_types::{Base64VecU8, ValidAccountId, U64};
 use near_sdk::{AccountId, Balance};
 use near_sdk_sim::transaction::ExecutionStatus;
 use near_sdk_sim::{
