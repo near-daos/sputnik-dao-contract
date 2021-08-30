@@ -13,12 +13,18 @@ pub const BASE_TOKEN: &str = "";
 pub const ONE_YOCTO_NEAR: Balance = 1;
 
 /// Gas for single ft_transfer call.
-pub const GAS_FOR_FT_TRANSFER: Gas = Gas { 0: 10_000_000_000_000 };
+pub const GAS_FOR_FT_TRANSFER: Gas = Gas {
+    0: 10_000_000_000_000,
+};
 
 /// Gas for upgrading this contract on promise creation + deploying new contract.
-pub const GAS_FOR_UPGRADE_SELF_DEPLOY: Gas = Gas { 0: 30_000_000_000_000 };
+pub const GAS_FOR_UPGRADE_SELF_DEPLOY: Gas = Gas {
+    0: 30_000_000_000_000,
+};
 
-pub const GAS_FOR_UPGRADE_REMOTE_DEPLOY: Gas = Gas {0: 10_000_000_000_000 };
+pub const GAS_FOR_UPGRADE_REMOTE_DEPLOY: Gas = Gas {
+    0: 10_000_000_000_000,
+};
 
 /// Configuration of the DAO.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
@@ -77,37 +83,26 @@ pub(crate) fn upgrade_self(hash: &[u8]) {
     let method_name = "migrate";
     let attached_gas = env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_SELF_DEPLOY;
 
-        // Load input (wasm code).
-        let code = storage_read(hash);
-        // schedule a Promise tx to this same contract
-        let promise_id = promise_batch_create(&current_id);
-        // 1st item in the Tx: "deploy contract" (code is taken from variable)
-        promise_batch_action_deploy_contract(promise_id, &code.unwrap());
-        // 2nd item in the Tx: call this_contract.migrate() with remaining gas
-        promise_batch_action_function_call(
-            promise_id,
-            method_name,
-            &vec![],
-            0,
-            attached_gas,
-        );
-    
+    // Load input (wasm code).
+    let code = storage_read(hash);
+    // schedule a Promise tx to this same contract
+    let promise_id = promise_batch_create(&current_id);
+    // 1st item in the Tx: "deploy contract" (code is taken from variable)
+    promise_batch_action_deploy_contract(promise_id, &code.unwrap());
+    // 2nd item in the Tx: call this_contract.migrate() with remaining gas
+    promise_batch_action_function_call(promise_id, method_name, &vec![], 0, attached_gas);
 }
 
 pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &[u8]) {
-    unsafe {
-        // Load input into register 0.
-        storage_read(hash.len() as _, hash.as_ptr() as _, 0);
-        let promise_id = promise_batch_create(receiver_id.len() as _, receiver_id.as_ptr() as _);
-        let attached_gas = env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_REMOTE_DEPLOY;
-        promise_batch_action_function_call(
-            promise_id,
-            method_name.len() as _,
-            method_name.as_ptr() as _,
-            u64::MAX as _,
-            0 as _,
-            0 as _,
-            attached_gas,
-        );
-    }
+    // Load input into register 0.
+    let code = storage_read(hash);
+    let promise_id = promise_batch_create(receiver_id);
+    let attached_gas = env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_REMOTE_DEPLOY;
+    promise_batch_action_function_call(
+        promise_id,
+        method_name,
+        &vec![],
+        0,
+        attached_gas,
+    );
 }
