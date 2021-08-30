@@ -402,10 +402,10 @@ impl Contract {
             },
             ProposalKind::Transfer { token_id, msg, .. } => {
                 assert!(
-                    !(token_id == BASE_TOKEN) || msg.is_none(),
+                    !(token_id.as_str() == BASE_TOKEN) || msg.is_none(),
                     "ERR_BASE_TOKEN_NO_MSG"
                 );
-                if token_id != BASE_TOKEN {
+                if token_id.as_str() != BASE_TOKEN {
                     assert!(
                         AccountId::try_from(token_id.clone()).is_ok(),
                         "ERR_TOKEN_ID_INVALID"
