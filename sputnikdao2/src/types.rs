@@ -4,8 +4,6 @@ use near_sdk::json_types::Base64VecU8;
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, AccountId, Balance, Gas};
 
-const BLOCKCHAIN_INTERFACE_NOT_SET_ERR: &str = "Blockchain interface not set.";
-
 /// Account ID used for $NEAR.
 pub const BASE_TOKEN: &str = "";
 
@@ -90,18 +88,18 @@ pub(crate) fn upgrade_self(hash: &[u8]) {
     // 1st item in the Tx: "deploy contract" (code is taken from variable)
     promise_batch_action_deploy_contract(promise_id, &code.unwrap());
     // 2nd item in the Tx: call this_contract.migrate() with remaining gas
-    promise_batch_action_function_call(promise_id, method_name, &code.unwrap(), 0, attached_gas);
+    promise_batch_action_function_call(promise_id, method_name, &vec![], 0, attached_gas);
 }
 
 pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &[u8]) {
     // Load input into register 0.
-    let code = storage_read(hash);
+    storage_read(hash);
     let promise_id = promise_batch_create(receiver_id);
     let attached_gas = env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_REMOTE_DEPLOY;
     promise_batch_action_function_call(
         promise_id,
         method_name,
-        &code.unwrap(),
+        &vec![],
         0,
         attached_gas,
     );
