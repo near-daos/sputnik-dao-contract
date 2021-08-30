@@ -52,25 +52,25 @@ pub enum ProposalKind {
     ChangePolicy { policy: VersionedPolicy },
     /// Add member to given role in the policy. This is short cut to updating the whole policy.
     AddMemberToRole {
-        member_id: ValidAccountId,
+        member_id: AccountId,
         role: String,
     },
     /// Remove member to given role in the policy. This is short cut to updating the whole policy.
     RemoveMemberFromRole {
-        member_id: ValidAccountId,
+        member_id: AccountId,
         role: String,
     },
     /// Calls `receiver_id` with list of method names in a single promise.
     /// Allows this contract to execute any arbitrary set of actions in other contracts.
     FunctionCall {
-        receiver_id: ValidAccountId,
+        receiver_id: AccountId,
         actions: Vec<ActionCall>,
     },
     /// Upgrade this contract with given hash from blob store.
     UpgradeSelf { hash: Base58CryptoHash },
     /// Upgrade another contract, by calling method with the code from given hash from blob store.
     UpgradeRemote {
-        receiver_id: ValidAccountId,
+        receiver_id: AccountId,
         method_name: String,
         hash: Base58CryptoHash,
     },
@@ -80,18 +80,18 @@ pub enum ProposalKind {
     Transfer {
         /// Can be "" for $NEAR or a valid account id.
         token_id: AccountId,
-        receiver_id: ValidAccountId,
+        receiver_id: AccountId,
         amount: U128,
         msg: Option<String>,
     },
     /// Sets staking contract. Can only be proposed if staking contract is not set yet.
-    SetStakingContract { staking_id: ValidAccountId },
+    SetStakingContract { staking_id: AccountId },
     /// Add new bounty.
     AddBounty { bounty: Bounty },
     /// Indicates that given bounty is done by given user.
     BountyDone {
         bounty_id: u64,
-        receiver_id: ValidAccountId,
+        receiver_id: AccountId,
     },
     /// Just a signaling vote, with no execution.
     Vote,
@@ -407,7 +407,7 @@ impl Contract {
                 );
                 if token_id != BASE_TOKEN {
                     assert!(
-                        ValidAccountId::try_from(token_id.clone()).is_ok(),
+                        AccountId::try_from(token_id.clone()).is_ok(),
                         "ERR_TOKEN_ID_INVALID"
                     );
                 }
@@ -452,7 +452,7 @@ impl Contract {
         let sender_id = env::predecessor_account_id();
         // Update proposal given action. Returns true if should be updated in storage.
         let update = match action {
-            Action::AddProposal => env::panic(b"ERR_WRONG_ACTION"),
+            Action::AddProposal => env::panic_str("ERR_WRONG_ACTION"),
             Action::RemoveProposal => {
                 self.proposals.remove(&id);
                 false

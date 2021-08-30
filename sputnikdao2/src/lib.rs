@@ -2,7 +2,7 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 #[cfg(target_arch = "wasm32")]
 use near_sdk::env::BLOCKCHAIN_INTERFACE;
-use near_sdk::json_types::{Base58CryptoHash, ValidAccountId, U128};
+use near_sdk::json_types::{Base58CryptoHash, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     env, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash, PanicOnDefault, Promise,
@@ -20,8 +20,6 @@ mod policy;
 mod proposals;
 mod types;
 pub mod views;
-
-near_sdk::setup_alloc!();
 
 #[cfg(target_arch = "wasm32")]
 const BLOCKCHAIN_INTERFACE_NOT_SET_ERR: &str = "Blockchain interface not set.";

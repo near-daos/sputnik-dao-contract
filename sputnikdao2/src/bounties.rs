@@ -184,7 +184,7 @@ impl Contract {
                 description,
                 kind: ProposalKind::BountyDone {
                     bounty_id: id,
-                    receiver_id: ValidAccountId::try_from(sender_id.clone()).unwrap(),
+                    receiver_id: AccountId::try_from(sender_id.clone()).unwrap(),
                 },
             });
             claims[claim_idx].completed = true;

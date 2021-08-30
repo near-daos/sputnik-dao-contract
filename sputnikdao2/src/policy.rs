@@ -246,12 +246,12 @@ impl Policy {
                     .kind
                     .add_member_to_group(member_id)
                     .unwrap_or_else(|()| {
-                        env::log(&format!("ERR_ROLE_WRONG_KIND:{}", role).into_bytes());
+                        env::log_str(format!("ERR_ROLE_WRONG_KIND:{}", role));
                     });
                 return;
             }
         }
-        env::log(&format!("ERR_ROLE_NOT_FOUND:{}", role).into_bytes());
+        env::log_str(format!("ERR_ROLE_NOT_FOUND:{}", role));
     }
 
     pub fn remove_member_from_role(&mut self, role: &String, member_id: &AccountId) {
@@ -261,12 +261,12 @@ impl Policy {
                     .kind
                     .remove_member_from_group(member_id)
                     .unwrap_or_else(|()| {
-                        env::log(&format!("ERR_ROLE_WRONG_KIND:{}", role).into_bytes());
+                        env::log_str(format!("ERR_ROLE_WRONG_KIND:{}", role));
                     });
                 return;
             }
         }
-        env::log(&format!("ERR_ROLE_NOT_FOUND:{}", role).into_bytes());
+        env::log_str(format!("ERR_ROLE_NOT_FOUND:{}", role));
     }
 
     /// Returns set of roles that this user is memeber of permissions for given user across all the roles it's member of.
@@ -293,13 +293,13 @@ impl Policy {
         let allowed_roles = roles
             .into_iter()
             .filter_map(|(role, permissions)| {
-                let allowed_role = permissions.contains(&format!(
+                let allowed_role = permissions.contains(format!(
                     "{}:{}",
                     proposal_kind.to_policy_label(),
                     action.to_policy_label()
                 )) || permissions
-                    .contains(&format!("{}:*", proposal_kind.to_policy_label()))
-                    || permissions.contains(&format!("*:{}", action.to_policy_label()))
+                    .contains(format!("{}:*", proposal_kind.to_policy_label()))
+                    || permissions.contains(format!("*:{}", action.to_policy_label()))
                     || permissions.contains("*:*");
                 allowed = allowed || allowed_role;
                 if allowed_role {
