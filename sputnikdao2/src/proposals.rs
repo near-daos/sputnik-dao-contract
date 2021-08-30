@@ -3,8 +3,8 @@ use std::convert::TryFrom;
 
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{Base64VecU8, U64};
-use near_sdk::{log, AccountId, Balance, PromiseOrValue};
+use near_sdk::json_types::{Base64VecU8, U64, U128};
+use near_sdk::{log, AccountId, Balance, PromiseOrValue, Gas};
 
 use crate::policy::UserInfo;
 use crate::types::{
@@ -233,7 +233,7 @@ impl Contract {
         memo: String,
         msg: Option<String>,
     ) -> PromiseOrValue<()> {
-        if token_id == BASE_TOKEN {
+        if token_id.as_str() == BASE_TOKEN {
             Promise::new(receiver_id.clone()).transfer(amount).into()
         } else {
             if let Some(msg) = msg {
@@ -242,7 +242,7 @@ impl Contract {
                     U128(amount),
                     Some(memo),
                     msg,
-                    &token_id,
+                    *token_id,
                     ONE_YOCTO_NEAR,
                     GAS_FOR_FT_TRANSFER,
                 )
@@ -252,7 +252,7 @@ impl Contract {
                     receiver_id.clone(),
                     U128(amount),
                     Some(memo),
-                    &token_id,
+                    *token_id,
                     ONE_YOCTO_NEAR,
                     GAS_FOR_FT_TRANSFER,
                 )
@@ -297,10 +297,10 @@ impl Contract {
                 let mut promise = Promise::new(receiver_id.clone().into());
                 for action in actions {
                     promise = promise.function_call(
-                        action.method_name.clone().into_bytes(),
+                        action.method_name.clone().into(),
                         action.args.clone().into(),
                         action.deposit.0,
-                        action.gas.0,
+                        Gas {0: action.gas.0},
                     )
                 }
                 promise.into()

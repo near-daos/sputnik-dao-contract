@@ -13,12 +13,12 @@ pub const BASE_TOKEN: &str = "";
 pub const ONE_YOCTO_NEAR: Balance = 1;
 
 /// Gas for single ft_transfer call.
-pub const GAS_FOR_FT_TRANSFER: Gas = 10_000_000_000_000;
+pub const GAS_FOR_FT_TRANSFER: Gas = Gas { 0: 10_000_000_000_000 };
 
 /// Gas for upgrading this contract on promise creation + deploying new contract.
-pub const GAS_FOR_UPGRADE_SELF_DEPLOY: Gas = 30_000_000_000_000;
+pub const GAS_FOR_UPGRADE_SELF_DEPLOY: Gas = Gas { 0: 30_000_000_000_000 };
 
-pub const GAS_FOR_UPGRADE_REMOTE_DEPLOY: Gas = 10_000_000_000_000;
+pub const GAS_FOR_UPGRADE_REMOTE_DEPLOY: Gas = Gas {0: 10_000_000_000_000 };
 
 /// Configuration of the DAO.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
