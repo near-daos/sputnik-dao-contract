@@ -1466,7 +1466,16 @@ version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7421d0a5c7aeb57b37a0cf3a71a7aefbbdc7727f9811d9dd86fa55e4f0de4d3"
 dependencies = [
- "near-sdk",
+ "near-sdk 3.1.0",
+]
+
+[[package]]
+name = "near-contract-standards"
+version = "4.0.0-pre.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0bedf701e9a9b3a2df683cb5b7360d95492e70239a380e1e604745d2290e65f"
+dependencies = [
+ "near-sdk 4.0.0-pre.2",
 ]
 
 [[package]]
@@ -1642,7 +1651,25 @@ dependencies = [
  "borsh",
  "bs58",
  "near-primitives-core",
- "near-sdk-macros",
+ "near-sdk-macros 3.1.0",
+ "near-vm-logic",
+ "serde",
+ "serde_json",
+ "wee_alloc",
+]
+
+[[package]]
+name = "near-sdk"
+version = "4.0.0-pre.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab7fc853396919d12055cc4051c303758a75ebca74223f5c9e0907a549452cc3"
+dependencies = [
+ "base64",
+ "borsh",
+ "bs58",
+ "near-primitives-core",
+ "near-sdk-macros 4.0.0-pre.2",
+ "near-sys",
  "near-vm-logic",
  "serde",
  "serde_json",
@@ -1674,6 +1701,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "near-sdk-macros"
+version = "4.0.0-pre.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44fcbacb1d2fedcb2e4aa05094d31ccbfa831c868ca1242d1345b3e45c6b8a6c"
+dependencies = [
+ "Inflector",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "near-sdk-sim"
 version = "3.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1685,7 +1724,7 @@ dependencies = [
  "near-pool",
  "near-primitives",
  "near-runtime",
- "near-sdk",
+ "near-sdk 3.1.0",
  "near-store",
  "near-vm-logic",
 ]
@@ -1711,6 +1750,12 @@ dependencies = [
  "serde_json",
  "strum",
 ]
+
+[[package]]
+name = "near-sys"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6a7aa3f46fac44416d8a93d14f30a562c4d730a1c6bf14bffafab5f475c244a"
 
 [[package]]
 name = "near-vm-errors"
@@ -2532,8 +2577,8 @@ name = "sputnik-staking"
 version = "1.0.0"
 dependencies = [
  "hex",
- "near-contract-standards",
- "near-sdk",
+ "near-contract-standards 3.2.0",
+ "near-sdk 3.1.0",
  "near-sdk-sim",
  "test-token",
 ]
@@ -2542,21 +2587,21 @@ dependencies = [
 name = "sputnikdao"
 version = "0.1.0"
 dependencies = [
- "near-sdk",
+ "near-sdk 3.1.0",
 ]
 
 [[package]]
 name = "sputnikdao-factory"
 version = "0.1.0"
 dependencies = [
- "near-sdk",
+ "near-sdk 3.1.0",
 ]
 
 [[package]]
 name = "sputnikdao-factory2"
 version = "0.2.0"
 dependencies = [
- "near-sdk",
+ "near-sdk 3.1.0",
 ]
 
 [[package]]
@@ -2564,8 +2609,8 @@ name = "sputnikdao2"
 version = "2.0.0"
 dependencies = [
  "hex",
- "near-contract-standards",
- "near-sdk",
+ "near-contract-standards 3.2.0",
+ "near-sdk 3.1.0",
  "near-sdk-sim",
  "sputnik-staking",
  "test-token",
@@ -2681,16 +2726,16 @@ dependencies = [
 name = "test-nft"
 version = "0.1.0"
 dependencies = [
- "near-contract-standards",
- "near-sdk",
+ "near-contract-standards 4.0.0-pre.2",
+ "near-sdk 4.0.0-pre.2",
 ]
 
 [[package]]
 name = "test-token"
 version = "0.1.0"
 dependencies = [
- "near-contract-standards",
- "near-sdk",
+ "near-contract-standards 3.2.0",
+ "near-sdk 3.1.0",
 ]
 
 [[package]]
