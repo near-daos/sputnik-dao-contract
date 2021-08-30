@@ -41,7 +41,7 @@ impl Contract {
 
     /// Returns staking contract if available. Otherwise returns empty.
     pub fn get_staking_contract(&self) -> AccountId {
-        self.staking_id.clone().unwrap_or_default()
+        self.staking_id.clone().unwrap()
     }
 
     /// Returns if blob with given hash is stored.
@@ -63,7 +63,7 @@ impl Contract {
     pub fn delegation_balance_of(&self, account_id: AccountId) -> U128 {
         U128(
             self.delegations
-                .get(account_id.as_ref())
+                .get(&account_id)
                 .unwrap_or_default(),
         )
     }
@@ -123,7 +123,7 @@ impl Contract {
     /// Get bounty claims for given user.
     pub fn get_bounty_claims(&self, account_id: AccountId) -> Vec<BountyClaim> {
         self.bounty_claimers
-            .get(account_id.as_ref())
+            .get(&account_id)
             .unwrap_or_default()
     }
 

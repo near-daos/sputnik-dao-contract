@@ -90,7 +90,7 @@ pub(crate) fn upgrade_self(hash: &[u8]) {
     // 1st item in the Tx: "deploy contract" (code is taken from variable)
     promise_batch_action_deploy_contract(promise_id, &code.unwrap());
     // 2nd item in the Tx: call this_contract.migrate() with remaining gas
-    promise_batch_action_function_call(promise_id, method_name, &vec![], 0, attached_gas);
+    promise_batch_action_function_call(promise_id, method_name, &code.unwrap(), 0, attached_gas);
 }
 
 pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &[u8]) {
@@ -101,7 +101,7 @@ pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &
     promise_batch_action_function_call(
         promise_id,
         method_name,
-        &vec![],
+        &code.unwrap(),
         0,
         attached_gas,
     );

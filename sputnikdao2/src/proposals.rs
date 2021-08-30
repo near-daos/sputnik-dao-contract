@@ -242,7 +242,7 @@ impl Contract {
                     U128(amount),
                     Some(memo),
                     msg,
-                    *token_id,
+                    token_id.clone(),
                     ONE_YOCTO_NEAR,
                     GAS_FOR_FT_TRANSFER,
                 )
@@ -252,7 +252,7 @@ impl Contract {
                     receiver_id.clone(),
                     U128(amount),
                     Some(memo),
-                    *token_id,
+                    token_id.clone(),
                     ONE_YOCTO_NEAR,
                     GAS_FOR_FT_TRANSFER,
                 )
