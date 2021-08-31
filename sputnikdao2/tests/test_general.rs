@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::str::FromStr;
 
 use near_sdk::json_types::U128;
 use near_sdk::AccountId;
@@ -9,13 +10,12 @@ use sputnikdao2::{
     Action, Policy, Proposal, ProposalInput, ProposalKind, ProposalStatus, RoleKind,
     RolePermission, VersionedPolicy, VotePolicy,
 };
-
 use crate::utils::*;
 
 mod utils;
 
-fn user(id: u32) -> String {
-    format!("user{}", id)
+fn user(id: u32) -> AccountId {
+    AccountId::from_str(&format!("user{}", id)).unwrap()
 }
 
 #[test]
@@ -47,9 +47,9 @@ fn test_multi_council() {
         ],
         default_vote_policy: VotePolicy::default(),
         proposal_bond: U128(10u128.pow(24)),
-        proposal_period: WrappedDuration::from(1_000_000_000 * 60 * 60 * 24 * 7),
+        proposal_period: U64::from(1_000_000_000 * 60 * 60 * 24 * 7),
         bounty_bond: U128(10u128.pow(24)),
-        bounty_forgiveness_period: WrappedDuration::from(1_000_000_000 * 60 * 60 * 24),
+        bounty_forgiveness_period: U64::from(1_000_000_000 * 60 * 60 * 24),
     };
     add_proposal(
         &root,
@@ -85,7 +85,7 @@ fn test_create_dao_and_use_token() {
     let staking = setup_staking(&root);
 
     assert!(view!(dao.get_staking_contract())
-        .unwrap_json::<AccountId>()
+        .unwrap_json::<AccountId>().as_str()
         .is_empty());
     add_member_proposal(&root, &dao, user2.account_id.clone()).assert_success();
     assert_eq!(view!(dao.get_last_proposal_id()).unwrap_json::<u64>(), 1);
@@ -117,19 +117,25 @@ fn test_create_dao_and_use_token() {
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::SetStakingContract {
-                staking_id: to_va("staking".to_string()),
+                staking_id: to_va(AccountId::from_str("staking").unwrap()),
             },
         },
     )
     .assert_success();
     vote(vec![&user3, &user2], &dao, 2);
     assert!(!view!(dao.get_staking_contract())
-        .unwrap_json::<AccountId>()
+        .unwrap_json::<AccountId>().as_str()
         .is_empty());
     assert_eq!(
         view!(dao.get_proposal(2)).unwrap_json::<Proposal>().status,
         ProposalStatus::Approved
     );
+       /* macro_rules! view {
+        ($contract: ident.$method:ident($($arg:expr),*)) => {
+            (&$contract).user_account.view_method_call((&$contract).contract.$method($($arg),*))
+        }; 
+    }*/
+    staking.user_account.view_method_call(staking.contract.ft_total_supply())
     assert_eq!(
         view!(staking.ft_total_supply()).unwrap_json::<U128>().0,
         to_yocto("0")

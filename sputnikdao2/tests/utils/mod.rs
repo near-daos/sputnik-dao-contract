@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 use std::convert::TryFrom;
+use std::str::FromStr;
 
-pub use near_sdk::json_types::{Base64VecU8, ValidAccountId, U64};
+pub use near_sdk::json_types::{Base64VecU8, U64};
 use near_sdk::{AccountId, Balance};
 use near_sdk_sim::transaction::ExecutionStatus;
 use near_sdk_sim::{
@@ -23,8 +24,8 @@ near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
 
 type Contract = ContractAccount<DAOContract>;
 
-pub fn base_token() -> String {
-    "".to_string()
+pub fn base_token() -> AccountId {
+    AccountId::from_str("").unwrap()
 }
 
 pub fn should_fail(r: ExecutionResult) {
@@ -133,6 +134,6 @@ pub fn vote(users: Vec<&UserAccount>, dao: &Contract, proposal_id: u64) {
     }
 }
 
-pub fn to_va(a: AccountId) -> ValidAccountId {
-    ValidAccountId::try_from(a).unwrap()
+pub fn to_va(a: AccountId) -> AccountId {
+    AccountId::try_from(a).unwrap()
 }

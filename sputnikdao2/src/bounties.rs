@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{U64, U128};
+use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, near_bindgen, AccountId, Promise, PromiseOrValue};
 
@@ -246,6 +246,7 @@ mod tests {
     /// Adds a bounty, and tests it's full lifecycle.
     #[test]
     fn test_bounty_lifecycle() {
+        near_sdk::env::set_blockchain_interface(MockedBlockchain::default());
         let mut context = VMContextBuilder::new();
         testing_env!(context.predecessor_account_id(accounts(1)).build());
         let mut contract = Contract::new(
