@@ -1,5 +1,5 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{WrappedTimestamp, U128};
+use near_sdk::json_types::{U64, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, AccountId, Balance, Duration, StorageUsage};
 
@@ -23,7 +23,7 @@ pub struct User {
     /// Amount of staked token deposited.
     pub vote_amount: U128,
     /// Withdrawal or next delegation available timestamp.
-    pub next_action_timestamp: WrappedTimestamp,
+    pub next_action_timestamp: U64,
     /// List of delegations to other accounts.
     pub delegated_amounts: Vec<(AccountId, U128)>,
 }
@@ -75,7 +75,7 @@ impl User {
             env::block_timestamp() >= self.next_action_timestamp.0,
             "ERR_NOT_ENOUGH_TIME_PASSED"
         );
-        self.storage_used += delegate_id.len() as StorageUsage + U128_LEN;
+        self.storage_used += delegate_id.as_bytes().len() as StorageUsage + U128_LEN;
         self.delegated_amounts.push((delegate_id, U128(amount)));
         self.assert_storage();
     }
@@ -98,7 +98,7 @@ impl User {
         assert!(element.1 >= amount, "ERR_NOT_ENOUGH_AMOUNT");
         if element.1 == amount {
             self.delegated_amounts.remove(element.0);
-            self.storage_used -= delegate_id.len() as StorageUsage + U128_LEN;
+            self.storage_used -= delegate_id.as_bytes().len() as StorageUsage + U128_LEN;
         } else {
             (self.delegated_amounts[element.0].1).0 -= amount;
         }
@@ -153,7 +153,7 @@ impl Contract {
         self.save_user(sender_id, user);
         ext_sputnik::register_delegation(
             sender_id.clone(),
-            &self.owner_id,
+            self.owner_id.clone(),
             (U128_LEN as Balance) * env::storage_byte_cost(),
             GAS_FOR_REGISTER,
         );

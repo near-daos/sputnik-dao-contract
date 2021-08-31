@@ -1,18 +1,17 @@
+use std::str::FromStr;
+
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedSet;
-use near_sdk::json_types::{Base58PublicKey, Base64VecU8, U128};
-use near_sdk::{assert_self, env, ext_contract, near_bindgen, AccountId, Promise};
-
-#[global_allocator]
-static ALLOC: near_sdk::wee_alloc::WeeAlloc<'_> = near_sdk::wee_alloc::WeeAlloc::INIT;
+use near_sdk::json_types::{Base64VecU8, U128};
+use near_sdk::{assert_self, env, ext_contract, near_bindgen, PublicKey, AccountId, Promise, Gas};
 
 const CODE: &[u8] = include_bytes!("../../sputnikdao2/res/sputnikdao2.wasm");
 
 /// Gas spent on the call & account creation.
-const CREATE_CALL_GAS: u64 = 75_000_000_000_000;
+const CREATE_CALL_GAS: Gas = Gas {0: 75_000_000_000_000};
 
 /// Gas allocated on the callback.
-const ON_CREATE_CALL_GAS: u64 = 10_000_000_000_000;
+const ON_CREATE_CALL_GAS: Gas = Gas {0: 10_000_000_000_000 };
 
 #[ext_contract(ext_self)]
 pub trait ExtSelf {
@@ -32,7 +31,7 @@ pub struct SputnikDAOFactory {
 
 impl Default for SputnikDAOFactory {
     fn default() -> Self {
-        env::panic(b"SputnikDAOFactory should be initialized before usage")
+        env::panic_str("SputnikDAOFactory should be initialized before usage")
     }
 }
 
@@ -54,10 +53,10 @@ impl SputnikDAOFactory {
     pub fn create(
         &mut self,
         name: AccountId,
-        public_key: Option<Base58PublicKey>,
+        public_key: Option<PublicKey>,
         args: Base64VecU8,
     ) -> Promise {
-        let account_id = format!("{}.{}", name, env::current_account_id());
+        let account_id = AccountId::from_str(&format!("{}.{}", name, env::current_account_id())).unwrap();
         let mut promise = Promise::new(account_id.clone())
             .create_account()
             .deploy_contract(CODE.to_vec())
@@ -67,7 +66,7 @@ impl SputnikDAOFactory {
         }
         promise
             .function_call(
-                b"new".to_vec(),
+                "new".to_string(),
                 args.into(),
                 0,
                 env::prepaid_gas() - CREATE_CALL_GAS - ON_CREATE_CALL_GAS,
@@ -76,7 +75,7 @@ impl SputnikDAOFactory {
                 account_id,
                 U128(env::attached_deposit()),
                 env::predecessor_account_id(),
-                &env::current_account_id(),
+                env::current_account_id(),
                 0,
                 ON_CREATE_CALL_GAS,
             ))
@@ -114,7 +113,7 @@ mod tests {
         testing_env!(context.attached_deposit(10).build());
         factory.create(
             "test".to_string(),
-            Some(Base58PublicKey(vec![])),
+            Some(PublicKey(vec![])),
             "{}".as_bytes().to_vec().into(),
         );
         testing_env_with_promise_results(

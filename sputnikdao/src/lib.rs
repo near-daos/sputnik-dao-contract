@@ -3,10 +3,7 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{UnorderedSet, Vector};
 use near_sdk::serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use near_sdk::json_types::{WrappedBalance, WrappedDuration};
-
-#[global_allocator]
-static ALLOC: near_sdk::wee_alloc::WeeAlloc<'_> = near_sdk::wee_alloc::WeeAlloc::INIT;
+use near_sdk::json_types::{U64, U128};
 
 const MAX_DESCRIPTION_LENGTH: usize = 280;
 
@@ -38,7 +35,7 @@ impl NumOrRatio {
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct PolicyItem {
-    pub max_amount: WrappedBalance,
+    pub max_amount: U64,
     pub votes: NumOrRatio,
 }
 
@@ -55,7 +52,7 @@ fn vote_requirement(policy: &[PolicyItem], num_council: u64, amount: Option<Bala
     if let Some(amount) = amount {
         // TODO: replace with binary search.
         for item in policy {
-            if item.max_amount.0 > amount {
+            if u128::from(item.max_amount.0) > amount {
                 return item.num_votes(num_council);
             }
         }
@@ -92,9 +89,9 @@ impl ProposalStatus {
 pub enum ProposalKind {
     NewCouncil,
     RemoveCouncil,
-    Payout { amount: WrappedBalance },
-    ChangeVotePeriod { vote_period: WrappedDuration },
-    ChangeBond { bond: WrappedBalance },
+    Payout { amount: U64 },
+    ChangeVotePeriod { vote_period: U64 },
+    ChangeBond { bond: U128 },
     ChangePolicy { policy: Vec<PolicyItem> },
     ChangePurpose { purpose: String },
 }
@@ -116,7 +113,7 @@ pub struct Proposal {
 impl Proposal {
     pub fn get_amount(&self) -> Option<Balance> {
         match self.kind {
-            ProposalKind::Payout { amount } => Some(amount.0),
+            ProposalKind::Payout { amount } => Some(amount.0.into()),
             _ => None,
         }
     }
@@ -167,7 +164,7 @@ pub struct SputnikDAO {
 
 impl Default for SputnikDAO {
     fn default() -> Self {
-        env::panic(b"SputnikDAO should be initialized before usage")
+        env::panic_str("SputnikDAO should be initialized before usage")
     }
 }
 
@@ -177,9 +174,9 @@ impl SputnikDAO {
     pub fn new(
         purpose: String,
         council: Vec<AccountId>,
-        bond: WrappedBalance,
-        vote_period: WrappedDuration,
-        grace_period: WrappedDuration,
+        bond: U128,
+        vote_period: U64,
+        grace_period: U64,
     ) -> Self {
         assert!(!env::state_exists(), "The contract is already initialized");
 
@@ -246,11 +243,11 @@ impl SputnikDAO {
         self.proposals.len() - 1
     }
 
-    pub fn get_vote_period(&self) -> WrappedDuration {
+    pub fn get_vote_period(&self) -> U64 {
         self.vote_period.into()
     }
 
-    pub fn get_bond(&self) -> WrappedBalance {
+    pub fn get_bond(&self) -> U128 {
         self.bond.into()
     }
 
@@ -324,7 +321,7 @@ impl SputnikDAO {
             "Proposal already finalized"
         );
         if proposal.vote_period_end < env::block_timestamp() {
-            env::log(b"Voting period expired, finalizing the proposal");
+            env::log_str("Voting period expired, finalizing the proposal");
             self.finalize(id);
             return;
         }
@@ -359,7 +356,7 @@ impl SputnikDAO {
         proposal.status = proposal.vote_status(&self.policy, self.council.len());
         match proposal.status {
             ProposalStatus::Success => {
-                env::log(b"Vote succeeded");
+                env::log_str("Vote succeeded");
                 let target = proposal.target.clone();
                 Promise::new(proposal.proposer.clone()).transfer(self.bond);
                 match proposal.kind {
@@ -370,7 +367,7 @@ impl SputnikDAO {
                         self.council.remove(&target);
                     }
                     ProposalKind::Payout { amount } => {
-                        Promise::new(target).transfer(amount.0);
+                        Promise::new(target).transfer(amount.0.into());
                     }
                     ProposalKind::ChangeVotePeriod { vote_period } => {
                         self.vote_period = vote_period.into();
@@ -387,15 +384,15 @@ impl SputnikDAO {
                 };
             }
             ProposalStatus::Reject => {
-                env::log(b"Proposal rejected");
+                env::log_str("Proposal rejected");
             }
             ProposalStatus::Fail => {
                 // If no majority vote, let's return the bond.
-                env::log(b"Proposal vote failed");
+                env::log_str("Proposal vote failed");
                 Promise::new(proposal.proposer.clone()).transfer(self.bond);
             }
             ProposalStatus::Vote | ProposalStatus::Delay => {
-                env::panic(b"voting period has not expired and no majority vote yet")
+                env::panic_str("voting period has not expired and no majority vote yet")
             }
         }
         self.proposals.replace(id, &proposal);
