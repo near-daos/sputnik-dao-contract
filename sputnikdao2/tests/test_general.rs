@@ -130,12 +130,8 @@ fn test_create_dao_and_use_token() {
         view!(dao.get_proposal(2)).unwrap_json::<Proposal>().status,
         ProposalStatus::Approved
     );
-       /* macro_rules! view {
-        ($contract: ident.$method:ident($($arg:expr),*)) => {
-            (&$contract).user_account.view_method_call((&$contract).contract.$method($($arg),*))
-        }; 
-    }*/
-    staking.user_account.view_method_call(staking.contract.ft_total_supply())
+
+    staking.user_account.view_method_call(staking.contract.ft_total_supply());
     assert_eq!(
         view!(staking.ft_total_supply()).unwrap_json::<U128>().0,
         to_yocto("0")
@@ -213,14 +209,14 @@ fn test_create_dao_and_use_token() {
     let user = view!(staking.get_user(user2_id.clone())).unwrap_json::<User>();
     assert_eq!(
         user.delegated_amounts,
-        vec![(user2_id.to_string(), U128(to_yocto("4")))]
+        vec![(user2_id.clone(), U128(to_yocto("4")))]
     );
     assert_eq!(
         view!(dao.delegation_total_supply()).unwrap_json::<U128>().0,
         to_yocto("4")
     );
     assert_eq!(
-        view!(dao.delegation_balance_of(user2_id))
+        view!(dao.delegation_balance_of(user2_id.clone()))
             .unwrap_json::<U128>()
             .0,
         to_yocto("4")
@@ -242,7 +238,7 @@ fn test_failures() {
     should_fail(add_transfer_proposal(
         &root,
         &dao,
-        "not:a^valid.token@".to_string(),
+        AccountId::from_str("not:a^valid.token@").unwrap(),
         user(1),
         1_000_000,
         None,

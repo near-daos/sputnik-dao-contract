@@ -2,7 +2,7 @@ use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::LookupMap;
-use near_sdk::json_types::{U64, U128};
+use near_sdk::json_types::{U128, U64};
 use near_sdk::{
     env, ext_contract, near_bindgen, AccountId, Balance, BorshStorageKey, Duration, Gas,
     PanicOnDefault, Promise, PromiseOrValue, PromiseResult,
@@ -19,16 +19,24 @@ enum StorageKeys {
 }
 
 /// Amount of gas for fungible token transfers.
-pub const GAS_FOR_FT_TRANSFER: Gas = Gas {0: 10_000_000_000_000};
+pub const GAS_FOR_FT_TRANSFER: Gas = Gas {
+    0: 10_000_000_000_000,
+};
 
 /// Amount of gas for delegate action.
-pub const GAS_FOR_DELEGATE: Gas = Gas {0: 10_000_000_000_000};
+pub const GAS_FOR_DELEGATE: Gas = Gas {
+    0: 10_000_000_000_000,
+};
 
 /// Amount of gas for register action.
-pub const GAS_FOR_REGISTER: Gas = Gas {0: 10_000_000_000_000};
+pub const GAS_FOR_REGISTER: Gas = Gas {
+    0: 10_000_000_000_000,
+};
 
 /// Amount of gas for undelegate action.
-pub const GAS_FOR_UNDELEGATE: Gas = Gas {0: 10_000_000_000_000};
+pub const GAS_FOR_UNDELEGATE: Gas = Gas {
+    0: 10_000_000_000_000,
+};
 
 #[ext_contract(ext_sputnik)]
 pub trait Sputnik {
@@ -60,11 +68,7 @@ pub trait Contract {
 #[near_bindgen]
 impl Contract {
     #[init]
-    pub fn new(
-        owner_id: AccountId,
-        token_id: AccountId,
-        unstake_period: U64,
-    ) -> Self {
+    pub fn new(owner_id: AccountId, token_id: AccountId, unstake_period: U64) -> Self {
         Self {
             owner_id: owner_id.into(),
             vote_token_id: token_id.into(),
@@ -190,6 +194,16 @@ mod tests {
     fn test_basics() {
         let period = 1000;
         let mut context = VMContextBuilder::new();
+        let mocked_blockchain = MockedBlockchain::new(
+            context.build(),
+            Default::default(),
+            Default::default(),
+            vec![],
+            Default::default(),
+            Default::default(),
+            None,
+        );
+        near_sdk::env::set_blockchain_interface(mocked_blockchain);
         testing_env!(context.predecessor_account_id(accounts(0)).build());
         let mut contract = Contract::new(accounts(0), accounts(1), U64(period));
         testing_env!(context.attached_deposit(to_yocto("1")).build());

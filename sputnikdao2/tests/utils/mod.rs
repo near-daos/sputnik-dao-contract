@@ -71,7 +71,7 @@ pub fn setup_staking(root: &UserAccount) -> ContractAccount<StakingContract> {
         bytes: &STAKING_WASM_BYTES,
         signer_account: root,
         deposit: to_yocto("100"),
-        init_method: new(to_va("dao".to_string()), to_va("test_token".to_string()), U64(100_000_000_000))
+        init_method: new(to_va(AccountId::from_str("dao").unwrap()), to_va(AccountId::from_str("test_token").unwrap()), U64(100_000_000_000))
     )
 }
 

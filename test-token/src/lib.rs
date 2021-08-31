@@ -3,7 +3,7 @@ use near_contract_standards::fungible_token::metadata::{
 };
 use near_contract_standards::fungible_token::FungibleToken;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{U128};
+use near_sdk::json_types::U128;
 use near_sdk::{near_bindgen, AccountId, PanicOnDefault, PromiseOrValue};
 
 #[near_bindgen]
@@ -23,13 +23,11 @@ impl Contract {
 
     pub fn mint(&mut self, account_id: AccountId, amount: U128) {
         self.token.internal_register_account(&account_id);
-        self.token
-            .internal_deposit(&account_id, amount.into());
+        self.token.internal_deposit(&account_id, amount.into());
     }
 
     pub fn burn(&mut self, account_id: AccountId, amount: U128) {
-        self.token
-            .internal_withdraw(&account_id, amount.into());
+        self.token.internal_withdraw(&account_id, amount.into());
     }
 }
 
@@ -45,14 +43,26 @@ impl FungibleTokenMetadataProvider for Contract {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::{env, testing_env, MockedBlockchain};
-
-    use super::*;
 
     #[test]
     fn test_basics() {
         let mut context = VMContextBuilder::new();
+        
+        let mocked_blockchain = MockedBlockchain::new(
+            context.build(),
+            Default::default(),
+            Default::default(),
+            vec![],
+            Default::default(),
+            Default::default(),
+            None,
+        );
+
+        near_sdk::env::set_blockchain_interface(mocked_blockchain);
+
         testing_env!(context.build());
         let mut contract = Contract::new();
         testing_env!(context

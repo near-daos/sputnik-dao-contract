@@ -70,6 +70,7 @@ mod tests {
 
     #[test]
     fn test_basics() {
+        near_sdk::env::set_blockchain_interface(MockedBlockchain::default());
         testing_env!(VMContextBuilder::new()
             .current_account_id(accounts(0))
             .build());
@@ -79,13 +80,13 @@ mod tests {
             .attached_deposit(10)
             .build());
         factory.create(
-            "test".to_string(),
-            Some(PublicKey(vec![])),
+            AccountId::from_str("test").unwrap(),
+            Some(PublicKey::from_str("").unwrap()),
             "{}".as_bytes().to_vec().into(),
         );
         assert_eq!(
             factory.get_dao_list(),
-            vec![format!("test.{}", accounts(0))]
+            vec![AccountId::from_str(&format!("test.{}", accounts(0))).unwrap()]
         );
     }
 }

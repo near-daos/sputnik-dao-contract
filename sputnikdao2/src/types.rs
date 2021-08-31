@@ -1,3 +1,4 @@
+
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::env::*;
 use near_sdk::json_types::Base64VecU8;
@@ -5,7 +6,7 @@ use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, AccountId, Balance, Gas};
 
 /// Account ID used for $NEAR.
-pub const BASE_TOKEN: &str = "";
+pub static BASE_TOKEN: &str = "";
 
 /// 1 yN to prevent access key fraud.
 pub const ONE_YOCTO_NEAR: Balance = 1;

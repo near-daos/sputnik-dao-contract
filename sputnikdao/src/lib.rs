@@ -417,10 +417,11 @@ mod tests {
             // vec![accounts(0).as_ref(), accounts(1).as_ref()],
     #[test]
     fn test_basics() {
+        near_sdk::env::set_blockchain_interface(MockedBlockchain::default());
         testing_env!(VMContextBuilder::new().build());
         let mut dao = SputnikDAO::new(
             "test".to_string(),
-            vec![accounts(0).as_ref().into(), accounts(1).as_ref().into()],
+            vec![accounts(0), accounts(1)],
             10.into(),
             1_000.into(),
             10.into(),
@@ -435,7 +436,7 @@ mod tests {
             .attached_deposit(10)
             .build());
         let id = dao.add_proposal(ProposalInput {
-            target: accounts(2).as_ref().into(),
+            target: accounts(2),
             description: "add new member".to_string(),
             kind: ProposalKind::NewCouncil,
         });
@@ -444,9 +445,9 @@ mod tests {
         vote(&mut dao, id, vec![(0, Vote::Yes)]);
         assert_eq!(dao.get_proposal(id).vote_yes, 1);
         assert_eq!(dao.get_proposal(id).status, ProposalStatus::Vote);
-        let account_0: AccountId = accounts(0).as_ref().into();
-        let account_1: AccountId = accounts(1).as_ref().into();
-        let account_2: AccountId = accounts(2).as_ref().into();
+        let account_0: AccountId = accounts(0);
+        let account_1: AccountId = accounts(1);
+        let account_2: AccountId = accounts(2);
         assert_eq!(dao.get_council(), vec![account_0.clone(), account_1.clone()]);
         vote(&mut dao, id, vec![(1, Vote::Yes)]);
         assert_eq!(
@@ -460,7 +461,7 @@ mod tests {
             .attached_deposit(10)
             .build());
         let id = dao.add_proposal(ProposalInput {
-            target: accounts(2).as_ref().into(),
+            target: accounts(2),
             description: "give me money".to_string(),
             kind: ProposalKind::Payout { amount: 10.into() },
         });
@@ -479,7 +480,7 @@ mod tests {
             .attached_deposit(10)
             .build());
         let id = dao.add_proposal(ProposalInput {
-            target: accounts(2).as_ref().into(),
+            target: accounts(2),
             description: "give me more money".to_string(),
             kind: ProposalKind::Payout { amount: 10.into() },
         });
@@ -496,7 +497,7 @@ mod tests {
             .attached_deposit(10)
             .build());
         let id = dao.add_proposal(ProposalInput {
-            target: accounts(2).as_ref().into(),
+            target: accounts(2),
             description: "policy".to_string(),
             kind: ProposalKind::ChangePolicy {
                 policy: vec![
@@ -519,7 +520,7 @@ mod tests {
             .attached_deposit(10)
             .build());
         let id = dao.add_proposal(ProposalInput {
-            target: accounts(2).as_ref().into(),
+            target: accounts(2),
             description: "give me more money".to_string(),
             kind: ProposalKind::Payout { amount: 10.into() },
         });
@@ -543,7 +544,7 @@ mod tests {
             .attached_deposit(10)
             .build());
         let id = dao.add_proposal(ProposalInput {
-            target: accounts(2).as_ref().into(),
+            target: accounts(2),
             description: "give me more money".to_string(),
             kind: ProposalKind::Payout {
                 amount: 10_000.into(),
@@ -562,7 +563,7 @@ mod tests {
         testing_env!(VMContextBuilder::new().build());
         let mut dao = SputnikDAO::new(
             "test".to_string(),
-            vec![accounts(0).as_ref().into(), accounts(1).as_ref().into(), accounts(2).as_ref().into()],
+            vec![accounts(0), accounts(1), accounts(2)],
             10.into(),
             1_000.into(),
             10.into(),
@@ -573,7 +574,7 @@ mod tests {
             .attached_deposit(10)
             .build());
         let id = dao.add_proposal(ProposalInput {
-            target: accounts(5).as_ref().into(),
+            target: accounts(5),
             description: "add new member".to_string(),
             kind: ProposalKind::NewCouncil,
         });
@@ -590,7 +591,7 @@ mod tests {
         testing_env!(VMContextBuilder::new().build());
         let mut dao = SputnikDAO::new(
             "".to_string(),
-            vec![accounts(0).as_ref().into()],
+            vec![accounts(0)],
             10.into(),
             1_000.into(),
             10.into(),
@@ -601,14 +602,14 @@ mod tests {
             .attached_deposit(10)
             .build());
         let id = dao.add_proposal(ProposalInput {
-            target: accounts(1).as_ref().into(),
+            target: accounts(1),
             description: "add new member".to_string(),
             kind: ProposalKind::NewCouncil,
         });
         vote(&mut dao, id, vec![(0, Vote::Yes)]);
         assert_eq!(dao.get_proposal(id).status, ProposalStatus::Success);
-        let account_0: AccountId = accounts(0).as_ref().into();
-        let account_1: AccountId = accounts(1).as_ref().into();
+        let account_0: AccountId = accounts(0);
+        let account_1: AccountId = accounts(1);
         assert_eq!(dao.get_council(), vec![account_0, account_1]);
     }
 
@@ -618,7 +619,7 @@ mod tests {
         testing_env!(VMContextBuilder::new().build());
         let mut dao = SputnikDAO::new(
             "".to_string(),
-            vec![accounts(0).as_ref().into(), accounts(1).as_ref().into()],
+            vec![accounts(0), accounts(1)],
             10.into(),
             1000.into(),
             10.into(),
@@ -628,7 +629,7 @@ mod tests {
             .attached_deposit(10)
             .build());
         let id = dao.add_proposal(ProposalInput {
-            target: accounts(2).as_ref().into(),
+            target: accounts(2),
             description: "add new member".to_string(),
             kind: ProposalKind::NewCouncil,
         });
@@ -645,7 +646,7 @@ mod tests {
         testing_env!(VMContextBuilder::new().build());
         let mut dao = SputnikDAO::new(
             "".to_string(),
-            vec![accounts(0).as_ref().into(), accounts(1).as_ref().into()],
+            vec![accounts(0), accounts(1)],
             10.into(),
             1_000.into(),
             10.into(),
@@ -656,7 +657,7 @@ mod tests {
             .attached_deposit(10)
             .build());
         let id = dao.add_proposal(ProposalInput {
-            target: accounts(1).as_ref().into(),
+            target: accounts(1),
             description: "add new member".to_string(),
             kind: ProposalKind::Payout { amount: 100.into() },
         });
@@ -670,7 +671,7 @@ mod tests {
         testing_env!(VMContextBuilder::new().build());
         let mut dao = SputnikDAO::new(
             "".to_string(),
-            vec![accounts(0).as_ref().into()],
+            vec![accounts(0)],
             10.into(),
             1000.into(),
             10.into(),
@@ -680,7 +681,7 @@ mod tests {
             .attached_deposit(10)
             .build());
         let id = dao.add_proposal(ProposalInput {
-            target: accounts(2).as_ref().into(),
+            target: accounts(2),
             description: "add new member".to_string(),
             kind: ProposalKind::Payout {
                 amount: 1000.into(),
@@ -700,7 +701,7 @@ mod tests {
         testing_env!(VMContextBuilder::new().build());
         let mut dao = SputnikDAO::new(
             "".to_string(),
-            vec![accounts(0).as_ref().into(), accounts(1).as_ref().into()],
+            vec![accounts(0), accounts(1)],
             10.into(),
             1000.into(),
             10.into(),
@@ -710,7 +711,7 @@ mod tests {
             .attached_deposit(10)
             .build());
         dao.add_proposal(ProposalInput {
-            target: accounts(2).as_ref().into(),
+            target: accounts(2),
             description: "policy".to_string(),
             kind: ProposalKind::ChangePolicy {
                 policy: vec![

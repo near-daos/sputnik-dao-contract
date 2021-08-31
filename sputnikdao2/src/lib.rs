@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 #[cfg(target_arch = "wasm32")]
@@ -179,7 +181,7 @@ mod tests {
         contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
-                token_id: BASE_TOKEN,
+                token_id: AccountId::from_str(BASE_TOKEN).unwrap(),
                 receiver_id: accounts(2).into(),
                 amount: U128(to_yocto("100")),
                 msg: None,
@@ -189,8 +191,17 @@ mod tests {
 
     #[test]
     fn test_basics() {
-        env::set_blockchain_interface(MockedBlockchain {});
         let mut context = VMContextBuilder::new();
+        let mocked_blockchain = MockedBlockchain::new(
+            context.build(),
+            Default::default(),
+            Default::default(),
+            vec![],
+            Default::default(),
+            Default::default(),
+            None,
+        );
+        near_sdk::env::set_blockchain_interface(mocked_blockchain);
         testing_env!(context.predecessor_account_id(accounts(1)).build());
         let mut contract = Contract::new(
             Config::test_config(),
