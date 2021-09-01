@@ -81,7 +81,7 @@ mod tests {
             .build());
         factory.create(
             AccountId::from_str("test").unwrap(),
-            Some(PublicKey::from_str("").unwrap()),
+            Some(PublicKey::from_str("ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp").unwrap()),
             "{}".as_bytes().to_vec().into(),
         );
         assert_eq!(

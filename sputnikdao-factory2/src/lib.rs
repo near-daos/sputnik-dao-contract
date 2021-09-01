@@ -121,7 +121,7 @@ mod tests {
         testing_env!(context.attached_deposit(10).build());
         factory.create(
             AccountId::from_str("test").unwrap(),
-            Some(PublicKey::from_str("").unwrap()),
+            Some(PublicKey::from_str("ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp").unwrap()),
             "{}".as_bytes().to_vec().into(),
         );
         testing_env_with_promise_results(
