@@ -8,7 +8,7 @@ use near_sdk::env::*;
 use near_sdk::json_types::{Base58CryptoHash, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    env, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash, PanicOnDefault, Promise,
+    env, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash, PanicOnDefault, Promise, MockedBlockchain,
 };
 
 use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
@@ -136,7 +136,7 @@ impl Contract {
 #[no_mangle]
 pub extern "C" fn store_blob() {
     env::setup_panic_hook();
-    env::set_blockchain_interface(Box::new(near_blockchain::NearBlockchain {}));
+    env::set_blockchain_interface(MockedBlockchain::default());
     let mut contract: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
 
     // Load input into register 0.

@@ -25,7 +25,7 @@ near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
 type Contract = ContractAccount<DAOContract>;
 
 pub fn base_token() -> AccountId {
-    AccountId::from_str("base.token").unwrap()
+    AccountId::from_str("").unwrap()
 }
 
 pub fn should_fail(r: ExecutionResult) {
