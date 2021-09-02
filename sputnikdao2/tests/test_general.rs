@@ -66,7 +66,7 @@ fn test_multi_council() {
     add_transfer_proposal(
         &root,
         &dao,
-        AccountId::new_unchecked(base_token()),
+        base_token(),
         user(1),
         1_000_000,
         None,
@@ -90,9 +90,9 @@ fn test_create_dao_and_use_token() {
     let user3 = root.create_user(user(3), to_yocto("1000"));
     let test_token = setup_test_token(&root);
     let staking = setup_staking(&root);
-
+    
     assert!(view!(dao.get_staking_contract())
-        .unwrap_json::<AccountId>()
+        .unwrap_json::<String>()
         .as_str()
         .is_empty());
     add_member_proposal(&root, &dao, user2.account_id.clone()).assert_success();
@@ -241,7 +241,7 @@ fn test_failures() {
     should_fail(add_transfer_proposal(
         &root,
         &dao,
-        AccountId::new_unchecked(base_token()),
+        base_token(),
         user(1),
         1_000_000,
         Some("some".to_string()),

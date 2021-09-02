@@ -173,7 +173,7 @@ pub extern "C" fn store_blob() {
 #[cfg(test)]
 mod tests {
     use near_sdk::test_utils::{accounts, VMContextBuilder};
-    use near_sdk::{testing_env, MockedBlockchain};
+    use near_sdk::{testing_env};
     use near_sdk_sim::to_yocto;
 
     use crate::proposals::ProposalStatus;
@@ -186,7 +186,7 @@ mod tests {
         contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
-                token_id: BASE_TOKEN,
+                token_id: BASE_TOKEN.to_string(),
                 receiver_id: accounts(2).into(),
                 amount: U128(to_yocto("100")),
                 msg: None,

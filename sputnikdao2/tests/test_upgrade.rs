@@ -53,10 +53,10 @@ struct NewArgs {
 #[test]
 fn test_upgrade_other() {
     let (root, dao) = setup_dao();
-    let ref_account_id = "ref-finance".parse().unwrap();
+    let ref_account_id : AccountId = "ref-finance".parse().unwrap();
     let _ = root.deploy_and_init(
         &OTHER_WASM_BYTES,
-        ref_account_id.clone().unwrap(),
+        ref_account_id.clone(),
         "new",
         &json!({
             "owner_id": to_va(dao.account_id()),
@@ -83,7 +83,7 @@ fn test_upgrade_other() {
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::UpgradeRemote {
-                receiver_id: to_va(ref_account_id.clone().unwrap()),
+                receiver_id: to_va(ref_account_id.clone()),
                 method_name: "upgrade".to_string(),
                 hash,
             },
