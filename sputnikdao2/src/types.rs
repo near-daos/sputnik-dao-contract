@@ -4,8 +4,6 @@ use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, AccountId, Balance, Gas};
 use near_sdk::sys;
 
-const BLOCKCHAIN_INTERFACE_NOT_SET_ERR: &str = "Blockchain interface not set.";
-
 // TODO - one day change to const-friendly AccountId
 /// Account ID used for $NEAR.
 pub const BASE_TOKEN: &str = "";

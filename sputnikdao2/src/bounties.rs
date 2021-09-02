@@ -1,5 +1,3 @@
-use std::convert::TryFrom;
-
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{U128};
 use near_sdk::serde::{Deserialize, Serialize};
@@ -30,7 +28,7 @@ pub struct Bounty {
     /// Description of the bounty.
     pub description: String,
     /// Token the bounty will be paid out.
-    pub token: AccountId,
+    pub token: String,
     /// Amount to be paid out.
     pub amount: U128,
     /// How many times this bounty can be done.
@@ -198,7 +196,7 @@ impl Contract {
         let policy = self.policy.get().unwrap().to_policy();
         let (claims, claim_idx) = self.internal_get_claims(id, &env::predecessor_account_id());
         let result = if env::block_timestamp() - claims[claim_idx].start_time
-            > policy.bounty_forgiveness_period
+            > policy.bounty_forgiveness_period.0
         {
             // If user over the forgiveness period.
             PromiseOrValue::Value(())
@@ -216,14 +214,13 @@ impl Contract {
 #[cfg(test)]
 mod tests {
     use near_sdk::test_utils::{accounts, VMContextBuilder};
-    use near_sdk::{testing_env, MockedBlockchain, Duration};
+    use near_sdk::{testing_env, Duration};
 
     use crate::proposals::{ProposalInput, ProposalKind};
     use crate::types::BASE_TOKEN;
     use crate::{Action, Config};
 
     use super::*;
-    use std::str::FromStr;
 
     fn add_bounty(context: &mut VMContextBuilder, contract: &mut Contract, times: u32) -> u64 {
         testing_env!(context.attached_deposit(1).build());
@@ -232,7 +229,7 @@ mod tests {
             kind: ProposalKind::AddBounty {
                 bounty: Bounty {
                     description: "test bounty".to_string(),
-                    token: AccountId::from_str(BASE_TOKEN).unwrap(),
+                    token: BASE_TOKEN.to_string(),
                     amount: U128(1),
                     times,
                     max_deadline: near_sdk::Duration::from(1_000u64),

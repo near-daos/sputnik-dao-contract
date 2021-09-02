@@ -1,7 +1,6 @@
 #![allow(dead_code)]
-use std::convert::TryFrom;
 
-pub use near_sdk::json_types::{Base64VecU8, ValidAccountId, WrappedDuration, U64};
+pub use near_sdk::json_types::{Base64VecU8, U64};
 use near_sdk::{AccountId, Balance};
 use near_sdk_sim::transaction::ExecutionStatus;
 use near_sdk_sim::{
@@ -66,11 +65,11 @@ pub fn setup_test_token(root: &UserAccount) -> ContractAccount<TestTokenContract
 pub fn setup_staking(root: &UserAccount) -> ContractAccount<StakingContract> {
     deploy!(
         contract: StakingContract,
-        contract_id: "staking".to_string(),
+        contract_id: AccountId::new_unchecked("staking".to_string()),
         bytes: &STAKING_WASM_BYTES,
         signer_account: root,
         deposit: to_yocto("100"),
-        init_method: new(to_va("dao".to_string()), to_va("test_token".to_string()), U64(100_000_000_000))
+        init_method: new("dao".parse().unwrap(), "test_token".parse().unwrap(), U64(100_000_000_000))
     )
 }
 
@@ -93,7 +92,7 @@ pub fn add_member_proposal(
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::AddMemberToRole {
-                member_id: to_va(member_id),
+                member_id,
                 role: "council".to_string(),
             },
         },
@@ -103,7 +102,7 @@ pub fn add_member_proposal(
 pub fn add_transfer_proposal(
     root: &UserAccount,
     dao: &Contract,
-    token_id: AccountId,
+    token_id: String,
     receiver_id: AccountId,
     amount: Balance,
     msg: Option<String>,
@@ -131,8 +130,4 @@ pub fn vote(users: Vec<&UserAccount>, dao: &Contract, proposal_id: u64) {
         )
         .assert_success();
     }
-}
-
-pub fn to_va(a: AccountId) -> ValidAccountId {
-    ValidAccountId::try_from(a).unwrap()
 }

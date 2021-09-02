@@ -4,7 +4,7 @@ use std::convert::TryFrom;
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{Base64VecU8, U64};
-use near_sdk::{log, AccountId, Balance, PromiseOrValue, Gas, Timestamp};
+use near_sdk::{log, AccountId, Balance, Gas, PromiseOrValue, Timestamp};
 
 use crate::policy::UserInfo;
 use crate::types::{
@@ -51,15 +51,9 @@ pub enum ProposalKind {
     /// Change the full policy.
     ChangePolicy { policy: VersionedPolicy },
     /// Add member to given role in the policy. This is short cut to updating the whole policy.
-    AddMemberToRole {
-        member_id: AccountId,
-        role: String,
-    },
+    AddMemberToRole { member_id: AccountId, role: String },
     /// Remove member to given role in the policy. This is short cut to updating the whole policy.
-    RemoveMemberFromRole {
-        member_id: AccountId,
-        role: String,
-    },
+    RemoveMemberFromRole { member_id: AccountId, role: String },
     /// Calls `receiver_id` with list of method names in a single promise.
     /// Allows this contract to execute any arbitrary set of actions in other contracts.
     FunctionCall {
@@ -79,7 +73,7 @@ pub enum ProposalKind {
     /// For `ft_transfer` and `ft_transfer_call` `memo` is the `description` of the proposal.
     Transfer {
         /// Can be "" for $NEAR or a valid account id.
-        token_id: AccountId,
+        token_id: String,
         receiver_id: AccountId,
         amount: U128,
         msg: Option<String>,
@@ -227,13 +221,13 @@ impl Contract {
     /// Execute payout of given token to given user.
     pub(crate) fn internal_payout(
         &mut self,
-        token_id: &AccountId,
+        token_id: &str,
         receiver_id: &AccountId,
         amount: Balance,
         memo: String,
         msg: Option<String>,
     ) -> PromiseOrValue<()> {
-        if token_id.as_str() == BASE_TOKEN {
+        if token_id == BASE_TOKEN {
             Promise::new(receiver_id.clone()).transfer(amount).into()
         } else {
             if let Some(msg) = msg {
@@ -242,7 +236,7 @@ impl Contract {
                     U128(amount),
                     Some(memo),
                     msg,
-                    token_id.clone(),
+                    token_id.parse().unwrap(),
                     ONE_YOCTO_NEAR,
                     GAS_FOR_FT_TRANSFER,
                 )
@@ -252,7 +246,7 @@ impl Contract {
                     receiver_id.clone(),
                     U128(amount),
                     Some(memo),
-                    token_id.clone(),
+                    token_id.parse().unwrap(),
                     ONE_YOCTO_NEAR,
                     GAS_FOR_FT_TRANSFER,
                 )
@@ -389,7 +383,11 @@ impl Contract {
         // 0. validate bond attached.
         // TODO: consider bond in the token of this DAO.
         let policy = self.policy.get().unwrap().to_policy();
-        println!("{:?} =? {}",policy.proposal_bond.0,env::attached_deposit());
+        println!(
+            "{:?} =? {}",
+            policy.proposal_bond.0,
+            env::attached_deposit()
+        );
         assert!(
             env::attached_deposit() >= policy.proposal_bond.0,
             "ERR_MIN_BOND"

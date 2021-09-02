@@ -2,7 +2,7 @@ use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{U128};
+use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, AccountId, Balance, Duration};
 
@@ -153,11 +153,11 @@ pub struct Policy {
     /// Proposal bond.
     pub proposal_bond: U128,
     /// Expiration period for proposals.
-    pub proposal_period: Duration,
+    pub proposal_period: U64,
     /// Bond for claiming a bounty.
     pub bounty_bond: U128,
     /// Period in which giving up on bounty is not punished.
-    pub bounty_forgiveness_period: Duration,
+    pub bounty_forgiveness_period: U64,
 }
 
 /// Versioned policy.
@@ -203,9 +203,9 @@ fn default_policy(council: Vec<AccountId>) -> Policy {
         ],
         default_vote_policy: VotePolicy::default(),
         proposal_bond: U128(10u128.pow(24)),
-        proposal_period: Duration::from(1_000_000_000u64 * 60u64 * 60u64 * 24u64 * 7u64),
+        proposal_period: U64::from(1_000_000_000u64 * 60u64 * 60u64 * 24u64 * 7u64),
         bounty_bond: U128(10u128.pow(24)),
-        bounty_forgiveness_period: Duration::from(1_000_000_000u64 * 60u64 * 60u64 * 24u64),
+        bounty_forgiveness_period: U64::from(1_000_000_000u64 * 60u64 * 60u64 * 24u64),
     }
 }
 
@@ -246,7 +246,7 @@ impl Policy {
                     .kind
                     .add_member_to_group(member_id)
                     .unwrap_or_else(|()| {
-                        env::log(&format!("ERR_ROLE_WRONG_KIND:{}", role).into_bytes());
+                        env::log_str(&format!("ERR_ROLE_WRONG_KIND:{}", role));
                     });
                 return;
             }
@@ -348,7 +348,7 @@ impl Policy {
             ProposalStatus::InProgress,
             "ERR_PROPOSAL_NOT_IN_PROGRESS"
         );
-        if proposal.submission_time + self.proposal_period < env::block_timestamp() {
+        if proposal.submission_time + self.proposal_period.0 < env::block_timestamp() {
             // Proposal expired.
             return ProposalStatus::Expired;
         };

@@ -2,7 +2,7 @@ use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::LookupMap;
-use near_sdk::json_types::{U128};
+use near_sdk::json_types::U128;
 use near_sdk::{
     env, ext_contract, near_bindgen, AccountId, Balance, BorshStorageKey, Duration, Gas,
     PanicOnDefault, Promise, PromiseOrValue, PromiseResult,
@@ -53,8 +53,8 @@ pub struct Contract {
 }
 
 pub mod ext {
-    use near_sdk::{ext_contract, AccountId};
     use near_sdk::json_types::U128;
+    use near_sdk::{ext_contract, AccountId};
 
     #[ext_contract(ext_self)]
     pub trait Contract {
@@ -62,21 +62,20 @@ pub mod ext {
     }
 }
 
-
 #[near_bindgen]
 impl Contract {
     #[init]
     pub fn new(
         owner_id: AccountId,
         token_id: AccountId,
-        unstake_period: near_sdk::Duration,
+        unstake_period: near_sdk::json_types::U64,
     ) -> Self {
         Self {
             owner_id: owner_id.into(),
             vote_token_id: token_id.into(),
             users: LookupMap::new(StorageKeys::Users),
             total_amount: 0,
-            unstake_period,
+            unstake_period: unstake_period.0,
         }
     }
 
@@ -183,11 +182,11 @@ impl FungibleTokenReceiver for Contract {
 
 #[cfg(test)]
 mod tests {
+    use near_cli::{Yocto, YoctoString};
     use near_contract_standards::storage_management::StorageManagement;
     use near_sdk::json_types::U64;
     use near_sdk::test_utils::{accounts, VMContextBuilder};
-    use near_sdk::{testing_env};
-    use near_cli::{YoctoString,Yocto};
+    use near_sdk::testing_env;
 
     use super::*;
 
@@ -196,7 +195,7 @@ mod tests {
         let period = 1000;
         let mut context = VMContextBuilder::new();
         testing_env!(context.predecessor_account_id(accounts(0)).build());
-        let mut contract:Contract = Contract::new(accounts(0), accounts(1), period);
+        let mut contract: Contract = Contract::new(accounts(0), accounts(1), period);
         testing_env!(context.attached_deposit(1u128.near()).build());
         contract.storage_deposit(Some(accounts(2)), None);
         testing_env!(context.predecessor_account_id(accounts(1)).build());

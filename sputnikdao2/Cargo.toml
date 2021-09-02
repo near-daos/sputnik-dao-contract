@@ -19,3 +19,4 @@ hex = "0.4.2"
 [dev-dependencies]
 test-token = { path = "../test-token" }
 sputnik-staking = { path = "../sputnik-staking" }
+near-sdk-sim = "4.0.0-pre.2"
