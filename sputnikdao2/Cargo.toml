@@ -9,7 +9,7 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-near-sdk = "4.0.0-pre.2"
+near-sdk = {version = "4.0.0-pre.2", features = ["unstable"]}
 near-contract-standards = "4.0.0-pre.2"
 hex = "0.4.2"
 

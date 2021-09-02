@@ -21,9 +21,6 @@ mod proposals;
 mod types;
 pub mod views;
 
-#[cfg(target_arch = "wasm32")]
-const BLOCKCHAIN_INTERFACE_NOT_SET_ERR: &str = "Blockchain interface not set.";
-
 #[derive(BorshStorageKey, BorshSerialize)]
 pub enum StorageKeys {
     Config,
@@ -132,33 +129,44 @@ impl Contract {
 #[cfg(target_arch = "wasm32")]
 #[no_mangle]
 pub extern "C" fn store_blob() {
+    use near_sdk::sys;
     env::setup_panic_hook();
     let mut contract: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
+    unsafe {
+            // Load input into register 0.
+            sys::input(0);
+            // Compute sha256 hash of register 0 and store in 1.
+            sys::sha256(u64::MAX as _, 0 as _, 1);
+            // Check if such blob already stored.
+            assert_eq!(
+                sys::storage_has_key(u64::MAX as _, 1 as _),
+                0,
+                "ERR_ALREADY_EXISTS"
+            );
+            // Get length of the input argument and check that enough $NEAR has been attached.
+            let blob_len = sys::register_len(0);
+            let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
+            assert!(
+                env::attached_deposit() >= storage_cost,
+                "ERR_NOT_ENOUGH_DEPOSIT:{}",
+                storage_cost
+            );
+            contract.locked_amount += storage_cost;
+            // Store value of register 0 into key = register 1.
+            sys::storage_write(u64::MAX as _, 1 as _, u64::MAX as _, 0 as _, 2);
+            // Load register 1 into blob_hash and save into LookupMap.
+            let blob_hash = [0u8; 32];
+            sys::read_register(1, blob_hash.as_ptr() as _);
+            contract
+                .blobs
+                .insert(&blob_hash, &env::predecessor_account_id());
+            // Return from function value of register 1.
+            let blob_hash_str = near_sdk::serde_json::to_string(&Base58CryptoHash::from(blob_hash))
+                .unwrap()
+                .into_bytes();
+            sys::value_return(blob_hash_str.len() as _, blob_hash_str.as_ptr() as _);
 
-    // Load input into register 0.
-    let code = input().unwrap();
-    // Compute sha256 hash of register 0 and store in 1.
-    let hash = sha256(code);
-    // Check if such blob already stored.
-    assert_eq!(storage_has_key(hash), 0, "ERR_ALREADY_EXISTS");
-    // Get length of the input argument and check that enough $NEAR has been attached.
-    let blob_len = code.len();
-    let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
-    assert!(
-        env::attached_deposit() >= storage_cost,
-        "ERR_NOT_ENOUGH_DEPOSIT:{}",
-        storage_cost
-    );
-    contract.locked_amount += storage_cost;
-    // Store value of register 0 into key = register 1.
-    storage_write(hash, code);
-    // Load register 1 into blob_hash and save into LookupMap.
-    contract.blobs.insert(&hash, &env::predecessor_account_id());
-    // Return from function value of register 1.
-    let blob_hash_str = near_sdk::serde_json::to_string(&Base58CryptoHash::from(hash))
-        .unwrap()
-        .into_bytes();
-    value_return(blob_hash_str);
+    }
     env::state_write(&contract);
 }
 
