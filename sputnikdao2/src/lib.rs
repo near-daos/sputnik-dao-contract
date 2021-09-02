@@ -133,7 +133,6 @@ impl Contract {
 #[no_mangle]
 pub extern "C" fn store_blob() {
     env::setup_panic_hook();
-    env::set_blockchain_interface(MockedBlockchain::default());
     let mut contract: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
 
     // Load input into register 0.
