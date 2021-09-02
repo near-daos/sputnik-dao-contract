@@ -73,7 +73,7 @@ pub enum ProposalKind {
     /// For `ft_transfer` and `ft_transfer_call` `memo` is the `description` of the proposal.
     Transfer {
         /// Can be "" for $NEAR or a valid account id.
-        token_id: AccountId,
+        token_id: String,
         receiver_id: AccountId,
         amount: U128,
         msg: Option<String>,
@@ -321,7 +321,7 @@ impl Contract {
                 amount,
                 msg,
             } => self.internal_payout(
-                token_id,
+                &token_id.clone().parse::<AccountId>().unwrap(),
                 &receiver_id.clone().into(),
                 amount.0,
                 proposal.description.clone(),
@@ -396,10 +396,10 @@ impl Contract {
             },
             ProposalKind::Transfer { token_id, msg, .. } => {
                 assert!(
-                    !(token_id.as_str() == BASE_TOKEN) || msg.is_none(),
+                    !(token_id == BASE_TOKEN) || msg.is_none(),
                     "ERR_BASE_TOKEN_NO_MSG"
                 );
-                if token_id.as_str() != BASE_TOKEN {
+                if token_id != BASE_TOKEN {
                     assert!(
                         AccountId::try_from(token_id.clone()).is_ok(),
                         "ERR_TOKEN_ID_INVALID"

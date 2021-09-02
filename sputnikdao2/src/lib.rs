@@ -1,6 +1,3 @@
-//Because this is being used implicitly, it throws a warning, but it needs to be here.
-use std::str::FromStr;
-
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 #[cfg(target_arch = "wasm32")]
@@ -8,7 +5,7 @@ use near_sdk::env::*;
 use near_sdk::json_types::{Base58CryptoHash, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    env, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash, PanicOnDefault, Promise, MockedBlockchain,
+    env, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash, PanicOnDefault, Promise,
 };
 
 use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
@@ -182,7 +179,7 @@ mod tests {
         contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
-                token_id: AccountId::from_str(BASE_TOKEN).unwrap(),
+                token_id: BASE_TOKEN,
                 receiver_id: accounts(2).into(),
                 amount: U128(to_yocto("100")),
                 msg: None,

@@ -1,9 +1,8 @@
-use std::str::FromStr;
-
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{Base58CryptoHash};
-use near_sdk::AccountId;
+use near_sdk::json_types::Base58CryptoHash;
 use near_sdk::serde_json::json;
+use near_sdk::AccountId;
+
 use near_sdk_sim::{call, to_yocto, view, DEFAULT_GAS};
 use sputnikdao2::{Action, ProposalInput, ProposalKind};
 
@@ -54,7 +53,7 @@ struct NewArgs {
 #[test]
 fn test_upgrade_other() {
     let (root, dao) = setup_dao();
-    let ref_account_id = AccountId::from_str("ref-finance");
+    let ref_account_id = "ref-finance".parse().unwrap();
     let _ = root.deploy_and_init(
         &OTHER_WASM_BYTES,
         ref_account_id.clone().unwrap(),

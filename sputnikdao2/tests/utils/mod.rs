@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 use std::convert::TryFrom;
-use std::str::FromStr;
 
 pub use near_sdk::json_types::{Base64VecU8, U64};
 use near_sdk::{AccountId, Balance};
@@ -71,7 +70,7 @@ pub fn setup_staking(root: &UserAccount) -> ContractAccount<StakingContract> {
         bytes: &STAKING_WASM_BYTES,
         signer_account: root,
         deposit: to_yocto("100"),
-        init_method: new(to_va(AccountId::from_str("dao").unwrap()), to_va(AccountId::from_str("test_token").unwrap()), U64(100_000_000_000))
+        init_method: new(to_va("dao".parse().unwrap()), to_va("test_token".parse().unwrap()), U64(100_000_000_000))
     )
 }
 
@@ -104,7 +103,7 @@ pub fn add_member_proposal(
 pub fn add_transfer_proposal(
     root: &UserAccount,
     dao: &Contract,
-    token_id: AccountId,
+    token_id: String,
     receiver_id: AccountId,
     amount: Balance,
     msg: Option<String>,
@@ -115,7 +114,7 @@ pub fn add_transfer_proposal(
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
-                token_id,
+                token_id: String,
                 receiver_id: to_va(receiver_id),
                 amount: U128(amount),
                 msg,

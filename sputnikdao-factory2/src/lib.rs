@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedSet;
 use near_sdk::json_types::{Base64VecU8, U128};
@@ -56,8 +54,9 @@ impl SputnikDAOFactory {
         public_key: Option<PublicKey>,
         args: Base64VecU8,
     ) -> Promise {
-        let account_id =
-            AccountId::from_str(&format!("{}.{}", name, env::current_account_id())).unwrap();
+        let account_id: AccountId = format!("{}.{}", name, env::current_account_id())
+            .parse()
+            .unwrap();
         let mut promise = Promise::new(account_id.clone())
             .create_account()
             .deploy_contract(CODE.to_vec())
@@ -123,9 +122,10 @@ mod tests {
         let mut factory = SputnikDAOFactory::new();
         testing_env!(context.attached_deposit(10).build());
         factory.create(
-            AccountId::from_str("test").unwrap(),
+            "test".parse().unwrap(),
             Some(
-                PublicKey::from_str("ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp")
+                "ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp"
+                    .parse()
                     .unwrap(),
             ),
             "{}".as_bytes().to_vec().into(),
@@ -135,13 +135,13 @@ mod tests {
             PromiseResult::Successful(vec![]),
         );
         factory.on_create(
-            AccountId::from_str(&format!("test.{}", accounts(0))).unwrap(),
+           format!("test.{}", accounts(0)).parse().unwrap(),
             U128(10),
             accounts(0),
         );
         assert_eq!(
             factory.get_dao_list(),
-            vec![AccountId::from_str(&format!("test.{}", accounts(0))).unwrap()]
+            vec![format!("test.{}", accounts(0)).parse().unwrap()]
         );
     }
 }

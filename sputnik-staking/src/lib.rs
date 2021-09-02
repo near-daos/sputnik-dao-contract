@@ -60,10 +60,10 @@ pub trait Contract {
 #[near_bindgen]
 impl Contract {
     #[init]
-    pub fn new(owner_id: AccountId, token_id: AccountId, unstake_period: U64) -> Self {
+    pub fn new(owner_id: AccountId, token_id: String, unstake_period: U64) -> Self {
         Self {
             owner_id: owner_id.into(),
-            vote_token_id: token_id.into(),
+            vote_token_id: token_id.parse().unwrap(),
             users: LookupMap::new(StorageKeys::Users),
             total_amount: 0,
             unstake_period: unstake_period.0,

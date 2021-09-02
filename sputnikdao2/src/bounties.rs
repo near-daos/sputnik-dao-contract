@@ -231,7 +231,7 @@ mod tests {
             kind: ProposalKind::AddBounty {
                 bounty: Bounty {
                     description: "test bounty".to_string(),
-                    token: AccountId::from_str(BASE_TOKEN).unwrap(),
+                    token: BASE_TOKEN.parse().unwrap(),
                     amount: U128(to_yocto("10")),
                     times,
                     max_deadline: U64::from(1_000),
