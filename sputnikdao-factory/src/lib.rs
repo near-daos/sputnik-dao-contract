@@ -2,13 +2,13 @@ use std::str::FromStr;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedSet;
-use near_sdk::json_types::{Base64VecU8};
-use near_sdk::{env, near_bindgen, AccountId, PublicKey, Promise, Gas};
+use near_sdk::json_types::Base64VecU8;
+use near_sdk::{env, near_bindgen, AccountId, Gas, Promise, PublicKey};
 
 const CODE: &[u8] = include_bytes!("../../sputnikdao/res/sputnikdao.wasm");
 
 /// This gas spent on the call & account creation, the rest goes to the `new` call.
-const CREATE_CALL_GAS: Gas = Gas {0: 40_000_000_000_000};
+const CREATE_CALL_GAS: Gas = Gas(40_000_000_000_000);
 
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -43,7 +43,8 @@ impl SputnikDAOFactory {
         public_key: Option<PublicKey>,
         args: Base64VecU8,
     ) -> Promise {
-        let account_id = AccountId::from_str(&format!("{}.{}", name, env::current_account_id())).unwrap();
+        let account_id =
+            AccountId::from_str(&format!("{}.{}", name, env::current_account_id())).unwrap();
         self.daos.insert(&account_id);
         let mut promise = Promise::new(account_id)
             .create_account()
@@ -81,7 +82,10 @@ mod tests {
             .build());
         factory.create(
             AccountId::from_str("test").unwrap(),
-            Some(PublicKey::from_str("ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp").unwrap()),
+            Some(
+                PublicKey::from_str("ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp")
+                    .unwrap(),
+            ),
             "{}".as_bytes().to_vec().into(),
         );
         assert_eq!(

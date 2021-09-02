@@ -3,8 +3,8 @@ use std::convert::TryFrom;
 
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{Base64VecU8, U64, U128};
-use near_sdk::{log, AccountId, Balance, PromiseOrValue, Gas};
+use near_sdk::json_types::{Base64VecU8, U128, U64};
+use near_sdk::{log, AccountId, Balance, Gas, PromiseOrValue};
 
 use crate::policy::UserInfo;
 use crate::types::{
@@ -51,15 +51,9 @@ pub enum ProposalKind {
     /// Change the full policy.
     ChangePolicy { policy: VersionedPolicy },
     /// Add member to given role in the policy. This is short cut to updating the whole policy.
-    AddMemberToRole {
-        member_id: AccountId,
-        role: String,
-    },
+    AddMemberToRole { member_id: AccountId, role: String },
     /// Remove member to given role in the policy. This is short cut to updating the whole policy.
-    RemoveMemberFromRole {
-        member_id: AccountId,
-        role: String,
-    },
+    RemoveMemberFromRole { member_id: AccountId, role: String },
     /// Calls `receiver_id` with list of method names in a single promise.
     /// Allows this contract to execute any arbitrary set of actions in other contracts.
     FunctionCall {
@@ -300,7 +294,7 @@ impl Contract {
                         action.method_name.clone().into(),
                         action.args.clone().into(),
                         action.deposit.0,
-                        Gas {0: action.gas.0},
+                        Gas(action.gas.0),
                     )
                 }
                 promise.into()

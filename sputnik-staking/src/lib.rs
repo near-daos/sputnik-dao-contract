@@ -19,24 +19,16 @@ enum StorageKeys {
 }
 
 /// Amount of gas for fungible token transfers.
-pub const GAS_FOR_FT_TRANSFER: Gas = Gas {
-    0: 10_000_000_000_000,
-};
+pub const GAS_FOR_FT_TRANSFER: Gas = Gas(10_000_000_000_000);
 
 /// Amount of gas for delegate action.
-pub const GAS_FOR_DELEGATE: Gas = Gas {
-    0: 10_000_000_000_000,
-};
+pub const GAS_FOR_DELEGATE: Gas = Gas(10_000_000_000_000);
 
 /// Amount of gas for register action.
-pub const GAS_FOR_REGISTER: Gas = Gas {
-    0: 10_000_000_000_000,
-};
+pub const GAS_FOR_REGISTER: Gas = Gas(10_000_000_000_000);
 
 /// Amount of gas for undelegate action.
-pub const GAS_FOR_UNDELEGATE: Gas = Gas {
-    0: 10_000_000_000_000,
-};
+pub const GAS_FOR_UNDELEGATE: Gas = Gas(10_000_000_000_000);
 
 #[ext_contract(ext_sputnik)]
 pub trait Sputnik {

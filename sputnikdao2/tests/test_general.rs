@@ -64,7 +64,7 @@ fn test_multi_council() {
     .assert_success();
     vote(vec![&root], &dao, 0);
     assert_eq!(view!(dao.get_policy()).unwrap_json::<Policy>(), new_policy);
-    add_transfer_proposal(&root, &dao, base_token(), user(1), 1_000_000, None).assert_success();
+    add_transfer_proposal(&root, &dao, AccountId::new_unchecked(base_token()), user(1), 1_000_000, None).assert_success();
     vote(vec![&user2], &dao, 1);
     vote(vec![&user3], &dao, 1);
     let proposal = view!(dao.get_proposal(1)).unwrap_json::<Proposal>();
@@ -230,7 +230,7 @@ fn test_failures() {
     should_fail(add_transfer_proposal(
         &root,
         &dao,
-        base_token(),
+        AccountId::new_unchecked(base_token()),
         user(1),
         1_000_000,
         Some("some".to_string()),

@@ -1,4 +1,3 @@
-
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::env::*;
 use near_sdk::json_types::Base64VecU8;
@@ -12,18 +11,12 @@ pub static BASE_TOKEN: &str = "base.token";
 pub const ONE_YOCTO_NEAR: Balance = 1;
 
 /// Gas for single ft_transfer call.
-pub const GAS_FOR_FT_TRANSFER: Gas = Gas {
-    0: 10_000_000_000_000,
-};
+pub const GAS_FOR_FT_TRANSFER: Gas = Gas(10_000_000_000_000);
 
 /// Gas for upgrading this contract on promise creation + deploying new contract.
-pub const GAS_FOR_UPGRADE_SELF_DEPLOY: Gas = Gas {
-    0: 30_000_000_000_000,
-};
+pub const GAS_FOR_UPGRADE_SELF_DEPLOY: Gas = Gas(30_000_000_000_000);
 
-pub const GAS_FOR_UPGRADE_REMOTE_DEPLOY: Gas = Gas {
-    0: 10_000_000_000_000,
-};
+pub const GAS_FOR_UPGRADE_REMOTE_DEPLOY: Gas = Gas(10_000_000_000_000);
 
 /// Configuration of the DAO.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
@@ -97,11 +90,5 @@ pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &
     storage_read(hash);
     let promise_id = promise_batch_create(receiver_id);
     let attached_gas = env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_REMOTE_DEPLOY;
-    promise_batch_action_function_call(
-        promise_id,
-        method_name,
-        &vec![],
-        0,
-        attached_gas,
-    );
+    promise_batch_action_function_call(promise_id, method_name, &vec![], 0, attached_gas);
 }

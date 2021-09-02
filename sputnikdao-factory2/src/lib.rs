@@ -3,15 +3,15 @@ use std::str::FromStr;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedSet;
 use near_sdk::json_types::{Base64VecU8, U128};
-use near_sdk::{assert_self, env, ext_contract, near_bindgen, PublicKey, AccountId, Promise, Gas};
+use near_sdk::{assert_self, env, ext_contract, near_bindgen, AccountId, Gas, Promise, PublicKey};
 
 const CODE: &[u8] = include_bytes!("../../sputnikdao2/res/sputnikdao2.wasm");
 
 /// Gas spent on the call & account creation.
-const CREATE_CALL_GAS: Gas = Gas {0: 75_000_000_000_000};
+const CREATE_CALL_GAS: Gas = Gas(75_000_000_000_000);
 
 /// Gas allocated on the callback.
-const ON_CREATE_CALL_GAS: Gas = Gas {0: 10_000_000_000_000 };
+const ON_CREATE_CALL_GAS: Gas = Gas(10_000_000_000_000);
 
 #[ext_contract(ext_self)]
 pub trait ExtSelf {
@@ -56,7 +56,8 @@ impl SputnikDAOFactory {
         public_key: Option<PublicKey>,
         args: Base64VecU8,
     ) -> Promise {
-        let account_id = AccountId::from_str(&format!("{}.{}", name, env::current_account_id())).unwrap();
+        let account_id =
+            AccountId::from_str(&format!("{}.{}", name, env::current_account_id())).unwrap();
         let mut promise = Promise::new(account_id.clone())
             .create_account()
             .deploy_contract(CODE.to_vec())
@@ -108,20 +109,25 @@ mod tests {
     #[test]
     fn test_basics() {
         let mut context = VMContextBuilder::new();
-        let mocked_blockchain = MockedBlockchain::new(context.build(),
+        let mocked_blockchain = MockedBlockchain::new(
+            context.build(),
             Default::default(),
             Default::default(),
             vec![],
             Default::default(),
             Default::default(),
-            None);
+            None,
+        );
         near_sdk::env::set_blockchain_interface(mocked_blockchain);
         testing_env!(context.current_account_id(accounts(0)).build());
         let mut factory = SputnikDAOFactory::new();
         testing_env!(context.attached_deposit(10).build());
         factory.create(
             AccountId::from_str("test").unwrap(),
-            Some(PublicKey::from_str("ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp").unwrap()),
+            Some(
+                PublicKey::from_str("ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp")
+                    .unwrap(),
+            ),
             "{}".as_bytes().to_vec().into(),
         );
         testing_env_with_promise_results(
