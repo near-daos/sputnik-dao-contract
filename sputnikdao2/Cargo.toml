@@ -16,5 +16,4 @@ hex = "0.4.2"
 [dev-dependencies]
 near-sdk-sim = "4.0.0-pre.2"
 test-token = { path = "../test-token" }
-test-nft = { path = "../test-nft"}
 sputnik-staking = { path = "../sputnik-staking" }

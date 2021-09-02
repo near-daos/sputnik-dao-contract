@@ -2564,7 +2564,6 @@ dependencies = [
  "near-sdk",
  "near-sdk-sim",
  "sputnik-staking",
- "test-nft",
  "test-token",
 ]
 
@@ -2672,14 +2671,6 @@ dependencies = [
  "redox_syscall 0.2.9",
  "remove_dir_all",
  "winapi",
-]
-
-[[package]]
-name = "test-nft"
-version = "0.1.0"
-dependencies = [
- "near-contract-standards",
- "near-sdk",
 ]
 
 [[package]]
