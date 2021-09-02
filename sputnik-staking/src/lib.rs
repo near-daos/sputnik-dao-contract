@@ -186,16 +186,7 @@ mod tests {
     fn test_basics() {
         let period = 1000;
         let mut context = VMContextBuilder::new();
-        let mocked_blockchain = MockedBlockchain::new(
-            context.build(),
-            Default::default(),
-            Default::default(),
-            vec![],
-            Default::default(),
-            Default::default(),
-            None,
-        );
-        near_sdk::env::set_blockchain_interface(mocked_blockchain);
+        
         testing_env!(context.predecessor_account_id(accounts(0)).build());
         let mut contract = Contract::new(accounts(0), accounts(1), U64(period));
         testing_env!(context.attached_deposit(to_yocto("1")).build());

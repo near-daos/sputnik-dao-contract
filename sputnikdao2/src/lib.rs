@@ -189,16 +189,6 @@ mod tests {
     #[test]
     fn test_basics() {
         let mut context = VMContextBuilder::new();
-        let mocked_blockchain = MockedBlockchain::new(
-            context.build(),
-            Default::default(),
-            Default::default(),
-            vec![],
-            Default::default(),
-            Default::default(),
-            None,
-        );
-        near_sdk::env::set_blockchain_interface(mocked_blockchain);
         testing_env!(context.predecessor_account_id(accounts(1)).build());
         let mut contract = Contract::new(
             Config::test_config(),

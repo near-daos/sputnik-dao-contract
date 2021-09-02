@@ -108,16 +108,6 @@ mod tests {
     #[test]
     fn test_basics() {
         let mut context = VMContextBuilder::new();
-        let mocked_blockchain = MockedBlockchain::new(
-            context.build(),
-            Default::default(),
-            Default::default(),
-            vec![],
-            Default::default(),
-            Default::default(),
-            None,
-        );
-        near_sdk::env::set_blockchain_interface(mocked_blockchain);
         testing_env!(context.current_account_id(accounts(0)).build());
         let mut factory = SputnikDAOFactory::new();
         testing_env!(context.attached_deposit(10).build());
@@ -135,7 +125,7 @@ mod tests {
             PromiseResult::Successful(vec![]),
         );
         factory.on_create(
-           format!("test.{}", accounts(0)).parse().unwrap(),
+            format!("test.{}", accounts(0)).parse().unwrap(),
             U128(10),
             accounts(0),
         );
