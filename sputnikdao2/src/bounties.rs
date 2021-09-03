@@ -246,7 +246,6 @@ mod tests {
     /// Adds a bounty, and tests it's full lifecycle.
     #[test]
     fn test_bounty_lifecycle() {
-        near_sdk::env::set_blockchain_interface(MockedBlockchain::default());
         let mut context = VMContextBuilder::new();
         testing_env!(context.predecessor_account_id(accounts(1)).build());
         let mut contract = Contract::new(

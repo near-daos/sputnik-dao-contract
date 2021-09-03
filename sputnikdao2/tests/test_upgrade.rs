@@ -59,7 +59,7 @@ fn test_upgrade_other() {
         ref_account_id.clone(),
         "new",
         &json!({
-            "owner_id": to_va(dao.account_id()),
+            "owner_id": dao.account_id(),
             "exchange_fee": 1,
             "referral_fee": 1,
         })
@@ -83,7 +83,7 @@ fn test_upgrade_other() {
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::UpgradeRemote {
-                receiver_id: to_va(ref_account_id.clone()),
+                receiver_id: ref_account_id.clone(),
                 method_name: "upgrade".to_string(),
                 hash,
             },

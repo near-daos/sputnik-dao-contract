@@ -70,7 +70,7 @@ pub fn setup_staking(root: &UserAccount) -> ContractAccount<StakingContract> {
         bytes: &STAKING_WASM_BYTES,
         signer_account: root,
         deposit: to_yocto("100"),
-        init_method: new(to_va("dao".parse().unwrap()), "test_token".to_string(), U64(100_000_000_000))
+        init_method: new("dao".parse().unwrap(), "test_token".to_string(), U64(100_000_000_000))
     )
 }
 
@@ -93,7 +93,7 @@ pub fn add_member_proposal(
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::AddMemberToRole {
-                member_id: to_va(member_id),
+                member_id: member_id,
                 role: "council".to_string(),
             },
         },
@@ -115,7 +115,7 @@ pub fn add_transfer_proposal(
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
                 token_id: token_id.to_string(),
-                receiver_id: to_va(receiver_id),
+                receiver_id,
                 amount: U128(amount),
                 msg,
             },
@@ -131,8 +131,4 @@ pub fn vote(users: Vec<&UserAccount>, dao: &Contract, proposal_id: u64) {
         )
         .assert_success();
     }
-}
-
-pub fn to_va(a: AccountId) -> AccountId {
-    AccountId::try_from(a).unwrap()
 }

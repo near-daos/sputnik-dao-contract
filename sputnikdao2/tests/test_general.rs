@@ -125,7 +125,7 @@ fn test_create_dao_and_use_token() {
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::SetStakingContract {
-                staking_id: to_va("staking".parse().unwrap()),
+                staking_id: "staking".parse().unwrap(),
             },
         },
     )
@@ -149,12 +149,12 @@ fn test_create_dao_and_use_token() {
     );
     call!(
         user2,
-        test_token.mint(to_va(user2.account_id.clone()), U128(to_yocto("100")))
+        test_token.mint(user2.account_id.clone(), U128(to_yocto("100")))
     )
     .assert_success();
     call!(
         user2,
-        test_token.storage_deposit(Some(to_va(staking.account_id())), None),
+        test_token.storage_deposit(Some(staking.account_id()), None),
         deposit = to_yocto("1")
     )
     .assert_success();
@@ -166,7 +166,7 @@ fn test_create_dao_and_use_token() {
     call!(
         user2,
         test_token.ft_transfer_call(
-            to_va(staking.account_id()),
+            staking.account_id(),
             U128(to_yocto("10")),
             None,
             "".to_string()
@@ -178,7 +178,7 @@ fn test_create_dao_and_use_token() {
         view!(staking.ft_total_supply()).unwrap_json::<U128>().0,
         to_yocto("10")
     );
-    let user2_id = to_va(user2.account_id.clone());
+    let user2_id = user2.account_id.clone();
     assert_eq!(
         view!(staking.ft_balance_of(user2_id.clone()))
             .unwrap_json::<U128>()
