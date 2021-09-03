@@ -54,11 +54,11 @@ pub struct Contract {
 
 pub mod ext {
     use near_sdk::json_types::U128;
-    use near_sdk::{ext_contract, AccountId};
+    use near_sdk::{ext_contract};
 
     #[ext_contract(ext_self)]
     pub trait Contract {
-        fn exchange_callback_post_withdraw(&mut self, sender_id: AccountId, amount: U128);
+        fn exchange_callback_post_withdraw(&mut self, sender_id: near_sdk::AccountId, amount: U128);
     }
 }
 
@@ -182,11 +182,11 @@ impl FungibleTokenReceiver for Contract {
 
 #[cfg(test)]
 mod tests {
-    use near_cli::{Yocto, YoctoString};
     use near_contract_standards::storage_management::StorageManagement;
     use near_sdk::json_types::U64;
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::testing_env;
+    use near_sdk_sim::to_yocto;
 
     use super::*;
 
@@ -195,21 +195,21 @@ mod tests {
         let period = 1000;
         let mut context = VMContextBuilder::new();
         testing_env!(context.predecessor_account_id(accounts(0)).build());
-        let mut contract: Contract = Contract::new(accounts(0), accounts(1), period);
-        testing_env!(context.attached_deposit(1u128.near()).build());
+        let mut contract: Contract = Contract::new(accounts(0), accounts(1), U64(period));
+        testing_env!(context.attached_deposit(to_yocto("1")).build());
         contract.storage_deposit(Some(accounts(2)), None);
         testing_env!(context.predecessor_account_id(accounts(1)).build());
-        contract.ft_on_transfer(accounts(2), U128(100u128.near()), "".to_string());
-        assert_eq!(contract.ft_total_supply().0, 100u128.near());
-        assert_eq!(contract.ft_balance_of(accounts(2)).0, 100u128.near());
+        contract.ft_on_transfer(accounts(2), U128(to_yocto("100")), "".to_string());
+        assert_eq!(contract.ft_total_supply().0, to_yocto("100"));
+        assert_eq!(contract.ft_balance_of(accounts(2)).0, to_yocto("100"));
         testing_env!(context.predecessor_account_id(accounts(2)).build());
-        contract.withdraw(U128(50u128.near()));
-        assert_eq!(contract.ft_total_supply().0, 50u128.near());
-        assert_eq!(contract.ft_balance_of(accounts(2)).0, 50u128.near());
-        contract.delegate(accounts(3), U128(10u128.near()));
+        contract.withdraw(U128(to_yocto("50")));
+        assert_eq!(contract.ft_total_supply().0, to_yocto("50"));
+        assert_eq!(contract.ft_balance_of(accounts(2)).0, to_yocto("50"));
+        contract.delegate(accounts(3), U128(to_yocto("10")));
         let user = contract.get_user(accounts(2));
-        assert_eq!(user.delegated_amount(), 10u128.near());
-        contract.undelegate(accounts(3), U128(10u128.near()));
+        assert_eq!(user.delegated_amount(), to_yocto("10"));
+        contract.undelegate(accounts(3), U128(to_yocto("10")));
         let user = contract.get_user(accounts(2));
         assert_eq!(user.delegated_amount(), 0);
         assert_eq!(user.next_action_timestamp, period);

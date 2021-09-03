@@ -169,16 +169,16 @@ pub extern "C" fn store_blob() {
 
 #[cfg(test)]
 mod tests {
-    use near_cli::Yocto;
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::testing_env;
 
     use crate::proposals::ProposalStatus;
 
     use super::*;
+    use near_sdk_sim::to_yocto;
 
     fn create_proposal(context: &mut VMContextBuilder, contract: &mut Contract) -> u64 {
-        testing_env!(context.attached_deposit(1u128.near()).build());
+        testing_env!(context.attached_deposit(to_yocto("1")).build());
         contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
@@ -223,7 +223,7 @@ mod tests {
         // non council adding proposal per default policy.
         testing_env!(context
             .predecessor_account_id(accounts(2))
-            .attached_deposit(1u128.near())
+            .attached_deposit(to_yocto("1"))
             .build());
         let _id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
@@ -300,7 +300,7 @@ mod tests {
             Config::test_config(),
             VersionedPolicy::Default(vec![accounts(1).into()]),
         );
-        testing_env!(context.attached_deposit(1u128.near()).build());
+        testing_env!(context.attached_deposit(to_yocto("1")).build());
         let id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::AddMemberToRole {
@@ -323,7 +323,7 @@ mod tests {
             Config::test_config(),
             VersionedPolicy::Default(vec![accounts(1).into()]),
         );
-        testing_env!(context.attached_deposit(1u128.near()).build());
+        testing_env!(context.attached_deposit(to_yocto("1")).build());
         let _id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::ChangePolicy {

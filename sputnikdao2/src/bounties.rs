@@ -1,7 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{U128};
+use near_sdk::json_types::U128;
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, near_bindgen, AccountId, Promise, PromiseOrValue, Timestamp, Duration};
+use near_sdk::{env, near_bindgen, AccountId, Duration, Promise, PromiseOrValue, Timestamp};
 
 use crate::*;
 use std::str::FromStr;
@@ -119,10 +119,7 @@ impl Contract {
         );
         let claims_count = self.bounty_claims_count.get(&id).unwrap_or_default();
         assert!(claims_count < bounty.times, "ERR_BOUNTY_ALL_CLAIMED");
-        assert!(
-            deadline <= bounty.max_deadline,
-            "ERR_BOUNTY_WRONG_DEADLINE"
-        );
+        assert!(deadline <= bounty.max_deadline, "ERR_BOUNTY_WRONG_DEADLINE");
         self.bounty_claims_count.insert(&id, &(claims_count + 1));
         let mut claims = self
             .bounty_claimers
@@ -219,11 +216,12 @@ mod tests {
     use crate::proposals::{ProposalInput, ProposalKind};
     use crate::types::BASE_TOKEN;
     use crate::{Action, Config};
+    use near_sdk_sim::to_yocto;
 
     use super::*;
 
     fn add_bounty(context: &mut VMContextBuilder, contract: &mut Contract, times: u32) -> u64 {
-        testing_env!(context.attached_deposit(1).build());
+        testing_env!(context.attached_deposit(to_yocto("1")).build());
         let id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::AddBounty {

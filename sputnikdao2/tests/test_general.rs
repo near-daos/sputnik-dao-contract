@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use near_sdk::json_types::U128;
-use near_sdk::AccountId;
+use near_sdk::{AccountId};
 use near_sdk_sim::{call, to_yocto, view};
 
 use sputnik_staking::User;
@@ -51,7 +51,7 @@ fn test_multi_council() {
         bounty_bond: U128(10u128.pow(24)),
         bounty_forgiveness_period: U64::from(1_000_000_000 * 60 * 60 * 24),
     };
-    add_proposal(
+    let io = add_proposal(
         &root,
         &dao,
         ProposalInput {
@@ -60,8 +60,8 @@ fn test_multi_council() {
                 policy: VersionedPolicy::Current(new_policy.clone()),
             },
         },
-    )
-    .assert_success();
+    );
+    io.assert_success();
     vote(vec![&root], &dao, 0);
     assert_eq!(view!(dao.get_policy()).unwrap_json::<Policy>(), new_policy);
     add_transfer_proposal(&root, &dao, base_token(), user(1), 1_000_000, None).assert_success();
@@ -70,7 +70,7 @@ fn test_multi_council() {
     let proposal = view!(dao.get_proposal(1)).unwrap_json::<Proposal>();
     // Votes from members in different councils.
     assert_eq!(proposal.status, ProposalStatus::InProgress);
-    // Finish with vote that is in both councils, which approves the proposal.
+    // // Finish with vote that is in both councils, which approves the proposal.
     vote(vec![&user1], &dao, 1);
     let proposal = view!(dao.get_proposal(1)).unwrap_json::<Proposal>();
     assert_eq!(proposal.status, ProposalStatus::Approved);
@@ -136,12 +136,12 @@ fn test_create_dao_and_use_token() {
     );
     call!(
         user2,
-        test_token.mint(to_va(user2.account_id.clone()), U128(to_yocto("100")))
+        test_token.mint(user2.account_id.clone(), U128(to_yocto("100")))
     )
     .assert_success();
     call!(
         user2,
-        test_token.storage_deposit(Some(to_va(staking.account_id())), None),
+        test_token.storage_deposit(Some(staking.account_id()), None),
         deposit = to_yocto("1")
     )
     .assert_success();
@@ -153,7 +153,7 @@ fn test_create_dao_and_use_token() {
     call!(
         user2,
         test_token.ft_transfer_call(
-            to_va(staking.account_id()),
+            staking.account_id(),
             U128(to_yocto("10")),
             None,
             "".to_string()
@@ -165,7 +165,7 @@ fn test_create_dao_and_use_token() {
         view!(staking.ft_total_supply()).unwrap_json::<U128>().0,
         to_yocto("10")
     );
-    let user2_id = to_va(user2.account_id.clone());
+    let user2_id = user2.account_id.clone();
     assert_eq!(
         view!(staking.ft_balance_of(user2_id.clone()))
             .unwrap_json::<U128>()
@@ -207,7 +207,7 @@ fn test_create_dao_and_use_token() {
     let user = view!(staking.get_user(user2_id.clone())).unwrap_json::<User>();
     assert_eq!(
         user.delegated_amounts,
-        vec![(user2_id.to_string(), U128(to_yocto("4")))]
+        vec![(user2_id.clone(), U128(to_yocto("4")))]
     );
     assert_eq!(
         view!(dao.delegation_total_supply()).unwrap_json::<U128>().0,

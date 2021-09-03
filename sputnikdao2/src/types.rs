@@ -1,8 +1,8 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::Base64VecU8;
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, AccountId, Balance, Gas};
 use near_sdk::sys;
+use near_sdk::{env, AccountId, Balance, Gas};
 
 // TODO - one day change to const-friendly AccountId
 /// Account ID used for $NEAR.
@@ -94,7 +94,10 @@ pub(crate) fn upgrade_self(hash: &[u8]) {
 pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &[u8]) {
     unsafe {
         sys::storage_read(hash.len() as _, hash.as_ptr() as _, 0);
-        let pid = sys::promise_batch_create(receiver_id.as_str().len() as _, receiver_id.as_str().as_ptr() as _);
+        let pid = sys::promise_batch_create(
+            receiver_id.as_str().len() as _,
+            receiver_id.as_str().as_ptr() as _,
+        );
         let attached_gas = env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_REMOTE_DEPLOY;
         sys::promise_batch_action_function_call(
             pid,

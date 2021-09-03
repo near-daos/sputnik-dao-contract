@@ -114,7 +114,7 @@ pub fn add_transfer_proposal(
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
                 token_id,
-                receiver_id: to_va(receiver_id),
+                receiver_id,
                 amount: U128(amount),
                 msg,
             },

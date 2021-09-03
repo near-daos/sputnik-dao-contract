@@ -12,7 +12,7 @@ crate-type = ["cdylib", "rlib"]
 near-sdk = "4.0.0-pre.2"
 near-contract-standards = "4.0.0-pre.2"
 hex = "0.4.2"
-near_cli = { path="../near_cli" }
 
 [dev-dependencies]
 test-token = { path = "../test-token" }
+near-sdk-sim = "4.0.0-pre.2"

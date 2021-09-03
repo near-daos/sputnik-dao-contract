@@ -12,7 +12,6 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 near-sdk = {version="4.0.0-pre.2",features=["unstable"] }
-near_cli = {path="../near_cli"}
 near-contract-standards = "4.0.0-pre.2"
 hex = "0.4.2"
 

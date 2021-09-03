@@ -451,7 +451,7 @@ impl Contract {
         let sender_id = env::predecessor_account_id();
         // Update proposal given action. Returns true if should be updated in storage.
         let update = match action {
-            Action::AddProposal => env::panic(b"ERR_WRONG_ACTION"),
+            Action::AddProposal => env::panic_str("ERR_WRONG_ACTION"),
             Action::RemoveProposal => {
                 self.proposals.remove(&id);
                 false

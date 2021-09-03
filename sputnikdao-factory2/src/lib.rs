@@ -1,9 +1,8 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedSet;
 use near_sdk::json_types::{Base64VecU8, U128};
-use near_sdk::{assert_self, env, ext_contract, near_bindgen, AccountId, Promise, PublicKey, Gas};
+use near_sdk::{assert_self, env, ext_contract, near_bindgen, AccountId, Gas, Promise, PublicKey};
 use std::str::FromStr;
-
 
 const CODE: &[u8] = include_bytes!("../../sputnikdao2/res/sputnikdao2.wasm");
 
@@ -107,14 +106,16 @@ mod tests {
 
     #[test]
     fn test_basics() {
-
         let mut context = VMContextBuilder::new();
         testing_env!(context.current_account_id(accounts(0)).build());
         let mut factory = SputnikDAOFactory::new();
         testing_env!(context.attached_deposit(10).build());
         factory.create(
             AccountId::from_str("test").unwrap(),
-            Some(PublicKey::from_str("ed25519:9k3U2AChvwoXzt1uKysSNzWraCoQkxbmBdCHuuTtgSV1").unwrap()),
+            Some(
+                PublicKey::from_str("ed25519:9k3U2AChvwoXzt1uKysSNzWraCoQkxbmBdCHuuTtgSV1")
+                    .unwrap(),
+            ),
             "{}".as_bytes().to_vec().into(),
         );
         testing_env_with_promise_results(

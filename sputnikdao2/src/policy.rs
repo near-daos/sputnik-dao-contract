@@ -251,7 +251,7 @@ impl Policy {
                 return;
             }
         }
-        env::log(&format!("ERR_ROLE_NOT_FOUND:{}", role).into_bytes());
+        env::log_str(&format!("ERR_ROLE_NOT_FOUND:{}", role).as_str());
     }
 
     pub fn remove_member_from_role(&mut self, role: &String, member_id: &AccountId) {
@@ -261,12 +261,12 @@ impl Policy {
                     .kind
                     .remove_member_from_group(member_id)
                     .unwrap_or_else(|()| {
-                        env::log(&format!("ERR_ROLE_WRONG_KIND:{}", role).into_bytes());
+                        env::log_str(&format!("ERR_ROLE_WRONG_KIND:{}", role).as_str());
                     });
                 return;
             }
         }
-        env::log(&format!("ERR_ROLE_NOT_FOUND:{}", role).into_bytes());
+        env::log_str(&format!("ERR_ROLE_NOT_FOUND:{}", role).as_str());
     }
 
     /// Returns set of roles that this user is memeber of permissions for given user across all the roles it's member of.

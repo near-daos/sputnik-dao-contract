@@ -1816,15 +1816,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "near_cli"
-version = "0.1.0"
-dependencies = [
- "near-sdk 4.0.0-pre.2",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "nix"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2597,7 +2588,7 @@ dependencies = [
  "hex",
  "near-contract-standards",
  "near-sdk 4.0.0-pre.2",
- "near_cli",
+ "near-sdk-sim",
  "test-token",
 ]
 
@@ -2630,7 +2621,6 @@ dependencies = [
  "near-contract-standards",
  "near-sdk 4.0.0-pre.2",
  "near-sdk-sim",
- "near_cli",
  "sputnik-staking",
  "test-token",
 ]

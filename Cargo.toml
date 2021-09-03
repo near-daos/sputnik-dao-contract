@@ -6,8 +6,7 @@ members = [
   "sputnikdao2",
   "sputnikdao-factory",
   "sputnikdao-factory2",
-  "test-token",
-  "near_cli"
+  "test-token"
 ]
 
 [profile.release]
