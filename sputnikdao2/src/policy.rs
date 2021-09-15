@@ -16,7 +16,7 @@ pub enum RoleKind {
     /// Matches everyone, who is not matched by other roles.
     Everyone,
     /// Member greater or equal than given balance. Can use `1` as non-zero balance.
-    Member(Balance),
+    Member(U128),
     /// Set of accounts.
     Group(HashSet<AccountId>),
 }
@@ -26,7 +26,7 @@ impl RoleKind {
     pub fn match_user(&self, user: &UserInfo) -> bool {
         match self {
             RoleKind::Everyone => true,
-            RoleKind::Member(amount) => user.amount >= *amount,
+            RoleKind::Member(amount) => user.amount >= amount.0,
             RoleKind::Group(accounts) => accounts.contains(&user.account_id),
         }
     }
