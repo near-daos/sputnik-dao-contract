@@ -60,10 +60,10 @@ pub trait Contract {
 #[near_bindgen]
 impl Contract {
     #[init]
-    pub fn new(owner_id: AccountId, token_id: String, unstake_period: U64) -> Self {
+    pub fn new(owner_id: AccountId, token_id: AccountId, unstake_period: U64) -> Self {
         Self {
             owner_id: owner_id.into(),
-            vote_token_id: token_id.parse().unwrap(),
+            vote_token_id: token_id,
             users: LookupMap::new(StorageKeys::Users),
             total_amount: 0,
             unstake_period: unstake_period.0,
@@ -188,7 +188,7 @@ mod tests {
         let mut context = VMContextBuilder::new();
         
         testing_env!(context.predecessor_account_id(accounts(0)).build());
-        let mut contract = Contract::new(accounts(0), accounts(1).to_string(), U64(period));
+        let mut contract = Contract::new(accounts(0), accounts(1), U64(period));
         testing_env!(context.attached_deposit(to_yocto("1")).build());
         contract.storage_deposit(Some(accounts(2)), None);
         testing_env!(context.predecessor_account_id(accounts(1)).build());

@@ -23,8 +23,8 @@ near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
 
 type Contract = ContractAccount<DAOContract>;
 
-pub fn base_token() -> String {
-    "".to_string()
+pub fn base_token() -> Option<AccountId> {
+    None
 }
 
 pub fn should_fail(r: ExecutionResult) {
@@ -70,7 +70,7 @@ pub fn setup_staking(root: &UserAccount) -> ContractAccount<StakingContract> {
         bytes: &STAKING_WASM_BYTES,
         signer_account: root,
         deposit: to_yocto("100"),
-        init_method: new("dao".parse().unwrap(), "test_token".to_string(), U64(100_000_000_000))
+        init_method: new("dao".parse().unwrap(), "test_token".parse::<AccountId>().unwrap(), U64(100_000_000_000))
     )
 }
 
@@ -103,7 +103,7 @@ pub fn add_member_proposal(
 pub fn add_transfer_proposal(
     root: &UserAccount,
     dao: &Contract,
-    token_id: String,
+    token_id: Option<AccountId>,
     receiver_id: AccountId,
     amount: Balance,
     msg: Option<String>,
@@ -114,7 +114,7 @@ pub fn add_transfer_proposal(
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
-                token_id: token_id.to_string(),
+                token_id,
                 receiver_id,
                 amount: U128(amount),
                 msg,

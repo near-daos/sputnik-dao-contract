@@ -69,7 +69,6 @@ mod tests {
 
     #[test]
     fn test_basics() {
-        near_sdk::env::set_blockchain_interface(MockedBlockchain::default());
         testing_env!(VMContextBuilder::new()
             .current_account_id(accounts(0))
             .build());

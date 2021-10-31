@@ -177,7 +177,6 @@ mod tests {
     use near_sdk_sim::to_yocto;
 
     use crate::proposals::ProposalStatus;
-    use crate::types::BASE_TOKEN;
 
     use super::*;
 
@@ -186,7 +185,7 @@ mod tests {
         contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
-                token_id: BASE_TOKEN.to_string(),
+                token_id: None,
                 receiver_id: accounts(2).into(),
                 amount: U128(to_yocto("100")),
                 msg: None,

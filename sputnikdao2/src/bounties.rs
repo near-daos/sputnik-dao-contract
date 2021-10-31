@@ -29,7 +29,7 @@ pub struct Bounty {
     /// Description of the bounty.
     pub description: String,
     /// Token the bounty will be paid out.
-    pub token: AccountId,
+    pub token: Option<AccountId>,
     /// Amount to be paid out.
     pub amount: U128,
     /// How many times this bounty can be done.
@@ -184,7 +184,7 @@ impl Contract {
                 description,
                 kind: ProposalKind::BountyDone {
                     bounty_id: id,
-                    receiver_id: AccountId::try_from(sender_id.clone()).unwrap(),
+                    receiver_id: sender_id.clone(),
                 },
             });
             claims[claim_idx].completed = true;
@@ -219,7 +219,6 @@ mod tests {
     use near_sdk_sim::to_yocto;
 
     use crate::proposals::{ProposalInput, ProposalKind};
-    use crate::types::BASE_TOKEN;
     use crate::{Action, Config};
 
     use super::*;
@@ -231,7 +230,7 @@ mod tests {
             kind: ProposalKind::AddBounty {
                 bounty: Bounty {
                     description: "test bounty".to_string(),
-                    token: BASE_TOKEN.parse().unwrap(),
+                    token: None,
                     amount: U128(to_yocto("10")),
                     times,
                     max_deadline: U64::from(1_000),

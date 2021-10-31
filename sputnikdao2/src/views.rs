@@ -40,8 +40,8 @@ impl Contract {
     }
 
     /// Returns staking contract if available. Otherwise returns empty.
-    pub fn get_staking_contract(self) -> String {
-        self.staking_id.map(String::from).unwrap_or_default()
+    pub fn get_staking_contract(self) -> Option<AccountId> {
+        self.staking_id
     }
 
     /// Returns if blob with given hash is stored.

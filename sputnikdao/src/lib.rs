@@ -417,7 +417,6 @@ mod tests {
             // vec![accounts(0).as_ref(), accounts(1).as_ref()],
     #[test]
     fn test_basics() {
-        near_sdk::env::set_blockchain_interface(MockedBlockchain::default());
         testing_env!(VMContextBuilder::new().build());
         let mut dao = SputnikDAO::new(
             "test".to_string(),

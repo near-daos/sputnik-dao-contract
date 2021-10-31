@@ -9,10 +9,10 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-near-sdk = "4.0.0-pre.2"
-near-contract-standards = "4.0.0-pre.2"
+near-sdk = "4.0.0-pre.4"
+near-contract-standards = "4.0.0-pre.4"
 hex = "0.4.2"
 
 [dev-dependencies]
-near-sdk-sim = "4.0.0-pre.2"
+near-sdk-sim = "4.0.0-pre.4"
 test-token = { path = "../test-token" }

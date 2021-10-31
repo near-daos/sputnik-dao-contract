@@ -246,12 +246,4 @@ fn test_failures() {
         1_000_000,
         Some("some".to_string()),
     ));
-    should_fail(add_transfer_proposal(
-        &root,
-        &dao,
-        "not:a^valid.token@".parse().unwrap(),
-        user(1),
-        1_000_000,
-        None,
-    ));
 }

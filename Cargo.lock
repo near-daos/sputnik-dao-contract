@@ -1462,9 +1462,9 @@ checksum = "0debeb9fcf88823ea64d64e4a815ab1643f33127d995978e099942ce38f25238"
 
 [[package]]
 name = "near-contract-standards"
-version = "4.0.0-pre.2"
+version = "4.0.0-pre.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0bedf701e9a9b3a2df683cb5b7360d95492e70239a380e1e604745d2290e65f"
+checksum = "557388f4de72fa16ca1e2c8c368f8343f077c5d284d043e93be76a3b7e737872"
 dependencies = [
  "near-sdk",
 ]
@@ -1634,9 +1634,9 @@ dependencies = [
 
 [[package]]
 name = "near-sdk"
-version = "4.0.0-pre.2"
+version = "4.0.0-pre.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab7fc853396919d12055cc4051c303758a75ebca74223f5c9e0907a549452cc3"
+checksum = "10f570e260eae9169dd5ffe0764728b872c2df79b8786dfb5e57183bd383908e"
 dependencies = [
  "base64",
  "borsh",
@@ -1653,9 +1653,9 @@ dependencies = [
 
 [[package]]
 name = "near-sdk-macros"
-version = "4.0.0-pre.2"
+version = "4.0.0-pre.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44fcbacb1d2fedcb2e4aa05094d31ccbfa831c868ca1242d1345b3e45c6b8a6c"
+checksum = "65ddca18086f1ab14ce8541e0c23f503a322d45914f2fe08f571844045d32bde"
 dependencies = [
  "Inflector",
  "proc-macro2",
@@ -1665,9 +1665,9 @@ dependencies = [
 
 [[package]]
 name = "near-sdk-sim"
-version = "4.0.0-pre.2"
+version = "4.0.0-pre.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de2e4bf293c3d6d213f106638d083893949ad1e3d7a5ea44b2ea627d5bef469c"
+checksum = "34801bfe0524042b92c28b76ff7cb3f2cccf629b654c1fc6966633f3645975ec"
 dependencies = [
  "funty",
  "lazy-static-include",
@@ -2464,6 +2464,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_with"
+version = "1.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b44be9227e214a0420707c9ca74c2d4991d9955bae9415a8f93f05cebf561be5"
+dependencies = [
+ "serde",
+ "serde_with_macros",
+]
+
+[[package]]
+name = "serde_with_macros"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e48b35457e9d855d3dc05ef32a73e0df1e2c0fd72c38796a4ee909160c8eeec2"
+dependencies = [
+ "darling 0.12.4",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "sha2"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2563,6 +2585,7 @@ dependencies = [
  "near-contract-standards",
  "near-sdk",
  "near-sdk-sim",
+ "serde_with",
  "sputnik-staking",
  "test-token",
 ]
