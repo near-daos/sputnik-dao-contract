@@ -555,14 +555,11 @@ impl Contract {
                     }
                     ProposalKind::BountyDone { bounty_id, receiver_id } => {
                         // Get details from bounty
-                        let bounty = self.get_bounty(*bounty_id);
-                        self.internal_payout(
-                            &bounty.bounty.token,
+                        self.internal_execute_bounty_payout(
+                            *bounty_id,
                             receiver_id.as_ref(),
-                            bounty.bounty.amount.0,
-                            format!("Bounty {} payout (retrying)", id),
+                            true,
                             id,
-                            None,
                         );
                     }
                     _ => env::panic(b"ERR_RETRY_PAYOUT_WRONG_KIND")
