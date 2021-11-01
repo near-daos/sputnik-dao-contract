@@ -417,7 +417,6 @@ mod tests {
             // vec![accounts(0).as_ref(), accounts(1).as_ref()],
     #[test]
     fn test_basics() {
-        testing_env!(VMContextBuilder::new().build());
         let mut dao = SputnikDAO::new(
             "test".to_string(),
             vec![accounts(0), accounts(1)],
@@ -559,7 +558,6 @@ mod tests {
 
     #[test]
     fn test_expiration() {
-        testing_env!(VMContextBuilder::new().build());
         let mut dao = SputnikDAO::new(
             "test".to_string(),
             vec![accounts(0), accounts(1), accounts(2)],
@@ -587,7 +585,6 @@ mod tests {
 
     #[test]
     fn test_single_council() {
-        testing_env!(VMContextBuilder::new().build());
         let mut dao = SputnikDAO::new(
             "".to_string(),
             vec![accounts(0)],
@@ -615,7 +612,6 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_double_vote() {
-        testing_env!(VMContextBuilder::new().build());
         let mut dao = SputnikDAO::new(
             "".to_string(),
             vec![accounts(0), accounts(1)],
@@ -642,7 +638,6 @@ mod tests {
 
     #[test]
     fn test_two_council() {
-        testing_env!(VMContextBuilder::new().build());
         let mut dao = SputnikDAO::new(
             "".to_string(),
             vec![accounts(0), accounts(1)],
@@ -667,7 +662,6 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_run_out_of_money() {
-        testing_env!(VMContextBuilder::new().build());
         let mut dao = SputnikDAO::new(
             "".to_string(),
             vec![accounts(0)],
@@ -697,7 +691,6 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_incorrect_policy() {
-        testing_env!(VMContextBuilder::new().build());
         let mut dao = SputnikDAO::new(
             "".to_string(),
             vec![accounts(0), accounts(1)],
