@@ -166,6 +166,7 @@ impl Contract {
     /// Report that bounty is done. Creates a proposal to vote for paying out the bounty.
     /// Only creator of the claim can call `done` on bounty that is still in progress.
     /// On expired, anyone can call it to free up the claim slot.
+    #[payable]
     pub fn bounty_done(&mut self, id: u64, account_id: Option<AccountId>, description: String) {
         let sender_id = account_id.unwrap_or_else(|| env::predecessor_account_id());
         let (mut claims, claim_idx) = self.internal_get_claims(id, &sender_id);
