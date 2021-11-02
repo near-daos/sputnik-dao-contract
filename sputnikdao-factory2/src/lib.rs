@@ -50,6 +50,20 @@ impl SputnikDAOFactory {
         self.daos.to_vec()
     }
 
+    /// Get number of created DAOs.
+    pub fn get_number_daos(&self) ->  u64 {
+        self.daos.len()
+    }
+
+    /// Get daos in paginated view.
+    pub fn get_daos(&self, from_index: u64, limit: u64) -> Vec<AccountId> {
+        self.daos
+            .iter()
+            .skip(from_index as usize)
+            .take(limit as usize)
+            .collect()
+    }
+
     #[payable]
     pub fn create(
         &mut self,
@@ -128,6 +142,10 @@ mod tests {
         );
         assert_eq!(
             factory.get_dao_list(),
+            vec![format!("test.{}", accounts(0))]
+        );
+        assert_eq!(
+            factory.get_daos(0,100),
             vec![format!("test.{}", accounts(0))]
         );
     }
