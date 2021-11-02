@@ -4,13 +4,23 @@ use std::convert::TryFrom;
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{Base64VecU8, WrappedTimestamp, U64};
-use near_sdk::{log, AccountId, Balance, PromiseOrValue};
+use near_sdk::{ext_contract, log, AccountId, Balance, PromiseOrValue, PromiseResult};
 
 use crate::policy::UserInfo;
 use crate::types::{
     upgrade_remote, upgrade_self, Action, Config, BASE_TOKEN, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR,
 };
 use crate::*;
+
+#[ext_contract(ext_storage_management)]
+pub trait StorageManagement {
+    fn storage_deposit(
+        &mut self,
+        account_id: Option<AccountId>,
+        registration_only: Option<bool>,
+        refund_account_id: Option<AccountId>,
+    ) -> StorageBalance;
+}
 
 /// Status of a proposal.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -223,6 +233,66 @@ impl From<ProposalInput> for Proposal {
     }
 }
 
+#[ext_contract(ext_self)]
+pub trait ExtSelf {
+    fn callback_after_storage_deposit(
+        &mut self,
+        token_id: AccountId,
+        receiver_id: AccountId,
+        amount: Balance,
+        memo: String,
+        msg: Option<String>,
+    ) -> PromiseOrValue<()>;
+}
+
+#[near_bindgen]
+impl Contract {
+    #[allow(dead_code)]
+    #[private]
+    pub fn callback_after_storage_deposit(
+        &mut self,
+        token_id: AccountId,
+        receiver_id: AccountId,
+        amount: Balance,
+        memo: String,
+        msg: Option<String>,
+    ) -> PromiseOrValue<()> {
+        assert_eq!(
+            env::promise_results_count(),
+            1,
+            "ERR_UNEXPECTED_CALLBACK_PROMISES"
+        );
+        match env::promise_result(0) {
+            PromiseResult::NotReady => unreachable!(),
+            PromiseResult::Successful(_) => {
+                if let Some(msg) = msg {
+                    ext_fungible_token::ft_transfer_call(
+                        receiver_id.clone(),
+                        U128(amount),
+                        Some(memo),
+                        msg,
+                        &token_id,
+                        ONE_YOCTO_NEAR,
+                        GAS_FOR_FT_TRANSFER,
+                    )
+                    .into()
+                } else {
+                    ext_fungible_token::ft_transfer(
+                        receiver_id.clone(),
+                        U128(amount),
+                        Some(memo),
+                        &token_id,
+                        ONE_YOCTO_NEAR,
+                        GAS_FOR_FT_TRANSFER,
+                    )
+                    .into()
+                }
+            }
+            PromiseResult::Failed => panic!("Transfer to {} failed", receiver_id),
+        }
+    }
+}
+
 impl Contract {
     /// Execute payout of given token to given user.
     pub(crate) fn internal_payout(
@@ -236,28 +306,25 @@ impl Contract {
         if token_id == BASE_TOKEN {
             Promise::new(receiver_id.clone()).transfer(amount).into()
         } else {
-            if let Some(msg) = msg {
-                ext_fungible_token::ft_transfer_call(
-                    receiver_id.clone(),
-                    U128(amount),
-                    Some(memo),
-                    msg,
-                    &token_id,
-                    ONE_YOCTO_NEAR,
-                    GAS_FOR_FT_TRANSFER,
-                )
-                .into()
-            } else {
-                ext_fungible_token::ft_transfer(
-                    receiver_id.clone(),
-                    U128(amount),
-                    Some(memo),
-                    &token_id,
-                    ONE_YOCTO_NEAR,
-                    GAS_FOR_FT_TRANSFER,
-                )
-                .into()
-            }
+            ext_storage_management::storage_deposit(
+                Some(receiver_id.clone()),
+                Some(true),
+                Some(env::predecessor_account_id()),
+                &token_id,
+                env::attached_deposit(),
+                GAS_FOR_FT_TRANSFER,
+            )
+            .then(ext_self::callback_after_storage_deposit(
+                token_id.clone(),
+                receiver_id.clone(),
+                amount,
+                memo,
+                msg,
+                &env::current_account_id(),
+                ONE_YOCTO_NEAR,
+                GAS_FOR_FT_TRANSFER,
+            ))
+            .into()
         }
     }
 
