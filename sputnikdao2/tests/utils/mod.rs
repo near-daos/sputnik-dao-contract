@@ -5,7 +5,7 @@ pub use near_sdk::json_types::{Base64VecU8, ValidAccountId, WrappedDuration, U64
 use near_sdk::{AccountId, Balance};
 use near_sdk_sim::transaction::ExecutionStatus;
 use near_sdk_sim::{
-    call, deploy, init_simulator, to_yocto, ContractAccount, ExecutionResult, UserAccount,
+    call, deploy, init_simulator, to_yocto, view, ContractAccount, ExecutionResult, UserAccount,
 };
 
 use near_sdk::json_types::U128;
@@ -87,6 +87,15 @@ pub fn add_member_proposal(
     dao: &Contract,
     member_id: AccountId,
 ) -> ExecutionResult {
+    add_member_to_role_proposal(root, dao, member_id, "council".to_string())
+}
+
+pub fn add_member_to_role_proposal(
+    root: &UserAccount,
+    dao: &Contract,
+    member_id: AccountId,
+    role: String,
+) -> ExecutionResult {
     add_proposal(
         root,
         dao,
@@ -94,7 +103,7 @@ pub fn add_member_proposal(
             description: "test".to_string(),
             kind: ProposalKind::AddMemberToRole {
                 member_id: to_va(member_id),
-                role: "council".to_string(),
+                role,
             },
         },
     )

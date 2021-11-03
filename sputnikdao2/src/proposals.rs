@@ -60,6 +60,30 @@ pub enum ProposalKind {
         member_id: ValidAccountId,
         role: String,
     },
+    // TODO: should this not be a proposal,
+    // but some kind of command instead?
+    // (as all other proposals gets added in a list)
+    //
+    // Consider the gas usage of this, might be too much?
+    //
+    /// Removes oneself from all roles.
+    ///
+    /// As part of the cleanup proccess,
+    /// unless `preserve_roles` is set to true,
+    /// any [`role`](`crate::policy::Policy::roles`)
+    /// whose [`kind`](`crate::policy::RolePermission::kind`)
+    /// is a [`Group`](`crate::policy::RoleKind::Group`)
+    /// that contains only the quitting member,
+    /// that `role` is also removed.
+    Quit {
+        /// When set, disables the empty roles clean-up
+        /// proccess.
+        ///
+        /// By default this is unset,
+        /// ie. the clean-up is activated.
+        #[serde(default)]
+        preserve_roles: bool,
+    },
     /// Calls `receiver_id` with list of method names in a single promise.
     /// Allows this contract to execute any arbitrary set of actions in other contracts.
     FunctionCall {
@@ -105,6 +129,7 @@ impl ProposalKind {
             ProposalKind::ChangePolicy { .. } => "policy",
             ProposalKind::AddMemberToRole { .. } => "add_member_to_role",
             ProposalKind::RemoveMemberFromRole { .. } => "remove_member_from_role",
+            ProposalKind::Quit { .. } => "quit",
             ProposalKind::FunctionCall { .. } => "call",
             ProposalKind::UpgradeSelf { .. } => "upgrade_self",
             ProposalKind::UpgradeRemote { .. } => "upgrade_remote",
@@ -290,6 +315,13 @@ impl Contract {
                 self.policy.set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
+            ProposalKind::Quit { preserve_roles } => {
+                let quitting_member = env::predecessor_account_id();
+                let mut new_policy = policy.clone();
+                new_policy.remove_member_from_all_roles(&quitting_member, !preserve_roles);
+                self.policy.set(&VersionedPolicy::Current(new_policy));
+                PromiseOrValue::Value(())
+            }
             ProposalKind::FunctionCall {
                 receiver_id,
                 actions,
@@ -432,12 +464,31 @@ impl Contract {
             "ERR_PERMISSION_DENIED"
         );
 
-        // 3. Actually add proposal to the current list of proposals.
-        let id = self.last_proposal_id;
-        self.proposals
-            .insert(&id, &VersionedProposal::Default(proposal.into()));
-        self.last_proposal_id += 1;
-        id
+        // 3. Actually executes or adds proposal to the current list of proposals.
+        match &proposal.kind {
+            // immediatly executes proposal
+            // TODO: should Quit not be a proposal?
+            // TODO: consider the Gas usage, could be too much?
+            // (also for when it has already quitted)
+            //
+            // TODO: might be better to be tagged as "quit",
+            // and the dao can propose and vote for an
+            // overall data cleanup
+            ProposalKind::Quit { .. } => {
+                let policy = self.policy.get().unwrap().to_policy();
+                self.internal_execute_proposal(&policy, &proposal.into());
+                self.last_proposal_id
+            }
+
+            // adds proposal to the list
+            _ => {
+                let id = self.last_proposal_id;
+                self.proposals
+                    .insert(&id, &VersionedProposal::Default(proposal.into()));
+                self.last_proposal_id += 1;
+                id
+            }
+        }
     }
 
     /// Act on given proposal by id, if permissions allow.

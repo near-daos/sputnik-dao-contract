@@ -269,6 +269,47 @@ impl Policy {
         env::log(&format!("ERR_ROLE_NOT_FOUND:{}", role).into_bytes());
     }
 
+    /// Removes `member_id` from all roles.  
+    ///
+    /// If `clean_up_roles` is set, roles that got empty from `member_id`
+    /// quitting it will also get removed.  
+    /// Note: the roles ordering might be changed from the clean-up proccess.
+    pub fn remove_member_from_all_roles(&mut self, member_id: &AccountId, clean_up_roles: bool) {
+        let roles_len = self.roles.len();
+
+        // how many roles were removed
+        let mut removed_len = 0;
+
+        // starts from the last role
+        for i in (0..roles_len).rev() {
+            // whether the member was removed,
+            // and if that caused the role to be empty
+            let (removed, empty_after_remove) =
+                if let RoleKind::Group(ref mut members) = self.roles[i].kind {
+                    // removes the member from the role if it's exists
+                    let removed = members.remove(member_id);
+                    let empty_after_remove = clean_up_roles && removed && members.is_empty();
+                    (removed, empty_after_remove)
+                } else {
+                    (false, false)
+                };
+            if clean_up_roles && removed && empty_after_remove {
+                // put removed roles at the end of the vector
+                // this is safe because we started from the end
+                //
+                // (note: this changes the roles ordering)
+                self.roles.swap(i, roles_len - 1 - removed_len);
+                removed_len += 1;
+            };
+        }
+
+        if clean_up_roles && removed_len > 0 {
+            // effectively removes all roles that had no more members
+            // as a result of this last member quitting
+            self.roles.truncate(roles_len - removed_len);
+        }
+    }
+
     /// Returns set of roles that this user is memeber of permissions for given user across all the roles it's member of.
     fn get_user_roles(&self, user: UserInfo) -> HashMap<String, &HashSet<String>> {
         let mut roles = HashMap::default();
