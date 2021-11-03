@@ -18,7 +18,6 @@ pub trait StorageManagement {
         &mut self,
         account_id: Option<AccountId>,
         registration_only: Option<bool>,
-        refund_account_id: Option<AccountId>,
     ) -> StorageBalance;
 }
 
@@ -309,7 +308,6 @@ impl Contract {
             ext_storage_management::storage_deposit(
                 Some(receiver_id.clone()),
                 Some(true),
-                Some(env::predecessor_account_id()),
                 &token_id,
                 env::attached_deposit(),
                 GAS_FOR_FT_TRANSFER,
