@@ -4,7 +4,7 @@ use near_contract_standards::fungible_token::metadata::{
 use near_contract_standards::fungible_token::FungibleToken;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{ValidAccountId, U128};
-use near_sdk::{near_bindgen, AccountId, PanicOnDefault, PromiseOrValue, env};
+use near_sdk::{env, near_bindgen, AccountId, PanicOnDefault, PromiseOrValue};
 
 near_sdk::setup_alloc!();
 
