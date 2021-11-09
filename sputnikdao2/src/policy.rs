@@ -150,6 +150,8 @@ pub struct Policy {
     pub roles: Vec<RolePermission>,
     /// Default vote policy. Used when given proposal kind doesn't have special policy.
     pub default_vote_policy: VotePolicy,
+    /// Fee required to register a new account for a fungible token (also called deposit).
+    pub ft_registration_fee: Option<U128>,
     /// Proposal bond.
     pub proposal_bond: U128,
     /// Expiration period for proposals.
@@ -202,6 +204,7 @@ fn default_policy(council: Vec<AccountId>) -> Policy {
             },
         ],
         default_vote_policy: VotePolicy::default(),
+        ft_registration_fee: None,
         proposal_bond: U128(10u128.pow(24)),
         proposal_period: WrappedDuration::from(1_000_000_000 * 60 * 60 * 24 * 7),
         bounty_bond: U128(10u128.pow(24)),

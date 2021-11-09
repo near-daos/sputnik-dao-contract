@@ -19,6 +19,7 @@ pub trait StorageManagement {
         account_id: Option<AccountId>,
         registration_only: Option<bool>,
     ) -> StorageBalance;
+    fn storage_balance_bounds(&self) -> StorageBalanceBounds;
 }
 
 /// Status of a proposal.
@@ -86,12 +87,14 @@ pub enum ProposalKind {
     /// Transfers given amount of `token_id` from this DAO to `receiver_id`.
     /// If `msg` is not None, calls `ft_transfer_call` with given `msg`. Fails if this base token.
     /// For `ft_transfer` and `ft_transfer_call` `memo` is the `description` of the proposal.
+    /// `ft_registration_fee` represents the fee required to register a new account for `token_id`.
     Transfer {
         /// Can be "" for $NEAR or a valid account id.
         token_id: AccountId,
         receiver_id: ValidAccountId,
         amount: U128,
         msg: Option<String>,
+        ft_registration_fee: Option<U128>,
     },
     /// Sets staking contract. Can only be proposed if staking contract is not set yet.
     SetStakingContract { staking_id: ValidAccountId },
@@ -242,6 +245,12 @@ pub trait ExtSelf {
         memo: String,
         msg: Option<String>,
     ) -> PromiseOrValue<()>;
+    fn callback_after_storage_balance_bounds(
+        &mut self,
+        attached_deposit: Balance,
+        refund_account_id: AccountId,
+        proposal: ProposalInput,
+    ) -> u64;
 }
 
 #[near_bindgen]
@@ -290,6 +299,45 @@ impl Contract {
             PromiseResult::Failed => panic!("Transfer to {} failed", receiver_id),
         }
     }
+
+    #[allow(dead_code)]
+    #[private]
+    pub fn callback_after_storage_balance_bounds(
+        &mut self,
+        attached_deposit: Balance,
+        refund_account_id: AccountId,
+        proposal: ProposalInput,
+    ) -> u64 {
+        assert_eq!(
+            env::promise_results_count(),
+            1,
+            "ERR_UNEXPECTED_CALLBACK_PROMISES"
+        );
+        match env::promise_result(0) {
+            PromiseResult::NotReady => {
+                panic!("storage_balance_bounds Error: Received PromiseResult::NotReady")
+            }
+            PromiseResult::Failed => {
+                panic!("storage_balance_bounds Error: Received PromiseResult::Failed")
+            }
+            PromiseResult::Successful(result) => {
+                let bounds =
+                    near_sdk::serde_json::from_slice::<StorageBalanceBounds>(&result).unwrap();
+                let ft_registration_fee = bounds.min.0;
+                assert!(
+                    attached_deposit >= ft_registration_fee,
+                    "ERR_FT_REGISTRATION_FEE"
+                );
+                let refund = attached_deposit - ft_registration_fee;
+                if refund > 0 {
+                    Promise::new(refund_account_id).transfer(refund);
+                }
+
+                self.internal_check_permissions(&proposal);
+                self.internal_insert_proposal(proposal)
+            }
+        }
+    }
 }
 
 impl Contract {
@@ -301,6 +349,7 @@ impl Contract {
         amount: Balance,
         memo: String,
         msg: Option<String>,
+        ft_registration_fee: Option<U128>,
     ) -> PromiseOrValue<()> {
         if token_id == BASE_TOKEN {
             Promise::new(receiver_id.clone()).transfer(amount).into()
@@ -309,7 +358,7 @@ impl Contract {
                 Some(receiver_id.clone()),
                 Some(true),
                 &token_id,
-                env::attached_deposit(),
+                ft_registration_fee.unwrap().0,
                 GAS_FOR_FT_TRANSFER,
             )
             .then(ext_self::callback_after_storage_deposit(
@@ -391,12 +440,14 @@ impl Contract {
                 receiver_id,
                 amount,
                 msg,
+                ft_registration_fee,
             } => self.internal_payout(
                 token_id,
                 &receiver_id.clone().into(),
                 amount.0,
                 proposal.description.clone(),
                 msg.clone(),
+                ft_registration_fee,
             ),
             ProposalKind::SetStakingContract { staking_id } => {
                 assert!(self.staking_id.is_none(), "ERR_INVALID_STAKING_CHANGE");
@@ -448,6 +499,33 @@ impl Contract {
 
 #[near_bindgen]
 impl Contract {
+    // Add proposal to the current list of proposals.
+    #[private]
+    fn internal_insert_proposal(&mut self, proposal: ProposalInput) -> u64 {
+        let id = self.last_proposal_id;
+        self.proposals
+            .insert(&id, &VersionedProposal::Default(proposal.into()));
+        self.last_proposal_id += 1;
+        id
+    }
+
+    // Check permission of caller to add this type of proposal.
+    #[private]
+    fn internal_check_permissions(&self, proposal: &ProposalInput) {
+        let policy = self.policy.get().unwrap().to_policy();
+
+        assert!(
+            policy
+                .can_execute_action(
+                    self.internal_user_info(),
+                    &proposal.kind,
+                    &Action::AddProposal
+                )
+                .1,
+            "ERR_PERMISSION_DENIED"
+        );
+    }
+
     /// Add proposal to this DAO.
     #[payable]
     pub fn add_proposal(&mut self, proposal: ProposalInput) -> u64 {
@@ -476,6 +554,19 @@ impl Contract {
                         "ERR_TOKEN_ID_INVALID"
                     );
                 }
+
+                ext_storage_management::storage_balance_bounds(
+                    &token_id, 0,
+                    0, // TBD: is 0 correct here? do we need gas when reading the state?
+                )
+                .then(ext_self::callback_after_storage_balance_bounds(
+                    env::attached_deposit() - policy.proposal_bond.0,
+                    env::predecessor_account_id(),
+                    proposal.clone(),
+                    &env::current_account_id(),
+                    0,
+                    0,
+                ))
             }
             ProposalKind::SetStakingContract { .. } => assert!(
                 self.staking_id.is_none(),
@@ -485,24 +576,8 @@ impl Contract {
             _ => {}
         };
 
-        // 2. Check permission of caller to add this type of proposal.
-        assert!(
-            policy
-                .can_execute_action(
-                    self.internal_user_info(),
-                    &proposal.kind,
-                    &Action::AddProposal
-                )
-                .1,
-            "ERR_PERMISSION_DENIED"
-        );
-
-        // 3. Actually add proposal to the current list of proposals.
-        let id = self.last_proposal_id;
-        self.proposals
-            .insert(&id, &VersionedProposal::Default(proposal.into()));
-        self.last_proposal_id += 1;
-        id
+        self.internal_check_permissions(&proposal);
+        self.internal_insert_proposal(proposal)
     }
 
     /// Act on given proposal by id, if permissions allow.

@@ -118,6 +118,7 @@ pub fn add_transfer_proposal(
                 receiver_id: to_va(receiver_id),
                 amount: U128(amount),
                 msg,
+                ft_registration_fee: None,
             },
         },
     )

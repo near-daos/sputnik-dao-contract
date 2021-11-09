@@ -218,6 +218,7 @@ mod tests {
                 receiver_id: accounts(2).into(),
                 amount: U128(to_yocto("100")),
                 msg: None,
+                ft_registration_fee: None,
             },
         })
     }
