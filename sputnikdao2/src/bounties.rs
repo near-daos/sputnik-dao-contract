@@ -67,26 +67,31 @@ impl Contract {
     /// This must be called when proposal to payout bounty has been voted either successfully or not.
     pub(crate) fn internal_execute_bounty_payout(
         &mut self,
-        id: u64,
+        policy: &Policy,
+        proposal: &Proposal,
+        bounty_id: u64,
         receiver_id: &AccountId,
         success: bool,
     ) -> PromiseOrValue<()> {
-        let mut bounty: Bounty = self.bounties.get(&id).expect("ERR_NO_BOUNTY").into();
-        let (claims, claim_idx) = self.internal_get_claims(id, &receiver_id);
-        self.internal_remove_claim(id, claims, claim_idx);
+        let mut bounty: Bounty = self.bounties.get(&bounty_id).expect("ERR_NO_BOUNTY").into();
+        let (claims, claim_idx) = self.internal_get_claims(bounty_id, &receiver_id);
+        self.internal_remove_claim(bounty_id, claims, claim_idx);
         if success {
-            let res = self.internal_payout(
+            let res = self.internal_try_register_and_payout(
                 &bounty.token,
+                &proposal.proposer,
                 receiver_id,
-                bounty.amount.0,
-                format!("Bounty {} payout", id),
+                bounty.amount.clone(),
+                policy.proposal_bond.clone(),
+                format!("Bounty {} payout", bounty_id),
                 None,
             );
             if bounty.times == 0 {
-                self.bounties.remove(&id);
+                self.bounties.remove(&bounty_id);
             } else {
                 bounty.times -= 1;
-                self.bounties.insert(&id, &VersionedBounty::Default(bounty));
+                self.bounties
+                    .insert(&bounty_id, &VersionedBounty::Default(bounty));
             }
             res
         } else {

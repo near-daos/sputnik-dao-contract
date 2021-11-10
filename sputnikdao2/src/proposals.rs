@@ -2,9 +2,10 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
+use near_contract_standards::storage_management::StorageBalance;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{Base64VecU8, WrappedTimestamp, U64};
-use near_sdk::{log, AccountId, Balance, PromiseOrValue};
+use near_sdk::{ext_contract, log, AccountId, Balance, PromiseOrValue, PromiseResult};
 
 use crate::policy::UserInfo;
 use crate::types::{
@@ -223,6 +224,133 @@ impl From<ProposalInput> for Proposal {
     }
 }
 
+#[ext_contract(ext_storage_management)]
+pub trait StorageManagement {
+    fn storage_deposit(
+        &mut self,
+        account_id: Option<AccountId>,
+        registration_only: Option<bool>,
+    ) -> StorageBalance;
+    fn is_account_registered(&self, account_id: AccountId) -> bool;
+}
+
+#[ext_contract(ext_self)]
+pub trait ExtSelf {
+    fn callback_after_storage_deposit(
+        &mut self,
+        token_id: AccountId,
+        proposer_account: AccountId,
+        receiver_id: AccountId,
+        amount: U128,
+        attached_deposit: U128,
+        memo: String,
+        msg: Option<String>,
+    ) -> PromiseOrValue<()>;
+    fn callback_after_is_account_registered(
+        &mut self,
+        token_id: AccountId,
+        proposer_account: AccountId,
+        receiver_id: AccountId,
+        amount: U128,
+        attached_deposit: U128,
+        memo: String,
+        msg: Option<String>,
+    ) -> PromiseOrValue<()>;
+}
+
+#[near_bindgen]
+impl Contract {
+    #[allow(dead_code)]
+    #[private]
+    pub fn callback_after_storage_deposit(
+        &mut self,
+        token_id: AccountId,
+        proposer_account: AccountId,
+        receiver_id: AccountId,
+        amount: U128,
+        attached_deposit: U128,
+        memo: String,
+        msg: Option<String>,
+    ) -> PromiseOrValue<()> {
+        assert_eq!(
+            env::promise_results_count(),
+            1,
+            "ERR_UNEXPECTED_CALLBACK_PROMISES"
+        );
+        match env::promise_result(0) {
+            PromiseResult::NotReady => {
+                panic!("storage_deposit Error: Received PromiseResult::NotReady")
+            }
+            PromiseResult::Failed => {
+                panic!("storage_deposit Error: Received PromiseResult::Failed")
+            }
+            PromiseResult::Successful(result) => {
+                let balance = near_sdk::serde_json::from_slice::<StorageBalance>(&result).unwrap();
+
+                Promise::new(proposer_account.clone())
+                    .transfer(attached_deposit.0 - balance.total.0);
+                self.internal_payout(&token_id, &receiver_id, amount.0, memo, msg)
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    #[private]
+    pub fn callback_after_is_account_registered(
+        &mut self,
+        token_id: AccountId,
+        proposer_account: AccountId,
+        receiver_id: AccountId,
+        amount: U128,
+        attached_deposit: U128,
+        memo: String,
+        msg: Option<String>,
+    ) -> PromiseOrValue<()> {
+        assert_eq!(
+            env::promise_results_count(),
+            1,
+            "ERR_UNEXPECTED_CALLBACK_PROMISES"
+        );
+        match env::promise_result(0) {
+            PromiseResult::NotReady => {
+                panic!("is_account_registered Error: Received PromiseResult::NotReady")
+            }
+            PromiseResult::Failed => {
+                panic!("is_account_registered Error: Received PromiseResult::Failed")
+            }
+            PromiseResult::Successful(result) => {
+                let is_registered = near_sdk::serde_json::from_slice::<bool>(&result).unwrap();
+
+                if is_registered {
+                    Promise::new(proposer_account.clone()).transfer(attached_deposit.0);
+                    self.internal_payout(&token_id, &receiver_id, amount.0, memo, msg)
+                } else {
+                    ext_storage_management::storage_deposit(
+                        Some(receiver_id.clone()),
+                        Some(true),
+                        &token_id,
+                        attached_deposit.0,
+                        GAS_FOR_FT_TRANSFER,
+                    )
+                    .then(ext_self::callback_after_storage_deposit(
+                        token_id.clone(),
+                        proposer_account.clone(),
+                        receiver_id.clone(),
+                        amount,
+                        attached_deposit,
+                        memo,
+                        msg,
+                        &env::current_account_id(),
+                        ONE_YOCTO_NEAR,
+                        GAS_FOR_FT_TRANSFER,
+                    ))
+                    .into()
+                }
+            }
+        }
+    }
+}
+
 impl Contract {
     /// Execute payout of given token to given user.
     pub(crate) fn internal_payout(
@@ -261,14 +389,46 @@ impl Contract {
         }
     }
 
+    pub(crate) fn internal_try_register_and_payout(
+        &mut self,
+        token_id: &AccountId,
+        proposer_account: &AccountId,
+        receiver_id: &AccountId,
+        amount: U128,
+        attached_deposit: U128,
+        memo: String,
+        msg: Option<String>,
+    ) -> PromiseOrValue<()> {
+        ext_storage_management::is_account_registered(receiver_id.clone(), &token_id.clone(), 0, 0)
+            .then(ext_self::callback_after_is_account_registered(
+                token_id.clone(),
+                proposer_account.clone(),
+                receiver_id.clone(),
+                amount,
+                attached_deposit,
+                memo,
+                msg,
+                &env::current_account_id(),
+                0,
+                0,
+            ))
+            .into()
+    }
+
     /// Executes given proposal and updates the contract's state.
     fn internal_execute_proposal(
         &mut self,
         policy: &Policy,
         proposal: &Proposal,
     ) -> PromiseOrValue<()> {
-        // Return the proposal bond.
-        Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond.0);
+        // If it's not a transfer, return the proposal bond right away.
+        // For a transfer, we might use the proposal bond to pay the deposit when registering the receiver account.
+        if !matches!(&proposal.kind, ProposalKind::Transfer { .. })
+            && !matches!(&proposal.kind, ProposalKind::BountyDone { .. })
+        {
+            // Return the proposal bond.
+            Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond.0);
+        }
         match &proposal.kind {
             ProposalKind::ChangeConfig { config } => {
                 self.config.set(config);
@@ -326,10 +486,12 @@ impl Contract {
                 receiver_id,
                 amount,
                 msg,
-            } => self.internal_payout(
+            } => self.internal_try_register_and_payout(
                 token_id,
+                &proposal.proposer,
                 &receiver_id.clone().into(),
-                amount.0,
+                amount.clone(),
+                policy.proposal_bond.clone(),
                 proposal.description.clone(),
                 msg.clone(),
             ),
@@ -345,7 +507,13 @@ impl Contract {
             ProposalKind::BountyDone {
                 bounty_id,
                 receiver_id,
-            } => self.internal_execute_bounty_payout(*bounty_id, &receiver_id.clone().into(), true),
+            } => self.internal_execute_bounty_payout(
+                &policy,
+                &proposal,
+                *bounty_id,
+                &receiver_id.clone().into(),
+                true,
+            ),
             ProposalKind::Vote => PromiseOrValue::Value(()),
         }
     }
@@ -365,9 +533,13 @@ impl Contract {
             ProposalKind::BountyDone {
                 bounty_id,
                 receiver_id,
-            } => {
-                self.internal_execute_bounty_payout(*bounty_id, &receiver_id.clone().into(), false)
-            }
+            } => self.internal_execute_bounty_payout(
+                &policy,
+                &proposal,
+                *bounty_id,
+                &receiver_id.clone().into(),
+                false,
+            ),
             _ => PromiseOrValue::Value(()),
         }
     }
