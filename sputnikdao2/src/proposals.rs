@@ -287,6 +287,7 @@ impl Contract {
             PromiseResult::Successful(result) => {
                 let balance = near_sdk::serde_json::from_slice::<StorageBalance>(&result).unwrap();
 
+                // Pay back the proposal bond - registration fee.
                 Promise::new(proposer_account.clone())
                     .transfer(attached_deposit.0 - balance.total.0);
                 self.internal_payout(&token_id, &receiver_id, amount.0, memo, msg)
@@ -322,9 +323,11 @@ impl Contract {
                 let is_registered = near_sdk::serde_json::from_slice::<bool>(&result).unwrap();
 
                 if is_registered {
+                    // If the receiver account is already registered, pay back the proposal bond.
                     Promise::new(proposer_account.clone()).transfer(attached_deposit.0);
                     self.internal_payout(&token_id, &receiver_id, amount.0, memo, msg)
                 } else {
+                    // Otherwise, register the account and pay the registration fee from the proposal bond.
                     ext_storage_management::storage_deposit(
                         Some(receiver_id.clone()),
                         Some(true),
