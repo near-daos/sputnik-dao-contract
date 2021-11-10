@@ -341,8 +341,8 @@ impl Contract {
                         memo,
                         msg,
                         &env::current_account_id(),
-                        ONE_YOCTO_NEAR,
-                        GAS_FOR_FT_TRANSFER,
+                        0,
+                        0, // TBD: is gas required for reading the state?,
                     ))
                     .into()
                 }
@@ -399,20 +399,25 @@ impl Contract {
         memo: String,
         msg: Option<String>,
     ) -> PromiseOrValue<()> {
-        ext_storage_management::is_account_registered(receiver_id.clone(), &token_id.clone(), 0, 0)
-            .then(ext_self::callback_after_is_account_registered(
-                token_id.clone(),
-                proposer_account.clone(),
-                receiver_id.clone(),
-                amount,
-                attached_deposit,
-                memo,
-                msg,
-                &env::current_account_id(),
-                0,
-                0,
-            ))
-            .into()
+        ext_storage_management::is_account_registered(
+            receiver_id.clone(),
+            &token_id.clone(),
+            0,
+            0, // TBD: is gas required for reading the state?
+        )
+        .then(ext_self::callback_after_is_account_registered(
+            token_id.clone(),
+            proposer_account.clone(),
+            receiver_id.clone(),
+            amount,
+            attached_deposit,
+            memo,
+            msg,
+            &env::current_account_id(),
+            0,
+            0, // TBD: is gas required for reading the state?,
+        ))
+        .into()
     }
 
     /// Executes given proposal and updates the contract's state.
