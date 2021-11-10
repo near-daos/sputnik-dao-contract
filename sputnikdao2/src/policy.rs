@@ -2,7 +2,7 @@ use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{WrappedDuration, U128};
+use near_sdk::json_types::{U64, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, AccountId, Balance};
 
@@ -153,11 +153,11 @@ pub struct Policy {
     /// Proposal bond.
     pub proposal_bond: U128,
     /// Expiration period for proposals.
-    pub proposal_period: WrappedDuration,
+    pub proposal_period: U64,
     /// Bond for claiming a bounty.
     pub bounty_bond: U128,
     /// Period in which giving up on bounty is not punished.
-    pub bounty_forgiveness_period: WrappedDuration,
+    pub bounty_forgiveness_period: U64,
 }
 
 /// Versioned policy.
@@ -203,9 +203,9 @@ fn default_policy(council: Vec<AccountId>) -> Policy {
         ],
         default_vote_policy: VotePolicy::default(),
         proposal_bond: U128(10u128.pow(24)),
-        proposal_period: WrappedDuration::from(1_000_000_000 * 60 * 60 * 24 * 7),
+        proposal_period: U64::from(1_000_000_000 * 60 * 60 * 24 * 7),
         bounty_bond: U128(10u128.pow(24)),
-        bounty_forgiveness_period: WrappedDuration::from(1_000_000_000 * 60 * 60 * 24),
+        bounty_forgiveness_period: U64::from(1_000_000_000 * 60 * 60 * 24),
     }
 }
 
@@ -246,12 +246,12 @@ impl Policy {
                     .kind
                     .add_member_to_group(member_id)
                     .unwrap_or_else(|()| {
-                        env::log(&format!("ERR_ROLE_WRONG_KIND:{}", role).into_bytes());
+                        env::log_str(&format!("ERR_ROLE_WRONG_KIND:{}", role));
                     });
                 return;
             }
         }
-        env::log(&format!("ERR_ROLE_NOT_FOUND:{}", role).into_bytes());
+        env::log_str(&format!("ERR_ROLE_NOT_FOUND:{}", role));
     }
 
     pub fn remove_member_from_role(&mut self, role: &String, member_id: &AccountId) {
@@ -261,12 +261,12 @@ impl Policy {
                     .kind
                     .remove_member_from_group(member_id)
                     .unwrap_or_else(|()| {
-                        env::log(&format!("ERR_ROLE_WRONG_KIND:{}", role).into_bytes());
+                        env::log_str(&format!("ERR_ROLE_WRONG_KIND:{}", role));
                     });
                 return;
             }
         }
-        env::log(&format!("ERR_ROLE_NOT_FOUND:{}", role).into_bytes());
+        env::log_str(&format!("ERR_ROLE_NOT_FOUND:{}", role));
     }
 
     /// Returns set of roles that this user is memeber of permissions for given user across all the roles it's member of.

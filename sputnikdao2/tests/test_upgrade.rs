@@ -1,6 +1,8 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{Base58CryptoHash, ValidAccountId};
+use near_sdk::json_types::Base58CryptoHash;
 use near_sdk::serde_json::json;
+use near_sdk::AccountId;
+
 use near_sdk_sim::{call, to_yocto, view, DEFAULT_GAS};
 use sputnikdao2::{Action, ProposalInput, ProposalKind};
 
@@ -42,7 +44,7 @@ fn test_upgrade() {
 
 #[derive(BorshSerialize, BorshDeserialize)]
 struct NewArgs {
-    owner_id: ValidAccountId,
+    owner_id: AccountId,
     exchange_fee: u32,
     referral_fee: u32,
 }
@@ -51,13 +53,13 @@ struct NewArgs {
 #[test]
 fn test_upgrade_other() {
     let (root, dao) = setup_dao();
-    let ref_account_id = "ref-finance".to_string();
+    let ref_account_id : AccountId = "ref-finance".parse().unwrap();
     let _ = root.deploy_and_init(
         &OTHER_WASM_BYTES,
         ref_account_id.clone(),
         "new",
         &json!({
-            "owner_id": to_va(dao.account_id()),
+            "owner_id": dao.account_id(),
             "exchange_fee": 1,
             "referral_fee": 1,
         })
@@ -81,7 +83,7 @@ fn test_upgrade_other() {
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::UpgradeRemote {
-                receiver_id: to_va(ref_account_id.clone()),
+                receiver_id: ref_account_id.clone(),
                 method_name: "upgrade".to_string(),
                 hash,
             },

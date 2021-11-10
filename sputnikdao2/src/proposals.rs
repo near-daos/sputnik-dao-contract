@@ -4,12 +4,12 @@ use std::convert::TryFrom;
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_contract_standards::storage_management::StorageBalance;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{Base64VecU8, WrappedTimestamp, U64};
-use near_sdk::{ext_contract, log, AccountId, Balance, PromiseOrValue, PromiseResult};
+use near_sdk::json_types::{Base64VecU8, U128, U64};
+use near_sdk::{ext_contract, log, AccountId, Balance, Gas, PromiseOrValue, PromiseResult};
 
 use crate::policy::UserInfo;
 use crate::types::{
-    upgrade_remote, upgrade_self, Action, Config, BASE_TOKEN, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR,
+    upgrade_remote, upgrade_self, Action, Config, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR,
 };
 use crate::*;
 
@@ -52,26 +52,20 @@ pub enum ProposalKind {
     /// Change the full policy.
     ChangePolicy { policy: VersionedPolicy },
     /// Add member to given role in the policy. This is short cut to updating the whole policy.
-    AddMemberToRole {
-        member_id: ValidAccountId,
-        role: String,
-    },
+    AddMemberToRole { member_id: AccountId, role: String },
     /// Remove member to given role in the policy. This is short cut to updating the whole policy.
-    RemoveMemberFromRole {
-        member_id: ValidAccountId,
-        role: String,
-    },
+    RemoveMemberFromRole { member_id: AccountId, role: String },
     /// Calls `receiver_id` with list of method names in a single promise.
     /// Allows this contract to execute any arbitrary set of actions in other contracts.
     FunctionCall {
-        receiver_id: ValidAccountId,
+        receiver_id: AccountId,
         actions: Vec<ActionCall>,
     },
     /// Upgrade this contract with given hash from blob store.
     UpgradeSelf { hash: Base58CryptoHash },
     /// Upgrade another contract, by calling method with the code from given hash from blob store.
     UpgradeRemote {
-        receiver_id: ValidAccountId,
+        receiver_id: AccountId,
         method_name: String,
         hash: Base58CryptoHash,
     },
@@ -80,19 +74,20 @@ pub enum ProposalKind {
     /// For `ft_transfer` and `ft_transfer_call` `memo` is the `description` of the proposal.
     Transfer {
         /// Can be "" for $NEAR or a valid account id.
-        token_id: AccountId,
-        receiver_id: ValidAccountId,
+        #[serde(with = "serde_with::rust::string_empty_as_none")]
+        token_id: Option<AccountId>,
+        receiver_id: AccountId,
         amount: U128,
         msg: Option<String>,
     },
     /// Sets staking contract. Can only be proposed if staking contract is not set yet.
-    SetStakingContract { staking_id: ValidAccountId },
+    SetStakingContract { staking_id: AccountId },
     /// Add new bounty.
     AddBounty { bounty: Bounty },
     /// Indicates that given bounty is done by given user.
     BountyDone {
         bounty_id: u64,
-        receiver_id: ValidAccountId,
+        receiver_id: AccountId,
     },
     /// Just a signaling vote, with no execution.
     Vote,
@@ -156,7 +151,7 @@ pub struct Proposal {
     /// Map of who voted and how.
     pub votes: HashMap<AccountId, Vote>,
     /// Submission time (for voting period).
-    pub submission_time: WrappedTimestamp,
+    pub submission_time: U64,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -219,7 +214,7 @@ impl From<ProposalInput> for Proposal {
             status: ProposalStatus::InProgress,
             vote_counts: HashMap::default(),
             votes: HashMap::default(),
-            submission_time: WrappedTimestamp::from(env::block_timestamp()),
+            submission_time: U64::from(env::block_timestamp()),
         }
     }
 }
@@ -238,7 +233,7 @@ pub trait StorageManagement {
 pub trait ExtSelf {
     fn callback_after_storage_deposit(
         &mut self,
-        token_id: AccountId,
+        token_id: Option<AccountId>,
         proposer_account: AccountId,
         receiver_id: AccountId,
         amount: U128,
@@ -248,7 +243,7 @@ pub trait ExtSelf {
     ) -> PromiseOrValue<()>;
     fn callback_after_is_account_registered(
         &mut self,
-        token_id: AccountId,
+        token_id: Option<AccountId>,
         proposer_account: AccountId,
         receiver_id: AccountId,
         amount: U128,
@@ -264,7 +259,7 @@ impl Contract {
     #[private]
     pub fn callback_after_storage_deposit(
         &mut self,
-        token_id: AccountId,
+        token_id: Option<AccountId>,
         proposer_account: AccountId,
         receiver_id: AccountId,
         amount: U128,
@@ -299,7 +294,7 @@ impl Contract {
     #[private]
     pub fn callback_after_is_account_registered(
         &mut self,
-        token_id: AccountId,
+        token_id: Option<AccountId>,
         proposer_account: AccountId,
         receiver_id: AccountId,
         amount: U128,
@@ -331,7 +326,7 @@ impl Contract {
                     ext_storage_management::storage_deposit(
                         Some(receiver_id.clone()),
                         Some(true),
-                        &token_id,
+                        token_id.as_ref().unwrap().clone(),
                         attached_deposit.0,
                         GAS_FOR_FT_TRANSFER,
                     )
@@ -343,9 +338,9 @@ impl Contract {
                         attached_deposit,
                         memo,
                         msg,
-                        &env::current_account_id(),
+                        env::current_account_id(),
                         0,
-                        0, // TBD: is gas required for reading the state?,
+                        Gas(0), // TBD: is gas required for reading the state?,
                     ))
                     .into()
                 }
@@ -358,13 +353,13 @@ impl Contract {
     /// Execute payout of given token to given user.
     pub(crate) fn internal_payout(
         &mut self,
-        token_id: &AccountId,
+        token_id: &Option<AccountId>,
         receiver_id: &AccountId,
         amount: Balance,
         memo: String,
         msg: Option<String>,
     ) -> PromiseOrValue<()> {
-        if token_id == BASE_TOKEN {
+        if token_id.is_none() {
             Promise::new(receiver_id.clone()).transfer(amount).into()
         } else {
             if let Some(msg) = msg {
@@ -373,7 +368,7 @@ impl Contract {
                     U128(amount),
                     Some(memo),
                     msg,
-                    &token_id,
+                    token_id.as_ref().unwrap().clone(),
                     ONE_YOCTO_NEAR,
                     GAS_FOR_FT_TRANSFER,
                 )
@@ -383,7 +378,7 @@ impl Contract {
                     receiver_id.clone(),
                     U128(amount),
                     Some(memo),
-                    &token_id,
+                    token_id.as_ref().unwrap().clone(),
                     ONE_YOCTO_NEAR,
                     GAS_FOR_FT_TRANSFER,
                 )
@@ -394,7 +389,7 @@ impl Contract {
 
     pub(crate) fn internal_try_register_and_payout(
         &mut self,
-        token_id: &AccountId,
+        token_id: &Option<AccountId>,
         proposer_account: &AccountId,
         receiver_id: &AccountId,
         amount: U128,
@@ -404,9 +399,9 @@ impl Contract {
     ) -> PromiseOrValue<()> {
         ext_storage_management::is_account_registered(
             receiver_id.clone(),
-            &token_id.clone(),
+            token_id.as_ref().unwrap().clone(),
             0,
-            0, // TBD: is gas required for reading the state?
+            Gas(0), // TBD: is gas required for reading the state?
         )
         .then(ext_self::callback_after_is_account_registered(
             token_id.clone(),
@@ -416,9 +411,9 @@ impl Contract {
             attached_deposit,
             memo,
             msg,
-            &env::current_account_id(),
+            env::current_account_id(),
             0,
-            0, // TBD: is gas required for reading the state?,
+            Gas(0), // TBD: is gas required for reading the state?,
         ))
         .into()
     }
@@ -465,10 +460,10 @@ impl Contract {
                 let mut promise = Promise::new(receiver_id.clone().into());
                 for action in actions {
                     promise = promise.function_call(
-                        action.method_name.clone().into_bytes(),
+                        action.method_name.clone().into(),
                         action.args.clone().into(),
                         action.deposit.0,
-                        action.gas.0,
+                        Gas(action.gas.0),
                     )
                 }
                 promise.into()
@@ -495,7 +490,7 @@ impl Contract {
                 amount,
                 msg,
             } => self.internal_try_register_and_payout(
-                token_id,
+                &token_id,
                 &proposal.proposer,
                 &receiver_id.clone().into(),
                 amount.clone(),
@@ -582,15 +577,9 @@ impl Contract {
             },
             ProposalKind::Transfer { token_id, msg, .. } => {
                 assert!(
-                    !(token_id == BASE_TOKEN) || msg.is_none(),
+                    !(token_id.is_none()) || msg.is_none(),
                     "ERR_BASE_TOKEN_NO_MSG"
                 );
-                if token_id != BASE_TOKEN {
-                    assert!(
-                        ValidAccountId::try_from(token_id.clone()).is_ok(),
-                        "ERR_TOKEN_ID_INVALID"
-                    );
-                }
             }
             ProposalKind::SetStakingContract { .. } => assert!(
                 self.staking_id.is_none(),
@@ -632,7 +621,7 @@ impl Contract {
         let sender_id = env::predecessor_account_id();
         // Update proposal given action. Returns true if should be updated in storage.
         let update = match action {
-            Action::AddProposal => env::panic(b"ERR_WRONG_ACTION"),
+            Action::AddProposal => env::panic_str("ERR_WRONG_ACTION"),
             Action::RemoveProposal => {
                 self.proposals.remove(&id);
                 false
