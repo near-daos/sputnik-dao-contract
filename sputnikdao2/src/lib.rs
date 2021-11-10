@@ -14,6 +14,7 @@ use crate::proposals::VersionedProposal;
 pub use crate::proposals::{Proposal, ProposalInput, ProposalKind, ProposalStatus};
 pub use crate::types::{Action, Config};
 
+mod basic_action;
 mod bounties;
 mod delegation;
 mod policy;

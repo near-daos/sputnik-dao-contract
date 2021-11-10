@@ -5,7 +5,7 @@ pub use near_sdk::json_types::{Base64VecU8, ValidAccountId, WrappedDuration, U64
 use near_sdk::{AccountId, Balance};
 use near_sdk_sim::transaction::ExecutionStatus;
 use near_sdk_sim::{
-    call, deploy, init_simulator, to_yocto, view, ContractAccount, ExecutionResult, UserAccount,
+    call, deploy, init_simulator, to_yocto, ContractAccount, ExecutionResult, UserAccount,
 };
 
 use near_sdk::json_types::U128;

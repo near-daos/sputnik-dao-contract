@@ -68,12 +68,18 @@ pub struct RolePermission {
     pub name: String,
     /// Kind of the role: defines which users this permissions apply.
     pub kind: RoleKind,
-    /// Set of actions on which proposals that this role is allowed to execute.
-    /// <proposal_kind>:<action>
-    pub permissions: HashSet<String>,
+    /// Set of proposal actions (on certain kinds of proposals) that this
+    /// role allow it's members to execute.  
+    /// <proposal_kind>:<proposal_action>
+    pub permissions: HashSet<ProposalPermission>,
     /// For each proposal kind, defines voting policy.
     pub vote_policy: HashMap<String, VotePolicy>,
 }
+
+/// Set of proposal actions (on certain kinds of proposals) that a
+/// role allow it's members to execute.  
+/// <proposal_kind>:<proposal_action>
+pub type ProposalPermission = String;
 
 pub struct UserInfo {
     pub account_id: AccountId,
@@ -270,48 +276,20 @@ impl Policy {
     }
 
     /// Removes `member_id` from all roles.  
-    ///
-    /// If `clean_up_roles` is set, roles that got empty from `member_id`
-    /// quitting it will also get removed.  
-    /// Note: the roles ordering might be changed from the clean-up proccess.
-    pub fn remove_member_from_all_roles(&mut self, member_id: &AccountId, clean_up_roles: bool) {
-        let roles_len = self.roles.len();
-
-        // how many roles were removed
-        let mut removed_len = 0;
-
-        // starts from the last role
-        for i in (0..roles_len).rev() {
-            // whether the member was removed,
-            // and if that caused the role to be empty
-            let (removed, empty_after_remove) =
-                if let RoleKind::Group(ref mut members) = self.roles[i].kind {
-                    // removes the member from the role if it's exists
-                    let removed = members.remove(member_id);
-                    let empty_after_remove = clean_up_roles && removed && members.is_empty();
-                    (removed, empty_after_remove)
-                } else {
-                    (false, false)
-                };
-            if clean_up_roles && removed && empty_after_remove {
-                // put removed roles at the end of the vector
-                // this is safe because we started from the end
-                //
-                // (note: this changes the roles ordering)
-                self.roles.swap(i, roles_len - 1 - removed_len);
-                removed_len += 1;
+    /// Returns `true` if the member was removed from at least one role.
+    pub fn remove_member_from_all_roles(&mut self, member_id: &AccountId) -> bool {
+        let mut removed = false;
+        for role in self.roles.iter_mut() {
+            if let RoleKind::Group(ref mut members) = role.kind {
+                removed |= members.remove(member_id);
             };
         }
-
-        if clean_up_roles && removed_len > 0 {
-            // effectively removes all roles that had no more members
-            // as a result of this last member quitting
-            self.roles.truncate(roles_len - removed_len);
-        }
+        removed
     }
 
-    /// Returns set of roles that this user is memeber of permissions for given user across all the roles it's member of.
-    fn get_user_roles(&self, user: UserInfo) -> HashMap<String, &HashSet<String>> {
+    /// Returns a set of role names (with the role's permissions) that this
+    /// user is a member of.
+    fn get_user_roles(&self, user: UserInfo) -> HashMap<String, &HashSet<ProposalPermission>> {
         let mut roles = HashMap::default();
         for role in self.roles.iter() {
             if role.kind.match_user(&user) {
@@ -331,16 +309,14 @@ impl Policy {
     ) -> (Vec<String>, bool) {
         let roles = self.get_user_roles(user);
         let mut allowed = false;
+        let proposal_kind = proposal_kind.to_policy_label();
+        let action = action.to_policy_label();
         let allowed_roles = roles
             .into_iter()
             .filter_map(|(role, permissions)| {
-                let allowed_role = permissions.contains(&format!(
-                    "{}:{}",
-                    proposal_kind.to_policy_label(),
-                    action.to_policy_label()
-                )) || permissions
-                    .contains(&format!("{}:*", proposal_kind.to_policy_label()))
-                    || permissions.contains(&format!("*:{}", action.to_policy_label()))
+                let allowed_role = permissions.contains(&format!("{}:{}", proposal_kind, action))
+                    || permissions.contains(&format!("{}:*", proposal_kind))
+                    || permissions.contains(&format!("*:{}", action))
                     || permissions.contains("*:*");
                 allowed = allowed || allowed_role;
                 if allowed_role {
