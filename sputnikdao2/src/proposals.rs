@@ -233,7 +233,7 @@ pub trait StorageManagement {
 pub trait ExtSelf {
     fn callback_after_storage_deposit(
         &mut self,
-        token_id: Option<AccountId>,
+        token_id: AccountId,
         proposer_account: AccountId,
         receiver_id: AccountId,
         amount: U128,
@@ -243,7 +243,7 @@ pub trait ExtSelf {
     ) -> PromiseOrValue<()>;
     fn callback_after_is_account_registered(
         &mut self,
-        token_id: Option<AccountId>,
+        token_id: AccountId,
         proposer_account: AccountId,
         receiver_id: AccountId,
         amount: U128,
@@ -259,7 +259,7 @@ impl Contract {
     #[private]
     pub fn callback_after_storage_deposit(
         &mut self,
-        token_id: Option<AccountId>,
+        token_id: AccountId,
         proposer_account: AccountId,
         receiver_id: AccountId,
         amount: U128,
@@ -274,9 +274,11 @@ impl Contract {
         );
         match env::promise_result(0) {
             PromiseResult::NotReady => {
+                Promise::new(proposer_account.clone()).transfer(attached_deposit.0);
                 panic!("storage_deposit Error: Received PromiseResult::NotReady")
             }
             PromiseResult::Failed => {
+                Promise::new(proposer_account.clone()).transfer(attached_deposit.0);
                 panic!("storage_deposit Error: Received PromiseResult::Failed")
             }
             PromiseResult::Successful(result) => {
@@ -294,7 +296,7 @@ impl Contract {
     #[private]
     pub fn callback_after_is_account_registered(
         &mut self,
-        token_id: Option<AccountId>,
+        token_id: AccountId,
         proposer_account: AccountId,
         receiver_id: AccountId,
         amount: U128,
@@ -309,9 +311,11 @@ impl Contract {
         );
         match env::promise_result(0) {
             PromiseResult::NotReady => {
+                Promise::new(proposer_account.clone()).transfer(attached_deposit.0);
                 panic!("is_account_registered Error: Received PromiseResult::NotReady")
             }
             PromiseResult::Failed => {
+                Promise::new(proposer_account.clone()).transfer(attached_deposit.0);
                 panic!("is_account_registered Error: Received PromiseResult::Failed")
             }
             PromiseResult::Successful(result) => {
@@ -326,7 +330,7 @@ impl Contract {
                     ext_storage_management::storage_deposit(
                         Some(receiver_id.clone()),
                         Some(true),
-                        token_id.as_ref().unwrap().clone(),
+                        token_id.clone(),
                         attached_deposit.0,
                         GAS_FOR_FT_TRANSFER,
                     )
@@ -353,37 +357,33 @@ impl Contract {
     /// Execute payout of given token to given user.
     pub(crate) fn internal_payout(
         &mut self,
-        token_id: &Option<AccountId>,
+        token_id: &AccountId,
         receiver_id: &AccountId,
         amount: Balance,
         memo: String,
         msg: Option<String>,
     ) -> PromiseOrValue<()> {
-        if token_id.is_none() {
-            Promise::new(receiver_id.clone()).transfer(amount).into()
+        if let Some(msg) = msg {
+            ext_fungible_token::ft_transfer_call(
+                receiver_id.clone(),
+                U128(amount),
+                Some(memo),
+                msg,
+                token_id.clone(),
+                ONE_YOCTO_NEAR,
+                GAS_FOR_FT_TRANSFER,
+            )
+            .into()
         } else {
-            if let Some(msg) = msg {
-                ext_fungible_token::ft_transfer_call(
-                    receiver_id.clone(),
-                    U128(amount),
-                    Some(memo),
-                    msg,
-                    token_id.as_ref().unwrap().clone(),
-                    ONE_YOCTO_NEAR,
-                    GAS_FOR_FT_TRANSFER,
-                )
-                .into()
-            } else {
-                ext_fungible_token::ft_transfer(
-                    receiver_id.clone(),
-                    U128(amount),
-                    Some(memo),
-                    token_id.as_ref().unwrap().clone(),
-                    ONE_YOCTO_NEAR,
-                    GAS_FOR_FT_TRANSFER,
-                )
-                .into()
-            }
+            ext_fungible_token::ft_transfer(
+                receiver_id.clone(),
+                U128(amount),
+                Some(memo),
+                token_id.clone(),
+                ONE_YOCTO_NEAR,
+                GAS_FOR_FT_TRANSFER,
+            )
+            .into()
         }
     }
 
@@ -397,25 +397,30 @@ impl Contract {
         memo: String,
         msg: Option<String>,
     ) -> PromiseOrValue<()> {
-        ext_storage_management::is_account_registered(
-            receiver_id.clone(),
-            token_id.as_ref().unwrap().clone(),
-            0,
-            Gas(0), // TBD: is gas required for reading the state?
-        )
-        .then(ext_self::callback_after_is_account_registered(
-            token_id.clone(),
-            proposer_account.clone(),
-            receiver_id.clone(),
-            amount,
-            attached_deposit,
-            memo,
-            msg,
-            env::current_account_id(),
-            0,
-            Gas(0), // TBD: is gas required for reading the state?,
-        ))
-        .into()
+        if token_id.is_none() {
+            Promise::new(proposer_account.clone()).transfer(attached_deposit.0);
+            Promise::new(receiver_id.clone()).transfer(amount.0).into()
+        } else {
+            ext_storage_management::is_account_registered(
+                receiver_id.clone(),
+                token_id.as_ref().unwrap().clone(),
+                0,
+                Gas(0), // TBD: is gas required for reading the state?
+            )
+            .then(ext_self::callback_after_is_account_registered(
+                token_id.as_ref().unwrap().clone(),
+                proposer_account.clone(),
+                receiver_id.clone(),
+                amount,
+                attached_deposit,
+                memo,
+                msg,
+                env::current_account_id(),
+                0,
+                Gas(0), // TBD: is gas required for reading the state?,
+            ))
+            .into()
+        }
     }
 
     /// Executes given proposal and updates the contract's state.
