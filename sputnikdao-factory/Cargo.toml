@@ -9,4 +9,4 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-near-sdk = "4.0.0-pre.4"
+near-sdk = { git = "https://github.com/ctindogaru/near-sdk-rs", branch = "add_is_account_registered" }
