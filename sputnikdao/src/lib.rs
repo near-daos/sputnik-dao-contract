@@ -1,9 +1,9 @@
-use near_sdk::{AccountId, Balance, env, near_bindgen, Promise, Duration};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{UnorderedSet, Vector};
+use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
+use near_sdk::{env, near_bindgen, AccountId, Balance, Duration, Promise};
 use std::collections::HashMap;
-use near_sdk::json_types::{U64, U128};
 
 const MAX_DESCRIPTION_LENGTH: usize = 280;
 
@@ -402,8 +402,8 @@ impl SputnikDAO {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use near_sdk::{MockedBlockchain, testing_env};
     use near_sdk::test_utils::{accounts, VMContextBuilder};
+    use near_sdk::{testing_env, MockedBlockchain};
 
     fn vote(dao: &mut SputnikDAO, proposal_id: u64, votes: Vec<(usize, Vote)>) {
         for (id, vote) in votes {
@@ -414,7 +414,7 @@ mod tests {
         }
     }
 
-            // vec![accounts(0).as_ref(), accounts(1).as_ref()],
+    // vec![accounts(0).as_ref(), accounts(1).as_ref()],
     #[test]
     fn test_basics() {
         let mut dao = SputnikDAO::new(
@@ -446,12 +446,12 @@ mod tests {
         let account_0: AccountId = accounts(0);
         let account_1: AccountId = accounts(1);
         let account_2: AccountId = accounts(2);
-        assert_eq!(dao.get_council(), vec![account_0.clone(), account_1.clone()]);
-        vote(&mut dao, id, vec![(1, Vote::Yes)]);
         assert_eq!(
             dao.get_council(),
-            vec![account_0, account_1, account_2]
+            vec![account_0.clone(), account_1.clone()]
         );
+        vote(&mut dao, id, vec![(1, Vote::Yes)]);
+        assert_eq!(dao.get_council(), vec![account_0, account_1, account_2]);
 
         // Pay out money for proposal. 2 votes yes vs 1 vote no.
         testing_env!(VMContextBuilder::new()

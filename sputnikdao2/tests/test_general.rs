@@ -63,15 +63,7 @@ fn test_multi_council() {
     .assert_success();
     vote(vec![&root], &dao, 0);
     assert_eq!(view!(dao.get_policy()).unwrap_json::<Policy>(), new_policy);
-    add_transfer_proposal(
-        &root,
-        &dao,
-        base_token(),
-        user(1),
-        1_000_000,
-        None,
-    )
-    .assert_success();
+    add_transfer_proposal(&root, &dao, base_token(), user(1), 1_000_000, None).assert_success();
     vote(vec![&user2], &dao, 1);
     vote(vec![&user3], &dao, 1);
     let proposal = view!(dao.get_proposal(1)).unwrap_json::<Proposal>();
@@ -90,7 +82,7 @@ fn test_create_dao_and_use_token() {
     let user3 = root.create_user(user(3), to_yocto("1000"));
     let test_token = setup_test_token(&root);
     let staking = setup_staking(&root);
-    
+
     assert!(view!(dao.get_staking_contract())
         .unwrap_json::<String>()
         .as_str()

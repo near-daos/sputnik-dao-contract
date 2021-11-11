@@ -53,7 +53,7 @@ struct NewArgs {
 #[test]
 fn test_upgrade_other() {
     let (root, dao) = setup_dao();
-    let ref_account_id : AccountId = "ref-finance".parse().unwrap();
+    let ref_account_id: AccountId = "ref-finance".parse().unwrap();
     let _ = root.deploy_and_init(
         &OTHER_WASM_BYTES,
         ref_account_id.clone(),
