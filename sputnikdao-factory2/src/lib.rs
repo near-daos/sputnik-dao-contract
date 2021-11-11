@@ -148,7 +148,7 @@ mod tests {
         );
         assert_eq!(
             factory.get_daos(0, 100),
-            vec![format!("test.{}", accounts(0))]
+            vec![format!("test.{}", accounts(0)).parse().unwrap()]
         );
     }
 }

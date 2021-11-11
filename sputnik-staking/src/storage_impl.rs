@@ -90,4 +90,12 @@ impl StorageManagement for Contract {
                 available: U128(user.storage_available()),
             })
     }
+
+    fn is_account_registered(&self, account_id: &AccountId) -> bool {
+        if self.internal_get_user_opt(account_id).is_none() {
+            false
+        } else {
+            true
+        }
+    }
 }
