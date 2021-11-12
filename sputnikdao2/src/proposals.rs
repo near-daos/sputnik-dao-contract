@@ -319,7 +319,8 @@ impl Contract {
                 panic!("storage_balance_of Error: Received PromiseResult::Failed")
             }
             PromiseResult::Successful(result) => {
-                let balance = near_sdk::serde_json::from_slice::<Option<StorageBalance>>(&result).unwrap();
+                let balance =
+                    near_sdk::serde_json::from_slice::<Option<StorageBalance>>(&result).unwrap();
 
                 if balance.is_some() {
                     // If the receiver account is already registered, pay back the proposal bond.
