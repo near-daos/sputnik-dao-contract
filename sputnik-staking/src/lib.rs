@@ -176,7 +176,7 @@ mod tests {
     use near_contract_standards::storage_management::StorageManagement;
     use near_sdk::json_types::U64;
     use near_sdk::test_utils::{accounts, VMContextBuilder};
-    use near_sdk::{testing_env};
+    use near_sdk::testing_env;
 
     use near_sdk_sim::to_yocto;
 
@@ -186,7 +186,7 @@ mod tests {
     fn test_basics() {
         let period = 1000;
         let mut context = VMContextBuilder::new();
-        
+
         testing_env!(context.predecessor_account_id(accounts(0)).build());
         let mut contract = Contract::new(accounts(0), accounts(1), U64(period));
         testing_env!(context.attached_deposit(to_yocto("1")).build());
