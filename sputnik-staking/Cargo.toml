@@ -9,10 +9,10 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-near-sdk = { git = "https://github.com/ctindogaru/near-sdk-rs", branch = "add_is_account_registered" }
-near-contract-standards = { git = "https://github.com/ctindogaru/near-sdk-rs", branch = "add_is_account_registered" }
+near-sdk = { git = "https://github.com/ctindogaru/near-sdk-rs", branch = "allow_deserialization" }
+near-contract-standards = { git = "https://github.com/ctindogaru/near-sdk-rs", branch = "allow_deserialization" }
 hex = "0.4.2"
 
 [dev-dependencies]
-near-sdk-sim = { git = "https://github.com/ctindogaru/near-sdk-rs", branch = "add_is_account_registered" }
+near-sdk-sim = { git = "https://github.com/ctindogaru/near-sdk-rs", branch = "allow_deserialization" }
 test-token = { path = "../test-token" }

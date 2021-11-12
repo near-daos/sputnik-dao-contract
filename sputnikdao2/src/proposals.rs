@@ -226,7 +226,7 @@ pub trait StorageManagement {
         account_id: Option<AccountId>,
         registration_only: Option<bool>,
     ) -> StorageBalance;
-    fn is_account_registered(&self, account_id: AccountId) -> bool;
+    fn storage_balance_of(&self, account_id: AccountId) -> Option<StorageBalance>;
 }
 
 #[ext_contract(ext_self)]
@@ -241,7 +241,7 @@ pub trait ExtSelf {
         memo: String,
         msg: Option<String>,
     ) -> PromiseOrValue<()>;
-    fn callback_after_is_account_registered(
+    fn callback_after_storage_balance_of(
         &mut self,
         token_id: AccountId,
         proposer_account: AccountId,
@@ -294,7 +294,7 @@ impl Contract {
 
     #[allow(dead_code)]
     #[private]
-    pub fn callback_after_is_account_registered(
+    pub fn callback_after_storage_balance_of(
         &mut self,
         token_id: AccountId,
         proposer_account: AccountId,
@@ -312,16 +312,16 @@ impl Contract {
         match env::promise_result(0) {
             PromiseResult::NotReady => {
                 Promise::new(proposer_account.clone()).transfer(attached_deposit.0);
-                panic!("is_account_registered Error: Received PromiseResult::NotReady")
+                panic!("storage_balance_of Error: Received PromiseResult::NotReady")
             }
             PromiseResult::Failed => {
                 Promise::new(proposer_account.clone()).transfer(attached_deposit.0);
-                panic!("is_account_registered Error: Received PromiseResult::Failed")
+                panic!("storage_balance_of Error: Received PromiseResult::Failed")
             }
             PromiseResult::Successful(result) => {
-                let is_registered = near_sdk::serde_json::from_slice::<bool>(&result).unwrap();
+                let balance = near_sdk::serde_json::from_slice::<Option<StorageBalance>>(&result).unwrap();
 
-                if is_registered {
+                if balance.is_some() {
                     // If the receiver account is already registered, pay back the proposal bond.
                     Promise::new(proposer_account.clone()).transfer(attached_deposit.0);
                     self.internal_payout(&token_id, &receiver_id, amount.0, memo, msg)
@@ -401,13 +401,13 @@ impl Contract {
             Promise::new(proposer_account.clone()).transfer(attached_deposit.0);
             Promise::new(receiver_id.clone()).transfer(amount.0).into()
         } else {
-            ext_storage_management::is_account_registered(
+            ext_storage_management::storage_balance_of(
                 receiver_id.clone(),
                 token_id.as_ref().unwrap().clone(),
                 0,
                 Gas(0), // TBD: is gas required for reading the state?
             )
-            .then(ext_self::callback_after_is_account_registered(
+            .then(ext_self::callback_after_storage_balance_of(
                 token_id.as_ref().unwrap().clone(),
                 proposer_account.clone(),
                 receiver_id.clone(),
