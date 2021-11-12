@@ -41,8 +41,9 @@ impl SputnikDAOFactory {
         public_key: Option<PublicKey>,
         args: Base64VecU8,
     ) -> Promise {
-        let account_id: AccountId =
-            format!("{}.{}", name, env::current_account_id()).parse().unwrap();
+        let account_id: AccountId = format!("{}.{}", name, env::current_account_id())
+            .parse()
+            .unwrap();
         self.daos.insert(&account_id);
         let mut promise = Promise::new(account_id)
             .create_account()
@@ -80,7 +81,9 @@ mod tests {
         factory.create(
             "test".parse().unwrap(),
             Some(
-                "ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp".parse().unwrap(),
+                "ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp"
+                    .parse()
+                    .unwrap(),
             ),
             "{}".as_bytes().to_vec().into(),
         );
