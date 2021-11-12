@@ -345,7 +345,7 @@ impl Contract {
                         msg,
                         env::current_account_id(),
                         0,
-                        Gas(0), // TBD: is gas required for reading the state?,
+                        GAS_FOR_FT_TRANSFER,
                     ))
                     .into()
                 }
@@ -406,7 +406,7 @@ impl Contract {
                 receiver_id.clone(),
                 token_id.as_ref().unwrap().clone(),
                 0,
-                Gas(0), // TBD: is gas required for reading the state?
+                GAS_FOR_FT_TRANSFER,
             )
             .then(ext_self::callback_after_storage_balance_of(
                 token_id.as_ref().unwrap().clone(),
@@ -418,7 +418,7 @@ impl Contract {
                 msg,
                 env::current_account_id(),
                 0,
-                Gas(0), // TBD: is gas required for reading the state?,
+                GAS_FOR_FT_TRANSFER,
             ))
             .into()
         }

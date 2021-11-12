@@ -226,6 +226,47 @@ fn test_create_dao_and_use_token() {
     );
 }
 
+/// Test that if a payout is being made in 'foo' token and the receiver account does
+/// not have a 'foo' account, the account will be automatically created for them.
+/// The deposit necessary for the account creation is paid by the proposal creator.
+#[test]
+fn test_registration_on_payment() {
+    let (root, dao) = setup_dao();
+    let receiver_account = root.create_user(user(1), to_yocto("1000"));
+
+    // Add proposal to add the receiver to the council.
+    let proposal_id: u64 =
+        add_member_proposal(&root, &dao, receiver_account.account_id.clone()).unwrap_json();
+    assert_eq!(0, proposal_id);
+    // Vote the proposal.
+    vote(vec![&root], &dao, proposal_id);
+
+    // Set up a fungible token and give 100 to the dao.
+    let test_token = setup_test_token(&root);
+    call!(
+        dao.user_account,
+        test_token.mint(dao.user_account.account_id.clone(), U128(100))
+    )
+    .assert_success();
+
+    // Add proposal to payout the receiver with 50 fungible token from the dao.
+    let proposal_id: u64 = add_transfer_proposal(
+        &root,
+        &dao,
+        Some(test_token.account_id()),
+        receiver_account.account_id().clone(),
+        50,
+        None,
+    )
+    .unwrap_json();
+    assert_eq!(1, proposal_id);
+    // Vote the proposal.
+    vote(vec![&root, &receiver_account], &dao, proposal_id);
+
+    let proposal = view!(dao.get_proposal(proposal_id)).unwrap_json::<Proposal>();
+    assert_eq!(proposal.status, ProposalStatus::Approved);
+}
+
 /// Test various cases that must fail.
 #[test]
 fn test_failures() {
