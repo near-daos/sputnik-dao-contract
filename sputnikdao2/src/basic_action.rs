@@ -1,9 +1,8 @@
+use crate::Contract;
 use near_sdk::{env, near_bindgen, AccountId};
 
-use crate::{Contract, ContractContract};
-
-#[cfg(target_arch = "wasm32")]
-use crate::near_blockchain;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::ContractContract;
 
 #[near_bindgen]
 impl Contract {
@@ -15,12 +14,12 @@ impl Contract {
     pub fn quit_from_all_roles(&mut self, user: AccountId, dao: String) -> bool {
         let quitting_member = env::predecessor_account_id();
         if quitting_member != user {
-            env::panic("ERR_QUIT_WRONG_ACC".as_bytes());
+            env::panic_str("ERR_QUIT_WRONG_ACC");
         }
 
         let dao_name = self.get_config().name;
         if dao_name != dao {
-            env::panic("ERR_QUIT_WRONG_DAO".as_bytes());
+            env::panic_str("ERR_QUIT_WRONG_DAO");
         }
 
         let mut new_policy = self.policy.get().unwrap().to_policy();

@@ -1,12 +1,13 @@
 use crate::utils::{add_member_to_role_proposal, add_proposal, setup_dao};
+use near_sdk::AccountId;
 use near_sdk_sim::{call, to_yocto, view};
 use sputnikdao2::{Action, ProposalInput, ProposalKind, VersionedPolicy};
 use std::collections::HashMap;
 
 mod utils;
 
-fn user(id: u32) -> String {
-    format!("user{}", id)
+fn user(id: u32) -> AccountId {
+    format!("user{}", id).parse().unwrap()
 }
 
 /// Issue #41 "Quitting the DAO" tests
@@ -76,7 +77,7 @@ fn test_quitting_the_dao() {
     add_to_roles(&user3, vec!["has_3", "has_23", "has_234"]);
     add_to_roles(&user4, vec!["has_234"]);
 
-    let role_members = |role_permission: &sputnikdao2::RolePermission| -> Vec<String> {
+    let role_members = |role_permission: &sputnikdao2::RolePermission| -> Vec<AccountId> {
         if let RoleKind::Group(ref members) = role_permission.kind {
             let mut members = members.into_iter().cloned().collect::<Vec<_>>();
             members.sort();
@@ -88,8 +89,8 @@ fn test_quitting_the_dao() {
 
     // quits and returns the remaining role names and their members
     // this is a Vec so the order is preserved
-    type RoleNamesAndMembers = Vec<(String, Vec<String>)>;
-    type RoleNamesAndMembersRef<'a> = Vec<(&'a str, Vec<&'a str>)>;
+    type RoleNamesAndMembers = Vec<(String, Vec<AccountId>)>;
+    type RoleNamesAndMembersRef<'a> = Vec<(&'a str, Vec<&'a AccountId>)>;
 
     // return role names and members form a dao
     let dao_roles = || -> RoleNamesAndMembers {
@@ -106,13 +107,8 @@ fn test_quitting_the_dao() {
     fn dao_roles_ref(dao_roles: &RoleNamesAndMembers) -> RoleNamesAndMembersRef {
         dao_roles
             .iter()
-            .map(|(name, members)| {
-                (
-                    name.as_str(),
-                    members.into_iter().map(|s| s.as_str()).collect(),
-                )
-            })
-            .collect::<Vec<(&str, Vec<&str>)>>()
+            .map(|(name, members)| (name.as_str(), members.iter().collect()))
+            .collect::<Vec<(&str, Vec<&AccountId>)>>()
     }
 
     let quit =
@@ -139,12 +135,15 @@ fn test_quitting_the_dao() {
             dao_roles_ref(&roles),
             vec![
                 ("all", vec![]),
-                ("council", vec!["root"]),
+                ("council", vec![&root.account_id]),
                 ("has_nobody", vec![]),
-                ("has_2", vec!["user2",]),
-                ("has_3", vec!["user3"]),
-                ("has_23", vec!["user2", "user3"]),
-                ("has_234", vec!["user2", "user3", "user4"])
+                ("has_2", vec![&user2.account_id,]),
+                ("has_3", vec![&user3.account_id]),
+                ("has_23", vec![&user2.account_id, &user3.account_id]),
+                (
+                    "has_234",
+                    vec![&user2.account_id, &user3.account_id, &user4.account_id]
+                )
             ]
         );
     }
@@ -160,12 +159,12 @@ fn test_quitting_the_dao() {
         dao_roles_ref(&roles),
         vec![
             ("all", vec![]),
-            ("council", vec!["root"]),
+            ("council", vec![&root.account_id]),
             ("has_nobody", vec![]),
             ("has_2", vec![]),
-            ("has_3", vec!["user3"]),
-            ("has_23", vec!["user3"]),
-            ("has_234", vec!["user3", "user4"])
+            ("has_3", vec![&user3.account_id]),
+            ("has_23", vec![&user3.account_id]),
+            ("has_234", vec![&user3.account_id, &user4.account_id])
         ]
     );
 
@@ -178,12 +177,12 @@ fn test_quitting_the_dao() {
         dao_roles_ref(&roles),
         vec![
             ("all", vec![]),
-            ("council", vec!["root"]),
+            ("council", vec![&root.account_id]),
             ("has_nobody", vec![]),
             ("has_2", vec![]),
-            ("has_3", vec!["user3"]),
-            ("has_23", vec!["user3"]),
-            ("has_234", vec!["user3", "user4"])
+            ("has_3", vec![&user3.account_id]),
+            ("has_23", vec![&user3.account_id]),
+            ("has_234", vec![&user3.account_id, &user4.account_id])
         ]
     );
 
@@ -198,12 +197,12 @@ fn test_quitting_the_dao() {
         dao_roles_ref(&roles),
         vec![
             ("all", vec![]),
-            ("council", vec!["root"]),
+            ("council", vec![&root.account_id]),
             ("has_nobody", vec![]),
             ("has_2", vec![]),
-            ("has_3", vec!["user3"]),
-            ("has_23", vec!["user3"]),
-            ("has_234", vec!["user3", "user4"])
+            ("has_3", vec![&user3.account_id]),
+            ("has_23", vec![&user3.account_id]),
+            ("has_234", vec![&user3.account_id, &user4.account_id])
         ]
     );
 
@@ -219,12 +218,12 @@ fn test_quitting_the_dao() {
         dao_roles_ref(&roles),
         vec![
             ("all", vec![]),
-            ("council", vec!["root"]),
+            ("council", vec![&root.account_id]),
             ("has_nobody", vec![]),
             ("has_2", vec![]),
-            ("has_3", vec!["user3"]),
-            ("has_23", vec!["user3"]),
-            ("has_234", vec!["user3", "user4"])
+            ("has_3", vec![&user3.account_id]),
+            ("has_23", vec![&user3.account_id]),
+            ("has_234", vec![&user3.account_id, &user4.account_id])
         ]
     );
 
@@ -236,12 +235,12 @@ fn test_quitting_the_dao() {
         dao_roles_ref(&roles),
         vec![
             ("all", vec![]),
-            ("council", vec!["root"]),
+            ("council", vec![&root.account_id]),
             ("has_nobody", vec![]),
             ("has_2", vec![]),
             ("has_3", vec![]),
             ("has_23", vec![]),
-            ("has_234", vec!["user4"])
+            ("has_234", vec![&user4.account_id])
         ]
     );
 }

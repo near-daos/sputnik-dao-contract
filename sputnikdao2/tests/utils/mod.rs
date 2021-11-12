@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use std::convert::TryFrom;
 
-pub use near_sdk::json_types::{Base64VecU8, ValidAccountId, WrappedDuration, U64};
+pub use near_sdk::json_types::{Base64VecU8, U64};
 use near_sdk::{AccountId, Balance};
 use near_sdk_sim::transaction::ExecutionStatus;
 use near_sdk_sim::{
@@ -23,8 +23,8 @@ near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
 
 type Contract = ContractAccount<DAOContract>;
 
-pub fn base_token() -> String {
-    "".to_string()
+pub fn base_token() -> Option<AccountId> {
+    None
 }
 
 pub fn should_fail(r: ExecutionResult) {
@@ -70,7 +70,7 @@ pub fn setup_staking(root: &UserAccount) -> ContractAccount<StakingContract> {
         bytes: &STAKING_WASM_BYTES,
         signer_account: root,
         deposit: to_yocto("100"),
-        init_method: new(to_va("dao".to_string()), to_va("test_token".to_string()), U64(100_000_000_000))
+        init_method: new("dao".parse().unwrap(), "test_token".parse::<AccountId>().unwrap(), U64(100_000_000_000))
     )
 }
 
@@ -101,10 +101,7 @@ pub fn add_member_to_role_proposal(
         dao,
         ProposalInput {
             description: "test".to_string(),
-            kind: ProposalKind::AddMemberToRole {
-                member_id: to_va(member_id),
-                role,
-            },
+            kind: ProposalKind::AddMemberToRole { member_id, role },
         },
     )
 }
@@ -112,7 +109,7 @@ pub fn add_member_to_role_proposal(
 pub fn add_transfer_proposal(
     root: &UserAccount,
     dao: &Contract,
-    token_id: AccountId,
+    token_id: Option<AccountId>,
     receiver_id: AccountId,
     amount: Balance,
     msg: Option<String>,
@@ -124,7 +121,7 @@ pub fn add_transfer_proposal(
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
                 token_id,
-                receiver_id: to_va(receiver_id),
+                receiver_id,
                 amount: U128(amount),
                 msg,
             },
@@ -140,8 +137,4 @@ pub fn vote(users: Vec<&UserAccount>, dao: &Contract, proposal_id: u64) {
         )
         .assert_success();
     }
-}
-
-pub fn to_va(a: AccountId) -> ValidAccountId {
-    ValidAccountId::try_from(a).unwrap()
 }
