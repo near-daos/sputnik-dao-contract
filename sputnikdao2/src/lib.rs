@@ -9,7 +9,10 @@ use near_sdk::{
 };
 
 use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
-pub use crate::policy::{Policy, RoleKind, RolePermission, VersionedPolicy, VotePolicy};
+pub use crate::policy::{
+    Council, CouncilName, Members, Permission, Policy, ProposalKindLabel, VersionedPolicy,
+    VotePolicy,
+};
 use crate::proposals::VersionedProposal;
 pub use crate::proposals::{Proposal, ProposalInput, ProposalKind, ProposalStatus};
 pub use crate::types::{Action, Config};
@@ -229,9 +232,9 @@ mod tests {
             .build());
         let _id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
-            kind: ProposalKind::AddMemberToRole {
+            kind: ProposalKind::AddMemberToCouncil {
                 member_id: accounts(2).into(),
-                role: "council".to_string(),
+                council_name: "council".to_string(),
             },
         });
     }
@@ -255,7 +258,7 @@ mod tests {
         let mut context = VMContextBuilder::new();
         testing_env!(context.predecessor_account_id(accounts(1)).build());
         let mut policy = VersionedPolicy::Default(vec![accounts(1).into()]).upgrade();
-        policy.to_policy_mut().roles[1]
+        policy.to_policy_mut().councils[1]
             .permissions
             .insert("*:RemoveProposal".to_string());
         let mut contract = Contract::new(Config::test_config(), policy);
@@ -295,7 +298,7 @@ mod tests {
     }
 
     #[test]
-    fn test_add_to_missing_role() {
+    fn test_add_to_missing_council() {
         let mut context = VMContextBuilder::new();
         testing_env!(context.predecessor_account_id(accounts(1)).build());
         let mut contract = Contract::new(
@@ -305,15 +308,15 @@ mod tests {
         testing_env!(context.attached_deposit(to_yocto("1")).build());
         let id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
-            kind: ProposalKind::AddMemberToRole {
+            kind: ProposalKind::AddMemberToCouncil {
                 member_id: accounts(2).into(),
-                role: "missing".to_string(),
+                council_name: "missing".to_string(),
             },
         });
         contract.act_proposal(id, Action::VoteApprove, None);
         let x = contract.get_policy();
-        // still 2 roles: all and council.
-        assert_eq!(x.roles.len(), 2);
+        // still 2 councils: all and council.
+        assert_eq!(x.councils.len(), 2);
     }
 
     #[test]

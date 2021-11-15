@@ -50,10 +50,16 @@ pub enum ProposalKind {
     ChangeConfig { config: Config },
     /// Change the full policy.
     ChangePolicy { policy: VersionedPolicy },
-    /// Add member to given role in the policy. This is short cut to updating the whole policy.
-    AddMemberToRole { member_id: AccountId, role: String },
-    /// Remove member to given role in the policy. This is short cut to updating the whole policy.
-    RemoveMemberFromRole { member_id: AccountId, role: String },
+    /// Add member to given council in the policy. This is short cut to updating the whole policy.
+    AddMemberToCouncil {
+        member_id: AccountId,
+        council_name: CouncilName,
+    },
+    /// Remove member to given council in the policy. This is short cut to updating the whole policy.
+    RemoveMemberFromCouncil {
+        member_id: AccountId,
+        council_name: CouncilName,
+    },
     /// Calls `receiver_id` with list of method names in a single promise.
     /// Allows this contract to execute any arbitrary set of actions in other contracts.
     FunctionCall {
@@ -98,8 +104,8 @@ impl ProposalKind {
         match self {
             ProposalKind::ChangeConfig { .. } => "config",
             ProposalKind::ChangePolicy { .. } => "policy",
-            ProposalKind::AddMemberToRole { .. } => "add_member_to_role",
-            ProposalKind::RemoveMemberFromRole { .. } => "remove_member_from_role",
+            ProposalKind::AddMemberToCouncil { .. } => "add_member_to_council",
+            ProposalKind::RemoveMemberFromCouncil { .. } => "remove_member_from_council",
             ProposalKind::FunctionCall { .. } => "call",
             ProposalKind::UpgradeSelf { .. } => "upgrade_self",
             ProposalKind::UpgradeRemote { .. } => "upgrade_remote",
@@ -145,8 +151,8 @@ pub struct Proposal {
     pub kind: ProposalKind,
     /// Current status of the proposal.
     pub status: ProposalStatus,
-    /// Count of votes per role per decision: yes / no / spam.
-    pub vote_counts: HashMap<String, [Balance; 3]>,
+    /// Count of votes per council per decision: yes / no / spam.
+    pub vote_counts: HashMap<CouncilName, [Balance; 3]>,
     /// Map of who voted and how.
     pub votes: HashMap<AccountId, Vote>,
     /// Submission time (for voting period).
@@ -173,20 +179,22 @@ impl Proposal {
     pub fn update_votes(
         &mut self,
         account_id: &AccountId,
-        roles: &[String],
+        council_names: &[CouncilName],
         vote: Vote,
         policy: &Policy,
         user_weight: Balance,
     ) {
-        for role in roles {
-            let amount = if policy.is_token_weighted(role, &self.kind.to_policy_label().to_string())
+        for council_name in council_names {
+            let amount = if policy
+                .is_token_weighted(council_name, &self.kind.to_policy_label().to_string())
             {
                 user_weight
             } else {
                 1
             };
-            self.vote_counts.entry(role.clone()).or_insert([0u128; 3])[vote.clone() as usize] +=
-                amount;
+            self.vote_counts
+                .entry(council_name.clone())
+                .or_insert([0u128; 3])[vote.clone() as usize] += amount;
         }
         assert!(
             self.votes.insert(account_id.clone(), vote).is_none(),
@@ -273,15 +281,21 @@ impl Contract {
                 self.policy.set(policy);
                 PromiseOrValue::Value(())
             }
-            ProposalKind::AddMemberToRole { member_id, role } => {
+            ProposalKind::AddMemberToCouncil {
+                member_id,
+                council_name: council_name,
+            } => {
                 let mut new_policy = policy.clone();
-                new_policy.add_member_to_role(role, &member_id.clone().into());
+                new_policy.add_member_to_council(council_name, &member_id.clone().into());
                 self.policy.set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
-            ProposalKind::RemoveMemberFromRole { member_id, role } => {
+            ProposalKind::RemoveMemberFromCouncil {
+                member_id,
+                council_name: council,
+            } => {
                 let mut new_policy = policy.clone();
-                new_policy.remove_member_from_role(role, &member_id.clone().into());
+                new_policy.remove_member_from_council(council, &member_id.clone().into());
                 self.policy.set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
@@ -435,7 +449,7 @@ impl Contract {
         let mut proposal: Proposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL").into();
         let policy = self.policy.get().unwrap().to_policy();
         // Check permissions for the given action.
-        let (roles, allowed) =
+        let (councils, allowed) =
             policy.can_execute_action(self.internal_user_info(), &proposal.kind, &action);
         assert!(allowed, "ERR_PERMISSION_DENIED");
         let sender_id = env::predecessor_account_id();
@@ -454,14 +468,14 @@ impl Contract {
                 );
                 proposal.update_votes(
                     &sender_id,
-                    &roles,
+                    &councils,
                     Vote::from(action),
                     &policy,
                     self.get_user_weight(&sender_id),
                 );
                 // Updates proposal status with new votes using the policy.
                 proposal.status =
-                    policy.proposal_status(&proposal, roles, self.total_delegation_amount);
+                    policy.proposal_status(&proposal, councils, self.total_delegation_amount);
                 if proposal.status == ProposalStatus::Approved {
                     self.internal_execute_proposal(&policy, &proposal);
                     true
@@ -480,7 +494,7 @@ impl Contract {
             Action::Finalize => {
                 proposal.status = policy.proposal_status(
                     &proposal,
-                    policy.roles.iter().map(|r| r.name.clone()).collect(),
+                    policy.councils.iter().map(|r| r.name.clone()).collect(),
                     self.total_delegation_amount,
                 );
                 assert_eq!(

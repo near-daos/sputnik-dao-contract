@@ -92,9 +92,9 @@ pub fn add_member_proposal(
         dao,
         ProposalInput {
             description: "test".to_string(),
-            kind: ProposalKind::AddMemberToRole {
+            kind: ProposalKind::AddMemberToCouncil {
                 member_id: member_id,
-                role: "council".to_string(),
+                council_name: "council".to_string(),
             },
         },
     )
