@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
-use near_contract_standards::storage_management::StorageBalance;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{Base64VecU8, U128, U64};
 use near_sdk::{ext_contract, log, AccountId, Balance, Gas, PromiseOrValue, PromiseResult};
@@ -216,6 +215,16 @@ impl From<ProposalInput> for Proposal {
             submission_time: U64::from(env::block_timestamp()),
         }
     }
+}
+
+// TODO: Use near_contract_standards::storage_management::StorageBalance.
+// The original 'StorageBalance' struct does not support deserialization. Delete this
+// and use the original one after https://github.com/near/near-sdk-rs/pull/630 gets released.
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct StorageBalance {
+    pub total: U128,
+    pub available: U128,
 }
 
 #[ext_contract(ext_storage_management)]

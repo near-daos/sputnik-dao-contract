@@ -9,14 +9,14 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-near-sdk = { git = "https://github.com/ctindogaru/near-sdk-rs", branch = "allow_deserialization", features = ["unstable"]}
-near-contract-standards = { git = "https://github.com/ctindogaru/near-sdk-rs", branch = "allow_deserialization" }
+near-sdk = {version = "4.0.0-pre.4", features = ["unstable"]}
+near-contract-standards = "4.0.0-pre.4"
 hex = "0.4.2"
 
 [dependencies.serde_with]
 version = "1.4.0"
 
 [dev-dependencies]
-near-sdk-sim = { git = "https://github.com/ctindogaru/near-sdk-rs", branch = "allow_deserialization" }
+near-sdk-sim = "4.0.0-pre.4"
 test-token = { path = "../test-token" }
 sputnik-staking = { path = "../sputnik-staking" }
