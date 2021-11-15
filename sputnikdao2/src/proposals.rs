@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::convert::TryFrom;
 
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_contract_standards::storage_management::StorageBalance;
