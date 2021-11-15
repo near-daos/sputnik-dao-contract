@@ -7,7 +7,8 @@ use near_sdk::{ext_contract, log, AccountId, Balance, Gas, PromiseOrValue, Promi
 
 use crate::policy::UserInfo;
 use crate::types::{
-    upgrade_remote, upgrade_self, Action, Config, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR,
+    upgrade_remote, upgrade_self, Action, Config, GAS_COMMONLY_CONSUMED, GAS_FOR_FT_TRANSFER,
+    ONE_YOCTO_NEAR,
 };
 use crate::*;
 
@@ -353,7 +354,7 @@ impl Contract {
                         msg,
                         env::current_account_id(),
                         0,
-                        GAS_FOR_FT_TRANSFER,
+                        env::prepaid_gas() - GAS_COMMONLY_CONSUMED,
                     ))
                     .into()
                 }
@@ -426,7 +427,7 @@ impl Contract {
                 msg,
                 env::current_account_id(),
                 0,
-                GAS_FOR_FT_TRANSFER,
+                env::prepaid_gas() - GAS_COMMONLY_CONSUMED,
             ))
             .into()
         }
