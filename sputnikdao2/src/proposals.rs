@@ -7,7 +7,7 @@ use near_sdk::{log, AccountId, Balance, Gas, PromiseOrValue};
 
 use crate::policy::UserInfo;
 use crate::types::{
-    upgrade_remote, upgrade_self, Action, Config, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR,
+    upgrade_remote, upgrade_self, Config, ProposalAction, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR,
 };
 use crate::*;
 
@@ -126,12 +126,12 @@ pub enum Vote {
     Remove = 0x2,
 }
 
-impl From<Action> for Vote {
-    fn from(action: Action) -> Self {
+impl From<ProposalAction> for Vote {
+    fn from(action: ProposalAction) -> Self {
         match action {
-            Action::VoteApprove => Vote::Approve,
-            Action::VoteReject => Vote::Reject,
-            Action::VoteRemove => Vote::Remove,
+            ProposalAction::VoteApprove => Vote::Approve,
+            ProposalAction::VoteReject => Vote::Reject,
+            ProposalAction::VoteRemove => Vote::Remove,
             _ => unreachable!(),
         }
     }
@@ -282,7 +282,7 @@ impl Contract {
             }
             ProposalKind::AddMemberToCouncil {
                 member_id,
-                council_name: council_name,
+                council_name,
             } => {
                 let mut new_policy = policy.clone();
                 new_policy.add_member_to_council(council_name, &member_id.clone().into());
@@ -428,7 +428,7 @@ impl Contract {
                 .can_execute_action(
                     self.internal_user_info(),
                     &proposal.kind,
-                    &Action::AddProposal
+                    &ProposalAction::AddProposal
                 )
                 .1,
             "ERR_PERMISSION_DENIED"
@@ -444,7 +444,7 @@ impl Contract {
 
     /// Act on given proposal by id, if permissions allow.
     /// Memo is logged but not stored in the state. Can be used to leave notes or explain the action.
-    pub fn act_proposal(&mut self, id: u64, action: Action, memo: Option<String>) {
+    pub fn act_proposal(&mut self, id: u64, action: ProposalAction, memo: Option<String>) {
         let mut proposal: Proposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL").into();
         let policy = self.policy.get().unwrap().to_policy();
         // Check permissions for the given action.
@@ -454,12 +454,14 @@ impl Contract {
         let sender_id = env::predecessor_account_id();
         // Update proposal given action. Returns true if should be updated in storage.
         let update = match action {
-            Action::AddProposal => env::panic_str("ERR_WRONG_ACTION"),
-            Action::RemoveProposal => {
+            ProposalAction::AddProposal => env::panic_str("ERR_WRONG_ACTION"),
+            ProposalAction::RemoveProposal => {
                 self.proposals.remove(&id);
                 false
             }
-            Action::VoteApprove | Action::VoteReject | Action::VoteRemove => {
+            ProposalAction::VoteApprove
+            | ProposalAction::VoteReject
+            | ProposalAction::VoteRemove => {
                 assert_eq!(
                     proposal.status,
                     ProposalStatus::InProgress,
@@ -490,7 +492,7 @@ impl Contract {
                     true
                 }
             }
-            Action::Finalize => {
+            ProposalAction::Finalize => {
                 proposal.status = policy.proposal_status(
                     &proposal,
                     policy.councils.iter().map(|r| r.name.clone()).collect(),
@@ -504,7 +506,7 @@ impl Contract {
                 self.internal_reject_proposal(&policy, &proposal, true);
                 true
             }
-            Action::MoveToHub => false,
+            ProposalAction::MoveToHub => false,
         };
         if update {
             self.proposals

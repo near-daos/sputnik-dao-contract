@@ -217,7 +217,7 @@ mod tests {
     use near_sdk_sim::to_yocto;
 
     use crate::proposals::{ProposalInput, ProposalKind};
-    use crate::{Action, Config};
+    use crate::{Config, ProposalAction};
 
     use super::*;
 
@@ -236,7 +236,7 @@ mod tests {
             },
         });
         assert_eq!(contract.get_last_bounty_id(), id);
-        contract.act_proposal(id, Action::VoteApprove, None);
+        contract.act_proposal(id, ProposalAction::VoteApprove, None);
         id
     }
 
@@ -275,14 +275,14 @@ mod tests {
             "bounty_done"
         );
 
-        contract.act_proposal(1, Action::VoteApprove, None);
+        contract.act_proposal(1, ProposalAction::VoteApprove, None);
 
         assert_eq!(contract.get_bounty_claims(accounts(1)).len(), 0);
         assert_eq!(contract.get_bounty(0).bounty.times, 1);
 
         contract.bounty_claim(0, U64::from(500));
         contract.bounty_done(0, None, "Bounty is done 2".to_string());
-        contract.act_proposal(2, Action::VoteApprove, None);
+        contract.act_proposal(2, ProposalAction::VoteApprove, None);
 
         assert_eq!(contract.get_bounty(0).bounty.times, 0);
     }

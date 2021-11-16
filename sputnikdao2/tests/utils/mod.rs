@@ -9,7 +9,8 @@ use near_sdk_sim::{
 use near_sdk::json_types::U128;
 use sputnik_staking::ContractContract as StakingContract;
 use sputnikdao2::{
-    Action, Config, ContractContract as DAOContract, ProposalInput, ProposalKind, VersionedPolicy,
+    Config, ContractContract as DAOContract, ProposalAction, ProposalInput, ProposalKind,
+    VersionedPolicy,
 };
 use test_token::ContractContract as TestTokenContract;
 
@@ -125,7 +126,7 @@ pub fn vote(users: Vec<&UserAccount>, dao: &Contract, proposal_id: u64) {
     for user in users.into_iter() {
         call!(
             user,
-            dao.act_proposal(proposal_id, Action::VoteApprove, None)
+            dao.act_proposal(proposal_id, ProposalAction::VoteApprove, None)
         )
         .assert_success();
     }

@@ -7,8 +7,11 @@ use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, AccountId, Balance};
 
 use crate::proposals::{Proposal, ProposalKind, ProposalStatus, Vote};
-use crate::types::Action;
+use crate::types::ProposalAction;
 
+/// Members of a Council.
+///
+/// See [`Council::members`] for more info.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
 #[serde(crate = "near_sdk::serde")]
@@ -129,10 +132,10 @@ pub type CouncilName = String;
 /// The value is stringfied as:  
 /// <proposal_kind>:<proposal_action>  
 /// Where those values are given by [`ProposalKind::to_policy_label()`]
-/// and [`Action::to_policy_label()`] respectively, and each value can
+/// and [`ProposalAction::to_policy_label()`] respectively, and each value can
 /// be a `*` to represent "any" variant.
 ///
-/// Example 1: `"*:AddProposal` means that when the Council's
+/// Example 1: `"*:AddProposal"` means that when the Council's
 /// members indicate that they want to create a new proposal,
 /// which can be any kind of proposal (`*`), the Council is able to
 /// decide that creation should happen.  
@@ -375,7 +378,7 @@ impl Policy {
         &self,
         user: UserInfo,
         proposal_kind: &ProposalKind,
-        action: &Action,
+        action: &ProposalAction,
     ) -> (Vec<CouncilName>, bool) {
         let councils = self.get_user_councils(user);
         let mut allowed = false;

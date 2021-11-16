@@ -7,8 +7,8 @@ use near_sdk_sim::{call, to_yocto, view};
 use crate::utils::*;
 use sputnik_staking::User;
 use sputnikdao2::{
-    Action, Council, Members, Policy, Proposal, ProposalInput, ProposalKind, ProposalStatus,
-    VersionedPolicy, VotePolicy,
+    Council, Members, Policy, Proposal, ProposalAction, ProposalInput, ProposalKind,
+    ProposalStatus, VersionedPolicy, VotePolicy,
 };
 
 mod utils;
@@ -89,10 +89,16 @@ fn test_create_dao_and_use_token() {
     add_member_proposal(&root, &dao, user2.account_id.clone()).assert_success();
     assert_eq!(view!(dao.get_last_proposal_id()).unwrap_json::<u64>(), 1);
     // Voting by user who is not member should fail.
-    should_fail(call!(user2, dao.act_proposal(0, Action::VoteApprove, None)));
-    call!(root, dao.act_proposal(0, Action::VoteApprove, None)).assert_success();
+    should_fail(call!(
+        user2,
+        dao.act_proposal(0, ProposalAction::VoteApprove, None)
+    ));
+    call!(root, dao.act_proposal(0, ProposalAction::VoteApprove, None)).assert_success();
     // voting second time should fail.
-    should_fail(call!(root, dao.act_proposal(0, Action::VoteApprove, None)));
+    should_fail(call!(
+        root,
+        dao.act_proposal(0, ProposalAction::VoteApprove, None)
+    ));
     // Add 3rd member.
     add_member_proposal(&user2, &dao, user3.account_id.clone()).assert_success();
     vote(vec![&root, &user2], &dao, 1);

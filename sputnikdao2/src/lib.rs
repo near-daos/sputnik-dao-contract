@@ -13,7 +13,7 @@ pub use crate::policy::{
 };
 use crate::proposals::VersionedProposal;
 pub use crate::proposals::{Proposal, ProposalInput, ProposalKind, ProposalStatus};
-pub use crate::types::{Action, Config};
+pub use crate::types::{Config, ProposalAction};
 
 mod bounties;
 mod delegation;
@@ -206,7 +206,7 @@ mod tests {
         assert_eq!(contract.get_proposals(0, 10).len(), 1);
 
         let id = create_proposal(&mut context, &mut contract);
-        contract.act_proposal(id, Action::VoteApprove, None);
+        contract.act_proposal(id, ProposalAction::VoteApprove, None);
         assert_eq!(
             contract.get_proposal(id).proposal.status,
             ProposalStatus::Approved
@@ -217,7 +217,7 @@ mod tests {
         testing_env!(context
             .block_timestamp(1_000_000_000 * 24 * 60 * 60 * 8)
             .build());
-        contract.act_proposal(id, Action::Finalize, None);
+        contract.act_proposal(id, ProposalAction::Finalize, None);
         assert_eq!(
             contract.get_proposal(id).proposal.status,
             ProposalStatus::Expired
@@ -248,7 +248,7 @@ mod tests {
         );
         let id = create_proposal(&mut context, &mut contract);
         assert_eq!(contract.get_proposal(id).proposal.description, "test");
-        contract.act_proposal(id, Action::RemoveProposal, None);
+        contract.act_proposal(id, ProposalAction::RemoveProposal, None);
     }
 
     #[test]
@@ -262,7 +262,7 @@ mod tests {
         let mut contract = Contract::new(Config::test_config(), policy);
         let id = create_proposal(&mut context, &mut contract);
         assert_eq!(contract.get_proposal(id).proposal.description, "test");
-        contract.act_proposal(id, Action::RemoveProposal, None);
+        contract.act_proposal(id, ProposalAction::RemoveProposal, None);
         assert_eq!(contract.get_proposals(0, 10).len(), 0);
     }
 
@@ -278,7 +278,7 @@ mod tests {
         testing_env!(context
             .block_timestamp(1_000_000_000 * 24 * 60 * 60 * 8)
             .build());
-        contract.act_proposal(id, Action::VoteApprove, None);
+        contract.act_proposal(id, ProposalAction::VoteApprove, None);
     }
 
     #[test]
@@ -291,8 +291,8 @@ mod tests {
             VersionedPolicy::Default(vec![accounts(1).into(), accounts(2).into()]),
         );
         let id = create_proposal(&mut context, &mut contract);
-        contract.act_proposal(id, Action::VoteApprove, None);
-        contract.act_proposal(id, Action::VoteApprove, None);
+        contract.act_proposal(id, ProposalAction::VoteApprove, None);
+        contract.act_proposal(id, ProposalAction::VoteApprove, None);
     }
 
     #[test]
@@ -311,7 +311,7 @@ mod tests {
                 council_name: "missing".to_string(),
             },
         });
-        contract.act_proposal(id, Action::VoteApprove, None);
+        contract.act_proposal(id, ProposalAction::VoteApprove, None);
         let x = contract.get_policy();
         // still 2 councils: all and council.
         assert_eq!(x.councils.len(), 2);

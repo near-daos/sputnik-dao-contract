@@ -41,7 +41,7 @@ impl Config {
 /// Set of possible action to take.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug)]
 #[serde(crate = "near_sdk::serde")]
-pub enum Action {
+pub enum ProposalAction {
     /// Action to add proposal. Used internally.
     AddProposal,
     /// Action to remove given proposal. Used for immediate deletion in special cases.
@@ -59,7 +59,7 @@ pub enum Action {
     MoveToHub,
 }
 
-impl Action {
+impl ProposalAction {
     pub fn to_policy_label(&self) -> String {
         format!("{:?}", self)
     }

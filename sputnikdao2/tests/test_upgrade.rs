@@ -4,7 +4,7 @@ use near_sdk::serde_json::json;
 use near_sdk::AccountId;
 
 use near_sdk_sim::{call, to_yocto, view, DEFAULT_GAS};
-use sputnikdao2::{Action, ProposalInput, ProposalKind};
+use sputnikdao2::{ProposalAction, ProposalInput, ProposalKind};
 
 mod utils;
 use crate::utils::*;
@@ -36,7 +36,7 @@ fn test_upgrade() {
     )
     .assert_success();
     assert_eq!(view!(dao.get_last_proposal_id()).unwrap_json::<u64>(), 1);
-    call!(root, dao.act_proposal(0, Action::VoteApprove, None)).assert_success();
+    call!(root, dao.act_proposal(0, ProposalAction::VoteApprove, None)).assert_success();
     assert_eq!(view!(dao.version()).unwrap_json::<String>(), "2.0.0");
     call!(root, dao.remove_blob(hash)).assert_success();
     should_fail(call!(root, dao.remove_blob(hash)));
@@ -90,5 +90,5 @@ fn test_upgrade_other() {
         },
     )
     .assert_success();
-    call!(root, dao.act_proposal(0, Action::VoteApprove, None)).assert_success();
+    call!(root, dao.act_proposal(0, ProposalAction::VoteApprove, None)).assert_success();
 }
