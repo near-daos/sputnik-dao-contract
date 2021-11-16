@@ -130,23 +130,21 @@ fn test_quitting_the_dao() {
     // initial check,
     // when nobody has quit yet
     let roles = dao_roles();
-    {
-        assert_eq!(
-            dao_roles_ref(&roles),
-            vec![
-                ("all", vec![]),
-                ("council", vec![&root.account_id]),
-                ("has_nobody", vec![]),
-                ("has_2", vec![&user2.account_id,]),
-                ("has_3", vec![&user3.account_id]),
-                ("has_23", vec![&user2.account_id, &user3.account_id]),
-                (
-                    "has_234",
-                    vec![&user2.account_id, &user3.account_id, &user4.account_id]
-                )
-            ]
-        );
-    }
+    assert_eq!(
+        dao_roles_ref(&roles),
+        vec![
+            ("all", vec![]),
+            ("council", vec![&root.account_id]),
+            ("has_nobody", vec![]),
+            ("has_2", vec![&user2.account_id,]),
+            ("has_3", vec![&user3.account_id]),
+            ("has_23", vec![&user2.account_id, &user3.account_id]),
+            (
+                "has_234",
+                vec![&user2.account_id, &user3.account_id, &user4.account_id]
+            )
+        ]
+    );
 
     let config = view!(dao.get_config()).unwrap_json::<sputnikdao2::Config>();
     let dao_name = &config.name;
