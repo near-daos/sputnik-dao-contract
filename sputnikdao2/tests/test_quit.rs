@@ -92,7 +92,7 @@ fn test_quitting_the_dao() {
     type RoleNamesAndMembers = Vec<(String, Vec<AccountId>)>;
     type RoleNamesAndMembersRef<'a> = Vec<(&'a str, Vec<&'a AccountId>)>;
 
-    // return role names and members form a dao
+    // return role names and members from a dao
     let dao_roles = || -> RoleNamesAndMembers {
         view!(dao.get_policy())
             .unwrap_json::<Policy>()

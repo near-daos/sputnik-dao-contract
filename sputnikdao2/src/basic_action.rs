@@ -1,8 +1,5 @@
-use crate::Contract;
+use crate::*;
 use near_sdk::{env, near_bindgen, AccountId};
-
-#[cfg(not(target_arch = "wasm32"))]
-use crate::ContractContract;
 
 #[near_bindgen]
 impl Contract {
