@@ -6,6 +6,9 @@ use near_sdk::{env, AccountId, Balance, Gas};
 /// 1 yN to prevent access key fraud.
 pub const ONE_YOCTO_NEAR: Balance = 1;
 
+// Gas for common operations.
+pub const GAS_FOR_COMMON_OPERATIONS: Gas = Gas(30_000_000_000_000);
+
 /// Gas for single ft_transfer call.
 pub const GAS_FOR_FT_TRANSFER: Gas = Gas(10_000_000_000_000);
 

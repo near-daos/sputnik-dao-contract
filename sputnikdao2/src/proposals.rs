@@ -7,7 +7,8 @@ use near_sdk::{ext_contract, log, AccountId, Balance, Gas, PromiseOrValue, Promi
 
 use crate::policy::UserInfo;
 use crate::types::{
-    upgrade_remote, upgrade_self, Action, Config, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR,
+    upgrade_remote, upgrade_self, Action, Config, GAS_FOR_COMMON_OPERATIONS, GAS_FOR_FT_TRANSFER,
+    ONE_YOCTO_NEAR,
 };
 use crate::*;
 
@@ -341,7 +342,7 @@ impl Contract {
                         Some(true),
                         token_id.clone(),
                         attached_deposit.0,
-                        GAS_FOR_FT_TRANSFER,
+                        GAS_FOR_COMMON_OPERATIONS,
                     )
                     .then(ext_self::callback_after_storage_deposit(
                         token_id.clone(),
@@ -353,7 +354,7 @@ impl Contract {
                         msg,
                         env::current_account_id(),
                         0,
-                        GAS_FOR_FT_TRANSFER,
+                        env::prepaid_gas() - env::used_gas() - GAS_FOR_COMMON_OPERATIONS,
                     ))
                     .into()
                 }
@@ -414,7 +415,7 @@ impl Contract {
                 receiver_id.clone(),
                 token_id.as_ref().unwrap().clone(),
                 0,
-                GAS_FOR_FT_TRANSFER,
+                GAS_FOR_COMMON_OPERATIONS,
             )
             .then(ext_self::callback_after_storage_balance_of(
                 token_id.as_ref().unwrap().clone(),
@@ -426,7 +427,7 @@ impl Contract {
                 msg,
                 env::current_account_id(),
                 0,
-                GAS_FOR_FT_TRANSFER,
+                env::prepaid_gas() - env::used_gas() - GAS_FOR_COMMON_OPERATIONS,
             ))
             .into()
         }
