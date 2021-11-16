@@ -421,7 +421,7 @@ impl Contract {
             "ERR_PERMISSION_DENIED"
         );
 
-        // 3. Actually executes or adds proposal to the current list of proposals.
+        // 3. Actually add proposal to the current list of proposals.
         let id = self.last_proposal_id;
         self.proposals
             .insert(&id, &VersionedProposal::Default(proposal.into()));
