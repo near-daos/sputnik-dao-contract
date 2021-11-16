@@ -1,5 +1,3 @@
-use std::convert::TryFrom;
-
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
@@ -215,7 +213,7 @@ impl Contract {
 #[cfg(test)]
 mod tests {
     use near_sdk::test_utils::{accounts, VMContextBuilder};
-    use near_sdk::{testing_env, MockedBlockchain};
+    use near_sdk::testing_env;
     use near_sdk_sim::to_yocto;
 
     use crate::proposals::{ProposalInput, ProposalKind};

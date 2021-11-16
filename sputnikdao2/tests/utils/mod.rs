@@ -1,6 +1,4 @@
 #![allow(dead_code)]
-use std::convert::TryFrom;
-
 pub use near_sdk::json_types::{Base64VecU8, U64};
 use near_sdk::{AccountId, Balance};
 use near_sdk_sim::transaction::ExecutionStatus;
