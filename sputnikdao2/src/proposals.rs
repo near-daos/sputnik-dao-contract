@@ -354,7 +354,7 @@ impl Contract {
                         msg,
                         env::current_account_id(),
                         0,
-                        env::prepaid_gas() - GAS_FOR_COMMON_OPERATIONS * 3,
+                        env::prepaid_gas() - env::used_gas() - GAS_FOR_COMMON_OPERATIONS * 3,
                     ))
                     .into()
                 }
@@ -427,7 +427,7 @@ impl Contract {
                 msg,
                 env::current_account_id(),
                 0,
-                env::prepaid_gas() - GAS_FOR_COMMON_OPERATIONS * 2,
+                env::prepaid_gas() - env::used_gas() - GAS_FOR_COMMON_OPERATIONS * 2,
             ))
             .into()
         }
