@@ -8,7 +8,7 @@ use crate::utils::*;
 use sputnik_staking::User;
 use sputnikdao2::{
     Action, Policy, Proposal, ProposalInput, ProposalKind, ProposalStatus, RoleKind,
-    RolePermission, VersionedPolicy, VotePolicy,
+    RolePermission, StorageBalance, VersionedPolicy, VotePolicy,
 };
 
 mod utils;
@@ -237,7 +237,7 @@ fn test_registration_on_payment() {
     let proposal_id: u64 =
         add_member_proposal(&root, &dao, receiver_account.account_id.clone()).unwrap_json();
     assert_eq!(0, proposal_id);
-    // Vote the proposal.
+    // Approve the proposal.
     vote(vec![&root], &dao, proposal_id);
 
     // Set up a fungible token and give 100 to the dao.
@@ -248,22 +248,47 @@ fn test_registration_on_payment() {
     )
     .assert_success();
 
-    // Add proposal to payout the receiver with 50 fungible token from the dao.
+    // Check that receiver_account does not have an account registered with the fungible token.
+    let receiver_storage_balance: Option<StorageBalance> =
+        view!(test_token.storage_balance_of(receiver_account.account_id())).unwrap_json();
+    assert!(receiver_storage_balance.is_none());
+
+    // Check that receiver_account has no fungible tokens.
+    let receiver_ft_balance: U128 =
+        view!(test_token.ft_balance_of(receiver_account.account_id())).unwrap_json();
+    assert_eq!(0, receiver_ft_balance.0);
+
+    const TRANSFER_AMOUNT: u128 = 10;
+    // Add proposal to payout the receiver with TRANSFER_AMOUNT fungible token from the dao.
     let proposal_id: u64 = add_transfer_proposal(
         &root,
         &dao,
         Some(test_token.account_id()),
         receiver_account.account_id().clone(),
-        50,
+        TRANSFER_AMOUNT,
         None,
     )
     .unwrap_json();
     assert_eq!(1, proposal_id);
-    // Vote the proposal.
+    // Approve the proposal.
     vote(vec![&root, &receiver_account], &dao, proposal_id);
 
     let proposal = view!(dao.get_proposal(proposal_id)).unwrap_json::<Proposal>();
     assert_eq!(proposal.status, ProposalStatus::Approved);
+
+    // Check that receiver_account has now an account registered for the fungible token
+    // and the deposit of to_yocto("0.00125") is paid.
+    let receiver_storage_balance: Option<StorageBalance> =
+        view!(test_token.storage_balance_of(receiver_account.account_id())).unwrap_json();
+    assert_eq!(
+        to_yocto("0.00125"),
+        receiver_storage_balance.unwrap().total.0
+    );
+
+    // Check that receiver_account has TRANSFER_AMOUNT fungible tokens.
+    let receiver_ft_balance: U128 =
+        view!(test_token.ft_balance_of(receiver_account.account_id())).unwrap_json();
+    assert_eq!(TRANSFER_AMOUNT, receiver_ft_balance.0);
 }
 
 /// Test various cases that must fail.
