@@ -284,11 +284,11 @@ impl Contract {
         match env::promise_result(0) {
             PromiseResult::NotReady => {
                 Promise::new(proposer_account.clone()).transfer(attached_deposit.0);
-                panic!("storage_deposit Error: Received PromiseResult::NotReady")
+                panic!("storage_deposit Error: Received PromiseResult::NotReady");
             }
             PromiseResult::Failed => {
                 Promise::new(proposer_account.clone()).transfer(attached_deposit.0);
-                panic!("storage_deposit Error: Received PromiseResult::Failed")
+                panic!("storage_deposit Error: Received PromiseResult::Failed");
             }
             PromiseResult::Successful(result) => {
                 let balance = near_sdk::serde_json::from_slice::<StorageBalance>(&result).unwrap();
@@ -321,11 +321,11 @@ impl Contract {
         match env::promise_result(0) {
             PromiseResult::NotReady => {
                 Promise::new(proposer_account.clone()).transfer(attached_deposit.0);
-                panic!("storage_balance_of Error: Received PromiseResult::NotReady")
+                panic!("storage_balance_of Error: Received PromiseResult::NotReady");
             }
             PromiseResult::Failed => {
                 Promise::new(proposer_account.clone()).transfer(attached_deposit.0);
-                panic!("storage_balance_of Error: Received PromiseResult::Failed")
+                panic!("storage_balance_of Error: Received PromiseResult::Failed");
             }
             PromiseResult::Successful(result) => {
                 let balance =
