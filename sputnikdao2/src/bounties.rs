@@ -6,17 +6,18 @@ use near_sdk::{env, near_bindgen, AccountId, Promise, PromiseOrValue};
 use crate::*;
 
 /// Information recorded about claim of the bounty by given user.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Copy, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
 #[serde(crate = "near_sdk::serde")]
 pub struct BountyClaim {
     /// Bounty id that was claimed.
-    bounty_id: u64,
+    pub bounty_id: u64,
     /// Start time of the claim.
-    start_time: U64,
+    pub start_time: U64,
     /// Deadline specified by claimer.
-    deadline: U64,
+    pub deadline: U64,
     /// Completed?
-    completed: bool,
+    pub completed: bool,
 }
 
 /// Bounty information.
@@ -126,15 +127,17 @@ impl Contract {
         let mut claims = self
             .bounty_claimers
             .get(&env::predecessor_account_id())
+            .cloned()
             .unwrap_or_default();
-        claims.push(BountyClaim {
+
+           claims.push(BountyClaim {
             bounty_id: id,
             start_time: U64::from(env::block_timestamp()),
             deadline,
             completed: false,
         });
         self.bounty_claimers
-            .insert(&env::predecessor_account_id(), &claims);
+            .insert(env::predecessor_account_id(), claims);
     }
 
     /// Removes given claims from this bounty and user's claims.
@@ -144,7 +147,7 @@ impl Contract {
             self.bounty_claimers.remove(&env::predecessor_account_id());
         } else {
             self.bounty_claimers
-                .insert(&env::predecessor_account_id(), &claims);
+                .insert(env::predecessor_account_id(), claims);
         }
         let count = self.bounty_claims_count.get(&id).unwrap() - 1;
         self.bounty_claims_count.insert(&id, &count);
@@ -154,6 +157,7 @@ impl Contract {
         let claims = self
             .bounty_claimers
             .get(&sender_id)
+            .cloned()
             .expect("ERR_NO_BOUNTY_CLAIMS");
         let claim_idx = self
             .internal_find_claim(id, &claims)
@@ -186,7 +190,7 @@ impl Contract {
                 },
             });
             claims[claim_idx].completed = true;
-            self.bounty_claimers.insert(&sender_id, &claims);
+            self.bounty_claimers.insert(sender_id, claims);
         }
     }
 

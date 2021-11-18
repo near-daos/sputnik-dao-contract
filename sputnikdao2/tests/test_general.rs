@@ -1,20 +1,61 @@
 use std::collections::HashMap;
 
 use near_sdk::json_types::U128;
-use near_sdk::AccountId;
+use near_sdk::{AccountId};
 use near_sdk_sim::{call, to_yocto, view};
 
 use crate::utils::*;
 use sputnik_staking::User;
 use sputnikdao2::{
     Action, Policy, Proposal, ProposalInput, ProposalKind, ProposalStatus, RoleKind,
-    RolePermission, VersionedPolicy, VotePolicy,
+    RolePermission, VersionedPolicy, VotePolicy, BountyClaim, Bounty,
 };
 
 mod utils;
 
 fn user(id: u32) -> AccountId {
     format!("user{}", id).parse().unwrap()
+}
+
+
+#[test]
+fn test_get_claims_by_bounty_id() {
+    let (root, dao) = setup_dao();
+
+    add_proposal(&root, &dao, ProposalInput {
+        description: "add bounty".to_string(),
+        kind: ProposalKind::AddBounty {
+            bounty: Bounty {
+                description: "new bounty".to_string(),
+                token: None,
+                amount: U128(1),
+                times: 1,
+                max_deadline: U64(1),
+            },
+        },
+    }).assert_success();
+
+    vote(vec![&root], &dao, 0);
+    claim_bounty(&root, &dao, 0, U64::from(1)).assert_success();
+
+    let expected_claim = BountyClaim {
+        bounty_id: 0,
+        start_time: U64::from(11000000000),
+        deadline: U64::from(1),
+        completed: false,
+    };
+
+    assert_eq!(view!(dao.get_claims_by_bounty_id(0))
+                   .unwrap_json::<Vec<BountyClaim>>()
+                   .pop()
+                   .unwrap(),
+               expected_claim.clone());
+
+    assert_eq!(view!(dao.get_bounty_claims(root.account_id))
+                   .unwrap_json::<Vec<BountyClaim>>()
+                   .pop()
+                   .unwrap(),
+               expected_claim.clone());
 }
 
 #[test]

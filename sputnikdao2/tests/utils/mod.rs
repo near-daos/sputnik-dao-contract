@@ -80,6 +80,15 @@ pub fn add_proposal(
     call!(root, dao.add_proposal(proposal), deposit = to_yocto("1"))
 }
 
+pub fn claim_bounty(
+    root: &UserAccount,
+    dao: &Contract,
+    bounty_id: u64,
+    deadline: U64
+) -> ExecutionResult {
+    call!(root, dao.bounty_claim(bounty_id, deadline), deposit = to_yocto("1"))
+}
+
 pub fn add_member_proposal(
     root: &UserAccount,
     dao: &Contract,

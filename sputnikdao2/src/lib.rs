@@ -6,11 +6,12 @@ use near_sdk::{
     env, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash, PanicOnDefault, Promise,
 };
 
-use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
+pub use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
 pub use crate::policy::{Policy, RoleKind, RolePermission, VersionedPolicy, VotePolicy};
 use crate::proposals::VersionedProposal;
 pub use crate::proposals::{Proposal, ProposalInput, ProposalKind, ProposalStatus};
 pub use crate::types::{Action, Config};
+use near_sdk::store::UnorderedMap;
 
 mod bounties;
 mod delegation;
@@ -59,7 +60,7 @@ pub struct Contract {
     /// Bounties map from ID to bounty information.
     pub bounties: LookupMap<u64, VersionedBounty>,
     /// Bounty claimers map per user. Allows quickly to query for each users their claims.
-    pub bounty_claimers: LookupMap<AccountId, Vec<BountyClaim>>,
+    pub bounty_claimers: UnorderedMap<AccountId, Vec<BountyClaim>>,
     /// Count of claims per bounty.
     pub bounty_claims_count: LookupMap<u64, u32>,
 
@@ -81,7 +82,7 @@ impl Contract {
             proposals: LookupMap::new(StorageKeys::Proposals),
             last_bounty_id: 0,
             bounties: LookupMap::new(StorageKeys::Bounties),
-            bounty_claimers: LookupMap::new(StorageKeys::BountyClaimers),
+            bounty_claimers: UnorderedMap::new(StorageKeys::BountyClaimers),
             bounty_claims_count: LookupMap::new(StorageKeys::BountyClaimCounts),
             blobs: LookupMap::new(StorageKeys::Blobs),
             // TODO: only accounts for contract but not for this state object. Can just add fixed size of it.

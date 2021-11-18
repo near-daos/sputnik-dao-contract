@@ -118,7 +118,17 @@ impl Contract {
 
     /// Get bounty claims for given user.
     pub fn get_bounty_claims(&self, account_id: AccountId) -> Vec<BountyClaim> {
-        self.bounty_claimers.get(&account_id).unwrap_or_default()
+        self.bounty_claimers.get(&account_id).cloned().unwrap_or_default()
+    }
+
+    /// Get bounty claims for given bounty id.
+    pub fn get_claims_by_bounty_id(&self, bounty_id: u64) -> Vec<BountyClaim> {
+        self.bounty_claimers.values()
+            .into_iter()
+            .cloned()
+            .flatten()
+            .filter(|b| b.bounty_id == bounty_id)
+            .collect()
     }
 
     /// Returns number of claims per given bounty.
