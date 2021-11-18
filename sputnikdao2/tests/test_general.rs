@@ -259,6 +259,9 @@ fn test_registration_on_payment() {
     assert_eq!(0, receiver_ft_balance.0);
 
     const TRANSFER_AMOUNT: u128 = 10;
+
+    // Balance before paying 1 NEAR for the proposal bond
+    let balance_before_bond = root.account().unwrap().amount;
     // Add proposal to payout the receiver with TRANSFER_AMOUNT fungible token from the dao.
     let proposal_id: u64 = add_transfer_proposal(
         &root,
@@ -270,8 +273,16 @@ fn test_registration_on_payment() {
     )
     .unwrap_json();
     assert_eq!(1, proposal_id);
+    // Balance after paying 1 NEAR for the proposal bond + some NEAR for the gas fees
+    let balance_after_bond = root.account().unwrap().amount;
+    assert!(balance_before_bond - balance_after_bond > to_yocto("1"));
+
+    let balance_before_bond_return = balance_after_bond;
     // Approve the proposal.
     vote(vec![&root, &receiver_account], &dao, proposal_id);
+    // Balance after getting back the proposal bond - fee for account registration (0.00125 NEAR) - gas fees
+    let balance_after_bond_return = root.account().unwrap().amount;
+    assert!(balance_after_bond_return - balance_before_bond_return > 0);
 
     let proposal = view!(dao.get_proposal(proposal_id)).unwrap_json::<Proposal>();
     assert_eq!(proposal.status, ProposalStatus::Approved);
