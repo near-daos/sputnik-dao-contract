@@ -333,10 +333,9 @@ fn test_quit_removes_votes1() {
     let res = quit(&dao, &user3, &user3, dao_name).unwrap();
     assert!(res);
 
-    // user2 finalizes t1
+    // ok: user2 finalizes t1
     let user4amount = user4.account().unwrap().amount;
     call!(user2, dao.act_proposal(t1, Action::Finalize, None)).assert_success();
-    panic!("checkpoint A");
     assert_eq!(
         view!(dao.get_proposal(t1)).unwrap_json::<Proposal>().status,
         ProposalStatus::Approved
@@ -349,20 +348,9 @@ fn test_quit_removes_votes1() {
         user4.account().unwrap().amount
     );
 
-    // user3 finalizes t2
-    let user4amount = user4.account().unwrap().amount;
-    call!(user3, dao.act_proposal(t2, Action::Finalize, None)).assert_success();
-    assert_eq!(
-        view!(dao.get_proposal(t2)).unwrap_json::<Proposal>().status,
-        ProposalStatus::Approved
-    );
-    // confirm user4 received the transfer
-    assert_eq!(
-        user4amount
-       // the bounty
-       + 1,
-        user4.account().unwrap().amount
-    );
+    // fail: user3 tries to finelize t2
+    let res = call!(user3, dao.act_proposal(t2, Action::Finalize, None));
+    should_fail_with(res, 0, "ERR_PERMISSION_DENIED");
 }
 
 /// Tests a role with Ratio = 1/2 with two members,
@@ -410,7 +398,7 @@ fn test_quit_removes_votes2() {
 
     // user2 tries to finalize t1
     let res = call!(user2, dao.act_proposal(t1, Action::Finalize, None));
-    should_fail_with(res, 0, "ERR_FINALIZE");
+    should_fail_with(res, 0, "ERR_FINALIZE_(TODO)");
     // confirm t1 did not get approved
     assert_eq!(
         view!(dao.get_proposal(t1)).unwrap_json::<Proposal>().status,
@@ -419,7 +407,7 @@ fn test_quit_removes_votes2() {
 
     // user3 tries to finalize t2
     let res = call!(user3, dao.act_proposal(t2, Action::Finalize, None));
-    should_fail_with(res, 0, "ERR_FINALIZE");
+    should_fail_with(res, 0, "ERR_FINALIZE_(TODO)");
     // confirm t2 did not get approved
     assert_eq!(
         view!(dao.get_proposal(t2)).unwrap_json::<Proposal>().status,

@@ -432,12 +432,18 @@ impl Contract {
     /// Act on given proposal by id, if permissions allow.
     /// Memo is logged but not stored in the state. Can be used to leave notes or explain the action.
     pub fn act_proposal(&mut self, id: u64, action: Action, memo: Option<String>) {
-        let mut proposal: Proposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL").into();
+        let mut proposal: Proposal = self
+            .proposals
+            .get(&id)
+            .unwrap_or_else(|| env::panic_str("ERR_NO_PROPOSAL"))
+            .into();
         let policy = self.policy.get().unwrap().to_policy();
         // Check permissions for the given action.
         let (roles, allowed) =
             policy.can_execute_action(self.internal_user_info(), &proposal.kind, &action);
-        assert!(allowed, "ERR_PERMISSION_DENIED");
+        if !allowed {
+            env::panic_str("ERR_PERMISSION_DENIED")
+        }
         let sender_id = env::predecessor_account_id();
         // Update proposal given action. Returns true if should be updated in storage.
         let update = match action {
@@ -462,19 +468,24 @@ impl Contract {
                 // Updates proposal status with new votes using the policy.
                 proposal.status =
                     policy.proposal_status(&proposal, roles, self.total_delegation_amount);
-                if proposal.status == ProposalStatus::Approved {
-                    self.internal_execute_proposal(&policy, &proposal);
-                    true
-                } else if proposal.status == ProposalStatus::Removed {
-                    self.internal_reject_proposal(&policy, &proposal, false);
-                    self.proposals.remove(&id);
-                    false
-                } else if proposal.status == ProposalStatus::Rejected {
-                    self.internal_reject_proposal(&policy, &proposal, true);
-                    true
-                } else {
-                    // Still in progress or expired.
-                    true
+                match proposal.status {
+                    ProposalStatus::Approved => {
+                        self.internal_execute_proposal(&policy, &proposal);
+                        true
+                    }
+                    ProposalStatus::Rejected => {
+                        self.internal_reject_proposal(&policy, &proposal, true);
+                        true
+                    }
+                    ProposalStatus::Removed => {
+                        self.internal_reject_proposal(&policy, &proposal, false);
+                        self.proposals.remove(&id);
+                        false
+                    }
+                    _ => {
+                        // Still in progress, moved or expired.
+                        true
+                    }
                 }
             }
             Action::Finalize => {
@@ -486,14 +497,27 @@ impl Contract {
                 match proposal.status {
                     // no decision made
                     ProposalStatus::InProgress => false,
-                    ProposalStatus::Approved => todo!("approved"),
-                    ProposalStatus::Rejected => todo!("rejected"),
-                    ProposalStatus::Removed => todo!("removed"),
+                    ProposalStatus::Approved => {
+                        self.internal_execute_proposal(&policy, &proposal);
+                        true
+                    }
+                    ProposalStatus::Rejected => {
+                        self.internal_reject_proposal(&policy, &proposal, true);
+                        true
+                    }
+                    ProposalStatus::Removed => {
+                        self.internal_reject_proposal(&policy, &proposal, false);
+                        self.proposals.remove(&id);
+                        false
+                    }
                     ProposalStatus::Expired => {
                         self.internal_reject_proposal(&policy, &proposal, true);
                         true
                     }
-                    ProposalStatus::Moved => todo!("moved"),
+                    ProposalStatus::Moved => {
+                        // not yet implemented
+                        env::panic_str("ERR_TODO_MOVED_PROPOSAL")
+                    }
                 }
             }
             Action::MoveToHub => false,
