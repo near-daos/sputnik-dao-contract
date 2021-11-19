@@ -34,6 +34,22 @@ pub fn should_fail(r: ExecutionResult) {
     }
 }
 
+pub fn should_fail_with(r: ExecutionResult, action: u32, err: &str) {
+    let err = format!("Action #{}: Smart contract panicked: {}", action, err);
+    match r.status() {
+        ExecutionStatus::Failure(txerr_) => {
+            assert_eq!(txerr_.to_string(), err)
+        }
+        ExecutionStatus::Unknown => panic!("Got Unknown. Should have failed with {}", err),
+        ExecutionStatus::SuccessValue(_v) => {
+            panic!("Got SuccessValue. Should have failed with {}", err)
+        }
+        ExecutionStatus::SuccessReceiptId(_id) => {
+            panic!("Got SuccessReceiptId. Should have failed with {}", err)
+        }
+    }
+}
+
 pub fn setup_dao() -> (UserAccount, Contract) {
     let root = init_simulator(None);
     let config = Config {

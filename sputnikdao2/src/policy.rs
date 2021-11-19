@@ -370,6 +370,8 @@ impl Policy {
             return ProposalStatus::Expired;
         };
         for role in roles {
+            let role_str = format!("{:#?}", &role);
+            env::log_str(&role_str);
             let role_info = self.internal_get_role(&role).expect("ERR_MISSING_ROLE");
             let vote_policy = role_info
                 .vote_policy
@@ -379,16 +381,23 @@ impl Policy {
                 vote_policy.quorum.0,
                 match &vote_policy.weight_kind {
                     WeightKind::TokenWeight => vote_policy.threshold.to_weight(total_supply),
-                    WeightKind::RoleWeight => vote_policy.threshold.to_weight(
-                        role_info
-                            .kind
-                            .get_role_size()
-                            .expect("ERR_UNSUPPORTED_ROLE") as Balance,
-                    ),
+                    WeightKind::RoleWeight => {
+                        vote_policy
+                            .threshold
+                            .to_weight(match role_info.kind.get_role_size() {
+                                Some(size) => size as Balance,
+                                // skip this role, as it's not a sizable
+                                // one
+                                None => continue,
+                            })
+                    }
                 },
             );
             // Check if there is anything voted above the threshold specified by policy for given role.
-            let vote_counts = proposal.vote_counts.get(&role).expect("ERR_MISSING_ROLE");
+            let vote_counts = proposal
+                .vote_counts
+                .get(&role)
+                .unwrap_or_else(|| &[0, 0, 0]);
             if vote_counts[Vote::Approve as usize] >= threshold {
                 return ProposalStatus::Approved;
             } else if vote_counts[Vote::Reject as usize] >= threshold {

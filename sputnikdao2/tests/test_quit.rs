@@ -1,25 +1,34 @@
 #![allow(clippy::ref_in_deref)]
+#![allow(clippy::identity_op)]
 
-use crate::utils::{add_member_to_role_proposal, add_proposal, setup_dao, Contract};
+use crate::utils::{
+    add_member_to_role_proposal, add_proposal, setup_dao, should_fail_with, vote, Contract,
+};
 use near_sdk::AccountId;
-use near_sdk_sim::UserAccount;
 use near_sdk_sim::{call, to_yocto, view};
-use sputnikdao2::{Action, ProposalInput, ProposalKind, VersionedPolicy};
-use sputnikdao2::{Policy, RoleKind, RolePermission};
+use near_sdk_sim::{ExecutionResult, UserAccount};
+use sputnikdao2::{
+    Action, Policy, Proposal, ProposalInput, ProposalKind, ProposalPermission, ProposalStatus,
+    RoleKind, RolePermission, VersionedPolicy,
+};
 use std::collections::HashMap;
 use std::collections::HashSet;
 
 mod utils;
 
+const KILO: u128 = 1000;
+const MEGA: u128 = KILO * KILO;
+const YOTTA: u128 = MEGA * MEGA * MEGA * MEGA;
+
 fn user(id: u32) -> AccountId {
     format!("user{}", id).parse().unwrap()
 }
 
-fn new_role(name: String) -> RolePermission {
+fn new_role(name: String, permissions: HashSet<ProposalPermission>) -> RolePermission {
     RolePermission {
         name,
         kind: RoleKind::Group(HashSet::new()),
-        permissions: HashSet::new(),
+        permissions,
         vote_policy: HashMap::new(),
     }
 }
@@ -125,6 +134,21 @@ fn quit(
     }
 }
 
+/// Adds some dummy proposal, for the votes to be tested on.  
+/// (transfers of 1 yocto-near to `receiver`).
+fn add_transfer_proposal(root: &UserAccount, dao: &Contract, receiver: &UserAccount) -> u64 {
+    let proposal_input = ProposalInput {
+        description: "new policy".to_string(),
+        kind: ProposalKind::Transfer {
+            token_id: None,
+            receiver_id: receiver.account_id(),
+            amount: 1u128.into(),
+            msg: None,
+        },
+    };
+    call!(root, dao.add_proposal(proposal_input), deposit = 1 * YOTTA).unwrap_json::<u64>()
+}
+
 /// Issue #41 "Quitting the DAO" tests
 #[test]
 fn test_quitting_the_dao() {
@@ -133,11 +157,11 @@ fn test_quitting_the_dao() {
     let user3 = root.create_user(user(3), to_yocto("1000"));
     let user4 = root.create_user(user(4), to_yocto("1000"));
 
-    let role_none = new_role("has_nobody".to_string());
-    let role_2 = new_role("has_2".to_string());
-    let role_3 = new_role("has_3".to_string());
-    let role_23 = new_role("has_23".to_string());
-    let role_234 = new_role("has_234".to_string());
+    let role_none = new_role("has_nobody".to_string(), HashSet::new());
+    let role_2 = new_role("has_2".to_string(), HashSet::new());
+    let role_3 = new_role("has_3".to_string(), HashSet::new());
+    let role_23 = new_role("has_23".to_string(), HashSet::new());
+    let role_234 = new_role("has_234".to_string(), HashSet::new());
 
     policy_extend_roles(
         &root,
@@ -277,12 +301,68 @@ fn test_quit_removes_votes1() {
     let (root, dao) = setup_dao();
     let user2 = root.create_user(user(2), to_yocto("1000"));
     let user3 = root.create_user(user(3), to_yocto("1000"));
+    let user4 = root.create_user(user(4), to_yocto("1000"));
 
-    let role_23 = new_role("has_23".to_string());
-    policy_extend_roles(&root, &dao, vec![role_23]);
+    // users (2, 3) will share a role,
+    // and only user2 will vote in approval, then user3 quits.
+    // then assert that the proposals can get approved from only 1 vote.
+
+    let dao_name = {
+        let config = view!(dao.get_config()).unwrap_json::<sputnikdao2::Config>();
+        config.name
+    };
+
+    {
+        let permissions = vec!["*:*".to_string()].into_iter().collect();
+        let role_23 = new_role("has_23".to_string(), permissions);
+        policy_extend_roles(&root, &dao, vec![role_23]);
+    }
 
     add_user_to_roles(&root, &dao, &user2, vec!["has_23"]);
     add_user_to_roles(&root, &dao, &user3, vec!["has_23"]);
+
+    // adds two transfer proposals
+    let t1 = add_transfer_proposal(&root, &dao, &user4);
+    let t2 = add_transfer_proposal(&root, &dao, &user4);
+
+    // user2 votes in approval of both
+    vote(vec![&user2], &dao, t1);
+    vote(vec![&user2], &dao, t2);
+
+    // user3 quits role
+    let res = quit(&dao, &user3, &user3, dao_name).unwrap();
+    assert!(res);
+
+    // user2 finalizes t1
+    let user4amount = user4.account().unwrap().amount;
+    call!(user2, dao.act_proposal(t1, Action::Finalize, None)).assert_success();
+    panic!("checkpoint A");
+    assert_eq!(
+        view!(dao.get_proposal(t1)).unwrap_json::<Proposal>().status,
+        ProposalStatus::Approved
+    );
+    // confirm user4 received the transfer
+    assert_eq!(
+        user4amount
+       // the bounty
+       + 1,
+        user4.account().unwrap().amount
+    );
+
+    // user3 finalizes t2
+    let user4amount = user4.account().unwrap().amount;
+    call!(user3, dao.act_proposal(t2, Action::Finalize, None)).assert_success();
+    assert_eq!(
+        view!(dao.get_proposal(t2)).unwrap_json::<Proposal>().status,
+        ProposalStatus::Approved
+    );
+    // confirm user4 received the transfer
+    assert_eq!(
+        user4amount
+       // the bounty
+       + 1,
+        user4.account().unwrap().amount
+    );
 }
 
 /// Tests a role with Ratio = 1/2 with two members,
@@ -296,4 +376,53 @@ fn test_quit_removes_votes2() {
     let (root, dao) = setup_dao();
     let user2 = root.create_user(user(2), to_yocto("1000"));
     let user3 = root.create_user(user(3), to_yocto("1000"));
+    let user4 = root.create_user(user(4), to_yocto("1000"));
+
+    // users (2, 3) will share a role,
+    // and only user2 will vote in approval and then quit.
+    // then assert that the proposals cannot get approved from only 1 vote.
+
+    let dao_name = {
+        let config = view!(dao.get_config()).unwrap_json::<sputnikdao2::Config>();
+        config.name
+    };
+
+    {
+        let permissions = vec!["*:*".to_string()].into_iter().collect();
+        let role_23 = new_role("has_23".to_string(), permissions);
+        policy_extend_roles(&root, &dao, vec![role_23]);
+    }
+
+    add_user_to_roles(&root, &dao, &user2, vec!["has_23"]);
+    add_user_to_roles(&root, &dao, &user3, vec!["has_23"]);
+
+    // adds two transfer proposals
+    let t1 = add_transfer_proposal(&root, &dao, &user4);
+    let t2 = add_transfer_proposal(&root, &dao, &user4);
+
+    // user2 votes in approval of both
+    vote(vec![&user2], &dao, t1);
+    vote(vec![&user2], &dao, t2);
+
+    // user2 quits role
+    let res = quit(&dao, &user2, &user2, dao_name).unwrap();
+    assert!(res);
+
+    // user2 tries to finalize t1
+    let res = call!(user2, dao.act_proposal(t1, Action::Finalize, None));
+    should_fail_with(res, 0, "ERR_FINALIZE");
+    // confirm t1 did not get approved
+    assert_eq!(
+        view!(dao.get_proposal(t1)).unwrap_json::<Proposal>().status,
+        ProposalStatus::InProgress
+    );
+
+    // user3 tries to finalize t2
+    let res = call!(user3, dao.act_proposal(t2, Action::Finalize, None));
+    should_fail_with(res, 0, "ERR_FINALIZE");
+    // confirm t2 did not get approved
+    assert_eq!(
+        view!(dao.get_proposal(t2)).unwrap_json::<Proposal>().status,
+        ProposalStatus::InProgress
+    );
 }

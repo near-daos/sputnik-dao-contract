@@ -483,13 +483,18 @@ impl Contract {
                     policy.roles.iter().map(|r| r.name.clone()).collect(),
                     self.total_delegation_amount,
                 );
-                assert_eq!(
-                    proposal.status,
-                    ProposalStatus::Expired,
-                    "ERR_PROPOSAL_NOT_EXPIRED"
-                );
-                self.internal_reject_proposal(&policy, &proposal, true);
-                true
+                match proposal.status {
+                    // no decision made
+                    ProposalStatus::InProgress => false,
+                    ProposalStatus::Approved => todo!("approved"),
+                    ProposalStatus::Rejected => todo!("rejected"),
+                    ProposalStatus::Removed => todo!("removed"),
+                    ProposalStatus::Expired => {
+                        self.internal_reject_proposal(&policy, &proposal, true);
+                        true
+                    }
+                    ProposalStatus::Moved => todo!("moved"),
+                }
             }
             Action::MoveToHub => false,
         };
