@@ -21,7 +21,7 @@ near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
     STAKING_WASM_BYTES => "../sputnik-staking/res/sputnik_staking.wasm",
 }
 
-type Contract = ContractAccount<DAOContract>;
+pub type Contract = ContractAccount<DAOContract>;
 
 pub fn base_token() -> Option<AccountId> {
     None
