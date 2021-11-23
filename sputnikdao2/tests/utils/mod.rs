@@ -37,8 +37,8 @@ pub fn setup_dao() -> (UserAccount, Contract) {
     let config = Config {
         name: "test".to_string(),
         purpose: "to test".to_string(),
-        max_days_of_inactivity: None,
         metadata: Base64VecU8(vec![]),
+        self_destruct_config: None,
     };
     let dao = deploy!(
         contract: DAOContract,
