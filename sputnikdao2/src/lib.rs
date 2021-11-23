@@ -122,7 +122,7 @@ impl Contract {
     }
 
     /// TODO: add documentation.
-    pub fn check_for_inactivity(&mut self) {
+    pub fn is_active(&mut self) -> bool {
         let mut active = false;
         let config = self
             .get_config()
@@ -145,9 +145,12 @@ impl Contract {
         }
 
         if !active {
-            // remove this DAO
-            Promise::new(config.dedicated_account).transfer(self.locked_amount);
+            // TBD: Do we need to remove this DAO? If so, we should delete this account and also send the
+            // locked amount to the dedicated account.
+            Promise::new(config.dedicated_account).transfer(self.get_available_amount().0);
         }
+
+        active
     }
 }
 
