@@ -1,5 +1,5 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::Base64VecU8;
+use near_sdk::json_types::{Base64VecU8, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, AccountId, Balance, Gas};
 
@@ -22,6 +22,9 @@ pub struct Config {
     pub name: String,
     /// Purpose of this DAO.
     pub purpose: String,
+    /// Remove this DAO if no proposal was passed in the last 'max_days_of_inactivity'.
+    /// If not specified, DAO is allowed to be inactive for an indefinite period of time.
+    pub max_days_of_inactivity: Option<U64>,
     /// Generic metadata. Can be used by specific UI to store additional data.
     /// This is not used by anything in the contract.
     pub metadata: Base64VecU8,
@@ -33,6 +36,7 @@ impl Config {
         Self {
             name: "Test".to_string(),
             purpose: "to test".to_string(),
+            max_days_of_inactivity: None,
             metadata: Base64VecU8(vec![]),
         }
     }
