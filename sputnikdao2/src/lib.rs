@@ -120,6 +120,35 @@ impl Contract {
         self.locked_amount -= storage_cost;
         Promise::new(account_id).transfer(storage_cost)
     }
+
+    /// TODO: add documentation.
+    pub fn check_for_inactivity(&mut self) {
+        let mut active = false;
+        let config = self
+            .get_config()
+            .self_destruct_config
+            .expect("ERR_NO_CONFIG");
+
+        // keep this in case we need to iterate through all of the proposals
+        // for id in (0..self.last_proposal_id).rev() {}
+
+        let last_proposal: Proposal = self
+            .proposals
+            .get(&(self.last_proposal_id - 1))
+            .expect("ERR_NO_PROPOSAL")
+            .into();
+        let allowed_inactivity_time =
+            1_000_000_000 * 60 * 60 * 24 * config.max_days_of_inactivity.0;
+
+        if last_proposal.submission_time.0 + allowed_inactivity_time >= env::block_timestamp() {
+            active = true; // it means this DAO is still active
+        }
+
+        if !active {
+            // remove this DAO
+            Promise::new(config.dedicated_account).transfer(self.locked_amount);
+        }
+    }
 }
 
 /// Stores attached data into blob store and returns hash of it.
