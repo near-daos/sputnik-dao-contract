@@ -121,7 +121,9 @@ impl Contract {
         Promise::new(account_id).transfer(storage_cost)
     }
 
-    /// TODO: add documentation.
+    /// Check if this DAO is still active (active = it has a recently created proposal).
+    /// If active, do nothing.
+    /// If inactive, transfer the available amount of NEAR in this DAO to the dedicated account.
     pub fn is_active(&mut self) -> bool {
         let mut active = false;
         let config = self
