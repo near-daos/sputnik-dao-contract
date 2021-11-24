@@ -69,24 +69,17 @@ impl Contract {
         receiver_id: &AccountId,
         success: bool,
     ) -> PromiseOrValue<()> {
-        let mut bounty: Bounty = self.bounties.get(&id).expect("ERR_NO_BOUNTY").into();
+        let bounty: Bounty = self.bounties.get(&id).expect("ERR_NO_BOUNTY").into();
         let (claims, claim_idx) = self.internal_get_claims(id, &receiver_id);
         self.internal_remove_claim(id, claims, claim_idx);
         if success {
-            let res = self.internal_payout(
+            self.internal_payout(
                 &bounty.token,
                 receiver_id,
                 bounty.amount.0,
                 format!("Bounty {} payout", id),
                 None,
-            );
-            if bounty.times == 0 {
-                self.bounties.remove(&id);
-            } else {
-                bounty.times -= 1;
-                self.bounties.insert(&id, &VersionedBounty::Default(bounty));
-            }
-            res
+            )
         } else {
             PromiseOrValue::Value(())
         }
@@ -201,7 +194,7 @@ impl Contract {
             // If user over the forgiveness period.
             PromiseOrValue::Value(())
         } else {
-            // Within forgiveness period.
+            // Within forgiveness period. Return bond.
             Promise::new(env::predecessor_account_id())
                 .transfer(policy.bounty_bond.0)
                 .into()
@@ -213,7 +206,7 @@ impl Contract {
 
 #[cfg(test)]
 mod tests {
-    use near_sdk::test_utils::{accounts, VMContextBuilder};
+    use near_sdk::test_utils::{accounts, testing_env_with_promise_results, VMContextBuilder};
     use near_sdk::testing_env;
     use near_sdk_sim::to_yocto;
 
@@ -277,6 +270,8 @@ mod tests {
         );
 
         contract.act_proposal(1, Action::VoteApprove, None);
+        testing_env_with_promise_results(context.build(), PromiseResult::Successful(vec![]));
+        contract.on_proposal_callback(1);
 
         assert_eq!(contract.get_bounty_claims(accounts(1)).len(), 0);
         assert_eq!(contract.get_bounty(0).bounty.times, 1);
@@ -284,6 +279,8 @@ mod tests {
         contract.bounty_claim(0, U64::from(500));
         contract.bounty_done(0, None, "Bounty is done 2".to_string());
         contract.act_proposal(2, Action::VoteApprove, None);
+        testing_env_with_promise_results(context.build(), PromiseResult::Successful(vec![]));
+        contract.on_proposal_callback(2);
 
         assert_eq!(contract.get_bounty(0).bounty.times, 0);
     }
