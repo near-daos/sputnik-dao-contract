@@ -1,6 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedSet;
 use near_sdk::json_types::{Base64VecU8, U128};
+use near_sdk::PromiseResult;
 use near_sdk::{assert_self, env, ext_contract, near_bindgen, AccountId, Gas, Promise, PublicKey};
 
 const CODE: &[u8] = include_bytes!("../../sputnikdao2/res/sputnikdao2.wasm");
@@ -19,6 +20,12 @@ pub trait ExtSelf {
         attached_deposit: U128,
         predecessor_account_id: AccountId,
     ) -> bool;
+    fn on_check_daos_activity(&mut self, account_id: AccountId);
+}
+
+#[ext_contract(ext_dao)]
+pub trait ExtDao {
+    fn is_active(&mut self) -> bool;
 }
 
 #[near_bindgen]
@@ -58,6 +65,45 @@ impl SputnikDAOFactory {
         (from_index..std::cmp::min(from_index + limit, elements.len()))
             .filter_map(|index| elements.get(index))
             .collect()
+    }
+
+    // Check daos activity.
+    pub fn check_daos_activity(&self) {
+        for dao in self.daos.iter() {
+            ext_dao::is_active(dao.clone(), 0, Gas(10_000_000_000_000)).then(
+                ext_self::on_check_daos_activity(
+                    dao.clone(),
+                    env::current_account_id(),
+                    0,
+                    Gas(10_000_000_000_000),
+                ),
+            );
+        }
+    }
+
+    pub fn on_check_daos_activity(&mut self, account_id: AccountId) {
+        assert_eq!(
+            env::promise_results_count(),
+            1,
+            "DAO Factory Error: This is a callback method"
+        );
+
+        match env::promise_result(0) {
+            PromiseResult::NotReady => panic!(
+                "DAO Factory Error: Received PromiseResult::NotReady for {:?}",
+                account_id
+            ),
+            PromiseResult::Failed => panic!(
+                "DAO Factory Error: Received PromiseResult::Failed for {:?}",
+                account_id
+            ),
+            PromiseResult::Successful(result) => {
+                let is_active = near_sdk::serde_json::from_slice::<bool>(&result).unwrap();
+                if !is_active {
+                    self.daos.remove(&account_id);
+                }
+            }
+        }
     }
 
     #[payable]
