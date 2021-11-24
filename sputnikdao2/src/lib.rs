@@ -125,23 +125,29 @@ impl Contract {
     /// If active, do nothing.
     /// If inactive, transfer the available amount of NEAR in this DAO to the dedicated account.
     pub fn is_active(&mut self) -> bool {
-        let mut active = false;
-        let config = self
-            .get_config()
-            .self_destruct_config
-            .expect("ERR_NO_CONFIG");
+        let config = self.get_config().self_destruct_config;
+        if config.is_none() {
+            return true; // self-destruct is not configured, so this DAO is always considered active
+        }
+        let config = config.unwrap();
 
         // keep this in case we need to iterate through all of the proposals
         // for id in (0..self.last_proposal_id).rev() {}
+
+        if self.last_proposal_id == 0 {
+            return true; // nothing to check since there are no proposals in this DAO
+        }
 
         let last_proposal: Proposal = self
             .proposals
             .get(&(self.last_proposal_id - 1))
             .expect("ERR_NO_PROPOSAL")
             .into();
+
         let allowed_inactivity_time =
             1_000_000_000 * 60 * 60 * 24 * config.max_days_of_inactivity.0;
 
+        let mut active = false;
         if last_proposal.submission_time.0 + allowed_inactivity_time >= env::block_timestamp() {
             active = true; // it means this DAO is still active
         }
