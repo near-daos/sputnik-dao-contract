@@ -355,7 +355,6 @@ impl Policy {
         roles: Vec<String>,
         total_supply: Balance,
     ) -> ProposalStatus {
-        env::log_str(&format!("{:?}", roles));
         assert!(
             matches!(
                 proposal.status,
