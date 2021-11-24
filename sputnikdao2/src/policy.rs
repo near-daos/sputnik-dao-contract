@@ -160,6 +160,18 @@ pub struct Policy {
     pub bounty_forgiveness_period: U64,
 }
 
+/// Partial update to the policy.
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
+#[serde(crate = "near_sdk::serde")]
+pub struct PolicyUpdate {
+    /// Path in the policy to update using JSON format.
+    /// e.g. `roles/0/name`
+    pub path: String,
+    /// New value in JSON format to replace.
+    pub new_value: String,
+}
+
 /// Versioned policy.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
@@ -391,6 +403,47 @@ impl Policy {
         }
         proposal.status.clone()
     }
+}
+
+/// Walks down the policy in JSON format and updates part of it with new value,
+pub(crate) fn update_policy(policy: &Policy, updates: &[PolicyUpdate]) -> Policy {
+    let mut policy_value = near_sdk::serde_json::to_value(policy).expect("Failed to deserialize");
+    for update in updates {
+        let parts: Vec<&str> = update.path.split("/").collect();
+        let mut item = &mut policy_value;
+        let new_value_item =
+            near_sdk::serde_json::from_str::<near_sdk::serde_json::Value>(&update.new_value)
+                .expect("ERR_POLICY_VALUE");
+        // Walk the path to the item to change.
+        for i in 0..parts.len() {
+            let part = parts[i];
+            match item {
+                near_sdk::serde_json::Value::Array(subitems) => {
+                    let index = part
+                        .parse::<usize>()
+                        .expect(&format!("ERR_POLICY_PATH: {} must be integer", part));
+                    if i == parts.len() - 1 {
+                        subitems[index] = new_value_item.clone();
+                    } else {
+                        item = item
+                            .get_mut(index)
+                            .expect(&format!("ERR_POLICY_PATH: {} not found in policy", part));
+                    }
+                }
+                near_sdk::serde_json::Value::Object(subitems) => {
+                    if i == parts.len() - 1 {
+                        subitems.insert(part.to_string(), new_value_item.clone());
+                    } else {
+                        item = item
+                            .get_mut(part)
+                            .expect(&format!("ERR_POLICY_PATH: {} not found in policy", part));
+                    }
+                }
+                _ => env::panic_str(&format!("ERR_POLICY_PATH: {} not array or object", part)),
+            }
+        }
+    }
+    near_sdk::serde_json::from_value(policy_value).expect("Failed to serialize")
 }
 
 #[cfg(test)]

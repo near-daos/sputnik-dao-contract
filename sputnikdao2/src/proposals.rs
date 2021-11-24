@@ -5,7 +5,7 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{Base64VecU8, U128, U64};
 use near_sdk::{log, AccountId, Balance, Gas, PromiseOrValue};
 
-use crate::policy::UserInfo;
+use crate::policy::{update_policy, PolicyUpdate, UserInfo};
 use crate::types::{
     upgrade_remote, upgrade_self, Action, Config, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR,
 };
@@ -91,6 +91,8 @@ pub enum ProposalKind {
     },
     /// Just a signaling vote, with no execution.
     Vote,
+    /// Update part of the policy.
+    UpdatePolicy { updates: Vec<PolicyUpdate> },
 }
 
 impl ProposalKind {
@@ -109,6 +111,7 @@ impl ProposalKind {
             ProposalKind::AddBounty { .. } => "add_bounty",
             ProposalKind::BountyDone { .. } => "bounty_done",
             ProposalKind::Vote => "vote",
+            ProposalKind::UpdatePolicy { .. } => "update_policy",
         }
     }
 }
@@ -341,6 +344,11 @@ impl Contract {
                 receiver_id,
             } => self.internal_execute_bounty_payout(*bounty_id, &receiver_id.clone().into(), true),
             ProposalKind::Vote => PromiseOrValue::Value(()),
+            ProposalKind::UpdatePolicy { updates } => {
+                self.policy
+                    .set(&VersionedPolicy::Current(update_policy(policy, updates)));
+                PromiseOrValue::Value(())
+            }
         };
         match result {
             PromiseOrValue::Promise(promise) => promise

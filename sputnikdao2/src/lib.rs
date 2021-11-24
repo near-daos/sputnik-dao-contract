@@ -217,6 +217,7 @@ mod tests {
     use crate::proposals::ProposalStatus;
 
     use super::*;
+    use crate::policy::PolicyUpdate;
 
     fn create_proposal(context: &mut VMContextBuilder, contract: &mut Contract) -> u64 {
         testing_env!(context.attached_deposit(to_yocto("1")).build());
@@ -371,5 +372,27 @@ mod tests {
                 policy: VersionedPolicy::Default(vec![]),
             },
         });
+    }
+
+    #[test]
+    fn test_update_policy() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        let mut contract = Contract::new(
+            Config::test_config(),
+            VersionedPolicy::Default(vec![accounts(1).into()]),
+        );
+        testing_env!(context.attached_deposit(to_yocto("1")).build());
+        let id = contract.add_proposal(ProposalInput {
+            description: "test".to_string(),
+            kind: ProposalKind::UpdatePolicy {
+                updates: vec![PolicyUpdate {
+                    path: "roles/0/name".to_string(),
+                    new_value: "\"test\"".to_string(),
+                }],
+            },
+        });
+        contract.act_proposal(id, Action::VoteApprove, None);
+        assert_eq!(contract.get_policy().roles[0].name, "test");
     }
 }
