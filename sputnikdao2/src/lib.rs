@@ -163,7 +163,9 @@ impl Contract {
         if !active {
             // TBD: Do we need to remove this DAO? If so, we should delete this account and also send the
             // locked amount to the dedicated account.
-            Promise::new(config.dedicated_account).transfer(self.get_available_amount().0);
+
+            // TODO: fix self.get_available_amount() which is not reporting the right value
+            // Promise::new(config.dedicated_account).transfer(self.get_available_amount().0);
         }
 
         active

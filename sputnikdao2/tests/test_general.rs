@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use near_sdk::json_types::U128;
+use near_sdk::serde_json::json;
 use near_sdk::AccountId;
 use near_sdk_sim::{call, to_yocto, view};
 
@@ -265,14 +266,45 @@ fn test_check_daos_activity() {
     assert_eq!("dao2.dao_factory", dao_list[1].as_str());
     assert_eq!("dao3.dao_factory", dao_list[2].as_str());
 
-    // TODO: add a proposal to dao2
+    let user1 = root.create_user(user(1), to_yocto("1000"));
+    let proposal_id: u64 = root
+        .call(
+            "dao2.dao_factory".parse().unwrap(),
+            "add_proposal",
+            &json!({
+                    "proposal": ProposalInput {
+                description: "test".to_string(),
+                kind: ProposalKind::AddMemberToRole {
+                    member_id: user1.account_id(),
+                    role: "dao2".to_string(),
+                },
+            },
+                })
+            .to_string()
+            .into_bytes(),
+            300_000_000_000_000,
+            to_yocto("1"),
+        )
+        .unwrap_json();
+    assert_eq!(0, proposal_id);
 
-    // call!(&root, dao_factory.check_daos_activity()).assert_success();
+    let is_active: bool = root
+        .call(
+            "dao2.dao_factory".parse().unwrap(),
+            "is_active",
+            &[],
+            300_000_000_000_000,
+            0,
+        )
+        .unwrap_json();
+    assert!(!is_active);
 
-    // let dao_list = view!(dao_factory.get_dao_list()).unwrap_json::<Vec<AccountId>>();
-    // assert_eq!(2, dao_list.len());
-    // assert_eq!("dao1.dao_factory", dao_list[0].as_str());
-    // assert_eq!("dao3.dao_factory", dao_list[1].as_str());
+    call!(&root, dao_factory.check_daos_activity()).assert_success();
+
+    let dao_list = view!(dao_factory.get_dao_list()).unwrap_json::<Vec<AccountId>>();
+    assert_eq!(2, dao_list.len());
+    assert_eq!("dao1.dao_factory", dao_list[0].as_str());
+    assert_eq!("dao3.dao_factory", dao_list[1].as_str());
 }
 
 /// Test various cases that must fail.
