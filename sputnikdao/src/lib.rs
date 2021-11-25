@@ -403,7 +403,7 @@ impl SputnikDAO {
 mod tests {
     use super::*;
     use near_sdk::test_utils::{accounts, VMContextBuilder};
-    use near_sdk::{testing_env, MockedBlockchain};
+    use near_sdk::testing_env;
 
     fn vote(dao: &mut SputnikDAO, proposal_id: u64, votes: Vec<(usize, Vote)>) {
         for (id, vote) in votes {

@@ -110,8 +110,8 @@ impl WeightOrRatio {
 }
 
 /// How the voting policy votes get weigthed.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub enum WeightKind {
     /// Using token amounts and total delegated at the moment.
@@ -360,9 +360,11 @@ impl Policy {
         roles: Vec<String>,
         total_supply: Balance,
     ) -> ProposalStatus {
-        assert_eq!(
-            proposal.status,
-            ProposalStatus::InProgress,
+        assert!(
+            matches!(
+                proposal.status,
+                ProposalStatus::InProgress | ProposalStatus::Failed
+            ),
             "ERR_PROPOSAL_NOT_IN_PROGRESS"
         );
         if proposal.submission_time.0 + self.proposal_period.0 < env::block_timestamp() {
@@ -370,34 +372,29 @@ impl Policy {
             return ProposalStatus::Expired;
         };
         for role in roles {
-            let role_str = format!("{:#?}", &role);
-            env::log_str(&role_str);
             let role_info = self.internal_get_role(&role).expect("ERR_MISSING_ROLE");
             let vote_policy = role_info
                 .vote_policy
                 .get(&proposal.kind.to_policy_label().to_string())
                 .unwrap_or(&self.default_vote_policy);
+            let total_weight = match &role_info.kind {
+                // Skip role that covers everyone as it doesn't provide a total size.
+                RoleKind::Everyone => continue,
+                RoleKind::Group(group) => {
+                    if vote_policy.weight_kind == WeightKind::RoleWeight {
+                        group.len() as Balance
+                    } else {
+                        total_supply
+                    }
+                }
+                RoleKind::Member(_) => total_supply,
+            };
             let threshold = std::cmp::max(
                 vote_policy.quorum.0,
-                match &vote_policy.weight_kind {
-                    WeightKind::TokenWeight => vote_policy.threshold.to_weight(total_supply),
-                    WeightKind::RoleWeight => {
-                        vote_policy
-                            .threshold
-                            .to_weight(match role_info.kind.get_role_size() {
-                                Some(size) => size as Balance,
-                                // skip this role, as it's not a sizable
-                                // one
-                                None => continue,
-                            })
-                    }
-                },
+                vote_policy.threshold.to_weight(total_weight),
             );
             // Check if there is anything voted above the threshold specified by policy for given role.
-            let vote_counts = proposal
-                .vote_counts
-                .get(&role)
-                .unwrap_or_else(|| &[0, 0, 0]);
+            let vote_counts = proposal.vote_counts.get(&role).unwrap_or(&[0u128; 3]);
             if vote_counts[Vote::Approve as usize] >= threshold {
                 return ProposalStatus::Approved;
             } else if vote_counts[Vote::Reject as usize] >= threshold {
