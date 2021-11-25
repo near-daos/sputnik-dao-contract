@@ -156,7 +156,7 @@ impl Contract {
             1_000_000_000 * 60 * 60 * 24 * config.max_days_of_inactivity.0;
 
         let mut active = false;
-        if last_proposal.submission_time.0 + allowed_inactivity_time >= env::block_timestamp() {
+        if last_proposal.submission_time.0 + allowed_inactivity_time > env::block_timestamp() {
             active = true; // it means this DAO is still active
         }
 
@@ -250,11 +250,13 @@ pub extern "C" fn store_blob() {
 
 #[cfg(test)]
 mod tests {
+    use near_sdk::json_types::U64;
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::testing_env;
     use near_sdk_sim::to_yocto;
 
     use crate::proposals::ProposalStatus;
+    use crate::types::SelfDestructConfig;
 
     use super::*;
 
@@ -313,6 +315,68 @@ mod tests {
                 role: "council".to_string(),
             },
         });
+    }
+
+    #[test]
+    fn test_is_active_no_config() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        let mut contract = Contract::new(
+            Config::test_config(),
+            VersionedPolicy::Default(vec![accounts(1).into()]),
+        );
+        create_proposal(&mut context, &mut contract);
+        assert!(contract.get_config().self_destruct_config.is_none());
+        assert!(contract.is_active());
+    }
+
+    #[test]
+    fn test_is_active_no_proposal() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        let mut config = Config::test_config();
+        config.self_destruct_config = Some(SelfDestructConfig {
+            max_days_of_inactivity: U64(7),
+            dedicated_account: accounts(2),
+        });
+        let mut contract =
+            Contract::new(config, VersionedPolicy::Default(vec![accounts(1).into()]));
+        assert!(contract.get_config().self_destruct_config.is_some());
+        assert!(contract.is_active());
+    }
+
+    #[test]
+    fn test_is_active_success() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        let mut config = Config::test_config();
+        config.self_destruct_config = Some(SelfDestructConfig {
+            max_days_of_inactivity: U64(7),
+            dedicated_account: accounts(2),
+        });
+        let mut contract =
+            Contract::new(config, VersionedPolicy::Default(vec![accounts(1).into()]));
+        create_proposal(&mut context, &mut contract);
+
+        assert!(contract.get_config().self_destruct_config.is_some());
+        assert!(contract.is_active());
+    }
+
+    #[test]
+    fn test_is_active_failure() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        let mut config = Config::test_config();
+        config.self_destruct_config = Some(SelfDestructConfig {
+            max_days_of_inactivity: U64(0),
+            dedicated_account: accounts(2),
+        });
+        let mut contract =
+            Contract::new(config, VersionedPolicy::Default(vec![accounts(1).into()]));
+        create_proposal(&mut context, &mut contract);
+
+        assert!(contract.get_config().self_destruct_config.is_some());
+        assert!(!contract.is_active());
     }
 
     #[test]
