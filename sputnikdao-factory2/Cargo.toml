@@ -9,4 +9,4 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-near-sdk = "4.0.0-pre.4"
+near-sdk = { version = "4.0.0-pre.4", features = ["unstable"]  }
