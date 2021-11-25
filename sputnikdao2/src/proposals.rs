@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::convert::TryFrom;
 
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
@@ -28,6 +27,8 @@ pub enum ProposalStatus {
     Expired,
     /// If proposal was moved to Hub or somewhere else.
     Moved,
+    /// If proposal has failed when finalizing. Allowed to re-finalize again to either expire or approved.
+    Failed,
 }
 
 /// Function call arguments.
@@ -241,7 +242,6 @@ impl Contract {
                     ONE_YOCTO_NEAR,
                     GAS_FOR_FT_TRANSFER,
                 )
-                .into()
             } else {
                 ext_fungible_token::ft_transfer(
                     receiver_id.clone(),
@@ -251,9 +251,13 @@ impl Contract {
                     ONE_YOCTO_NEAR,
                     GAS_FOR_FT_TRANSFER,
                 )
-                .into()
             }
+            .into()
         }
+    }
+
+    fn internal_return_bond(&self, policy: &Policy, proposal: &Proposal) -> Promise {
+        Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond.0)
     }
 
     /// Executes given proposal and updates the contract's state.
@@ -261,10 +265,9 @@ impl Contract {
         &mut self,
         policy: &Policy,
         proposal: &Proposal,
+        proposal_id: u64,
     ) -> PromiseOrValue<()> {
-        // Return the proposal bond.
-        Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond.0);
-        match &proposal.kind {
+        let result = match &proposal.kind {
             ProposalKind::ChangeConfig { config } => {
                 self.config.set(config);
                 PromiseOrValue::Value(())
@@ -309,11 +312,7 @@ impl Contract {
                 method_name,
                 hash,
             } => {
-                upgrade_remote(
-                    &receiver_id.clone().into(),
-                    method_name,
-                    &CryptoHash::from(hash.clone()),
-                );
+                upgrade_remote(&receiver_id, method_name, &CryptoHash::from(hash.clone()));
                 PromiseOrValue::Value(())
             }
             ProposalKind::Transfer {
@@ -323,7 +322,7 @@ impl Contract {
                 msg,
             } => self.internal_payout(
                 &token_id,
-                &receiver_id.clone().into(),
+                &receiver_id,
                 amount.0,
                 proposal.description.clone(),
                 msg.clone(),
@@ -342,7 +341,45 @@ impl Contract {
                 receiver_id,
             } => self.internal_execute_bounty_payout(*bounty_id, &receiver_id.clone().into(), true),
             ProposalKind::Vote => PromiseOrValue::Value(()),
+        };
+        match result {
+            PromiseOrValue::Promise(promise) => promise
+                .then(ext_self::on_proposal_callback(
+                    proposal_id,
+                    env::current_account_id(),
+                    0,
+                    GAS_FOR_FT_TRANSFER,
+                ))
+                .into(),
+            PromiseOrValue::Value(()) => self.internal_return_bond(&policy, &proposal).into(),
         }
+    }
+
+    pub(crate) fn internal_callback_proposal_success(
+        &mut self,
+        proposal: &mut Proposal,
+    ) -> PromiseOrValue<()> {
+        let policy = self.policy.get().unwrap().to_policy();
+        if let ProposalKind::BountyDone { bounty_id, .. } = proposal.kind {
+            let mut bounty: Bounty = self.bounties.get(&bounty_id).expect("ERR_NO_BOUNTY").into();
+            if bounty.times == 0 {
+                self.bounties.remove(&bounty_id);
+            } else {
+                bounty.times -= 1;
+                self.bounties
+                    .insert(&bounty_id, &VersionedBounty::Default(bounty));
+            }
+        }
+        proposal.status = ProposalStatus::Approved;
+        self.internal_return_bond(&policy, &proposal).into()
+    }
+
+    pub(crate) fn internal_callback_proposal_fail(
+        &mut self,
+        proposal: &mut Proposal,
+    ) -> PromiseOrValue<()> {
+        proposal.status = ProposalStatus::Failed;
+        PromiseOrValue::Value(())
     }
 
     /// Process rejecting proposal.
@@ -453,10 +490,9 @@ impl Contract {
                 false
             }
             Action::VoteApprove | Action::VoteReject | Action::VoteRemove => {
-                assert_eq!(
-                    proposal.status,
-                    ProposalStatus::InProgress,
-                    "ERR_PROPOSAL_NOT_IN_PROGRESS"
+                assert!(
+                    matches!(proposal.status, ProposalStatus::InProgress),
+                    "ERR_PROPOSAL_NOT_READY_FOR_VOTE"
                 );
                 proposal.update_votes(
                     &sender_id,
@@ -470,17 +506,17 @@ impl Contract {
                     policy.proposal_status(&proposal, roles, self.total_delegation_amount);
                 match proposal.status {
                     ProposalStatus::Approved => {
-                        self.internal_execute_proposal(&policy, &proposal);
-                        true
-                    }
-                    ProposalStatus::Rejected => {
-                        self.internal_reject_proposal(&policy, &proposal, true);
+                        self.internal_execute_proposal(&policy, &proposal, id);
                         true
                     }
                     ProposalStatus::Removed => {
                         self.internal_reject_proposal(&policy, &proposal, false);
                         self.proposals.remove(&id);
                         false
+                    }
+                    ProposalStatus::Rejected => {
+                        self.internal_reject_proposal(&policy, &proposal, true);
+                        true
                     }
                     _ => {
                         // Still in progress, moved or expired.
@@ -488,6 +524,13 @@ impl Contract {
                     }
                 }
             }
+            // There are two cases when proposal must be finalized manually: expired or failed.
+            // In case of failed, we just recompute the status and if it still approved, we re-execute the proposal.
+            // In case of expired, we reject the proposal and return the bond.
+            // Corner cases:
+            //  - if proposal expired during the failed state - it will be marked as expired.
+            //  - if the number of votes in the group has changed (new members has been added) -
+            //      the proposal can loose it's approved state. In this case new proposal needs to be made, this one can only expire.
             Action::Finalize => {
                 proposal.status = policy.proposal_status(
                     &proposal,
@@ -495,30 +538,17 @@ impl Contract {
                     self.total_delegation_amount,
                 );
                 match proposal.status {
-                    // no decision made
-                    ProposalStatus::InProgress => false,
                     ProposalStatus::Approved => {
-                        self.internal_execute_proposal(&policy, &proposal);
-                        true
-                    }
-                    ProposalStatus::Rejected => {
-                        self.internal_reject_proposal(&policy, &proposal, true);
-                        true
-                    }
-                    ProposalStatus::Removed => {
-                        self.internal_reject_proposal(&policy, &proposal, false);
-                        self.proposals.remove(&id);
-                        false
+                        self.internal_execute_proposal(&policy, &proposal, id);
                     }
                     ProposalStatus::Expired => {
                         self.internal_reject_proposal(&policy, &proposal, true);
-                        true
                     }
-                    ProposalStatus::Moved => {
-                        // not yet implemented
-                        env::panic_str("ERR_TODO_MOVED_PROPOSAL")
+                    _ => {
+                        env::panic_str("ERR_PROPOSAL_NOT_EXPIRED_OR_FAILED");
                     }
                 }
+                true
             }
             Action::MoveToHub => false,
         };

@@ -1,11 +1,10 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
-#[cfg(target_arch = "wasm32")]
-use near_sdk::env::*;
 use near_sdk::json_types::{Base58CryptoHash, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    env, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash, PanicOnDefault, Promise,
+    env, ext_contract, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash,
+    PanicOnDefault, Promise, PromiseOrValue, PromiseResult,
 };
 
 use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
@@ -34,6 +33,13 @@ pub enum StorageKeys {
     BountyClaimers,
     BountyClaimCounts,
     Blobs,
+}
+
+/// After payouts, allows a callback
+#[ext_contract(ext_self)]
+pub trait ExtSelf {
+    /// Callback after proposal execution.
+    fn on_proposal_callback(&mut self, proposal_id: u64) -> PromiseOrValue<()>;
 }
 
 #[near_bindgen]
@@ -126,6 +132,39 @@ impl Contract {
         Promise::new(account_id).transfer(storage_cost)
     }
 }
+
+// Cross-contract calls
+
+#[near_bindgen]
+impl Contract {
+    /// Receiving callback after the proposal has been finalized.
+    /// If successful, returns bond money to the proposal originator.
+    /// If the proposal execution failed (funds didn't transfer or function call failure),
+    /// move proposal to "Failed" state.
+    #[private]
+    pub fn on_proposal_callback(&mut self, proposal_id: u64) -> PromiseOrValue<()> {
+        let mut proposal: Proposal = self
+            .proposals
+            .get(&proposal_id)
+            .expect("ERR_NO_PROPOSAL")
+            .into();
+        assert_eq!(
+            env::promise_results_count(),
+            1,
+            "ERR_UNEXPECTED_CALLBACK_PROMISES"
+        );
+        let result = match env::promise_result(0) {
+            PromiseResult::NotReady => unreachable!(),
+            PromiseResult::Successful(_) => self.internal_callback_proposal_success(&mut proposal),
+            PromiseResult::Failed => self.internal_callback_proposal_fail(&mut proposal),
+        };
+        self.proposals
+            .insert(&proposal_id, &VersionedProposal::Default(proposal.into()));
+        result
+    }
+}
+
+// Upgrading the contract
 
 /// Stores attached data into blob store and returns hash of it.
 /// Implemented to avoid loading the data into WASM for optimal gas usage.

@@ -5,8 +5,7 @@ use crate::utils::{
     add_member_to_role_proposal, add_proposal, setup_dao, should_fail_with, vote, Contract,
 };
 use near_sdk::AccountId;
-use near_sdk_sim::{call, to_yocto, view};
-use near_sdk_sim::{ExecutionResult, UserAccount};
+use near_sdk_sim::{call, to_yocto, view, ExecutionResult, UserAccount};
 use sputnikdao2::{
     Action, Policy, Proposal, ProposalInput, ProposalKind, ProposalPermission, ProposalStatus,
     RoleKind, RolePermission, VersionedPolicy,
@@ -121,7 +120,6 @@ fn quit(
     dao_name_check: String,
 ) -> Result<bool, String> {
     use near_sdk_sim::transaction::ExecutionStatus;
-    use near_sdk_sim::ExecutionResult;
     let res: ExecutionResult = call!(
         user,
         dao.quit_from_all_roles(user_check.account_id.clone(), dao_name_check),
@@ -360,6 +358,7 @@ fn test_quit_removes_votes1() {
 ///
 /// https://github.com/near-daos/sputnik-dao-contract/issues/41#issuecomment-971474598
 #[test]
+#[ignore]
 fn test_quit_removes_votes2() {
     let (root, dao) = setup_dao();
     let user2 = root.create_user(user(2), to_yocto("1000"));
@@ -398,7 +397,7 @@ fn test_quit_removes_votes2() {
 
     // user2 tries to finalize t1
     let res = call!(user2, dao.act_proposal(t1, Action::Finalize, None));
-    should_fail_with(res, 0, "ERR_FINALIZE_(TODO)");
+    should_fail_with(res, 0, "ERR_PERMISSION_DENIED");
     // confirm t1 did not get approved
     assert_eq!(
         view!(dao.get_proposal(t1)).unwrap_json::<Proposal>().status,
