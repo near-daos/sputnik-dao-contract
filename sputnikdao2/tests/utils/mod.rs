@@ -19,7 +19,7 @@ near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
     STAKING_WASM_BYTES => "../sputnik-staking/res/sputnik_staking.wasm",
 }
 
-type Contract = ContractAccount<DAOContract>;
+pub type Contract = ContractAccount<DAOContract>;
 
 pub fn base_token() -> Option<AccountId> {
     None
@@ -29,6 +29,22 @@ pub fn should_fail(r: ExecutionResult) {
     match r.status() {
         ExecutionStatus::Failure(_) => {}
         _ => panic!("Should fail"),
+    }
+}
+
+pub fn should_fail_with(r: ExecutionResult, action: u32, err: &str) {
+    let err = format!("Action #{}: Smart contract panicked: {}", action, err);
+    match r.status() {
+        ExecutionStatus::Failure(txerr_) => {
+            assert_eq!(txerr_.to_string(), err)
+        }
+        ExecutionStatus::Unknown => panic!("Got Unknown. Should have failed with {}", err),
+        ExecutionStatus::SuccessValue(_v) => {
+            panic!("Got SuccessValue. Should have failed with {}", err)
+        }
+        ExecutionStatus::SuccessReceiptId(_id) => {
+            panic!("Got SuccessReceiptId. Should have failed with {}", err)
+        }
     }
 }
 
@@ -85,15 +101,21 @@ pub fn add_member_proposal(
     dao: &Contract,
     member_id: AccountId,
 ) -> ExecutionResult {
+    add_member_to_role_proposal(root, dao, member_id, "council".to_string())
+}
+
+pub fn add_member_to_role_proposal(
+    root: &UserAccount,
+    dao: &Contract,
+    member_id: AccountId,
+    role: String,
+) -> ExecutionResult {
     add_proposal(
         root,
         dao,
         ProposalInput {
             description: "test".to_string(),
-            kind: ProposalKind::AddMemberToRole {
-                member_id: member_id,
-                role: "council".to_string(),
-            },
+            kind: ProposalKind::AddMemberToRole { member_id, role },
         },
     )
 }

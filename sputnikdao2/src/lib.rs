@@ -8,11 +8,14 @@ use near_sdk::{
 };
 
 use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
-pub use crate::policy::{Policy, RoleKind, RolePermission, VersionedPolicy, VotePolicy};
+pub use crate::policy::{
+    Policy, ProposalPermission, RoleKind, RolePermission, VersionedPolicy, VotePolicy,
+};
 use crate::proposals::VersionedProposal;
 pub use crate::proposals::{Proposal, ProposalInput, ProposalKind, ProposalStatus};
 pub use crate::types::{Action, Config};
 
+mod basic_action;
 mod bounties;
 mod delegation;
 mod policy;

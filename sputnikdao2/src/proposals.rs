@@ -469,12 +469,18 @@ impl Contract {
     /// Act on given proposal by id, if permissions allow.
     /// Memo is logged but not stored in the state. Can be used to leave notes or explain the action.
     pub fn act_proposal(&mut self, id: u64, action: Action, memo: Option<String>) {
-        let mut proposal: Proposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL").into();
+        let mut proposal: Proposal = self
+            .proposals
+            .get(&id)
+            .unwrap_or_else(|| env::panic_str("ERR_NO_PROPOSAL"))
+            .into();
         let policy = self.policy.get().unwrap().to_policy();
         // Check permissions for the given action.
         let (roles, allowed) =
             policy.can_execute_action(self.internal_user_info(), &proposal.kind, &action);
-        assert!(allowed, "ERR_PERMISSION_DENIED");
+        if !allowed {
+            env::panic_str("ERR_PERMISSION_DENIED")
+        }
         let sender_id = env::predecessor_account_id();
         // Update proposal given action. Returns true if should be updated in storage.
         let update = match action {
