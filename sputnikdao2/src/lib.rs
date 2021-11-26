@@ -156,6 +156,7 @@ impl Contract {
             1_000_000_000 * 60 * 60 * 24 * config.max_days_of_inactivity.0;
 
         let mut active = false;
+        // TBD: is this condition what we want?
         if last_proposal.submission_time.0 + allowed_inactivity_time > env::block_timestamp() {
             active = true; // it means this DAO is still active
         }
