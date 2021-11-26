@@ -245,7 +245,7 @@ fn test_check_daos_activity() {
         dao_factory.create(
             "dao2".parse().unwrap(),
             None,
-            "{\"config\": {\"name\": \"Test2\", \"purpose\": \"to test2\", \"metadata\": \"\", \"self_destruct_config\": {\"max_days_of_inactivity\": \"0\", \"dedicated_account\": \"root\"}}, \"policy\": [\"dao2\"]}".as_bytes().to_vec().into()
+            "{\"config\": {\"name\": \"Test2\", \"purpose\": \"to test2\", \"metadata\": \"\", \"self_destruct_config\": {\"max_days_of_inactivity\": \"0\", \"dedicated_account\": \"user1\"}}, \"policy\": [\"dao2\"]}".as_bytes().to_vec().into()
         ),
         deposit = to_yocto("10")
     ).assert_success();
@@ -288,18 +288,21 @@ fn test_check_daos_activity() {
         .unwrap_json();
     assert_eq!(0, proposal_id);
 
-    let is_active: bool = root
+    let refund_amount: U128 = root
         .call(
             "dao2.dao_factory".parse().unwrap(),
-            "is_active",
+            "get_available_amount",
             &[],
             300_000_000_000_000,
             0,
         )
         .unwrap_json();
-    assert!(!is_active);
 
+    let before_refund = user1.account().unwrap().amount;
+    assert_eq!(before_refund, to_yocto("1000"));
     call!(&root, dao_factory.check_daos_activity()).assert_success();
+    let after_refund = user1.account().unwrap().amount;
+    assert!(before_refund + refund_amount.0 <= after_refund);
 
     let dao_list = view!(dao_factory.get_dao_list()).unwrap_json::<Vec<AccountId>>();
     assert_eq!(2, dao_list.len());

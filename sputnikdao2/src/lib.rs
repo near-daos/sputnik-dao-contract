@@ -159,10 +159,7 @@ impl Contract {
             // TBD: Do we need to remove this DAO? If so, we should delete this account and also send the
             // locked amount to the dedicated account.
 
-            let locked_amount_for_storage =
-                env::storage_byte_cost() * (env::storage_usage() as u128);
-            let refund_amount = env::account_balance() - locked_amount_for_storage;
-            Promise::new(config.dedicated_account).transfer(refund_amount);
+            Promise::new(config.dedicated_account).transfer(self.get_available_amount().0);
         }
 
         active
