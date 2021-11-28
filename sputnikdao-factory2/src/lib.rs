@@ -81,6 +81,17 @@ impl SputnikDAOFactory {
         }
     }
 
+    /// Tries to upgrade given account created by this factory to the latest code.
+    pub fn upgrade(&self, account_id: AccountId) {
+        self.assert_owner();
+        assert!(
+            self.daos.contains(&account_id),
+            "Must be contract created by factory"
+        );
+        self.factory_manager
+            .update_contract(account_id, self.get_latest_code_hash(), "update");
+    }
+
     pub fn get_dao_list(&self) -> Vec<AccountId> {
         self.daos.to_vec()
     }
