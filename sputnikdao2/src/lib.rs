@@ -47,6 +47,9 @@ pub struct Contract {
     /// Voting and permissions policy.
     pub policy: LazyOption<VersionedPolicy>,
 
+    /// Amount of $NEAR locked for bonds.
+    pub locked_amount: Balance,
+
     /// Vote staking contract id. That contract must have this account as owner.
     pub staking_id: Option<AccountId>,
     /// Delegated  token total amount.
@@ -89,6 +92,7 @@ impl Contract {
             bounty_claimers: LookupMap::new(StorageKeys::BountyClaimers),
             bounty_claims_count: LookupMap::new(StorageKeys::BountyClaimCounts),
             blobs: LookupMap::new(StorageKeys::Blobs),
+            locked_amount: 0,
         }
     }
 

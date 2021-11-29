@@ -50,14 +50,14 @@ impl Contract {
     }
 
     /// Returns locked amount of NEAR that is used for storage.
-    pub fn get_locked_amount(&self) -> U128 {
-        let locked_amount = env::storage_byte_cost() * (env::storage_usage() as u128);
-        U128(locked_amount)
+    pub fn get_locked_storage_amount(&self) -> U128 {
+        let locked_storage_amount = env::storage_byte_cost() * (env::storage_usage() as u128);
+        U128(locked_storage_amount)
     }
 
-    /// Returns available amount of NEAR that can be spent (outside of amount for storage).
+    /// Returns available amount of NEAR that can be spent (outside of amount for storage and bonds).
     pub fn get_available_amount(&self) -> U128 {
-        U128(env::account_balance() - self.get_locked_amount().0)
+        U128(env::account_balance() - self.get_locked_storage_amount().0 - self.locked_amount)
     }
 
     /// Returns total delegated stake.
