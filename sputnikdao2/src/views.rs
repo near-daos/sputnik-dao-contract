@@ -64,6 +64,14 @@ impl Contract {
         U128(self.delegations.get(&account_id).unwrap_or_default())
     }
 
+    /// Combines balance and total amount for calling from external contracts.
+    pub fn delegation_balance_ratio(&self, account_id: AccountId) -> (U128, U128) {
+        (
+            self.delegation_balance_of(account_id),
+            self.delegation_total_supply(),
+        )
+    }
+
     /// Last proposal's id.
     pub fn get_last_proposal_id(&self) -> u64 {
         self.last_proposal_id
