@@ -39,7 +39,7 @@ impl Contract {
         (
             U128(prev_amount),
             U128(new_amount),
-            U128(self.total_delegation_amount),
+            self.delegation_total_supply(),
         )
     }
 
@@ -60,7 +60,7 @@ impl Contract {
         (
             U128(prev_amount),
             U128(new_amount),
-            U128(self.total_delegation_amount),
+            self.delegation_total_supply(),
         )
     }
 }
