@@ -120,19 +120,18 @@ near view $SPUTNIK_ID get_proposals '{"from_index": 0, "limit": 10}'
 
 Each kind of proposal represents an operation the DAO can perform. Proposal kinds are:
 ```
-ProposalKind::ChangeConfig { .. } => "config",
-ProposalKind::ChangePolicy { .. } => "policy",
-ProposalKind::AddMemberToRole { .. } => "add_member_to_role",
-ProposalKind::RemoveMemberFromRole { .. } => "remove_member_from_role",
-ProposalKind::FunctionCall { .. } => "call",
-ProposalKind::UpgradeSelf { .. } => "upgrade_self",
-ProposalKind::UpgradeRemote { .. } => "upgrade_remote",
-ProposalKind::Transfer { .. } => "transfer",
-ProposalKind::Mint { .. } => "mint",
-ProposalKind::Burn { .. } => "burn",
-ProposalKind::AddBounty { .. } => "add_bounty",
-ProposalKind::BountyDone { .. } => "bounty_done",
-ProposalKind::Vote => "vote",
+ProposalKind::ChangeConfig { .. },
+ProposalKind::ChangePolicy { .. },
+ProposalKind::AddMemberToRole { .. },
+ProposalKind::RemoveMemberFromRole { .. },
+ProposalKind::FunctionCall { .. },
+ProposalKind::UpgradeSelf { .. },
+ProposalKind::UpgradeRemote { .. },
+ProposalKind::Transfer { .. },
+ProposalKind::SetStakingContract { .. },
+ProposalKind::AddBounty { .. },
+ProposalKind::BountyDone { .. },
+ProposalKind::Vote,
 ```
 ### Voting Policy
 
