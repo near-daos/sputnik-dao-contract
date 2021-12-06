@@ -47,7 +47,7 @@ pub struct Contract {
     /// Voting and permissions policy.
     pub policy: LazyOption<VersionedPolicy>,
 
-    /// Amount of $NEAR locked for storage / bonds.
+    /// Amount of $NEAR locked for bonds.
     pub locked_amount: Balance,
 
     /// Vote staking contract id. That contract must have this account as owner.
@@ -92,8 +92,7 @@ impl Contract {
             bounty_claimers: LookupMap::new(StorageKeys::BountyClaimers),
             bounty_claims_count: LookupMap::new(StorageKeys::BountyClaimCounts),
             blobs: LookupMap::new(StorageKeys::Blobs),
-            // TODO: only accounts for contract but not for this state object. Can just add fixed size of it.
-            locked_amount: env::storage_byte_cost() * (env::storage_usage() as u128),
+            locked_amount: 0,
         }
     }
 
@@ -125,7 +124,6 @@ impl Contract {
         env::storage_remove(&hash);
         let blob_len = env::register_len(u64::MAX - 1).unwrap();
         let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
-        self.locked_amount -= storage_cost;
         Promise::new(account_id).transfer(storage_cost)
     }
 }
@@ -190,7 +188,6 @@ pub extern "C" fn store_blob() {
             "ERR_NOT_ENOUGH_DEPOSIT:{}",
             storage_cost
         );
-        contract.locked_amount += storage_cost;
         // Store value of register 0 into key = register 1.
         sys::storage_write(u64::MAX as _, 1 as _, u64::MAX as _, 0 as _, 2);
         // Load register 1 into blob_hash and save into LookupMap.
