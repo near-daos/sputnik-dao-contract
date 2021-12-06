@@ -1,4 +1,5 @@
 //! Module for standard generic contract factory manager.
+//! TODO: move to near-sdk standards library.
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::Base58CryptoHash;
@@ -27,7 +28,7 @@ impl FactoryManager {
         unsafe {
             // Load input into register 0.
             sys::input(0);
-            // Compute sha256 hash of register 0 and store in 1.
+            // Compute sha256 hash of register 0 and store in register 1.
             sys::sha256(u64::MAX as _, 0 as _, 1);
             // Check if such blob already stored.
             assert_eq!(
@@ -35,7 +36,7 @@ impl FactoryManager {
                 0,
                 "ERR_ALREADY_EXISTS"
             );
-            // Store value of register 0 into key = register 1.
+            // Store key-value pair. The key is represented by register 1 and the value by register 0.
             sys::storage_write(u64::MAX as _, 1 as _, u64::MAX as _, 0 as _, 2);
             // Load register 1 into blob_hash.
             let blob_hash = [0u8; 32];
@@ -59,11 +60,7 @@ impl FactoryManager {
         let code_hash: CryptoHash = code_hash.into();
         unsafe {
             // Check that such contract exists.
-            assert_eq!(
-                sys::storage_has_key(code_hash.len() as _, code_hash.as_ptr() as _),
-                1,
-                "Contract doesn't exist"
-            );
+            assert!(env::storage_has_key(&code_hash), "Contract doesn't exist");
             // Load the hash from storage.
             sys::storage_read(code_hash.len() as _, code_hash.as_ptr() as _, 0);
             // Return as value.
@@ -83,11 +80,7 @@ impl FactoryManager {
         let account_id = account_id.as_bytes().to_vec();
         unsafe {
             // Check that such contract exists.
-            assert_eq!(
-                sys::storage_has_key(code_hash.len() as _, code_hash.as_ptr() as _),
-                1,
-                "Contract doesn't exist"
-            );
+            assert!(env::storage_has_key(&code_hash), "Contract doesn't exist");
             // Load the hash from storage.
             sys::storage_read(code_hash.len() as _, code_hash.as_ptr() as _, 0);
             // Create a promise toward given account.
