@@ -30,7 +30,7 @@ impl FactoryManager {
             sys::input(0);
             // Compute sha256 hash of register 0 and store in register 1.
             sys::sha256(u64::MAX as _, 0 as _, 1);
-            // Check if such blob already stored.
+            // Check if such blob is already stored.
             assert_eq!(
                 sys::storage_has_key(u64::MAX as _, 1 as _),
                 0,
