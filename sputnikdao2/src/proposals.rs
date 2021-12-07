@@ -258,7 +258,8 @@ impl Contract {
         }
     }
 
-    fn internal_return_bond(&self, policy: &Policy, proposal: &Proposal) -> Promise {
+    fn internal_return_bond(&mut self, policy: &Policy, proposal: &Proposal) -> Promise {
+        self.locked_amount -= policy.proposal_bond.0;
         Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond.0)
     }
 
@@ -397,7 +398,7 @@ impl Contract {
     ) -> PromiseOrValue<()> {
         if return_bond {
             // Return bond to the proposer.
-            Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond.0);
+            self.internal_return_bond(policy, proposal);
         }
         match &proposal.kind {
             ProposalKind::BountyDone {
@@ -469,6 +470,7 @@ impl Contract {
         self.proposals
             .insert(&id, &VersionedProposal::Default(proposal.into()));
         self.last_proposal_id += 1;
+        self.locked_amount += env::attached_deposit();
         id
     }
 
