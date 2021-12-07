@@ -93,6 +93,14 @@ pub enum ProposalKind {
     Vote,
 }
 
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+pub struct ActionProposal {
+    pub id: u64,
+    pub action: Action,
+    pub memo: Option<String>,
+}
+
 impl ProposalKind {
     /// Returns label of policy for given type of proposal.
     pub fn to_policy_label(&self) -> &str {
@@ -550,5 +558,19 @@ impl Contract {
         if let Some(memo) = memo {
             log!("Memo: {}", memo);
         }
+    }
+
+    /// Actions on the list of proposals
+    /// If the execution of the `act_proposal` method for any of the proposals causes panic,
+    /// the execution will be interrupted
+    pub fn act_proposal_multi(&mut self, actions: Vec<ActionProposal>) {
+        actions.into_iter().for_each(|proposal| {
+            env::log_str(&format!(
+                "Action {} by proposal {}",
+                proposal.action.to_policy_label(),
+                proposal.id
+            ));
+            self.act_proposal(proposal.id, proposal.action, proposal.memo);
+        });
     }
 }

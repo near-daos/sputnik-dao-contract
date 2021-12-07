@@ -7,7 +7,7 @@ use near_sdk_sim::{call, to_yocto, view};
 use crate::utils::*;
 use sputnik_staking::User;
 use sputnikdao2::{
-    Action, Policy, Proposal, ProposalInput, ProposalKind, ProposalStatus, RoleKind,
+    Action, ActionProposal, Policy, Proposal, ProposalInput, ProposalKind, ProposalStatus, RoleKind,
     RolePermission, VersionedPolicy, VotePolicy,
 };
 
@@ -313,5 +313,65 @@ fn test_payment_failures() {
         proposal.status,
         ProposalStatus::Approved,
         "Did not return to approved status."
+    );
+}
+
+#[test]
+fn test_vote_multiple_proposals_successful() {
+    let (root, dao) = setup_dao();
+    let user1 = root.create_user(user(1), to_yocto("1000"));
+    let user2 = root.create_user(user(2), to_yocto("1000"));
+
+    add_member_proposal(&root, &dao, user1.account_id.clone()).assert_success();
+    add_member_proposal(&root, &dao, user2.account_id.clone()).assert_success();
+
+    call!(root, dao.act_proposal_multi(
+        vec![
+            ActionProposal {id: 0, action: Action::VoteReject, memo: None},
+            ActionProposal {id: 1, action: Action::VoteReject, memo: None},
+        ]
+    ))
+      .assert_success();
+
+    assert_eq!(
+        view!(dao.get_proposal(0)).unwrap_json::<Proposal>().status,
+        ProposalStatus::Rejected
+    );
+    assert_eq!(
+        view!(dao.get_proposal(1)).unwrap_json::<Proposal>().status,
+        ProposalStatus::Rejected
+    );
+}
+
+#[test]
+fn test_vote_multiple_proposals_failures() {
+    let (root, dao) = setup_dao();
+    let user1 = root.create_user(user(1), to_yocto("1000"));
+    let user2 = root.create_user(user(2), to_yocto("1000"));
+    let user3 = root.create_user(user(3), to_yocto("1000"));
+
+    add_member_proposal(&root, &dao, user1.account_id.clone()).assert_success();
+    add_member_proposal(&root, &dao, user2.account_id.clone()).assert_success();
+    add_member_proposal(&root, &dao, user3.account_id.clone()).assert_success();
+
+    should_fail(call!(root, dao.act_proposal_multi(
+        vec![
+            ActionProposal {id: 0, action: Action::VoteReject, memo: None},
+            ActionProposal {id: 3, action: Action::VoteReject, memo: None},
+            ActionProposal {id: 2, action: Action::VoteReject, memo: None},
+        ]
+    )));
+
+    assert_eq!(
+        view!(dao.get_proposal(0)).unwrap_json::<Proposal>().status,
+        ProposalStatus::InProgress
+    );
+    assert_eq!(
+        view!(dao.get_proposal(1)).unwrap_json::<Proposal>().status,
+        ProposalStatus::InProgress
+    );
+    assert_eq!(
+        view!(dao.get_proposal(1)).unwrap_json::<Proposal>().status,
+        ProposalStatus::InProgress
     );
 }

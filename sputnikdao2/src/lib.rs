@@ -10,7 +10,7 @@ use near_sdk::{
 use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
 pub use crate::policy::{Policy, RoleKind, RolePermission, VersionedPolicy, VotePolicy};
 use crate::proposals::VersionedProposal;
-pub use crate::proposals::{Proposal, ProposalInput, ProposalKind, ProposalStatus};
+pub use crate::proposals::{ActionProposal, Proposal, ProposalInput, ProposalKind, ProposalStatus};
 pub use crate::types::{Action, Config};
 
 mod bounties;
@@ -211,7 +211,7 @@ mod tests {
     use near_sdk::testing_env;
     use near_sdk_sim::to_yocto;
 
-    use crate::proposals::ProposalStatus;
+    use crate::proposals::{ActionProposal, ProposalStatus};
 
     use super::*;
 
@@ -368,5 +368,46 @@ mod tests {
                 policy: VersionedPolicy::Default(vec![]),
             },
         });
+    }
+
+    #[test]
+    fn test_vote_multiple_proposals() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        let mut contract = Contract::new(
+            Config::test_config(),
+            VersionedPolicy::Default(vec![accounts(1).into()]),
+        );
+        let id1 = create_proposal(&mut context, &mut contract);
+        let id2 = create_proposal(&mut context, &mut contract);
+        contract.act_proposal_multi(vec![
+            ActionProposal {id: id1, action: Action::VoteApprove, memo: None},
+            ActionProposal {id: id2, action: Action::VoteReject, memo: None},
+        ]);
+        assert_eq!(
+            contract.get_proposal(id1).proposal.status,
+            ProposalStatus::Approved
+        );
+        assert_eq!(
+            contract.get_proposal(id2).proposal.status,
+            ProposalStatus::Rejected
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "ERR_NO_PROPOSAL")]
+    fn test_multiple_vote_interrupted() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        let mut contract = Contract::new(
+            Config::test_config(),
+            VersionedPolicy::Default(vec![accounts(1).into()]),
+        );
+        let id = create_proposal(&mut context, &mut contract);
+        create_proposal(&mut context, &mut contract);
+        contract.act_proposal_multi(vec![
+            ActionProposal {id, action: Action::VoteApprove, memo: None},
+            ActionProposal {id: 3, action: Action::VoteReject, memo: None},
+        ]);
     }
 }
