@@ -137,9 +137,6 @@ impl Contract {
         }
         let config = config.unwrap();
 
-        // keep this in case we need to iterate through all of the proposals
-        // for id in (0..self.last_proposal_id).rev() {}
-
         if self.last_proposal_id == 0 {
             return true; // nothing to check since there are no proposals in this DAO
         }
@@ -154,16 +151,15 @@ impl Contract {
             1_000_000_000 * 60 * 60 * 24 * config.max_days_of_inactivity.0;
 
         let mut active = false;
-        // TBD: is this condition what we want?
         if last_proposal.submission_time.0 + allowed_inactivity_time > env::block_timestamp() {
             active = true; // it means this DAO is still active
         }
 
         if !active {
-            // TBD: Do we need to remove this DAO? If so, we should delete this account and also send the
-            // locked amount to the dedicated account.
-
             Promise::new(config.dedicated_account).transfer(self.get_available_amount().0);
+
+            // TBD: Do we need to delete this DAO? If so, we should delete this contract and also send
+            // self.get_locked_storage_amount().0 to the dedicated account.
         }
 
         active
