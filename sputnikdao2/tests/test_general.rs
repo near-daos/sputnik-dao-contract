@@ -288,21 +288,11 @@ fn test_check_daos_activity() {
         .unwrap_json();
     assert_eq!(0, proposal_id);
 
-    let refund_amount: U128 = root
-        .call(
-            "dao2.dao_factory".parse().unwrap(),
-            "get_available_amount",
-            &[],
-            300_000_000_000_000,
-            0,
-        )
-        .unwrap_json();
-
     let before_refund = user1.account().unwrap().amount;
     assert_eq!(before_refund, to_yocto("1000"));
     call!(&root, dao_factory.check_daos_activity()).assert_success();
     let after_refund = user1.account().unwrap().amount;
-    assert!(before_refund + refund_amount.0 <= after_refund);
+    assert!(before_refund < after_refund);
 
     let dao_list = view!(dao_factory.get_dao_list()).unwrap_json::<Vec<AccountId>>();
     assert_eq!(2, dao_list.len());
