@@ -50,14 +50,14 @@ impl Contract {
     }
 
     /// Returns locked amount of NEAR that is used for storage.
-    pub fn get_locked_amount(&self) -> U128 {
-        let locked_amount = env::storage_byte_cost() * (env::storage_usage() as u128);
-        U128(locked_amount)
+    pub fn get_locked_storage_amount(&self) -> U128 {
+        let locked_storage_amount = env::storage_byte_cost() * (env::storage_usage() as u128);
+        U128(locked_storage_amount)
     }
 
-    /// Returns available amount of NEAR that can be spent (outside of amount for storage).
+    /// Returns available amount of NEAR that can be spent (outside of amount for storage and bonds).
     pub fn get_available_amount(&self) -> U128 {
-        U128(env::account_balance() - self.get_locked_amount().0)
+        U128(env::account_balance() - self.get_locked_storage_amount().0 - self.locked_amount)
     }
 
     /// Returns total delegated stake.
@@ -68,6 +68,14 @@ impl Contract {
     /// Returns delegated stake to given account.
     pub fn delegation_balance_of(&self, account_id: AccountId) -> U128 {
         U128(self.delegations.get(&account_id).unwrap_or_default())
+    }
+
+    /// Combines balance and total amount for calling from external contracts.
+    pub fn delegation_balance_ratio(&self, account_id: AccountId) -> (U128, U128) {
+        (
+            self.delegation_balance_of(account_id),
+            self.delegation_total_supply(),
+        )
     }
 
     /// Last proposal's id.

@@ -128,6 +128,7 @@ impl Contract {
         });
         self.bounty_claimers
             .insert(&env::predecessor_account_id(), &claims);
+        self.locked_amount += env::attached_deposit();
     }
 
     /// Removes given claims from this bounty and user's claims.
@@ -195,6 +196,7 @@ impl Contract {
             PromiseOrValue::Value(())
         } else {
             // Within forgiveness period. Return bond.
+            self.locked_amount -= policy.bounty_bond.0;
             Promise::new(env::predecessor_account_id())
                 .transfer(policy.bounty_bond.0)
                 .into()
