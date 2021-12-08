@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use near_sdk::json_types::U128;
+use near_sdk::serde_json::json;
 use near_sdk::AccountId;
 use near_sdk_sim::{call, to_yocto, view};
 
@@ -223,6 +224,80 @@ fn test_create_dao_and_use_token() {
             .0,
         to_yocto("4")
     );
+}
+
+#[test]
+fn test_check_daos_activity() {
+    let (root, dao_factory) = setup_dao_factory();
+
+    call!(
+        &root,
+        dao_factory.create(
+            "dao1".parse().unwrap(),
+            None,
+            "{\"config\": {\"name\": \"Test1\", \"purpose\": \"to test1\", \"metadata\": \"\"}, \"policy\": [\"dao1\"]}".as_bytes().to_vec().into()
+        ),
+        deposit = to_yocto("10")
+    ).assert_success();
+
+    call!(
+        &root,
+        dao_factory.create(
+            "dao2".parse().unwrap(),
+            None,
+            "{\"config\": {\"name\": \"Test2\", \"purpose\": \"to test2\", \"metadata\": \"\", \"self_destruct_config\": {\"max_days_of_inactivity\": \"0\", \"dedicated_account\": \"user1\"}}, \"policy\": [\"dao2\"]}".as_bytes().to_vec().into()
+        ),
+        deposit = to_yocto("10")
+    ).assert_success();
+
+    call!(
+        &root,
+        dao_factory.create(
+            "dao3".parse().unwrap(),
+            None,
+            "{\"config\": {\"name\": \"Test3\", \"purpose\": \"to test3\", \"metadata\": \"\", \"self_destruct_config\": {\"max_days_of_inactivity\": \"7\", \"dedicated_account\": \"root\"}}, \"policy\": [\"dao3\"]}".as_bytes().to_vec().into()
+        ),
+        deposit = to_yocto("10")
+    ).assert_success();
+
+    let dao_list = view!(dao_factory.get_dao_list()).unwrap_json::<Vec<AccountId>>();
+    assert_eq!(3, dao_list.len());
+    assert_eq!("dao1.dao_factory", dao_list[0].as_str());
+    assert_eq!("dao2.dao_factory", dao_list[1].as_str());
+    assert_eq!("dao3.dao_factory", dao_list[2].as_str());
+
+    let user1 = root.create_user(user(1), to_yocto("1000"));
+    let proposal_id: u64 = root
+        .call(
+            "dao2.dao_factory".parse().unwrap(),
+            "add_proposal",
+            &json!({
+                    "proposal": ProposalInput {
+                description: "test".to_string(),
+                kind: ProposalKind::AddMemberToRole {
+                    member_id: user1.account_id(),
+                    role: "dao2".to_string(),
+                },
+            },
+                })
+            .to_string()
+            .into_bytes(),
+            300_000_000_000_000,
+            to_yocto("1"),
+        )
+        .unwrap_json();
+    assert_eq!(0, proposal_id);
+
+    let before_refund = user1.account().unwrap().amount;
+    assert_eq!(before_refund, to_yocto("1000"));
+    call!(&root, dao_factory.check_daos_activity()).assert_success();
+    let after_refund = user1.account().unwrap().amount;
+    assert!(before_refund < after_refund);
+
+    let dao_list = view!(dao_factory.get_dao_list()).unwrap_json::<Vec<AccountId>>();
+    assert_eq!(2, dao_list.len());
+    assert_eq!("dao1.dao_factory", dao_list[0].as_str());
+    assert_eq!("dao3.dao_factory", dao_list[1].as_str());
 }
 
 /// Test various cases that must fail.

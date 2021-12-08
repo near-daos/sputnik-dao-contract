@@ -11,10 +11,12 @@ use sputnik_staking::ContractContract as StakingContract;
 use sputnikdao2::{
     Action, Config, ContractContract as DAOContract, ProposalInput, ProposalKind, VersionedPolicy,
 };
+use sputnikdao_factory2::SputnikDAOFactoryContract;
 use test_token::ContractContract as TestTokenContract;
 
 near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
     DAO_WASM_BYTES => "res/sputnikdao2.wasm",
+    DAO_FACTORY_WASM_BYTES => "../sputnikdao-factory2/res/sputnikdao_factory2.wasm",
     TEST_TOKEN_WASM_BYTES => "../test-token/res/test_token.wasm",
     STAKING_WASM_BYTES => "../sputnik-staking/res/sputnik_staking.wasm",
 }
@@ -32,12 +34,26 @@ pub fn should_fail(r: ExecutionResult) {
     }
 }
 
+pub fn setup_dao_factory() -> (UserAccount, ContractAccount<SputnikDAOFactoryContract>) {
+    let root = init_simulator(None);
+    let dao_factory = deploy!(
+        contract: SputnikDAOFactoryContract,
+        contract_id: "dao_factory".to_string(),
+        bytes: &DAO_FACTORY_WASM_BYTES,
+        signer_account: root,
+        deposit: to_yocto("200"),
+        init_method: new()
+    );
+    (root, dao_factory)
+}
+
 pub fn setup_dao() -> (UserAccount, Contract) {
     let root = init_simulator(None);
     let config = Config {
         name: "test".to_string(),
         purpose: "to test".to_string(),
         metadata: Base64VecU8(vec![]),
+        self_destruct_config: None,
     };
     let dao = deploy!(
         contract: DAOContract,

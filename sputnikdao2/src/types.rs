@@ -1,5 +1,5 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::Base64VecU8;
+use near_sdk::json_types::{Base64VecU8, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, AccountId, Balance, Gas};
 
@@ -14,6 +14,17 @@ pub const GAS_FOR_UPGRADE_SELF_DEPLOY: Gas = Gas(30_000_000_000_000);
 
 pub const GAS_FOR_UPGRADE_REMOTE_DEPLOY: Gas = Gas(10_000_000_000_000);
 
+/// Configuration of the DAO for self-destruction.
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct SelfDestructConfig {
+    /// Remove this DAO if no proposal was passed in the last `max_days_of_inactivity`.
+    pub max_days_of_inactivity: U64,
+    /// Dedicated account to receive the funds locked in this DAO if `max_days_of_inactivity`
+    /// is reached and this DAO has to be removed.
+    pub dedicated_account: AccountId,
+}
+
 /// Configuration of the DAO.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
 #[serde(crate = "near_sdk::serde")]
@@ -25,6 +36,10 @@ pub struct Config {
     /// Generic metadata. Can be used by specific UI to store additional data.
     /// This is not used by anything in the contract.
     pub metadata: Base64VecU8,
+    /// self-destruct configuration of the DAO.
+    /// The self-destruction is triggered only if the DAO becomes inactive.
+    /// If not specified, DAO is allowed to be inactive for an indefinite period of time.
+    pub self_destruct_config: Option<SelfDestructConfig>,
 }
 
 #[cfg(test)]
@@ -34,6 +49,7 @@ impl Config {
             name: "Test".to_string(),
             purpose: "to test".to_string(),
             metadata: Base64VecU8(vec![]),
+            self_destruct_config: None,
         }
     }
 }
