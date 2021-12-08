@@ -10,7 +10,7 @@ use near_sdk::{
 use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
 pub use crate::policy::{Policy, RoleKind, RolePermission, VersionedPolicy, VotePolicy};
 use crate::proposals::VersionedProposal;
-pub use crate::proposals::{ActionProposal, Proposal, ProposalInput, ProposalKind, ProposalStatus};
+pub use crate::proposals::{Proposal, ProposalAction, ProposalInput, ProposalKind, ProposalStatus};
 pub use crate::types::{Action, Config};
 
 mod bounties;
@@ -211,7 +211,7 @@ mod tests {
     use near_sdk::testing_env;
     use near_sdk_sim::to_yocto;
 
-    use crate::proposals::{ActionProposal, ProposalStatus};
+    use crate::proposals::{ProposalAction, ProposalStatus};
 
     use super::*;
 
@@ -381,8 +381,8 @@ mod tests {
         let id1 = create_proposal(&mut context, &mut contract);
         let id2 = create_proposal(&mut context, &mut contract);
         contract.act_proposal_multi(vec![
-            ActionProposal {id: id1, action: Action::VoteApprove, memo: None},
-            ActionProposal {id: id2, action: Action::VoteReject, memo: None},
+            ProposalAction {id: id1, action: Action::VoteApprove, memo: None},
+            ProposalAction {id: id2, action: Action::VoteReject, memo: None},
         ]);
         assert_eq!(
             contract.get_proposal(id1).proposal.status,
@@ -406,8 +406,8 @@ mod tests {
         let id = create_proposal(&mut context, &mut contract);
         create_proposal(&mut context, &mut contract);
         contract.act_proposal_multi(vec![
-            ActionProposal {id, action: Action::VoteApprove, memo: None},
-            ActionProposal {id: 3, action: Action::VoteReject, memo: None},
+            ProposalAction {id, action: Action::VoteApprove, memo: None},
+            ProposalAction {id: 3, action: Action::VoteReject, memo: None},
         ]);
     }
 }

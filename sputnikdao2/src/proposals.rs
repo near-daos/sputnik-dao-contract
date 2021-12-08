@@ -95,7 +95,7 @@ pub enum ProposalKind {
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
-pub struct ActionProposal {
+pub struct ProposalAction {
     pub id: u64,
     pub action: Action,
     pub memo: Option<String>,
@@ -560,13 +560,11 @@ impl Contract {
         }
     }
 
-    /// Actions on the list of proposals
-    /// If the execution of the `act_proposal` method for any of the proposals causes panic,
-    /// the execution will be interrupted
-    pub fn act_proposal_multi(&mut self, actions: Vec<ActionProposal>) {
+    /// Act on given proposals, sequentially. The execution is interrupted and reverted if any of the proposal actions causes panic.
+    pub fn act_proposal_multi(&mut self, actions: Vec<ProposalAction>) {
         actions.into_iter().for_each(|proposal| {
             env::log_str(&format!(
-                "Action {} by proposal {}",
+                "Processing action {} for proposal {}",
                 proposal.action.to_policy_label(),
                 proposal.id
             ));

@@ -7,7 +7,7 @@ use near_sdk_sim::{call, to_yocto, view};
 use crate::utils::*;
 use sputnik_staking::User;
 use sputnikdao2::{
-    Action, ActionProposal, Policy, Proposal, ProposalInput, ProposalKind, ProposalStatus, RoleKind,
+    Action, Policy, Proposal, ProposalAction, ProposalInput, ProposalKind, ProposalStatus, RoleKind,
     RolePermission, VersionedPolicy, VotePolicy,
 };
 
@@ -327,8 +327,8 @@ fn test_vote_multiple_proposals_successful() {
 
     call!(root, dao.act_proposal_multi(
         vec![
-            ActionProposal {id: 0, action: Action::VoteReject, memo: None},
-            ActionProposal {id: 1, action: Action::VoteReject, memo: None},
+            ProposalAction {id: 0, action: Action::VoteReject, memo: None},
+            ProposalAction {id: 1, action: Action::VoteReject, memo: None},
         ]
     ))
       .assert_success();
@@ -356,9 +356,9 @@ fn test_vote_multiple_proposals_failures() {
 
     should_fail(call!(root, dao.act_proposal_multi(
         vec![
-            ActionProposal {id: 0, action: Action::VoteReject, memo: None},
-            ActionProposal {id: 3, action: Action::VoteReject, memo: None},
-            ActionProposal {id: 2, action: Action::VoteReject, memo: None},
+            ProposalAction {id: 0, action: Action::VoteReject, memo: None},
+            ProposalAction {id: 3, action: Action::VoteReject, memo: None},
+            ProposalAction {id: 2, action: Action::VoteReject, memo: None},
         ]
     )));
 
