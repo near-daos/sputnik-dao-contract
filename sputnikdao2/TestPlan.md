@@ -66,23 +66,43 @@ Receiving callback after the proposal has been finalized.
 
 ## views
 ### version
+Returns the version of this contract.
 ### get_config
+Returns the config of this contract.
 ### get_policy
+Returns policy of this contract.
 ### get_staking_contract
+Returns the staking contract if available. Otherwise returns None.
 ### has_blob
+Returns whether the blob with given hash is stored.
 ### get_locked_storage_amount
+Returns the locked amount of NEAR that is used for the storage.
 ### get_available_amount
+Returns the available amount of NEAR that can be spent (outside of the amount for the storage and bonds).
 ### delegation_total_supply
+Returns the total delegated stake.
 ### delegation_balance_of
+Returns the delegated stake of the given account.
 ### delegation_balance_ratio
+Combines the balance and the total amount for calling from external contracts.
 ### get_last_proposal_id
+Returns the last proposal's id.
 ### get_proposals
+Returns a vector of the proposals.
 ### get_proposal
+Returns the specific proposal by id.
+- Should panic if the proposal with the given id doesn't exist
 ### get_bounty
+Returns the specific bounty by id.
+- Should panic if the bounty with the given id doesn't exist
 ### get_last_bounty_id
+Returns the the last bounty.
 ### get_bounties
+Returns the bounties.
 ### get_bounty_claims
+Returns bounty claims for given user.
 ### get_bounty_number_of_claims
+Returns the number of claims per given bounty.
 
 
 
