@@ -1,4 +1,4 @@
-# SputnikDao
+# SputnikDao v2
 
 ## bounties
 
@@ -14,14 +14,14 @@ Reports that bounty is done. Creates a proposal to vote for paying out the bount
 ### bounty_giveup
 Gives up working on the bounty.
 - Can giveup the bounty only during the forgiveness period
-- bounty_bond is returned
+- `bounty_bond` is returned
 
 ## delegation
 
 ### register_delegation
-Inserts a caller to the 'delegations' LookupMap with zero balance.
-- Check that delegation appears in 'delegations' LookupMap.
-- Can only be called by the staking_id
+Inserts a caller to the `delegations` LookupMap with zero balance.
+- Check that delegation appears in `delegations` LookupMap.
+- Can only be called by the `staking_id`
 - Attached deposit is handled correctly
 ### delegate
 Adds given amount to given account as delegated weight.
@@ -57,7 +57,7 @@ Receiving callback after the proposal has been finalized.
 
 ### add_proposal
 - Check that the proposal is added to the list of proposals
-- Check that ProposalInput can have any ProposalKind (or is it not required?)
+- Check that `ProposalInput` can have any `ProposalKind` (or is it not required?)
 - Check that only those with a permission can add the proposal
 - Chech that the method fails in case of insufficient deposit 
 ### act_proposal
@@ -72,7 +72,7 @@ Returns the config of this contract.
 ### get_policy
 Returns policy of this contract.
 ### get_staking_contract
-Returns the staking contract if available. Otherwise returns None.
+Returns the staking contract if available. Otherwise returns `None`.
 ### has_blob
 Returns whether the blob with given hash is stored.
 ### get_locked_storage_amount
@@ -104,16 +104,7 @@ Returns bounty claims for given user.
 ### get_bounty_number_of_claims
 Returns the number of claims per given bounty.
 
-
-
-
-
-
-
-
 ## Not in wasm file?
-
-
 
 ### internal_payout
 ### internal_callback_proposal_success
@@ -130,3 +121,23 @@ Returns the number of claims per given bounty.
 ### to_policy_mut
 
 ### update_votes
+
+# SputnikDAO Factory
+
+## lib
+
+### get_dao_list
+Returns a vector of daos.
+### get_number_daos
+Returns the number of daos.
+### get_daos
+Returns a vector of daos starting from `from_index` and up to `limit`.
+### create
+Creates a new account and full access key. Deploys the SputnikDao contract to it.
+- Should panic if `name` is not suitable to be the part of the NEAR account?
+- `prepaid_gas` is handled correctly
+- `attached_deposit` is handled correctly
+### on_create
+Inserts the account to the list of daos. Returns `true` in case of success and `false` otherwise.
+- Should panic unless the contract called itself
+- Given `attached_deposit` is sufficient
