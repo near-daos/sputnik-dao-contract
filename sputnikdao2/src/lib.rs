@@ -154,7 +154,7 @@ impl Contract {
             PromiseResult::Failed => self.internal_callback_proposal_fail(&mut proposal),
         };
         self.proposals
-            .insert(&proposal_id, &VersionedProposal::Default(proposal.into()));
+            .insert(&proposal_id, &VersionedProposal::Default(proposal));
         result
     }
 }
