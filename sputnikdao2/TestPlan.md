@@ -4,17 +4,23 @@
 
 ### bounty_claim
 Claims given bounty by caller with given expected duration to execute.
-- Check that bounty is claimed only if all conditions are met (correct deposit, deadline, claimed for the first time)
-- Adds to bounty_claimers
-- Locks the deposit
+- The method chould panic if the bounty with given id doesn't exist
+- Should panic if `attached_deposit` is not equal to the corresponding `bounty_bond`
+- Should panic in case of wrong deadline
+- Should panic in case of unsufficient number of remained bounties
+- Should increase number of claimed bounties
+- Should add this claim to the list of claims, done by this account
+- Should lock the deposit
 ### bounty_done
 Reports that bounty is done. Creates a proposal to vote for paying out the bounty.
-- Check that the bounty can only be called by the creator unless it expired
-- If not expired, should add correct proposal, add to bounty_claimers, claim is marked as completed
+- Should panic if the bounty claim is completed
+- If claim is expired, it should be removed
+- If not expired, check that the bounty can only be called by the creator
+- If not expired, proposal should be added, claim is marked as completed
 ### bounty_giveup
 Gives up working on the bounty.
 - Can giveup the bounty only during the forgiveness period
-- `bounty_bond` is returned
+- `bounty_bond` should be returned, claim should be removed
 
 ## delegation
 
@@ -25,16 +31,18 @@ Inserts a caller to the `delegations` LookupMap with zero balance.
 - Attached deposit is handled correctly
 ### delegate
 Adds given amount to given account as delegated weight.
+- Should panic if `staking_id` is `None`
 - Check that amount is added correctly
 - Check that a user can't delegate more than it has
-- Check that it can only be called by the staking_id
+- Check that it can only be called by the `staking_id`
 - Can't be called without previos registration
 ### undelegate
 Removes given amount from given account's delegations.
+- Should panic if `staking_id` is `None`
+- Check that it can only be called by the `staking_id`
 - Check that amount is subtracted correctly
 - Check that a user can't remove more than it delegated
-- Check that it can only be called by the staking_id
-- Can't be called without previos registration
+- Can't be called without previous registration
 
 ## lib
 
@@ -56,13 +64,17 @@ Receiving callback after the proposal has been finalized.
 ## proposals
 
 ### add_proposal
-- Check that the proposal is added to the list of proposals
-- Check that `ProposalInput` can have any `ProposalKind` (or is it not required?)
-- Check that only those with a permission can add the proposal
+Adds proposal to this DAO.
 - Chech that the method fails in case of insufficient deposit 
+- Check that different kinds of `proposal` are validated correctly (?)
+- Check that only those with a permission can add the proposal
+- Check that the proposal is added to the list of proposals
 ### act_proposal
+Act on given proposal by id, if permissions allow.
 - Check that only those with a permission can act on the the proposal
-- Check that the method works correctly on all possible Actions. Also should act differently during expired or failed finalization
+- Check that the method works correctly on any possible `action`
+- If proposal expired during the failed state it should be marked as expired
+- If the number of votes in the group has changed (new members has been added) the proposal can lose it's approved state. In this case new proposal needs to be made, this one should expire
 
 ## views
 ### version
@@ -104,24 +116,6 @@ Returns bounty claims for given user.
 ### get_bounty_number_of_claims
 Returns the number of claims per given bounty.
 
-## Not in wasm file?
-
-### internal_payout
-### internal_callback_proposal_success
-### internal_callback_proposal_fail
-### internal_add_bounty
-### internal_execute_bounty_payout
- 
-### add_member_to_group
-### remove_member_from_group
-
-### add_member_to_role
-### remove_member_from_role
-
-### to_policy_mut
-
-### update_votes
-
 # SputnikDAO Factory
 
 ## lib
@@ -134,7 +128,7 @@ Returns the number of daos.
 Returns a vector of daos starting from `from_index` and up to `limit`.
 ### create
 Creates a new account and full access key. Deploys the SputnikDao contract to it.
-- Should panic if `name` is not suitable to be the part of the NEAR account?
+- Should panic if `name` is not suitable to be the part of the NEAR account
 - `prepaid_gas` is handled correctly
 - `attached_deposit` is handled correctly
 ### on_create
