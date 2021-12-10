@@ -5,9 +5,9 @@ async function initWorkspace(root: NearAccount) {
 
     const alice = await root.createAccount('alice');
     console.log('alice\'s balance is: ' + (await alice.balance()).total) //100N
-
+    const errorString = "";
     const config = { name: 'sputnik', purpose: 'testing', metadata: '' }
-    const policy = []
+    const policy = [root.accountId]
 
     //for short let's call it just dao
     const dao = await root.createAndDeploy(
