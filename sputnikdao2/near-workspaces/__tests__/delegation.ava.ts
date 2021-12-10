@@ -54,9 +54,9 @@ workspace.test('Register delegation', async (test, { root, dao, alice }) => {
         }
     )
 
-    const bal: string[] = await dao.view('delegation_balance_ratio', { account_id: alice });
-    const BNbal: BN[] = [new BN(bal[0]), new BN(bal[1])]; // should be a better way to wrap it
-    test.deepEqual(BNbal[0], new BN(1));
-    test.deepEqual(BNbal[1], new BN(1));
+    const bal: BN = new BN(await dao.view('delegation_balance_of', { account_id: alice }));
+    const total: BN = new BN(await dao.view('delegation_total_supply'));
+    test.deepEqual(bal, new BN(1));
+    test.deepEqual(total, new BN(1));
 
 });
