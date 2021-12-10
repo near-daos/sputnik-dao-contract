@@ -30,16 +30,30 @@ subprocess.run([
 #         u8_array.append(int(hex_char, 16))
 #     return u8_array
 
-with open(f"{SPUTNIK_REPO_PATH}/sputnikdao2/res/sputnikdao2.wasm",
-          "rb") as wasm_file:
-    input_bytes = wasm_file.read()  # read entire file as bytes
-
-    hash_in_hex = hashlib.sha256(input_bytes).hexdigest()
-    hash_in_bytes = bytes.fromhex(hash_in_hex)
-    hash_in_base58 = base58.b58encode(hash_in_bytes).decode("UTF-8")
-
-    params = json.dumps({"code_hash": hash_in_base58})
+subprocess.run([
+    "wasm2wat", f"{SPUTNIK_REPO_PATH}/sputnikdao2/res/sputnikdao2.wasm", "-o",
+    f"{SPUTNIK_REPO_PATH}/sputnikdao2/res/sputnikdao2.wat"
+])
+with open(f"{SPUTNIK_REPO_PATH}/sputnikdao2/res/sputnikdao2.wat",
+          "r") as wat_file:
+    # TODO: wat_contract is too long for near cli
+    wat_contract = wat_file.read()  # read entire file as text
+    params = json.dumps({"input": wat_contract})
     subprocess.run([
-        "near", "call", FACTORY_ACCOUNT, "set_code_hash", params,
-        "--accountId", FACTORY_ACCOUNT
+        "near", "call", FACTORY_ACCOUNT, "store", params, "--accountId",
+        FACTORY_ACCOUNT
     ])
+
+# with open(f"{SPUTNIK_REPO_PATH}/sputnikdao2/res/sputnikdao2.wasm",
+#           "rb") as wasm_file:
+#     wasm_contract = wasm_file.read()  # read entire file as bytes
+
+#     hash_in_hex = hashlib.sha256(wasm_contract).hexdigest()
+#     hash_in_bytes = bytes.fromhex(hash_in_hex)
+#     hash_in_base58 = base58.b58encode(hash_in_bytes).decode("UTF-8")
+
+#     params = json.dumps({"code_hash": hash_in_base58})
+#     subprocess.run([
+#         "near", "call", FACTORY_ACCOUNT, "set_code_hash", params,
+#         "--accountId", FACTORY_ACCOUNT
+#     ])
