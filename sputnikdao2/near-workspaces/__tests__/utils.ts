@@ -5,7 +5,8 @@ async function initWorkspace(root: NearAccount) {
     const workspace = Workspace.init();
 
     const alice = await root.createAccount('alice');
-    console.log('alice\'s balance is: ' + (await alice.balance()).total) //100N
+    // console.log('alice\'s balance is: ' + (await alice.balance()).total) //100N
+
     const config = { name: 'sputnik', purpose: 'testing', metadata: '' }
     const policy = [root.accountId]
 
@@ -20,7 +21,7 @@ async function initWorkspace(root: NearAccount) {
         }
     );
 
-    console.log('dao\'s balance is: ' + (await dao.balance()).total) //~100N
+    // console.log('dao\'s balance is: ' + (await dao.balance()).total) //~200N
 
     return { alice, dao };
 }
