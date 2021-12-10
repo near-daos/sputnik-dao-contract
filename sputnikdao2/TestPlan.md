@@ -50,15 +50,17 @@ Removes given amount from given account's delegations.
 Should only be called by this contract on migration. Can be used if you haven't changed contract state.
 - Can only be called by the contract
 - Should migrate initial state
+- Should panic if contract is not initialized
 ### remove_blob
 Remove blob from contract storage and pay back to original storer.
+- Should panic if `hash` is wrong
 - Can only be called by the original storer
-- Blob is removed
-- The payback is computed correctly
+- Blob shold be removed
+- The payback should be computed correctly
 ### on_proposal_callback
 Receiving callback after the proposal has been finalized.
 - If successful, should returns bond money to the proposal originator
-- If the proposal execution failed (funds didn't transfer or function call failure), should moves proposal to "Failed" state
+- If the proposal execution failed (funds didn't transfer or function call failure), should move proposal to the "Failed" state
 - Works only with one callback
 
 ## proposals
@@ -128,10 +130,11 @@ Returns the number of daos.
 Returns a vector of daos starting from `from_index` and up to `limit`.
 ### create
 Creates a new account and full access key. Deploys the SputnikDao contract to it.
-- Should panic if `name` is not suitable to be the part of the NEAR account
+- Should panic if `name` is not suitable to be the part of the [NEAR account](https://docs.near.org/docs/concepts/account#account-id-rules)
 - `prepaid_gas` is handled correctly
 - `attached_deposit` is handled correctly
+- what if `public_key` is `None`?
 ### on_create
 Inserts the account to the list of daos. Returns `true` in case of success and `false` otherwise.
 - Should panic unless the contract called itself
-- Given `attached_deposit` is sufficient
+- Given should be `attached_deposit` is sufficient
