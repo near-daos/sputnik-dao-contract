@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "listEmittedFiles": false,
+    "outDir": "lib",
+    "declaration": true,
+    "declarationDir": "definitions",
+    "module": "commonjs",
+    "target": "es5",
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "suppressImplicitAnyIndexErrors": true,
+    "sourceMap": false,
+    "pretty": true,
+    "lib": [
+      "es2016",
+      "dom"
+    ]
+  },
+  "include": [
+    "./src/**/*"
+  ],
+  "exclude": [
+    "./lib"
+  ]
+}

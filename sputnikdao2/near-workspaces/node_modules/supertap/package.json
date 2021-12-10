@@ -1,0 +1,53 @@
+{
+  "name": "supertap",
+  "version": "2.0.0",
+  "description": "Generate TAP output",
+  "license": "MIT",
+  "repository": "vadimdemedes/supertap",
+  "author": {
+    "name": "Vadim Demedes",
+    "email": "vdemedes@gmail.com",
+    "url": "github.com/vadimdemedes"
+  },
+  "engines": {
+    "node": ">=10"
+  },
+  "scripts": {
+    "test": "xo && ava"
+  },
+  "files": [
+    "index.js"
+  ],
+  "keywords": [
+    "tap",
+    "tape",
+    "output"
+  ],
+  "dependencies": {
+    "arrify": "^2.0.1",
+    "indent-string": "^4.0.0",
+    "js-yaml": "^3.14.0",
+    "serialize-error": "^7.0.1",
+    "strip-ansi": "^6.0.0"
+  },
+  "devDependencies": {
+    "ava": "^3.14.0",
+    "ctrlc-exit": "^1.0.0",
+    "execa": "^5.0.0",
+    "faucet": "^0.0.1",
+    "p-each-series": "^2.2.0",
+    "tap-dot": "^2.0.0",
+    "tap-json": "^1.0.0",
+    "tap-min": "^2.0.0",
+    "tap-nyan": "^1.1.0",
+    "tap-out": "^3.0.0",
+    "tap-pessimist": "^1.0.1",
+    "tap-spec": "^5.0.0",
+    "tap-summary": "^4.0.0",
+    "wait-for-enter": "^1.0.0",
+    "xo": "^0.36.1"
+  },
+  "ava": {
+    "serial": true
+  }
+}
