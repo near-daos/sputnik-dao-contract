@@ -23,13 +23,6 @@ subprocess.run([
     "--initFunction", "new", "--initArgs", init_args
 ])
 
-# def hex_str_to_u8_arr(hash_str: str) -> list[int]:
-#     u8_array = []
-#     for i in range(0, len(hash_str), 2):
-#         hex_char = hash_str[i:i + 2]
-#         u8_array.append(int(hex_char, 16))
-#     return u8_array
-
 subprocess.run([
     "wasm2wat", f"{SPUTNIK_REPO_PATH}/sputnikdao2/res/sputnikdao2.wasm", "-o",
     f"{SPUTNIK_REPO_PATH}/sputnikdao2/res/sputnikdao2.wat"
