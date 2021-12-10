@@ -1,11 +1,11 @@
 import { Workspace, NearAccount, BN, toYocto } from 'near-workspaces-ava';
 
+
 async function initWorkspace(root: NearAccount) {
     const workspace = Workspace.init();
 
     const alice = await root.createAccount('alice');
     console.log('alice\'s balance is: ' + (await alice.balance()).total) //100N
-    const errorString = "";
     const config = { name: 'sputnik', purpose: 'testing', metadata: '' }
     const policy = [root.accountId]
 
@@ -24,6 +24,8 @@ async function initWorkspace(root: NearAccount) {
 
     return { alice, dao };
 }
+
+export const STORAGE_PER_BYTE = new BN('10000000000000000000');
 
 export const workspace = Workspace.init(async ({ root }) => {
     return initWorkspace(root)
