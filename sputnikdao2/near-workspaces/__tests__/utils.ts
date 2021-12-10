@@ -1,4 +1,4 @@
-import { Workspace, NearAccount } from 'near-workspaces-ava';
+import { Workspace, NearAccount, BN, toYocto } from 'near-workspaces-ava';
 
 async function initWorkspace(root: NearAccount) {
     const workspace = Workspace.init();
@@ -15,7 +15,8 @@ async function initWorkspace(root: NearAccount) {
         '../res/sputnikdao2.wasm',
         {
             method: 'new',
-            args: { config, policy }
+            args: { config, policy },
+            initialBalance: toYocto('200'),
         }
     );
 
@@ -27,3 +28,28 @@ async function initWorkspace(root: NearAccount) {
 export const workspace = Workspace.init(async ({ root }) => {
     return initWorkspace(root)
 });
+
+export async function initTestToken(root: NearAccount) {
+    const testToken = await root.createAndDeploy(
+        'test-token',
+        '../../test-token/res/test_token.wasm',
+        {
+            method: 'new',
+            initialBalance: toYocto('200'),
+        }
+    );
+    return testToken;
+}
+
+export async function initStaking(root:NearAccount, dao: NearAccount, testToken: NearAccount) {
+    const staking = await root.createAndDeploy(
+        'staking',
+        '../../sputnik-staking/res/sputnik_staking.wasm',
+        {
+            method: 'new',
+            args: {owner_id: dao, token_id: testToken, unstake_period: '100000000000'},
+            initialBalance: toYocto('100'),
+        }
+    );
+    return staking
+}
