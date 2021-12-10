@@ -5,4 +5,6 @@ workspace.test('basic', async (test, {alice, root, dao})=>{
 test.true(await alice.exists())
 test.true(await root.exists())
 test.true(await dao.exists())
+test.log(await dao.view('get_config'))
 })
+
