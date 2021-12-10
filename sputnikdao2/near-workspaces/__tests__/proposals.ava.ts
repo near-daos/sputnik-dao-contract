@@ -110,18 +110,18 @@ workspace.test('add proposal with 1 near', async (test, { alice, root, dao }) =>
 
 workspace.test('add proposal with 0.999... near', async (test, { alice, root, dao }) => {
     test.is(await dao.view('get_last_proposal_id'), 0);
-
+    const config = {
+        name: 'sputnikdao',
+        purpose: 'testing',
+        metadata: ''
+    }
     let err = await captureError(async () =>
         await alice.call_raw(dao, 'add_proposal', {
             proposal: {
                 description: 'rename the dao',
                 kind: {
                     ChangeConfig: {
-                        config: {
-                            name: 'sputnikdao',
-                            purpose: 'testing',
-                            metadata: ''
-                        }
+                        config
                     }
                 }
             },
