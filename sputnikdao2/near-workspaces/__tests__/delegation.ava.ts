@@ -5,7 +5,7 @@ export const workspace = Workspace.init(async ({ root }) => {
     const alice = await root.createAccount('alice');
 
 
-    const config = {name: 'test', purpose: 'testing', metadata: []};
+    const config = {name: 'test', purpose: 'testing', metadata: ""};
     
     // Create a subaccount of the root account, and also deploy a contract to it
     const dao = await root.createAndDeploy(
@@ -21,6 +21,6 @@ export const workspace = Workspace.init(async ({ root }) => {
   });
   
 
-workspace.test('', async (test, { dao }) => {
+workspace.test('Title', async (test, { dao }) => {
 
 });
