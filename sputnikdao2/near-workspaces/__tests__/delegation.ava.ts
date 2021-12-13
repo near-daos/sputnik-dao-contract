@@ -35,7 +35,7 @@ async function registerAndDelegate(dao: NearAccount, staking: NearAccount, accou
         'delegate',
         {
             account_id: account,
-            amount: amount.toString(),
+            amount: amount.toString(), // if BN.muln(2) json can't searilize new BN for some reason??
         }
     )
 }
@@ -91,7 +91,7 @@ workspace.test('Delegation', async (test, { root, dao, alice }) => {
     const staking = await initStaking(root, dao, testToken);
     const randomAmount = new BN('10087687667869');
     const bob = await root.createAccount('bob');
-    
+
     // Should panic if `staking_id` is `None`
     let errorString = await captureError(async () =>
         staking.call(dao, 'delegate',
