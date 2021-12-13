@@ -5,8 +5,11 @@ import hashlib
 import json
 import subprocess
 
+############################################ SETUP ############################################
+
 subprocess.run(["./build.sh"])
 
+# replace SPUTNIK_REPO_PATH and MASTER_ACCOUNT with your owns
 SPUTNIK_REPO_PATH = "/Users/constantindogaru/near-protocol/sputnik-dao-contract"
 MASTER_ACCOUNT = "ctindogaru4.testnet"
 FACTORY_ACCOUNT = f"sputnikdao-factory2.{MASTER_ACCOUNT}"
@@ -21,12 +24,13 @@ HASH_IN_HEX = hashlib.sha256(wasm_contract).hexdigest()
 HASH_IN_BYTES = bytes.fromhex(HASH_IN_HEX)
 HASH_IN_BASE58 = base58.b58encode(HASH_IN_BYTES).decode("UTF-8")
 
-subprocess.run(["near", "delete", FACTORY_ACCOUNT, MASTER_ACCOUNT])
+# Create an account for the factory itself
 subprocess.run([
     "near", "create-account", FACTORY_ACCOUNT, "--masterAccount",
     MASTER_ACCOUNT, "--initialBalance", "10"
 ])
 
+# Deploy the factory contract to that account
 init_args = json.dumps({})
 subprocess.run([
     "near", "deploy", FACTORY_ACCOUNT, "--wasmFile",
@@ -34,6 +38,9 @@ subprocess.run([
     "--initFunction", "new", "--initArgs", init_args
 ])
 
+############################################ TESTING ############################################
+
+# Store the DAO contract code inside the factory
 return_hash = subprocess.run([
     "near", "call", FACTORY_ACCOUNT, "store", WASM_CONTRACT_IN_BASE64,
     "--base64", "--accountId", FACTORY_ACCOUNT
@@ -42,6 +49,7 @@ return_hash = subprocess.run([
                              text=True).stdout.splitlines()[-1].strip("'")
 assert return_hash == HASH_IN_BASE58  # it means that the contract was stored successfully
 
+# Get the DAO contract code from the factory
 params = json.dumps({"code_hash": HASH_IN_BASE58})
 return_code = subprocess.run([
     "near", "call", FACTORY_ACCOUNT, "get_code", params, "--accountId",
@@ -51,12 +59,14 @@ return_code = subprocess.run([
                              text=True).stdout.splitlines()[-1].strip("'")
 # TODO: verify return_code
 
+# Save the hash code associated with the DAO contract code inside the factory
 params = json.dumps({"code_hash": HASH_IN_BASE58})
 subprocess.run([
     "near", "call", FACTORY_ACCOUNT, "set_code_hash", params, "--accountId",
     FACTORY_ACCOUNT
 ])
 
+# Get the hash code from the factory
 latest_hash = subprocess.run([
     "near", "call", FACTORY_ACCOUNT, "get_latest_code_hash", "--accountId",
     FACTORY_ACCOUNT
@@ -65,8 +75,14 @@ latest_hash = subprocess.run([
                              text=True).stdout.splitlines()[-1].strip("'")
 assert latest_hash == HASH_IN_BASE58
 
+############################################ CLEAN-UP ############################################
+
+# Delete the DAO contract code from the factory
 params = json.dumps({"code_hash": HASH_IN_BASE58})
 subprocess.run([
     "near", "call", FACTORY_ACCOUNT, "delete_contract", params, "--accountId",
     FACTORY_ACCOUNT
 ])
+
+# Delete the account associated with the factory
+subprocess.run(["near", "delete", FACTORY_ACCOUNT, MASTER_ACCOUNT])
