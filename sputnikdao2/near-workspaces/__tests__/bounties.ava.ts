@@ -46,6 +46,30 @@ async function claimBounty(alice: NearAccount, dao: NearAccount, proposalId: num
     })
 }
 
+async function doneBounty(alice: NearAccount, dao: NearAccount, proposalId: number) {
+    await alice.call(dao, 'bounty_done', 
+    {
+        id: proposalId,
+        description: 'This bounty is done'
+
+    },
+    { 
+        attachedDeposit: toYocto('1') 
+    })
+}
+
+
+workspace.test('Bounty workflow', async (test, {alice, root, dao }) => {
+    const proposalId = await proposeBounty(alice, dao);
+    await voteOnBounty(root, dao, proposalId);
+    await claimBounty(alice, dao, proposalId);
+    console.log(await dao.view('get_bounty_claims', { account_id: alice }));
+    await doneBounty(alice, dao, proposalId);
+    console.log(await dao.view('get_bounty_claims', { account_id: alice }));
+    //await voteOnBounty(root, dao, proposalId + 1);
+    //console.log(await dao.view('get_bounty_claims', { account_id: alice }));
+});
+
 workspace.test('Bounty claim', async (test, {alice, root, dao }) => {
     const proposalId = await proposeBounty(alice, dao);
     await voteOnBounty(root, dao, proposalId);
