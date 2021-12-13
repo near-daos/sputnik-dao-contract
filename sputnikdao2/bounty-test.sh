@@ -31,7 +31,8 @@ near view $CONTRACT_ID get_bounty_claims '{"account_id": "'$CONTRACT_PARENT'"}'
 # Call bounty_done
 near call $CONTRACT_ID bounty_done '{"id": 0, "description": "was not even hard. ez"}'  --accountId $CONTRACT_PARENT --amount 1
 # Add BountyDone proposal done
-near call $CONTRACT_ID add_proposal '{"proposal": {"description": "test bounty done", "kind": {"BountyDone": {"bounty_id": 0, "receiver_id": "'$CONTRACT_PARENT'"}}}}' --accountId $CONTRACT_PARENT --amount 1
+# bounty_done adds proposal BountyDone itself
+# near call $CONTRACT_ID add_proposal '{"proposal": {"description": "test bounty done", "kind": {"BountyDone": {"bounty_id": 0, "receiver_id": "'$CONTRACT_PARENT'"}}}}' --accountId $CONTRACT_PARENT --amount 1
 
 # Vote it in
 near call $CONTRACT_ID act_proposal '{"id": 1, "action": "VoteApprove"}' --accountId $CONTRACT_ID
