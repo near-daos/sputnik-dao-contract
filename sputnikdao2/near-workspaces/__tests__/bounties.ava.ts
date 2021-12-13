@@ -9,7 +9,7 @@ async function proposeBounty(alice: NearAccount, dao: NearAccount) {
         times: 3,
         max_deadline: '1925376849430593581'
     }
-    await alice.call(dao, 'add_proposal', {
+    const proposalId: number = await alice.call(dao, 'add_proposal', {
         proposal: {
             description: 'add_new_bounty',
             kind: {
@@ -23,20 +23,21 @@ async function proposeBounty(alice: NearAccount, dao: NearAccount) {
             attachedDeposit: toYocto('1') 
         }
     )
+    return proposalId;
 }
 
-async function voteOnBounty(alice: NearAccount, dao: NearAccount) {
-    await alice.call(dao, 'act_proposal', 
+async function voteOnBounty(root: NearAccount, dao: NearAccount, proposalId: number) {
+    await root.call(dao, 'act_proposal', 
     {
-        id: 0,
+        id: proposalId,
         action: 'VoteApprove'
     })
 }
 
-async function claimBounty(alice: NearAccount, dao: NearAccount) {
-    await alice.call(dao, 'act_proposal', 
+async function claimBounty(alice: NearAccount, dao: NearAccount, proposalId: number) {
+    await alice.call(dao, 'bounty_claim', 
     {
-        id: 0,
+        id: proposalId,
         deadline: '1925376849430593581'
 
     },
@@ -46,9 +47,9 @@ async function claimBounty(alice: NearAccount, dao: NearAccount) {
 }
 
 workspace.test('Bounty claim', async (test, {alice, root, dao }) => {
-    proposeBounty(alice, dao);
-    voteOnBounty(alice, dao);
-    claimBounty(alice, dao);
+    const proposalId = await proposeBounty(alice, dao);
+    await voteOnBounty(root, dao, proposalId);
+    await claimBounty(alice, dao, proposalId);
 });
 
 workspace.test('Bounty done', async (test, {alice, root, dao }) => {
