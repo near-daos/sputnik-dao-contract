@@ -7,7 +7,7 @@ Claims given bounty by caller with given expected duration to execute.
 - The method chould panic if the bounty with given id doesn't exist
 - Should panic if `attached_deposit` is not equal to the corresponding `bounty_bond`
 - Should panic in case of wrong deadline
-- Should panic in case of unsufficient number of remained bounties
+- Should panic in case of insufficient number of remained bounties
 - Should increase number of claimed bounties
 - Should add this claim to the list of claims, done by this account
 - Should lock the deposit
@@ -67,7 +67,7 @@ Receiving callback after the proposal has been finalized.
 
 ### add_proposal
 Adds proposal to this DAO.
-- Chech that the method fails in case of insufficient deposit 
+- [x] Check that the method fails in case of insufficient deposit 
 - Check that different kinds of `proposal` are validated correctly (?)
 - Check that only those with a permission can add the proposal
 - Check that the proposal is added to the list of proposals
