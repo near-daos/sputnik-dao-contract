@@ -47,6 +47,14 @@ with open(f"{SPUTNIK_REPO_PATH}/sputnikdao2/res/sputnikdao2.wasm",
         "--accountId", FACTORY_ACCOUNT
     ])
 
+    latest_hash = subprocess.run([
+        "near", "call", FACTORY_ACCOUNT, "get_latest_code_hash", "--accountId",
+        FACTORY_ACCOUNT
+    ],
+                                 capture_output=True,
+                                 text=True).stdout.splitlines()[-1].strip("'")
+    assert latest_hash == hash_in_base58
+
     params = json.dumps({"code_hash": hash_in_base58})
     subprocess.run([
         "near", "call", FACTORY_ACCOUNT, "delete_contract", params,
