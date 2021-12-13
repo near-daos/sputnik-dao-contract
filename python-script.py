@@ -7,9 +7,19 @@ import subprocess
 
 subprocess.run(["./build.sh"])
 
+SPUTNIK_REPO_PATH = "/Users/constantindogaru/near-protocol/sputnik-dao-contract"
 MASTER_ACCOUNT = "ctindogaru4.testnet"
 FACTORY_ACCOUNT = f"sputnikdao-factory2.{MASTER_ACCOUNT}"
-SPUTNIK_REPO_PATH = "/Users/constantindogaru/near-protocol/sputnik-dao-contract"
+
+wasm_contract = b""
+with open(f"{SPUTNIK_REPO_PATH}/sputnikdao2/res/sputnikdao2.wasm",
+          "rb") as wasm_file:
+    wasm_contract = wasm_file.read()  # read entire file as bytes
+
+WASM_CONTRACT_IN_BASE64 = base64.b64encode(wasm_contract)
+HASH_IN_HEX = hashlib.sha256(wasm_contract).hexdigest()
+HASH_IN_BYTES = bytes.fromhex(HASH_IN_HEX)
+HASH_IN_BASE58 = base58.b58encode(HASH_IN_BYTES).decode("UTF-8")
 
 subprocess.run(["near", "delete", FACTORY_ACCOUNT, MASTER_ACCOUNT])
 subprocess.run([
@@ -24,25 +34,24 @@ subprocess.run([
     "--initFunction", "new", "--initArgs", init_args
 ])
 
-wasm_contract = b""
-with open(f"{SPUTNIK_REPO_PATH}/sputnikdao2/res/sputnikdao2.wasm",
-          "rb") as wasm_file:
-    wasm_contract = wasm_file.read()  # read entire file as bytes
-
-wasm_contract_in_base64 = base64.b64encode(wasm_contract)
-hash_in_hex = hashlib.sha256(wasm_contract).hexdigest()
-hash_in_bytes = bytes.fromhex(hash_in_hex)
-hash_in_base58 = base58.b58encode(hash_in_bytes).decode("UTF-8")
-
-return_value = subprocess.run([
-    "near", "call", FACTORY_ACCOUNT, "store", wasm_contract_in_base64,
+return_hash = subprocess.run([
+    "near", "call", FACTORY_ACCOUNT, "store", WASM_CONTRACT_IN_BASE64,
     "--base64", "--accountId", FACTORY_ACCOUNT
 ],
-                              capture_output=True,
-                              text=True).stdout.splitlines()[-1].strip("'")
-assert return_value == hash_in_base58  # it means that the contract was stored successfully
+                             capture_output=True,
+                             text=True).stdout.splitlines()[-1].strip("'")
+assert return_hash == HASH_IN_BASE58  # it means that the contract was stored successfully
 
-params = json.dumps({"code_hash": hash_in_base58})
+params = json.dumps({"code_hash": HASH_IN_BASE58})
+return_code = subprocess.run([
+    "near", "call", FACTORY_ACCOUNT, "get_code", params, "--accountId",
+    FACTORY_ACCOUNT
+],
+                             capture_output=True,
+                             text=True).stdout.splitlines()[-1].strip("'")
+# TODO: verify return_code
+
+params = json.dumps({"code_hash": HASH_IN_BASE58})
 subprocess.run([
     "near", "call", FACTORY_ACCOUNT, "set_code_hash", params, "--accountId",
     FACTORY_ACCOUNT
@@ -54,9 +63,9 @@ latest_hash = subprocess.run([
 ],
                              capture_output=True,
                              text=True).stdout.splitlines()[-1].strip("'")
-assert latest_hash == hash_in_base58
+assert latest_hash == HASH_IN_BASE58
 
-params = json.dumps({"code_hash": hash_in_base58})
+params = json.dumps({"code_hash": HASH_IN_BASE58})
 subprocess.run([
     "near", "call", FACTORY_ACCOUNT, "delete_contract", params, "--accountId",
     FACTORY_ACCOUNT
