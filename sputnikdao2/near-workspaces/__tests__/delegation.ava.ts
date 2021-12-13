@@ -35,7 +35,7 @@ async function registerAndDelegate(dao: NearAccount, staking: NearAccount, accou
         'delegate',
         {
             account_id: account,
-            amount: amount.toString(), // if BN.muln(2) json can't searilize new BN for some reason??
+            amount: amount.toString(),
         }
     )
 }
@@ -65,17 +65,8 @@ workspace.test('Register delegation', async (test, { root, dao, alice }) => {
         root.call(dao, 'register_delegation', { account_id: alice },
             { attachedDeposit: regCost.sub(new BN(1)) }));
 
-    await staking.call(dao, 'register_delegation', { account_id: alice },
-        { attachedDeposit: regCost }
-    );
-    await staking.call(
-        dao,
-        'delegate',
-        {
-            account_id: alice,
-            amount: new BN(1),
-        }
-    )
+
+    await registerAndDelegate(dao, staking, alice, new BN(1));
 
     // Check that delegation appears in `delegations` LookupMap.
     const bal: BN = new BN(await dao.view('delegation_balance_of', { account_id: alice }));
