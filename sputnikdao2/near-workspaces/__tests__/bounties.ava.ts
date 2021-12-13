@@ -4,8 +4,8 @@ import { workspace, initStaking, initTestToken, STORAGE_PER_BYTE } from './utils
 async function proposeBounty(alice: NearAccount, dao: NearAccount) {  
     const bounty = {
         description: 'test_bounties',
-        token: alice,
-        amount: '1',
+        //token: alice,
+        amount: '19000000000000000000000000',
         times: 3,
         max_deadline: '1925376849430593581'
     }
@@ -63,11 +63,17 @@ workspace.test('Bounty workflow', async (test, {alice, root, dao }) => {
     const proposalId = await proposeBounty(alice, dao);
     await voteOnBounty(root, dao, proposalId);
     await claimBounty(alice, dao, proposalId);
+    console.log('Before bounty_done:');
     console.log(await dao.view('get_bounty_claims', { account_id: alice }));
     await doneBounty(alice, dao, proposalId);
+    console.log('After bounty_done:');
     console.log(await dao.view('get_bounty_claims', { account_id: alice }));
-    //await voteOnBounty(root, dao, proposalId + 1);
-    //console.log(await dao.view('get_bounty_claims', { account_id: alice }));
+    console.log('Before act_proposal, voting on the bounty:')
+    console.log(await dao.view('get_proposal', { id: proposalId + 1 }));
+    await voteOnBounty(root, dao, proposalId + 1);
+    console.log('After act_proposal, voting on the bounty:')
+    console.log(await dao.view('get_proposal', { id: proposalId + 1 }));
+    
 });
 
 workspace.test('Bounty claim', async (test, {alice, root, dao }) => {
