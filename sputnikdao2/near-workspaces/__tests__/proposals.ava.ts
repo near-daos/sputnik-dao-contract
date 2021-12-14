@@ -104,6 +104,16 @@ workspace.test('add proposal with 1 near', async (test, { alice, root, dao }) =>
     },
         { attachedDeposit: toYocto('1') })
     test.is(await dao.view('get_last_proposal_id'), 1);
+
+    let new_proposal: any = await dao.view('get_proposal', {id: 0})
+
+    test.log(new_proposal);
+    test.is(new_proposal.description, 'rename the dao');
+    test.is(new_proposal.proposer, 'alice.test.near')
+    test.is(new_proposal.status, 'InProgress')
+    
+    test.truthy(new_proposal.kind.ChangeConfig)
+    test.is(new_proposal.kind.ChangeConfig.config.name, 'sputnikdao')
     //same config as we did not execute that proposal
     test.deepEqual(await dao.view('get_config'), { name: 'sputnik', purpose: 'testing', metadata: '' })
 })
