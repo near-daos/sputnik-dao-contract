@@ -11,10 +11,10 @@ subprocess.run(["./build.sh"])
 
 # !!! replace SPUTNIK_REPO_PATH and MASTER_ACCOUNT with your owns
 SPUTNIK_REPO_PATH = "/Users/constantindogaru/near-protocol/sputnik-dao-contract"
-MASTER_ACCOUNT = "ctindogaru4.testnet"
+MASTER_ACCOUNT = "ctindogaru5.testnet"
 FACTORY_ACCOUNT = f"sputnikdao-factory2.{MASTER_ACCOUNT}"
 # !!! change DAO_NAME every time you run the script
-DAO_NAME = "dao12"
+DAO_NAME = "dao8"
 DAO_ACCOUNT = f"{DAO_NAME}.{FACTORY_ACCOUNT}"
 
 wasm_contract = b""
@@ -115,11 +115,11 @@ last_proposal_id = subprocess.run([
 assert last_proposal_id == "0"
 
 # Upgrade the DAO
-# params = json.dumps({"account_id": DAO_ACCOUNT})
-# subprocess.run([
-#     "near", "call", FACTORY_ACCOUNT, "upgrade", params, "--accountId",
-#     FACTORY_ACCOUNT
-# ])
+params = json.dumps({"account_id": DAO_ACCOUNT})
+subprocess.run([
+    "near", "call", FACTORY_ACCOUNT, "upgrade", params, "--accountId",
+    FACTORY_ACCOUNT, "--gas", "300000000000000"
+])
 
 ############################################ CLEAN-UP ############################################
 
