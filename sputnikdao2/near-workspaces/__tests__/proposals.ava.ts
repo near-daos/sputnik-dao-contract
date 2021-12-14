@@ -111,7 +111,7 @@ workspace.test('add proposal with 1 near', async (test, { alice, root, dao }) =>
     test.is(new_proposal.description, 'rename the dao');
     test.is(new_proposal.proposer, 'alice.test.near')
     test.is(new_proposal.status, 'InProgress')
-    
+
     test.truthy(new_proposal.kind.ChangeConfig)
     test.is(new_proposal.kind.ChangeConfig.config.name, 'sputnikdao')
     //same config as we did not execute that proposal
@@ -144,4 +144,75 @@ workspace.test('add proposal with 0.999... near', async (test, { alice, root, da
     //the proposal did not count
     test.is(await dao.view('get_last_proposal_id'), 0);
 
+})
+
+workspace.test('voting not allowed for non councils', async (test, {alice, root, dao})=>{
+    const config = {
+        name: 'sputnikdao',
+        purpose: 'testing',
+        metadata: ''
+    }
+    //add_proposal returns new proposal id
+    const id = await alice.call(dao, 'add_proposal', {
+        proposal: {
+            description: 'rename the dao',
+            kind: {
+                ChangeConfig: {
+                    config
+                }
+            }
+        },
+    }, {attachedDeposit: toYocto('1')})
+
+    //here alice tries to vote for her proposal but she is not a council and has no permission to vote.
+    const err = await captureError(async () => await alice.call(dao, 'act_proposal', {
+        id,
+        action: 'VoteApprove',
+        memo: 'trying to vote without permission'
+    }))
+
+    test.log(err)
+    test.true(err.includes('ERR_PERMISSION_DENIED'))
+
+    let proposal: any = await dao.view('get_proposal', {id});
+
+    test.log(proposal);
+    test.is(proposal.status, 'InProgress')
+})
+
+
+workspace.test('voting is allowed for councils', async (test, {alice, root, dao})=>{
+    const config = {
+        name: 'sputnikdao',
+        purpose: 'testing',
+        metadata: ''
+    }
+    //alice adds a new proposal
+    const id = await alice.call(dao, 'add_proposal', {
+        proposal: {
+            description: 'rename the dao',
+            kind: {
+                ChangeConfig: {
+                    config
+                }
+            }
+        },
+    }, {attachedDeposit: toYocto('1')})
+
+    //council (root) votes on alice's promise
+    const res = await root.call(dao, 'act_proposal', {
+        id,
+        action: 'VoteApprove',
+        memo: 'as a council I can vote'
+    })
+
+    test.log(res)
+
+    let proposal: any = await dao.view('get_proposal', {id});
+
+    test.log(proposal);
+    test.is(proposal.status, 'Approved')
+
+    // proposal approved so now the config is equal to what alice did proposed
+    test.deepEqual(await dao.view('get_config'), config) 
 })
