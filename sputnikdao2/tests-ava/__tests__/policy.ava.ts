@@ -17,6 +17,7 @@ const workspace = Workspace.init(async ({ root }) => {
     return { alice, dao };
 });
 
+// FINISH THIS TEST
 workspace.test('Testing policy TokenWeight', async (test, { alice, root, dao }) => {
     const config = { name: 'sputnik', purpose: 'testing', metadata: '' };
     const period = new BN('1000000000').muln(60).muln(60).muln(24).muln(7).toString();
@@ -79,5 +80,5 @@ workspace.test('Testing policy TokenWeight', async (test, { alice, root, dao }) 
             action: 'VoteApprove',
         }
     );
-    console.log(await dao.view('get_proposal', {id: proposalId}));
+    // console.log(await dao.view('get_proposal', {id: proposalId}));
 });
