@@ -44,6 +44,23 @@ workspace.test('Register delegation', async (test, { root, dao, alice }) => {
     const testToken = await initTestToken(root);
     const staking = await initStaking(root, dao, testToken);
 
+    // set staking
+    await setStakingId(root, dao, staking);
+
+    await registerAndDelegate(dao, staking, alice, new BN(1));
+
+    // Check that delegation appears in `delegations` LookupMap.
+    let bal: BN = new BN(await dao.view('delegation_balance_of', { account_id: alice }));
+    test.deepEqual(bal, new BN(1));
+    const total: BN = new BN(await dao.view('delegation_total_supply'));
+    test.deepEqual(total, new BN(1));
+});
+
+
+workspace.test('Register delegation fail', async (test, { root, dao, alice }) => {
+    const testToken = await initTestToken(root);
+    const staking = await initStaking(root, dao, testToken);
+
     // Staking id not set 
     let errorString = await captureError(async () =>
         staking.call(dao, 'register_delegation', { account_id: alice },
@@ -64,16 +81,6 @@ workspace.test('Register delegation', async (test, { root, dao, alice }) => {
     await captureError(async () =>
         root.call(dao, 'register_delegation', { account_id: alice },
             { attachedDeposit: regCost.sub(new BN(1)) }));
-
-
-    await registerAndDelegate(dao, staking, alice, new BN(1));
-
-    // Check that delegation appears in `delegations` LookupMap.
-    const bal: BN = new BN(await dao.view('delegation_balance_of', { account_id: alice }));
-    const total: BN = new BN(await dao.view('delegation_total_supply'));
-    test.deepEqual(bal, new BN(1));
-    test.deepEqual(total, new BN(1));
-
 });
 
 
@@ -83,9 +90,33 @@ workspace.test('Delegation', async (test, { root, dao, alice }) => {
     const randomAmount = new BN('10087687667869');
     const bob = await root.createAccount('bob');
 
+    // set staking
+    await setStakingId(root, dao, staking);
+
+    await registerAndDelegate(dao, staking, alice, randomAmount);
+    await registerAndDelegate(dao, staking, bob, randomAmount.muln(2));
+    test.deepEqual(new BN(
+        await dao.view('delegation_balance_of', { account_id: alice })),
+        randomAmount);
+    test.deepEqual(new BN(
+        await dao.view('delegation_balance_of', { account_id: bob })),
+        randomAmount.muln(2));
+    test.deepEqual(new BN(
+        await dao.view('delegation_total_supply')),
+        randomAmount.muln(3));
+});
+
+
+workspace.test('Delegation fail', async (test, { root, dao, alice }) => {
+    const testToken = await initTestToken(root);
+    const staking = await initStaking(root, dao, testToken);
+    const randomAmount = new BN('10087687667869');
+
     // Should panic if `staking_id` is `None`
     let errorString = await captureError(async () =>
-        staking.call(dao, 'delegate',
+        staking.call(
+            dao,
+            'delegate',
             {
                 account_id: alice,
                 amount: randomAmount,
@@ -98,7 +129,9 @@ workspace.test('Delegation', async (test, { root, dao, alice }) => {
 
     // Check that it can only be called by the `staking_id`
     errorString = await captureError(async () =>
-        root.call(dao, 'delegate',
+        root.call(
+            dao,
+            'delegate',
             {
                 account_id: alice,
                 amount: randomAmount,
@@ -117,18 +150,6 @@ workspace.test('Delegation', async (test, { root, dao, alice }) => {
             })
     );
     test.regex(errorString, /ERR_NOT_REGISTERED/);
-
-    await registerAndDelegate(dao, staking, alice, randomAmount);
-    await registerAndDelegate(dao, staking, bob, randomAmount.muln(2));
-    test.deepEqual(new BN(
-        await dao.view('delegation_balance_of', { account_id: alice })
-        ),randomAmount);
-    test.deepEqual(new BN(
-        await dao.view('delegation_balance_of', { account_id: bob })
-        ),randomAmount.muln(2));
-    test.deepEqual(new BN(
-        await dao.view('delegation_total_supply')
-        ),randomAmount.muln(3));
 });
 
 
