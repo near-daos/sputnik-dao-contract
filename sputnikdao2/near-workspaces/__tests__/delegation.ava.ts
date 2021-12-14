@@ -1,15 +1,20 @@
-import { Workspace, BN, NearAccount, captureError, toYocto, tGas } from 'near-workspaces-ava';
+import { BN, NearAccount, captureError, toYocto, tGas } from 'near-workspaces-ava';
 import { workspace, initStaking, initTestToken, STORAGE_PER_BYTE } from './utils';
 
 const regCost = STORAGE_PER_BYTE.mul(new BN(16));
 
 async function setStakingId(root: NearAccount, dao: NearAccount, staking: NearAccount) {
+
     // Setting staking id
     const proposalId = await root.call(
         dao,
         'add_proposal',
         {
-            proposal: { description: 'test', kind: { "SetStakingContract": { "staking_id": staking.accountId } } },
+            proposal:
+            {
+                description: 'test',
+                kind: { "SetStakingContract": { "staking_id": staking.accountId } }
+            },
         },
         {
             attachedDeposit: toYocto('1'),

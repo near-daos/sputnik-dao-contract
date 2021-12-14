@@ -176,10 +176,10 @@ workspace.test('Bounty done', async (test, {alice, root, dao }) => {
 
 
     //`bounty_done` can only be called by the claimer
-    //let errorString3 = await captureError(async () =>
-    //    await doneBounty(alice, bob, dao, proposalId)
-    //);
-    //test.regex(errorString3, /ERR_BOUNTY_DONE_MUST_BE_SELF/);
+    let errorString3 = await captureError(async () =>
+        await doneBounty(alice, bob, dao, proposalId)
+    );
+    test.regex(errorString3, /ERR_BOUNTY_DONE_MUST_BE_SELF/);
 
     await doneBounty(alice, alice, dao, proposalId);
     await voteOnBounty(root, dao, proposalId + 1);
