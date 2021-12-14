@@ -8,7 +8,6 @@ Claims given bounty by caller with given expected duration to execute.
 - Should panic if `attached_deposit` is not equal to the corresponding `bounty_bond`
 - Should panic in case of wrong deadline
 - Should panic if all bounties are claimed
-- Should one person to be able to claim the bounty multiple number of times?
 - Should increase number of claimed bounties
 - Should add this claim to the list of claims, done by this account
 - Should lock the deposit
