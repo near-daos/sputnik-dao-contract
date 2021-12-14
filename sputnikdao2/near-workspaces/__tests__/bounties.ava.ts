@@ -165,8 +165,6 @@ workspace.test('Bounty done', async (test, {alice, root, dao }) => {
     test.regex(errorString1, /ERR_NO_BOUNTY_CLAIMS/);
 
     await claimBounty(bob, dao, proposalId);
-    console.log(await dao.view('get_proposals', { from_index: 0, limit: 20 }));
-
 
     //Should panic if the list of claims for the caller of the method 
     //doesn't contain the claim with given ID
@@ -176,18 +174,18 @@ workspace.test('Bounty done', async (test, {alice, root, dao }) => {
     test.regex(errorString2, /ERR_NO_BOUNTY_CLAIM/);
 
 
-    //console.log(await dao.view('get_proposals', { from_index: 0, limit: 20 }));
-    //console.log(await dao.view('get_bounty_claims', { account_id: alice }));
-    //console.log(await dao.view('get_bounty_claims', { account_id: bob }));
-
-
     //`bounty_done` can only be called by the claimer
     //let errorString3 = await captureError(async () =>
     //    await doneBounty(bob, dao, proposalId)
     //);
     //test.regex(errorString3, /ERR_BOUNTY_DONE_MUST_BE_SELF/);
 
+    console.log(await dao.view('get_bounty_claims', { account_id: alice }));
+    console.log(await dao.view('get_proposals', { from_index: 0, limit: 20 }));
     doneBounty(alice, dao, proposalId);
+    console.log(await dao.view('get_bounty_claims', { account_id: alice }));
+    console.log(await dao.view('get_proposals', { from_index: 0, limit: 20 }));
+
     //await voteOnBounty(root, dao, proposalId + 1);
 
 
