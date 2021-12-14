@@ -70,16 +70,17 @@ workspace.test('Bounty workflow', async (test, {alice, root, dao }) => {
     const proposalId = await proposeBounty(alice, dao);
     await voteOnBounty(root, dao, proposalId);
     await claimBounty(alice, dao, proposalId);
-    console.log('Claims before bounty_done:');
-    console.log(await dao.view('get_bounty_claims', { account_id: alice }));
+    const proposal = await dao.view('get_bounty_claims', { account_id: alice })
+    test.log('Claims before bounty_done:');
+    test.log(await dao.view('get_bounty_claims', { account_id: alice }));
     await doneBounty(alice, alice, dao, proposalId);
-    console.log('Claims after bounty_done:');
-    console.log(await dao.view('get_bounty_claims', { account_id: alice }));
-    console.log('The proposal before act_proposal, voting on the bounty:')
-    console.log(await dao.view('get_proposal', { id: proposalId + 1 }));
+    test.log('Claims after bounty_done:');
+    test.log(await dao.view('get_bounty_claims', { account_id: alice }));
+    test.log('The proposal before act_proposal, voting on the bounty:')
+    test.log(await dao.view('get_proposal', { id: proposalId + 1 }));
     await voteOnBounty(root, dao, proposalId + 1);
-    console.log('The proposal after act_proposal, voting on the bounty:')
-    console.log(await dao.view('get_proposal', { id: proposalId + 1 }));
+    test.log('The proposal after act_proposal, voting on the bounty:')
+    test.log(await dao.view('get_proposal', { id: proposalId + 1 }));
     
 });
 
@@ -146,10 +147,14 @@ workspace.test('Bounty claim', async (test, {alice, root, dao }) => {
             deadline: DEADLINE
         },
         { 
+            
             attachedDeposit: BOND
         })
     );
     test.regex(errorString4, /ERR_BOUNTY_ALL_CLAIMED/);
+
+    //Number of claims is correct
+    test.is(await dao.view('get_bounty_number_of_claims', { id: proposalId }), 3);
 });
 
 workspace.test('Bounty done', async (test, {alice, root, dao }) => {

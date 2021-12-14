@@ -71,8 +71,8 @@ Receiving callback after the proposal has been finalized.
 
 ### add_proposal
 Adds proposal to this DAO.
-- [x] Check that the method fails in case of insufficient deposit 
-- Check that different kinds of `proposal` are validated correctly (?)
+- Check that the method fails in case of insufficient deposit 
+- Check that different kinds of `proposal` are validated correctly
 - Check that only those with a permission can add the proposal
 - Check that the proposal is added to the list of proposals
 ### act_proposal
