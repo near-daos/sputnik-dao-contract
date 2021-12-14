@@ -9,10 +9,13 @@ import subprocess
 
 subprocess.run(["./build.sh"])
 
-# replace SPUTNIK_REPO_PATH and MASTER_ACCOUNT with your owns
+# !!! replace SPUTNIK_REPO_PATH and MASTER_ACCOUNT with your owns
 SPUTNIK_REPO_PATH = "/Users/constantindogaru/near-protocol/sputnik-dao-contract"
 MASTER_ACCOUNT = "ctindogaru4.testnet"
 FACTORY_ACCOUNT = f"sputnikdao-factory2.{MASTER_ACCOUNT}"
+# !!! change DAO_NAME every time you run the script
+DAO_NAME = "dao5"
+DAO_ACCOUNT = f"{DAO_NAME}.{FACTORY_ACCOUNT}"
 
 wasm_contract = b""
 with open(f"{SPUTNIK_REPO_PATH}/sputnikdao2/res/sputnikdao2.wasm",
@@ -27,7 +30,7 @@ HASH_IN_BASE58 = base58.b58encode(HASH_IN_BYTES).decode("UTF-8")
 # Create an account for the factory itself
 subprocess.run([
     "near", "create-account", FACTORY_ACCOUNT, "--masterAccount",
-    MASTER_ACCOUNT, "--initialBalance", "10"
+    MASTER_ACCOUNT, "--initialBalance", "25"
 ])
 
 # Deploy the factory contract to that account
@@ -74,6 +77,33 @@ latest_hash = subprocess.run([
                              capture_output=True,
                              text=True).stdout.splitlines()[-1].strip("'")
 assert latest_hash == HASH_IN_BASE58
+
+# Create a new DAO
+args_param = json.dumps({
+    "config": {
+        "name": DAO_NAME,
+        "purpose": "testing",
+        "metadata": ""
+    },
+    "policy": [MASTER_ACCOUNT]
+}).encode("UTF-8")
+params = json.dumps({
+    "name": DAO_NAME,
+    "args": base64.b64encode(args_param).decode("UTF-8")
+})
+subprocess.run([
+    "near", "call", FACTORY_ACCOUNT, "create", params, "--accountId",
+    FACTORY_ACCOUNT, "--gas", "300000000000000", "--amount", "10"
+])
+
+# Get the list of DAOs
+dao_list = subprocess.run([
+    "near", "call", FACTORY_ACCOUNT, "get_dao_list", "--accountId",
+    FACTORY_ACCOUNT
+],
+                          capture_output=True,
+                          text=True).stdout.splitlines()[-1].strip("'")
+assert dao_list == f"[ '{DAO_ACCOUNT}' ]"
 
 ############################################ CLEAN-UP ############################################
 
