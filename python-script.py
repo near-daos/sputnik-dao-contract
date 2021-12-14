@@ -14,7 +14,7 @@ SPUTNIK_REPO_PATH = "/Users/constantindogaru/near-protocol/sputnik-dao-contract"
 MASTER_ACCOUNT = "ctindogaru4.testnet"
 FACTORY_ACCOUNT = f"sputnikdao-factory2.{MASTER_ACCOUNT}"
 # !!! change DAO_NAME every time you run the script
-DAO_NAME = "dao5"
+DAO_NAME = "dao12"
 DAO_ACCOUNT = f"{DAO_NAME}.{FACTORY_ACCOUNT}"
 
 wasm_contract = b""
@@ -104,6 +104,22 @@ dao_list = subprocess.run([
                           capture_output=True,
                           text=True).stdout.splitlines()[-1].strip("'")
 assert dao_list == f"[ '{DAO_ACCOUNT}' ]"
+
+# Get last proposal id from the DAO
+last_proposal_id = subprocess.run([
+    "near", "call", DAO_ACCOUNT, "get_last_proposal_id", "--accountId",
+    FACTORY_ACCOUNT
+],
+                                  capture_output=True,
+                                  text=True).stdout.splitlines()[-1]
+assert last_proposal_id == "0"
+
+# Upgrade the DAO
+# params = json.dumps({"account_id": DAO_ACCOUNT})
+# subprocess.run([
+#     "near", "call", FACTORY_ACCOUNT, "upgrade", params, "--accountId",
+#     FACTORY_ACCOUNT
+# ])
 
 ############################################ CLEAN-UP ############################################
 
