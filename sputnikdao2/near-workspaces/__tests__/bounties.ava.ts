@@ -49,10 +49,11 @@ async function claimBounty(alice: NearAccount, dao: NearAccount, proposalId: num
     })
 }
 
-async function doneBounty(alice: NearAccount, dao: NearAccount, proposalId: number) {
+async function doneBounty(alice: NearAccount, bob: NearAccount, dao: NearAccount, proposalId: number) {
     await alice.call(dao, 'bounty_done', 
     {
         id: proposalId,
+        account_id: bob,
         description: 'This bounty is done'
 
     },
@@ -71,7 +72,7 @@ workspace.test('Bounty workflow', async (test, {alice, root, dao }) => {
     await claimBounty(alice, dao, proposalId);
     console.log('Claims before bounty_done:');
     console.log(await dao.view('get_bounty_claims', { account_id: alice }));
-    await doneBounty(alice, dao, proposalId);
+    await doneBounty(alice, alice, dao, proposalId);
     console.log('Claims after bounty_done:');
     console.log(await dao.view('get_bounty_claims', { account_id: alice }));
     console.log('The proposal before act_proposal, voting on the bounty:')
@@ -160,7 +161,7 @@ workspace.test('Bounty done', async (test, {alice, root, dao }) => {
 
     //Should panic if the caller is not in the list of claimers
     let errorString1 = await captureError(async () =>
-        await doneBounty(bob, dao, proposalId)
+        await doneBounty(alice, bob, dao, proposalId)
     );
     test.regex(errorString1, /ERR_NO_BOUNTY_CLAIMS/);
 
@@ -169,31 +170,26 @@ workspace.test('Bounty done', async (test, {alice, root, dao }) => {
     //Should panic if the list of claims for the caller of the method 
     //doesn't contain the claim with given ID
     let errorString2 = await captureError(async () =>
-        await doneBounty(alice, dao, proposalId + 10)
+        await doneBounty(alice, alice, dao, proposalId + 10)
     );
     test.regex(errorString2, /ERR_NO_BOUNTY_CLAIM/);
 
 
     //`bounty_done` can only be called by the claimer
     //let errorString3 = await captureError(async () =>
-    //    await doneBounty(bob, dao, proposalId)
+    //    await doneBounty(alice, bob, dao, proposalId)
     //);
     //test.regex(errorString3, /ERR_BOUNTY_DONE_MUST_BE_SELF/);
 
-    console.log(await dao.view('get_bounty_claims', { account_id: alice }));
-    console.log(await dao.view('get_proposals', { from_index: 0, limit: 20 }));
-    doneBounty(alice, dao, proposalId);
-    console.log(await dao.view('get_bounty_claims', { account_id: alice }));
-    console.log(await dao.view('get_proposals', { from_index: 0, limit: 20 }));
-
-    //await voteOnBounty(root, dao, proposalId + 1);
+    await doneBounty(alice, alice, dao, proposalId);
+    await voteOnBounty(root, dao, proposalId + 1);
 
 
     //Should panic if the bounty claim is completed
-    //let errorString4 = await captureError(async () =>
-    //    await doneBounty(alice, dao, proposalId)
-    //);
-    //test.regex(errorString4, /ERR_BOUNTY_CLAIM_COMPLETED/);
+    let errorString4 = await captureError(async () =>
+        await doneBounty(alice, alice, dao, proposalId)
+    );
+    test.regex(errorString4, /ERR_BOUNTY_CLAIM_COMPLETED/);
 
 });
 
