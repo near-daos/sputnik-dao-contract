@@ -117,24 +117,3 @@ Returns the bounties.
 Returns bounty claims for given user.
 ### get_bounty_number_of_claims
 Returns the number of claims per given bounty.
-
-# SputnikDAO Factory
-
-## lib
-
-### get_dao_list
-Returns a vector of daos.
-### get_number_daos
-Returns the number of daos.
-### get_daos
-Returns a vector of daos starting from `from_index` and up to `limit`.
-### create
-Creates a new account and full access key. Deploys the SputnikDao contract to it.
-- Should panic if `name` is not suitable to be the part of the [NEAR account](https://docs.near.org/docs/concepts/account#account-id-rules)
-- `prepaid_gas` is handled correctly
-- `attached_deposit` is handled correctly
-- what if `public_key` is `None`?
-### on_create
-Inserts the account to the list of daos. Returns `true` in case of success and `false` otherwise.
-- Should panic unless the contract called itself
-- Given should be `attached_deposit` is sufficient
