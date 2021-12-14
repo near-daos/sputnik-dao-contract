@@ -89,10 +89,10 @@ fn test_create_dao_and_use_token() {
     add_member_proposal(&root, &dao, user2.account_id.clone()).assert_success();
     assert_eq!(view!(dao.get_last_proposal_id()).unwrap_json::<u64>(), 1);
     // Voting by user who is not member should fail.
-    should_fail(call!(user2, dao.act_proposal(0, Action::VoteApprove, None)));
-    call!(root, dao.act_proposal(0, Action::VoteApprove, None)).assert_success();
+    should_fail(call!(user2, dao.act_proposal(0, Action::VoteApprove, None, None)));
+    call!(root, dao.act_proposal(0, Action::VoteApprove, None, None)).assert_success();
     // voting second time should fail.
-    should_fail(call!(root, dao.act_proposal(0, Action::VoteApprove, None)));
+    should_fail(call!(root, dao.act_proposal(0, Action::VoteApprove, None, None)));
     // Add 3rd member.
     add_member_proposal(&user2, &dao, user3.account_id.clone()).assert_success();
     vote(vec![&root, &user2], &dao, 1);
@@ -303,7 +303,8 @@ fn test_payment_failures() {
         dao.act_proposal(
             1,
             Action::Finalize,
-            Some("Sorry! We topped up our tokens. Thanks.".to_string())
+            Some("Sorry! We topped up our tokens. Thanks.".to_string()),
+            None
         )
     )
     .assert_success();
@@ -325,10 +326,27 @@ fn test_vote_multiple_proposals_successful() {
     add_member_proposal(&root, &dao, user1.account_id.clone()).assert_success();
     add_member_proposal(&root, &dao, user2.account_id.clone()).assert_success();
 
-    call!(root, dao.act_proposal_multi(
+    call!(root, dao.act_proposal_batch(
         vec![
             ProposalAction {id: 0, action: Action::VoteReject, memo: None},
             ProposalAction {id: 1, action: Action::VoteReject, memo: None},
+        ]
+    ))
+      .assert_success();
+
+    assert_eq!(
+        view!(dao.get_proposal(0)).unwrap_json::<Proposal>().status,
+        ProposalStatus::InProgress
+    );
+    assert_eq!(
+        view!(dao.get_proposal(1)).unwrap_json::<Proposal>().status,
+        ProposalStatus::InProgress
+    );
+
+    call!(root, dao.act_proposal_batch(
+        vec![
+            ProposalAction {id: 0, action: Action::Finalize, memo: None},
+            ProposalAction {id: 1, action: Action::Finalize, memo: None},
         ]
     ))
       .assert_success();
@@ -354,7 +372,7 @@ fn test_vote_multiple_proposals_failures() {
     add_member_proposal(&root, &dao, user2.account_id.clone()).assert_success();
     add_member_proposal(&root, &dao, user3.account_id.clone()).assert_success();
 
-    should_fail(call!(root, dao.act_proposal_multi(
+    should_fail(call!(root, dao.act_proposal_batch(
         vec![
             ProposalAction {id: 0, action: Action::VoteReject, memo: None},
             ProposalAction {id: 3, action: Action::VoteReject, memo: None},

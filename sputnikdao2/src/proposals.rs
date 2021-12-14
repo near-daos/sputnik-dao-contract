@@ -478,7 +478,7 @@ impl Contract {
 
     /// Act on given proposal by id, if permissions allow.
     /// Memo is logged but not stored in the state. Can be used to leave notes or explain the action.
-    pub fn act_proposal(&mut self, id: u64, action: Action, memo: Option<String>) {
+    pub fn act_proposal(&mut self, id: u64, action: Action, memo: Option<String>, finality: Option<bool>) {
         let mut proposal: Proposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL").into();
         let policy = self.policy.get().unwrap().to_policy();
         // Check permissions for the given action.
@@ -486,6 +486,7 @@ impl Contract {
             policy.can_execute_action(self.internal_user_info(), &proposal.kind, &action);
         assert!(allowed, "ERR_PERMISSION_DENIED");
         let sender_id = env::predecessor_account_id();
+        let not_finalize = finality == Some(false);
         // Update proposal given action. Returns true if should be updated in storage.
         let update = match action {
             Action::AddProposal => env::panic_str("ERR_WRONG_ACTION"),
@@ -505,27 +506,35 @@ impl Contract {
                     &policy,
                     self.get_user_weight(&sender_id),
                 );
-                // Updates proposal status with new votes using the policy.
-                proposal.status =
-                    policy.proposal_status(&proposal, roles, self.total_delegation_amount);
-                if proposal.status == ProposalStatus::Approved {
-                    self.internal_execute_proposal(&policy, &proposal, id);
-                    true
-                } else if proposal.status == ProposalStatus::Removed {
-                    self.internal_reject_proposal(&policy, &proposal, false);
-                    self.proposals.remove(&id);
-                    false
-                } else if proposal.status == ProposalStatus::Rejected {
-                    self.internal_reject_proposal(&policy, &proposal, true);
+                // If the finality is false, will not finalize this proposal automatically.
+                if not_finalize {
                     true
                 } else {
-                    // Still in progress or expired.
-                    true
+                    // Updates proposal status with new votes using the policy.
+                    proposal.status =
+                      policy.proposal_status(&proposal, roles, self.total_delegation_amount);
+                    if proposal.status == ProposalStatus::Approved {
+                        self.internal_execute_proposal(&policy, &proposal, id);
+                        true
+                    } else if proposal.status == ProposalStatus::Removed {
+                        self.internal_reject_proposal(&policy, &proposal, false);
+                        self.proposals.remove(&id);
+                        false
+                    } else if proposal.status == ProposalStatus::Rejected {
+                        self.internal_reject_proposal(&policy, &proposal, true);
+                        true
+                    } else {
+                        // Still in progress or expired.
+                        true
+                    }
                 }
             }
-            // There are two cases when proposal must be finalized manually: expired or failed.
+            // Proposal needs to be finalised manually when:
+            // - it expired or failed
+            // - with act_proposal_batch (finality = Some(false)) - when state didn’t change and auto-finalisation didn’t happen
             // In case of failed, we just recompute the status and if it still approved, we re-execute the proposal.
             // In case of expired, we reject the proposal and return the bond.
+            // In case finality == Some(false) we execute recompute the status and auto-finalization based on vore policy
             // Corner cases:
             //  - if proposal expired during the failed state - it will be marked as expired.
             //  - if the number of votes in the group has changed (new members has been added) -
@@ -536,18 +545,22 @@ impl Contract {
                     policy.roles.iter().map(|r| r.name.clone()).collect(),
                     self.total_delegation_amount,
                 );
-                match proposal.status {
-                    ProposalStatus::Approved => {
-                        self.internal_execute_proposal(&policy, &proposal, id);
-                    }
-                    ProposalStatus::Expired => {
-                        self.internal_reject_proposal(&policy, &proposal, true);
-                    }
-                    _ => {
-                        env::panic_str("ERR_PROPOSAL_NOT_EXPIRED_OR_FAILED");
-                    }
+                if proposal.status == ProposalStatus::Approved {
+                    self.internal_execute_proposal(&policy, &proposal, id);
+                    true
+                } else if proposal.status == ProposalStatus::Expired {
+                    self.internal_reject_proposal(&policy, &proposal, true);
+                    true
+                } else if proposal.status == ProposalStatus::Removed && not_finalize {
+                    self.internal_reject_proposal(&policy, &proposal, false);
+                    self.proposals.remove(&id);
+                    false
+                } else if proposal.status == ProposalStatus::Rejected && not_finalize {
+                    self.internal_reject_proposal(&policy, &proposal, true);
+                    true
+                } else {
+                    env::panic_str("ERR_PROPOSAL_NOT_EXPIRED_OR_FAILED");
                 }
-                true
             }
             Action::MoveToHub => false,
         };
@@ -561,14 +574,14 @@ impl Contract {
     }
 
     /// Act on given proposals, sequentially. The execution is interrupted and reverted if any of the proposal actions causes panic.
-    pub fn act_proposal_multi(&mut self, actions: Vec<ProposalAction>) {
+    pub fn act_proposal_batch(&mut self, actions: Vec<ProposalAction>) {
         actions.into_iter().for_each(|proposal| {
             env::log_str(&format!(
                 "Processing action {} for proposal {}",
                 proposal.action.to_policy_label(),
                 proposal.id
             ));
-            self.act_proposal(proposal.id, proposal.action, proposal.memo);
+            self.act_proposal(proposal.id, proposal.action, proposal.memo, Some(false));
         });
     }
 }

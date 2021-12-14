@@ -241,7 +241,7 @@ mod tests {
         assert_eq!(contract.get_proposals(0, 10).len(), 1);
 
         let id = create_proposal(&mut context, &mut contract);
-        contract.act_proposal(id, Action::VoteApprove, None);
+        contract.act_proposal(id, Action::VoteApprove, None, None);
         assert_eq!(
             contract.get_proposal(id).proposal.status,
             ProposalStatus::Approved
@@ -252,7 +252,7 @@ mod tests {
         testing_env!(context
             .block_timestamp(1_000_000_000 * 24 * 60 * 60 * 8)
             .build());
-        contract.act_proposal(id, Action::Finalize, None);
+        contract.act_proposal(id, Action::Finalize, None, None);
         assert_eq!(
             contract.get_proposal(id).proposal.status,
             ProposalStatus::Expired
@@ -283,7 +283,7 @@ mod tests {
         );
         let id = create_proposal(&mut context, &mut contract);
         assert_eq!(contract.get_proposal(id).proposal.description, "test");
-        contract.act_proposal(id, Action::RemoveProposal, None);
+        contract.act_proposal(id, Action::RemoveProposal, None, None);
     }
 
     #[test]
@@ -297,7 +297,7 @@ mod tests {
         let mut contract = Contract::new(Config::test_config(), policy);
         let id = create_proposal(&mut context, &mut contract);
         assert_eq!(contract.get_proposal(id).proposal.description, "test");
-        contract.act_proposal(id, Action::RemoveProposal, None);
+        contract.act_proposal(id, Action::RemoveProposal, None, None);
         assert_eq!(contract.get_proposals(0, 10).len(), 0);
     }
 
@@ -313,7 +313,7 @@ mod tests {
         testing_env!(context
             .block_timestamp(1_000_000_000 * 24 * 60 * 60 * 8)
             .build());
-        contract.act_proposal(id, Action::VoteApprove, None);
+        contract.act_proposal(id, Action::VoteApprove, None, None);
     }
 
     #[test]
@@ -326,8 +326,8 @@ mod tests {
             VersionedPolicy::Default(vec![accounts(1).into(), accounts(2).into()]),
         );
         let id = create_proposal(&mut context, &mut contract);
-        contract.act_proposal(id, Action::VoteApprove, None);
-        contract.act_proposal(id, Action::VoteApprove, None);
+        contract.act_proposal(id, Action::VoteApprove, None, None);
+        contract.act_proposal(id, Action::VoteApprove, None, None);
     }
 
     #[test]
@@ -346,7 +346,7 @@ mod tests {
                 role: "missing".to_string(),
             },
         });
-        contract.act_proposal(id, Action::VoteApprove, None);
+        contract.act_proposal(id, Action::VoteApprove, None, None);
         let x = contract.get_policy();
         // still 2 roles: all and council.
         assert_eq!(x.roles.len(), 2);
@@ -380,9 +380,21 @@ mod tests {
         );
         let id1 = create_proposal(&mut context, &mut contract);
         let id2 = create_proposal(&mut context, &mut contract);
-        contract.act_proposal_multi(vec![
+        contract.act_proposal_batch(vec![
             ProposalAction {id: id1, action: Action::VoteApprove, memo: None},
             ProposalAction {id: id2, action: Action::VoteReject, memo: None},
+        ]);
+        assert_eq!(
+            contract.get_proposal(id1).proposal.status,
+            ProposalStatus::InProgress
+        );
+        assert_eq!(
+            contract.get_proposal(id2).proposal.status,
+            ProposalStatus::InProgress
+        );
+        contract.act_proposal_batch(vec![
+            ProposalAction {id: id1, action: Action::Finalize, memo: None},
+            ProposalAction {id: id2, action: Action::Finalize, memo: None},
         ]);
         assert_eq!(
             contract.get_proposal(id1).proposal.status,
@@ -405,7 +417,7 @@ mod tests {
         );
         let id = create_proposal(&mut context, &mut contract);
         create_proposal(&mut context, &mut contract);
-        contract.act_proposal_multi(vec![
+        contract.act_proposal_batch(vec![
             ProposalAction {id, action: Action::VoteApprove, memo: None},
             ProposalAction {id: 3, action: Action::VoteReject, memo: None},
         ]);

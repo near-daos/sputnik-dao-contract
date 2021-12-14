@@ -125,7 +125,7 @@ pub fn vote(users: Vec<&UserAccount>, dao: &Contract, proposal_id: u64) {
     for user in users.into_iter() {
         call!(
             user,
-            dao.act_proposal(proposal_id, Action::VoteApprove, None)
+            dao.act_proposal(proposal_id, Action::VoteApprove, None, None)
         )
         .assert_success();
     }

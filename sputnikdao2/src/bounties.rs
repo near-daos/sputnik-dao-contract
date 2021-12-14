@@ -232,7 +232,7 @@ mod tests {
             },
         });
         assert_eq!(contract.get_last_bounty_id(), id);
-        contract.act_proposal(id, Action::VoteApprove, None);
+        contract.act_proposal(id, Action::VoteApprove, None, None);
         id
     }
 
@@ -271,7 +271,7 @@ mod tests {
             "bounty_done"
         );
 
-        contract.act_proposal(1, Action::VoteApprove, None);
+        contract.act_proposal(1, Action::VoteApprove, None, None);
         testing_env_with_promise_results(context.build(), PromiseResult::Successful(vec![]));
         contract.on_proposal_callback(1);
 
@@ -280,7 +280,7 @@ mod tests {
 
         contract.bounty_claim(0, U64::from(500));
         contract.bounty_done(0, None, "Bounty is done 2".to_string());
-        contract.act_proposal(2, Action::VoteApprove, None);
+        contract.act_proposal(2, Action::VoteApprove, None, None);
         testing_env_with_promise_results(context.build(), PromiseResult::Successful(vec![]));
         contract.on_proposal_callback(2);
 
