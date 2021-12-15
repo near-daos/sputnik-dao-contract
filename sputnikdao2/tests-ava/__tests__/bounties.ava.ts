@@ -135,9 +135,30 @@ workspace.test('Bounty claim', async (test, {alice, root, dao }) => {
     );
     test.regex(errorString3, /ERR_BOUNTY_WRONG_DEADLINE/);
 
+
     await claimBounty(alice, dao, proposalId);
+
+    //Should increase number of claims
+    test.is(await dao.view('get_bounty_number_of_claims', { id: proposalId }), 1);
+
+    //Should add this claim to the list of claims, done by this account
+    let bounty: any = await dao.view('get_bounty_claims', { account_id: alice });
+    test.is(bounty[0].bounty_id, 0);
+    test.is(bounty[0].deadline, DEADLINE);
+    test.is(bounty[0].completed, false);
+
+    
     await claimBounty(alice, dao, proposalId);
+    test.is(await dao.view('get_bounty_number_of_claims', { id: proposalId }), 2);
+    
+    let bounty2: any = await dao.view('get_bounty_claims', { account_id: alice });
+    test.is(bounty2[1].bounty_id, 0);
+    test.is(bounty2[1].deadline, DEADLINE);
+    test.is(bounty2[1].completed, false);
+
+    
     await claimBounty(alice, dao, proposalId);
+    test.is(await dao.view('get_bounty_number_of_claims', { id: proposalId }), 3);
     
     //Should panic if all bounties are claimed
     let errorString4 = await captureError(async () =>
@@ -152,9 +173,6 @@ workspace.test('Bounty claim', async (test, {alice, root, dao }) => {
         })
     );
     test.regex(errorString4, /ERR_BOUNTY_ALL_CLAIMED/);
-
-    //Number of claims is correct
-    test.is(await dao.view('get_bounty_number_of_claims', { id: proposalId }), 3);
 });
 
 workspace.test('Bounty done', async (test, {alice, root, dao }) => {
