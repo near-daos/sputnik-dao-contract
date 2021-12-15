@@ -23,6 +23,13 @@ workspace.test('Testing policy TokenWeight', async (test, { alice, root, dao }) 
     const period = new BN('1000000000').muln(60).muln(60).muln(24).muln(7).toString();
     const testToken = await initTestToken(root);
     const staking = await initStaking(root, dao, testToken);
+    await root.call(
+        dao,
+        'new',
+        { config, policy: [root.accountId] },
+    );
+    await setStakingId(root, dao, staking);
+
     const policy =
     {
         roles: [
@@ -36,23 +43,41 @@ workspace.test('Testing policy TokenWeight', async (test, { alice, root, dao }) 
         default_vote_policy:
         {
             weight_kind: "TokenWeight",
-            quorum: new BN('2').toString(),
-            threshold: '1',
+            quorum: new BN('0').toString(),
+            threshold: '0',
         },
         proposal_bond: toYocto('1'),
         proposal_period: period,
         bounty_bond: toYocto('1'),
         bounty_forgiveness_period: period,
     };
+
+    let proposalId:number = await alice.call(
+        dao,
+        'add_proposal',
+        {
+            proposal: {
+                description: 'test',
+                kind: {'ChangePolicy': {policy}},
+            }
+        },
+        {
+            attachedDeposit: toYocto('1'),
+        }
+    );
     await root.call(
         dao,
-        'new',
-        { config, policy },
+        'act_proposal',
+        {
+            id: proposalId,
+            action: 'VoteApprove',
+        }
     );
-    
-    await setStakingId(root, dao, staking);
-    // await registerAndDelegate(dao, staking, alice, new BN('1'));
-    let proposalId:number = await alice.call(
+    console.log(await dao.view('get_proposal', {id: proposalId}));
+
+    await registerAndDelegate(dao, staking, alice, new BN('1'));
+    await registerAndDelegate(dao, staking, root, new BN('1'));
+    proposalId = await alice.call(
         dao,
         'add_proposal',
         {
@@ -71,7 +96,6 @@ workspace.test('Testing policy TokenWeight', async (test, { alice, root, dao }) 
             attachedDeposit: toYocto('1'),
         }
     );
-
     await alice.call(
         dao,
         'act_proposal',
@@ -80,5 +104,16 @@ workspace.test('Testing policy TokenWeight', async (test, { alice, root, dao }) 
             action: 'VoteApprove',
         }
     );
-    // console.log(await dao.view('get_proposal', {id: proposalId}));
+    await root.call(
+        dao,
+        'act_proposal',
+        {
+            id: proposalId,
+            action: 'VoteApprove',
+        }
+    );
+    console.log(await dao.view('get_proposal', {id: proposalId}));
+
+    console.log(await dao.view('get_policy'));
+    console.log(await dao.view('get_config'));
 });
