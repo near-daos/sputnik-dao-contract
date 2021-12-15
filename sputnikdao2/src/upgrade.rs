@@ -60,8 +60,8 @@ pub fn update() {
         ERR_MUST_BE_SELF_OR_FACTORY
     );
     unsafe {
-        // Load code into register 0 result from the promise.
-        sys::promise_result(0, 0);
+        // Load code into register 0.
+        sys::input(0);
         // Update current contract with code from register 0.
         let promise_id = sys::promise_batch_create(
             current_id.as_bytes().len() as _,

@@ -83,6 +83,11 @@ impl Contract {
         self.last_proposal_id
     }
 
+    /// Returns 10 value for testing purposes only.
+    pub fn get_10_for_testing(&self) -> u64 {
+        10
+    }
+
     /// Get proposals in paginated view.
     pub fn get_proposals(&self, from_index: u64, limit: u64) -> Vec<ProposalOutput> {
         (from_index..min(self.last_proposal_id, from_index + limit))
