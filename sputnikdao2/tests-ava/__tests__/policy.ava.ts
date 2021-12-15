@@ -19,7 +19,7 @@ const workspace = Workspace.init(async ({ root }) => {
 
 // FINISH THIS TEST
 workspace.test('Testing policy TokenWeight', async (test, { alice, root, dao }) => {
-    const config = { name: 'sputnik', purpose: 'testing', metadata: '' };
+    let config = { name: 'sputnik', purpose: 'testing', metadata: '' };
     const period = new BN('1000000000').muln(60).muln(60).muln(24).muln(7).toString();
     const testToken = await initTestToken(root);
     const staking = await initStaking(root, dao, testToken);
@@ -35,16 +35,17 @@ workspace.test('Testing policy TokenWeight', async (test, { alice, root, dao }) 
         roles: [
             {
                 name: "all",
-                kind: "Everyone",
-                permissions: ["*:*"],
+                kind: { "Group": [alice.accountId] }, // fails with kind: "Everyone" need to investigate
+                permissions: ["*:AddProposal",
+                    "*:VoteApprove"],
                 vote_policy: {}
             }
         ],
         default_vote_policy:
         {
             weight_kind: "TokenWeight",
-            quorum: new BN('0').toString(),
-            threshold: '0',
+            quorum: new BN('1').toString(),
+            threshold: '1',
         },
         proposal_bond: toYocto('1'),
         proposal_period: period,
@@ -52,13 +53,13 @@ workspace.test('Testing policy TokenWeight', async (test, { alice, root, dao }) 
         bounty_forgiveness_period: period,
     };
 
-    let proposalId:number = await alice.call(
+    let proposalId: number = await alice.call(
         dao,
         'add_proposal',
         {
             proposal: {
                 description: 'test',
-                kind: {'ChangePolicy': {policy}},
+                kind: { 'ChangePolicy': { policy } },
             }
         },
         {
@@ -73,10 +74,14 @@ workspace.test('Testing policy TokenWeight', async (test, { alice, root, dao }) 
             action: 'VoteApprove',
         }
     );
-    console.log(await dao.view('get_proposal', {id: proposalId}));
 
+    // Setting up a new config
+    const new_config = {
+        name: "new dao wohoo",
+        purpose: "testing",
+        metadata: '',
+    };
     await registerAndDelegate(dao, staking, alice, new BN('1'));
-    await registerAndDelegate(dao, staking, root, new BN('1'));
     proposalId = await alice.call(
         dao,
         'add_proposal',
@@ -84,12 +89,10 @@ workspace.test('Testing policy TokenWeight', async (test, { alice, root, dao }) 
             proposal: {
                 description: 'test',
                 kind: {
-                    'ChangeConfig': {config: 
-                    {
-                        name: "new dao wohoo",
-                        purpose: "testing",
-                        metadata: '',
-                    }}},
+                    'ChangeConfig': {
+                        config: new_config,
+                    }
+                },
             }
         },
         {
@@ -104,16 +107,6 @@ workspace.test('Testing policy TokenWeight', async (test, { alice, root, dao }) 
             action: 'VoteApprove',
         }
     );
-    await root.call(
-        dao,
-        'act_proposal',
-        {
-            id: proposalId,
-            action: 'VoteApprove',
-        }
-    );
-    console.log(await dao.view('get_proposal', {id: proposalId}));
-
-    console.log(await dao.view('get_policy'));
-    console.log(await dao.view('get_config'));
+    test.deepEqual(await dao.view('get_config'),
+        new_config);
 });
