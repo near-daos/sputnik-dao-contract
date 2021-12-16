@@ -329,8 +329,7 @@ impl Contract {
                 msg.clone(),
             ),
             ProposalKind::SetStakingContract { staking_id } => {
-                assert!(self.staking_id.is_none(), "ERR_INVALID_STAKING_CHANGE");
-                self.staking_id = Some(staking_id.clone().into());
+                self.staking_id = Some(staking_id.clone());
                 PromiseOrValue::Value(())
             }
             ProposalKind::AddBounty { bounty } => {
