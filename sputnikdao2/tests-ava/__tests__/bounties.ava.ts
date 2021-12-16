@@ -1,4 +1,4 @@
-import { Workspace, BN, NearAccount, captureError, toYocto, tGas } from 'near-workspaces-ava';
+import { Workspace, BN, NearAccount, captureError, toYocto, tGas, ONE_NEAR } from 'near-workspaces-ava';
 import { workspace, initStaking, initTestToken, STORAGE_PER_BYTE } from './utils';
 
 const DEADLINE = '1925376849430593581';
@@ -252,11 +252,13 @@ workspace.test('Bounty giveup', async (test, {alice, root, dao }) => {
 
     //If within forgiveness period, `bounty_bond` should be returned ???
     const balance1: BN = (await alice.balance()).total;
-    //console.log(balance1);
     await giveupBounty(alice, dao, proposalId); 
     const balance2: BN = (await alice.balance()).total;
-    //console.log(balance2);
+    console.log(balance1);
+    console.log(balance2);
+    console.log(new BN(balance1).add(ONE_NEAR));
     //test.is(balance2, new BN(balance1).addn(1));
+    test.not(balance2, balance1);
 
     //If within forgiveness period, 
     //claim should be removed from the list of claims, done by this account
