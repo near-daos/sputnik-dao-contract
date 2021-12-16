@@ -10,7 +10,7 @@ Claims given bounty by caller with given expected duration to execute.
 - Should panic if all bounties are claimed
 - Should increase number of claims
 - Should add this claim to the list of claims, done by this account
-- Should lock the deposit, equal to `bounty_bond`
+- Should lock the deposit, equal to `bounty_bond` (can't check in ava tests?)
 ### bounty_done
 Reports that bounty is done. Creates a proposal to vote for paying out the bounty.
 - Should panic if the caller is not in the list of claimers
@@ -23,8 +23,9 @@ Reports that bounty is done. Creates a proposal to vote for paying out the bount
 Gives up working on the bounty.
 - Should panic if the caller is not in the list of claimers
 - Should panic if the list of claims for the caller of the method doesn't contain the claim with given ID
-- Can giveup the bounty only during the forgiveness period
-- `bounty_bond` should be returned, claim should be removed from the list of claims, done by this account
+- Can return `bounty_bond` only during the forgiveness period
+- If within forgiveness period, `bounty_bond` should be returned
+-  If within forgiveness period, claim should be removed from the list of claims, done by this account
 
 ## delegation
 
