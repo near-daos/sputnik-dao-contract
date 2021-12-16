@@ -250,12 +250,13 @@ workspace.test('Bounty giveup', async (test, {alice, root, dao }) => {
     );
     test.regex(errorString, /ERR_NO_BOUNTY_CLAIM/);
 
+    //If within forgiveness period, `bounty_bond` should be returned ???
     const balance1: BN = (await alice.balance()).total;
     //console.log(balance1);
     await giveupBounty(alice, dao, proposalId); 
     const balance2: BN = (await alice.balance()).total;
     //console.log(balance2);
-    //test.deepEqual(balance2, balance1.addn(new BN(1)));
+    //test.is(balance2, new BN(balance1).addn(1));
 
     //If within forgiveness period, 
     //claim should be removed from the list of claims, done by this account
