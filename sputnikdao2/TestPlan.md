@@ -114,7 +114,7 @@ Returns the specific proposal by id.
 Returns the specific bounty by id.
 - Should panic if the bounty with the given id doesn't exist
 ### get_last_bounty_id
-Returns the the last bounty.
+Returns number of the bounties.
 ### get_bounties
 Returns the bounties.
 ### get_bounty_claims

@@ -234,6 +234,7 @@ workspace.test('Bounty done', async (test, {alice, root, dao }) => {
 workspace.test('Bounty giveup', async (test, {alice, root, dao }) => {
     const proposalId = await proposeBounty(alice, dao);
     await voteOnBounty(root, dao, proposalId);
+    const balance0: BN = (await alice.balance()).total;
     await claimBounty(alice, dao, proposalId);
 
     //Should panic if the caller is not in the list of claimers
@@ -254,9 +255,13 @@ workspace.test('Bounty giveup', async (test, {alice, root, dao }) => {
     const balance1: BN = (await alice.balance()).total;
     await giveupBounty(alice, dao, proposalId); 
     const balance2: BN = (await alice.balance()).total;
+    console.log(balance0);
     console.log(balance1);
     console.log(balance2);
+    console.log('-----------');
+    console.log(new BN(balance0).add(ONE_NEAR));
     console.log(new BN(balance1).add(ONE_NEAR));
+    console.log(new BN(balance2).add(ONE_NEAR));
     //test.is(balance2, new BN(balance1).addn(1));
     test.not(balance2, balance1);
 

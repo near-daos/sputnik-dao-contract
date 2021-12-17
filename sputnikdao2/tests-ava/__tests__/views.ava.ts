@@ -49,23 +49,6 @@ async function claimBounty(alice: NearAccount, dao: NearAccount, proposalId: num
     })
 }
 
-async function doneBounty(alice: NearAccount, bob: NearAccount, dao: NearAccount, proposalId: number) {
-    await alice.call(dao, 'bounty_done', 
-    {
-        id: proposalId,
-        account_id: bob,
-        description: 'This bounty is done'
-
-    },
-    { 
-        attachedDeposit: toYocto('1') 
-    })
-}
-
-async function giveupBounty(alice: NearAccount, dao: NearAccount, proposalId: number) {
-    await alice.call(dao, 'bounty_giveup', { id: proposalId })
-}
-
 workspace.test('View version', async (test, {alice, root, dao }) => {
     test.log(await dao.view('version'));
 });
@@ -136,9 +119,11 @@ workspace.test('View get_policy', async (test, {root }) => {
 });
 
 workspace.test('View get_staking_contract', async (test, {alice, root, dao }) => {
+    test.is(await dao.view('get_staking_contract'), null);
 });
 
 workspace.test('View has_blob', async (test, {alice, root, dao }) => {
+    //console.log(await dao.view('has_blob', {some_}));
 });
 
 workspace.test('View get_locked_storage_amount', async (test, {alice, root, dao }) => {
@@ -156,26 +141,100 @@ workspace.test('View delegation_balance_of', async (test, {alice, root, dao }) =
 workspace.test('View delegation_balance_ratio', async (test, {alice, root, dao }) => {
 });
 
-workspace.test('View get_last_proposal_id', async (test, {alice, root, dao }) => {
+workspace.test('View methods for proposals', async (test, {alice, root, dao }) => {
+    //Test get_last_proposal_id
+    test.is(await dao.view('get_last_proposal_id'), 0);
+
+    //Test get_proposals
+    test.deepEqual(await dao.view('get_proposals', {from_index: 0, limit: 100}), []);
+
+    const config = {
+        name: 'sputnikdao2',
+        purpose: 'testing_view_methods',
+        metadata: ''
+    }
+    await alice.call(dao, 'add_proposal', {
+        proposal: {
+            description: 'rename the dao',
+            kind: {
+                ChangeConfig: {
+                    config
+                }
+            }
+        },
+    },
+    { attachedDeposit: toYocto('1') })
+
+    const realProposalAlice = {
+        id: 0,
+        proposer: alice.accountId,
+        description: 'rename the dao',
+        kind: {ChangeConfig: {config}},
+        status: 'InProgress',
+        vote_counts: {},
+        votes: {}
+    };
+
+    const proposalAlice: any = await dao.view('get_proposal', {id: 0});
+
+    //Test get_proposal
+    test.is(proposalAlice.proposer, realProposalAlice.proposer);
+    test.is(proposalAlice.description, realProposalAlice.description);
+    test.is(proposalAlice.status, realProposalAlice.status);
+    test.deepEqual(proposalAlice.vote_counts, realProposalAlice.vote_counts);
+    test.deepEqual(proposalAlice.votes, realProposalAlice.votes);
+    test.deepEqual(proposalAlice.kind, realProposalAlice.kind);
+
+    //Test get_last_proposal_id
+    test.deepEqual(await dao.view('get_last_proposal_id'), 1);
+
+    //Test get_proposals
+    const proposals: any = await dao.view('get_proposals', {from_index: 0, limit: 100});
+    test.is(proposals[0].proposer, realProposalAlice.proposer);
+    test.is(proposals[0].description, realProposalAlice.description);
+    test.is(proposals[0].status, realProposalAlice.status);
+    test.deepEqual(proposals[0].vote_counts, realProposalAlice.vote_counts);
+    test.deepEqual(proposals[0].votes, realProposalAlice.votes);
+    test.deepEqual(proposals[0].kind, realProposalAlice.kind);
+
 });
 
-workspace.test('View get_proposals', async (test, {alice, root, dao }) => {
-});
+workspace.test('View methods for bounties', async (test, {alice, root, dao }) => {
+    //Test get_last_bounty_id
+    test.is(await dao.view('get_last_bounty_id'), 0);
+    //Test get_bounties
+    test.deepEqual(await dao.view('get_bounties', {from_index: 0, limit: 100}), []);
 
-workspace.test('View get_proposal', async (test, {alice, root, dao }) => {
-});
+    const proposalId = await proposeBounty(alice, dao);
+    const bounty = {
+        id: 0,
+        description: 'test_bounties',
+        token: null,
+        amount: '19000000000000000000000000',
+        times: 3,
+        max_deadline: DEADLINE    
+    }
+    await voteOnBounty(root, dao, proposalId);
 
-workspace.test('View get_last_bounty_id', async (test, {alice, root, dao }) => {
-});
+    //Test get_last_bounty_id
+    test.is(await dao.view('get_last_bounty_id'), 1);
+    //Test get_bounties
+    test.deepEqual(await dao.view('get_bounties', {from_index: 0, limit: 100}), [bounty]);
+    //Test get_bounty
+    test.deepEqual(await dao.view('get_bounty', {id: 0}), bounty);
 
-workspace.test('View get_bounty', async (test, {alice, root, dao }) => {
-});
+    await claimBounty(alice, dao, proposalId);
 
-workspace.test('View get_bounties', async (test, {alice, root, dao }) => {
-});
-
-workspace.test('View get_bounty_claims', async (test, {alice, root, dao }) => {
-});
-
-workspace.test('View get_bounty_number_of_claims', async (test, {alice, root, dao }) => {
+    //Test get_bounty_number_of_claims
+    test.is(await dao.view('get_bounty_number_of_claims', {id: 0}), 1);
+    //Test get_bounty_claims
+    const realClaim = {
+        bounty_id: 0,
+        deadline: DEADLINE,
+        completed: false
+    };
+    const claim: any = await dao.view('get_bounty_claims', {account_id: alice.accountId});
+    //test.is(claim.bounty_id, realClaim.bounty_id);
+    test.is(claim.deadline, realClaim.deadline);
+    test.is(claim.completed, realClaim.completed);
 });
