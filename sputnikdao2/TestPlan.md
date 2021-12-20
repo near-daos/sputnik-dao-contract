@@ -64,6 +64,13 @@ Receiving callback after the proposal has been finalized.
 - If successful, should returns bond money to the proposal originator
 - If the proposal execution failed (funds didn't transfer or function call failure), should move proposal to the "Failed" state
 - Works only with one callback
+### store_blob
+Stores attached data into blob store and returns hash of it.
+- Should panic if contract is not initialized
+- Should panic if the blob already exists
+- Should panic if the amount of the attached deposit is not enough
+- Should save the blob to the LookupMap
+- Should return hash of stored data
 
 ## proposals
 
