@@ -15,14 +15,12 @@ Reports that bounty is done. Creates a proposal to vote for paying out the bount
 - Should panic if the caller is not in the list of claimers
 - Should panic if the list of claims for the caller of the method doesn't contain the claim with given ID
 - Should panic if the bounty claim is completed
-- If claim is expired, it should be removed
 - If claim is not expired, the `bounty_done` can only be called by the claimer
 - If not expired, proposal should be added, claim is marked as completed
 ### bounty_giveup
 Gives up working on the bounty.
 - Should panic if the caller is not in the list of claimers
 - Should panic if the list of claims for the caller of the method doesn't contain the claim with given ID
-- Can return `bounty_bond` only during the forgiveness period
 - If within forgiveness period, `bounty_bond` should be returned
 - If within forgiveness period, claim should be removed from the list of claims, done by this account
 
