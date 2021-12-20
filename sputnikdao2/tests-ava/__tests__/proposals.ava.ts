@@ -1,6 +1,14 @@
 import { toYocto, NearAccount, captureError, BN } from 'near-workspaces-ava';
 
-import { workspace } from './utils';
+import { workspace, initTestToken, initStaking, setStakingId } from './utils';
+
+async function voteApprove(root: NearAccount, dao: NearAccount, proposalId: number) {
+    await root.call(dao, 'act_proposal',
+        {
+            id: proposalId,
+            action: 'VoteApprove'
+        })
+}
 
 workspace.test('basic', async (test, { alice, root, dao }) => {
     test.true(await alice.exists())
@@ -259,7 +267,7 @@ workspace.test('Proposal ChangePolicy', async (test, {alice, root, dao})=>{
         bounty_bond: toYocto('1'),
         bounty_forgiveness_period: period,
     };
-    await alice.call(dao, 'add_proposal', {
+    let id: any = await alice.call(dao, 'add_proposal', {
         proposal: {
             description: 'change to a new correct policy',
             kind: {
@@ -271,4 +279,16 @@ workspace.test('Proposal ChangePolicy', async (test, {alice, root, dao})=>{
     },
         { attachedDeposit: toYocto('1') }
     )
+    await voteApprove(root, dao, id);
+});
+
+workspace.test('Proposal SetStakingContract', async (test, {alice, root, dao})=>{
+    const testToken = await initTestToken(root);
+    const staking = await initStaking(root, dao, testToken);
+    await setStakingId(root, dao, staking);
+
+    let errorString = await captureError(async () =>
+        await setStakingId(root, dao, staking)
+    );
+    test.regex(errorString, /ERR_STAKING_CONTRACT_CANT_CHANGE/); 
 });
