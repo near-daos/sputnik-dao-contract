@@ -1,21 +1,5 @@
 import { Workspace, BN, NearAccount, captureError, toYocto, tGas, DEFAULT_FUNCTION_CALL_GAS } from 'near-workspaces-ava';
-import { initStaking, initTestToken, STORAGE_PER_BYTE, registerAndDelegate, setStakingId } from './utils';
-
-const workspace = Workspace.init(async ({ root }) => {
-    const workspace = Workspace.init();
-
-    const alice = await root.createAccount('alice');
-
-    //for short let's call it just dao
-    const dao = await root.createAndDeploy(
-        'dao',
-        '../res/sputnikdao2.wasm',
-        {
-            initialBalance: toYocto('200'),
-        }
-    );
-    return { alice, dao };
-});
+import { initStaking, initTestToken, STORAGE_PER_BYTE, registerAndDelegate, setStakingId, workspaceWithoutInit as workspace } from './utils';
 
 workspace.test('Testing policy TokenWeight', async (test, { alice, root, dao }) => {
     const config = { name: 'sputnik', purpose: 'testing', metadata: '' };
@@ -129,7 +113,7 @@ workspace.test('Policy self-lock', async (test, { alice, root, dao }) => {
         roles: [
             {
                 name: "all",
-                kind: { "Group": [alice.accountId] }, // fails with kind: "Everyone" need to investigate
+                kind: { "Group": [alice.accountId] }, 
                 permissions: ["*:AddProposal",
                     "*:VoteApprove"],
                 vote_policy: {}
