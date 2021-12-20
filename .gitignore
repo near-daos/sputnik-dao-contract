@@ -13,5 +13,4 @@ neardev
 .neardev
 
 **/nodemodules
-**/*.lock
 **/*.lock.json
