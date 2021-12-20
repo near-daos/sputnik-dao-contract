@@ -136,13 +136,13 @@ workspace.test('View has_blob', async (test, {alice, root, dao }) => {
 
 workspace.test('View get_locked_storage_amount', async (test, {alice, root, dao }) => {
     test.log('Locked amount:');
-    //test.log(await dao.view('get_locked_storage_amount'));
+    //In case of error try building the contract
+    test.log(await dao.view('get_locked_storage_amount'));
 });
 
 workspace.test('View get_available_amount', async (test, {alice, root, dao }) => {
     test.log('Available amount:');
     test.log(await dao.view('get_available_amount'));
-
 });
 
 workspace.test('View methods for delegation', async (test, {alice, root, dao }) => {
