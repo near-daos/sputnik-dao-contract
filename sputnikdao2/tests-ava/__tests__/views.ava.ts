@@ -50,6 +50,7 @@ async function claimBounty(alice: NearAccount, dao: NearAccount, proposalId: num
 }
 
 workspace.test('View method version', async (test, {alice, root, dao }) => {
+    test.log('Version:');
     test.log(await dao.view('version'));
 });
 
@@ -120,28 +121,29 @@ workspace.test('View method get_policy', async (test, {root }) => {
 
 workspace.test('View method get_staking_contract', async (test, {alice, root, dao }) => {
     test.is(await dao.view('get_staking_contract'), null);
+
+    //To set the staking_id
+    const testToken = await initTestToken(root);
+    const staking = await initStaking(root, dao, testToken);
+    await setStakingId(root, dao, staking);
+
+    test.is(await dao.view('get_staking_contract'), staking.accountId);
 });
 
 workspace.test('View has_blob', async (test, {alice, root, dao }) => {
+    //test.log(await dao.view('has_blob', {hash: }));
 });
 
 workspace.test('View get_locked_storage_amount', async (test, {alice, root, dao }) => {
+    test.log('Locked amount:');
+    //test.log(await dao.view('get_locked_storage_amount'));
 });
 
 workspace.test('View get_available_amount', async (test, {alice, root, dao }) => {
+    test.log('Available amount:');
+    test.log(await dao.view('get_available_amount'));
+
 });
-
-
-
-//workspace.test('View delegation_total_supply', async (test, {alice, root, dao }) => {
-//});
-
-//workspace.test('View delegation_balance_of', async (test, {alice, root, dao }) => {
-//});
-
-//workspace.test('View delegation_balance_ratio', async (test, {alice, root, dao }) => {
-//});
-
 
 workspace.test('View methods for delegation', async (test, {alice, root, dao }) => {
     const testToken = await initTestToken(root);
@@ -175,8 +177,6 @@ workspace.test('View methods for delegation', async (test, {alice, root, dao }) 
             await dao.view('delegation_total_supply')
         ]);
 });
-
-
 
 workspace.test('View methods for proposals', async (test, {alice, root, dao }) => {
     //Test get_last_proposal_id
