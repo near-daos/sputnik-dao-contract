@@ -1,10 +1,10 @@
-import { Workspace, BN, NearAccount, captureError, toYocto, tGas, ONE_NEAR } from 'near-workspaces-ava';
+import { Workspace, BN, NearAccount, captureError, toYocto, tGas, ONE_NEAR, NEAR } from 'near-workspaces-ava';
 import { workspace, initStaking, initTestToken, STORAGE_PER_BYTE } from './utils';
 
 const DEADLINE = '1925376849430593581';
 const BOND = toYocto('1');
 
-async function proposeBounty(alice: NearAccount, dao: NearAccount) {  
+async function proposeBounty(alice: NearAccount, dao: NearAccount) {
     const bounty = {
         description: 'test_bounties',
         //token: alice,
@@ -22,51 +22,51 @@ async function proposeBounty(alice: NearAccount, dao: NearAccount) {
             }
         },
     },
-        { 
-            attachedDeposit: toYocto('1') 
+        {
+            attachedDeposit: toYocto('1')
         }
     )
     return proposalId;
 }
 
 async function voteOnBounty(root: NearAccount, dao: NearAccount, proposalId: number) {
-    await root.call(dao, 'act_proposal', 
-    {
-        id: proposalId,
-        action: 'VoteApprove'
-    })
+    await root.call(dao, 'act_proposal',
+        {
+            id: proposalId,
+            action: 'VoteApprove'
+        })
 }
 
 async function claimBounty(alice: NearAccount, dao: NearAccount, proposalId: number) {
-    await alice.call(dao, 'bounty_claim', 
-    {
-        id: proposalId,
-        deadline: DEADLINE
+    await alice.call(dao, 'bounty_claim',
+        {
+            id: proposalId,
+            deadline: DEADLINE
 
-    },
-    { 
-        attachedDeposit: BOND
-    })
+        },
+        {
+            attachedDeposit: BOND
+        })
 }
 
 async function doneBounty(alice: NearAccount, bob: NearAccount, dao: NearAccount, proposalId: number) {
-    await alice.call(dao, 'bounty_done', 
-    {
-        id: proposalId,
-        account_id: bob,
-        description: 'This bounty is done'
+    await alice.call(dao, 'bounty_done',
+        {
+            id: proposalId,
+            account_id: bob,
+            description: 'This bounty is done'
 
-    },
-    { 
-        attachedDeposit: toYocto('1') 
-    })
+        },
+        {
+            attachedDeposit: toYocto('1')
+        })
 }
 
 async function giveupBounty(alice: NearAccount, dao: NearAccount, proposalId: number) {
-    await alice.call(dao, 'bounty_giveup', { id: proposalId })
+    return await alice.call_raw(dao, 'bounty_giveup', { id: proposalId })
 }
 
-workspace.test('Bounty workflow', async (test, {alice, root, dao }) => {
+workspace.test('Bounty workflow', async (test, { alice, root, dao }) => {
     const proposalId = await proposeBounty(alice, dao);
     await voteOnBounty(root, dao, proposalId);
     await claimBounty(alice, dao, proposalId);
@@ -81,10 +81,10 @@ workspace.test('Bounty workflow', async (test, {alice, root, dao }) => {
     await voteOnBounty(root, dao, proposalId + 1);
     test.log('The proposal after act_proposal, voting on the bounty:')
     test.log(await dao.view('get_proposal', { id: proposalId + 1 }));
-    
+
 });
 
-workspace.test('Bounty claim', async (test, {alice, root, dao }) => {
+workspace.test('Bounty claim', async (test, { alice, root, dao }) => {
     const proposalId = await proposeBounty(alice, dao);
 
     //The method chould panic if the bounty with given id doesn't exist
@@ -99,39 +99,39 @@ workspace.test('Bounty claim', async (test, {alice, root, dao }) => {
     //is not equal to the corresponding `bounty_bond`
     //If we attach more than needed:
     let errorString2_1 = await captureError(async () =>
-        await alice.call(dao, 'bounty_claim', 
-        {
-            id: proposalId,
-            deadline: DEADLINE
-        },
-        { 
-            attachedDeposit: new BN(BOND).addn(1)
-        })
+        await alice.call(dao, 'bounty_claim',
+            {
+                id: proposalId,
+                deadline: DEADLINE
+            },
+            {
+                attachedDeposit: new BN(BOND).addn(1)
+            })
     );
     test.regex(errorString2_1, /ERR_BOUNTY_WRONG_BOND/);
     //If we attach less than needed:
     let errorString2_2 = await captureError(async () =>
-        await alice.call(dao, 'bounty_claim', 
-        {
-            id: proposalId,
-            deadline: DEADLINE
-        },
-        { 
-            attachedDeposit: new BN(BOND).subn(1)
-        })
+        await alice.call(dao, 'bounty_claim',
+            {
+                id: proposalId,
+                deadline: DEADLINE
+            },
+            {
+                attachedDeposit: new BN(BOND).subn(1)
+            })
     );
     test.regex(errorString2_2, /ERR_BOUNTY_WRONG_BOND/);
 
     //Should panic in case of wrong deadline
     let errorString3 = await captureError(async () =>
-        await alice.call(dao, 'bounty_claim', 
-        {
-            id: proposalId,
-            deadline: '1925376849430593582'
-        },
-        { 
-            attachedDeposit: BOND
-        })
+        await alice.call(dao, 'bounty_claim',
+            {
+                id: proposalId,
+                deadline: '1925376849430593582'
+            },
+            {
+                attachedDeposit: BOND
+            })
     );
     test.regex(errorString3, /ERR_BOUNTY_WRONG_DEADLINE/);
 
@@ -147,10 +147,10 @@ workspace.test('Bounty claim', async (test, {alice, root, dao }) => {
     test.is(bounty[0].deadline, DEADLINE);
     test.is(bounty[0].completed, false);
 
-    
+
     await claimBounty(alice, dao, proposalId);
     test.is(await dao.view('get_bounty_number_of_claims', { id: proposalId }), 2);
-    
+
     let bounty2: any = await dao.view('get_bounty_claims', { account_id: alice });
     test.is(bounty2[1].bounty_id, 0);
     test.is(bounty2[1].deadline, DEADLINE);
@@ -159,23 +159,23 @@ workspace.test('Bounty claim', async (test, {alice, root, dao }) => {
 
     await claimBounty(alice, dao, proposalId);
     test.is(await dao.view('get_bounty_number_of_claims', { id: proposalId }), 3);
-    
+
     //Should panic if all bounties are claimed
     let errorString4 = await captureError(async () =>
-        await alice.call(dao, 'bounty_claim', 
-        {
-            id: proposalId,
-            deadline: DEADLINE
-        },
-        { 
-            
-            attachedDeposit: BOND
-        })
+        await alice.call(dao, 'bounty_claim',
+            {
+                id: proposalId,
+                deadline: DEADLINE
+            },
+            {
+
+                attachedDeposit: BOND
+            })
     );
     test.regex(errorString4, /ERR_BOUNTY_ALL_CLAIMED/);
 });
 
-workspace.test('Bounty done', async (test, {alice, root, dao }) => {
+workspace.test('Bounty done', async (test, { alice, root, dao }) => {
     const proposalId = await proposeBounty(alice, dao);
     await voteOnBounty(root, dao, proposalId);
     await claimBounty(alice, dao, proposalId);
@@ -204,7 +204,7 @@ workspace.test('Bounty done', async (test, {alice, root, dao }) => {
     );
     test.regex(errorString3, /ERR_BOUNTY_DONE_MUST_BE_SELF/);
 
-    let bounty: any = await dao.view('get_bounty_claims', { account_id: alice }); 
+    let bounty: any = await dao.view('get_bounty_claims', { account_id: alice });
     test.is(bounty[0].completed, false);
 
     await doneBounty(alice, alice, dao, proposalId);
@@ -231,10 +231,10 @@ workspace.test('Bounty done', async (test, {alice, root, dao }) => {
 
 });
 
-workspace.test('Bounty giveup', async (test, {alice, root, dao }) => {
+workspace.test('Bounty giveup', async (test, { alice, root, dao }) => {
     const proposalId = await proposeBounty(alice, dao);
     await voteOnBounty(root, dao, proposalId);
-    const balance0: BN = (await alice.balance()).total;
+    const balance0: NEAR = (await alice.balance()).total;
     await claimBounty(alice, dao, proposalId);
 
     //Should panic if the caller is not in the list of claimers
@@ -252,17 +252,21 @@ workspace.test('Bounty giveup', async (test, {alice, root, dao }) => {
     test.regex(errorString, /ERR_NO_BOUNTY_CLAIM/);
 
     //If within forgiveness period, `bounty_bond` should be returned ???
-    const balance1: BN = (await alice.balance()).total;
-    await giveupBounty(alice, dao, proposalId); 
-    const balance2: BN = (await alice.balance()).total;
-    console.log(balance0);
-    console.log(balance1);
-    console.log(balance2);
+    const balance1: NEAR = (await alice.balance()).total;
+    const result = await giveupBounty(alice, dao, proposalId);
+    const balance2: NEAR = (await alice.balance()).total;
+    console.log(balance0.toString());
+    console.log(balance1.toString());
+    console.log(balance2.toString());
     console.log('-----------');
-    console.log(new BN(balance0).add(ONE_NEAR));
-    console.log(new BN(balance1).add(ONE_NEAR));
-    console.log(new BN(balance2).add(ONE_NEAR));
-    //test.is(balance2, new BN(balance1).addn(1));
+    console.log(new BN(balance0).add(ONE_NEAR).toString());
+    console.log(new BN(balance1).add(ONE_NEAR).toString());
+    console.log(new BN(balance2).add(ONE_NEAR).toString());
+    console.log(result.gas_burnt.toString());
+    test.is(
+        Number(balance2.add(result.gas_burnt).toHuman().slice(0, -1)).toFixed(1),
+        Number(balance1.add(ONE_NEAR).toHuman().slice(0, -1)).toFixed(1)
+    );
     test.not(balance2, balance1);
 
     //If within forgiveness period, 
