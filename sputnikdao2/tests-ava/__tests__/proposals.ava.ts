@@ -216,3 +216,59 @@ workspace.test('voting is allowed for councils', async (test, {alice, root, dao}
     // proposal approved so now the config is equal to what alice did proposed
     test.deepEqual(await dao.view('get_config'), config) 
 })
+
+workspace.test('Proposal ChangePolicy', async (test, {alice, root, dao})=>{
+    let policy = [root.accountId];
+    let errorString = await captureError(async () =>
+        await alice.call(dao, 'add_proposal', {
+            proposal: {
+                description: 'change the policy',
+                kind: {
+                    ChangePolicy: {
+                       policy
+                    }
+                }
+            },
+        },
+            { attachedDeposit: toYocto('1') }
+        )
+    );
+    test.regex(errorString, /ERR_INVALID_POLICY/); 
+
+    const period = new BN('1000000000').muln(60).muln(60).muln(24).muln(7).toString();
+    
+    const correctPolicy = 
+    {
+        roles: [
+            {
+                name: "all",
+                kind: { "Group": [alice.accountId] },
+                permissions: ["*:AddProposal",
+                    "*:VoteApprove"],
+                vote_policy: {}
+            }
+        ],
+        default_vote_policy:
+        {
+            weight_kind: "TokenWeight",
+            quorum: new BN('1').toString(),
+            threshold: '5',
+        },
+        proposal_bond: toYocto('1'),
+        proposal_period: period,
+        bounty_bond: toYocto('1'),
+        bounty_forgiveness_period: period,
+    };
+    await alice.call(dao, 'add_proposal', {
+        proposal: {
+            description: 'change to a new correct policy',
+            kind: {
+                ChangePolicy: {
+                    policy: correctPolicy
+                }
+            }
+        },
+    },
+        { attachedDeposit: toYocto('1') }
+    )
+});
