@@ -226,6 +226,7 @@ workspace.test('voting is allowed for councils', async (test, {alice, root, dao}
 })
 
 workspace.test('Proposal ChangePolicy', async (test, {alice, root, dao})=>{
+    //Check that we can't change policy to a policy unless it's VersionedPolicy::Current
     let policy = [root.accountId];
     let errorString = await captureError(async () =>
         await alice.call(dao, 'add_proposal', {
@@ -243,16 +244,22 @@ workspace.test('Proposal ChangePolicy', async (test, {alice, root, dao})=>{
     );
     test.regex(errorString, /ERR_INVALID_POLICY/); 
 
+    //Check that we can change to a correct policy
     const period = new BN('1000000000').muln(60).muln(60).muln(24).muln(7).toString();
-    
     const correctPolicy = 
     {
         roles: [
             {
                 name: "all",
-                kind: { "Group": [alice.accountId] },
-                permissions: ["*:AddProposal",
-                    "*:VoteApprove"],
+                kind: { "Group": 
+                    [
+                        root.accountId,
+                        alice.accountId
+                    ] },
+                permissions: [
+                    "*:VoteApprove",
+                    "*:AddProposal"
+                ],
                 vote_policy: {}
             }
         ],
@@ -267,7 +274,7 @@ workspace.test('Proposal ChangePolicy', async (test, {alice, root, dao})=>{
         bounty_bond: toYocto('1'),
         bounty_forgiveness_period: period,
     };
-    let id: any = await alice.call(dao, 'add_proposal', {
+    let id: number = await alice.call(dao, 'add_proposal', {
         proposal: {
             description: 'change to a new correct policy',
             kind: {
@@ -280,12 +287,16 @@ workspace.test('Proposal ChangePolicy', async (test, {alice, root, dao})=>{
         { attachedDeposit: toYocto('1') }
     )
     await voteApprove(root, dao, id);
+
+    test.deepEqual(await dao.view('get_policy'), correctPolicy);
 });
 
 workspace.test('Proposal SetStakingContract', async (test, {alice, root, dao})=>{
     const testToken = await initTestToken(root);
     const staking = await initStaking(root, dao, testToken);
     await setStakingId(root, dao, staking);
+
+    test.is(await dao.view('get_staking_contract'), staking.accountId);
 
     let errorString = await captureError(async () =>
         await setStakingId(root, dao, staking)

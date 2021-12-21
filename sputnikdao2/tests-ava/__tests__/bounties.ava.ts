@@ -234,7 +234,6 @@ workspace.test('Bounty done', async (test, { alice, root, dao }) => {
 workspace.test('Bounty giveup', async (test, { alice, root, dao }) => {
     const proposalId = await proposeBounty(alice, dao);
     await voteOnBounty(root, dao, proposalId);
-    const balance0: NEAR = (await alice.balance()).total;
     await claimBounty(alice, dao, proposalId);
 
     //Should panic if the caller is not in the list of claimers
@@ -255,14 +254,12 @@ workspace.test('Bounty giveup', async (test, { alice, root, dao }) => {
     const balance1: NEAR = (await alice.balance()).total;
     const result = await giveupBounty(alice, dao, proposalId);
     const balance2: NEAR = (await alice.balance()).total;
-    console.log(balance0.toString());
-    console.log(balance1.toString());
-    console.log(balance2.toString());
-    console.log('-----------');
-    console.log(new BN(balance0).add(ONE_NEAR).toString());
-    console.log(new BN(balance1).add(ONE_NEAR).toString());
-    console.log(new BN(balance2).add(ONE_NEAR).toString());
-    console.log(result.gas_burnt.toString());
+    //test.log(balance1.toString());
+    //test.log(balance2.toString());
+    //test.log('-----------');
+    //test.log(new BN(balance1).add(ONE_NEAR).toString());
+    //test.log(new BN(balance2).add(ONE_NEAR).toString());
+    //test.log(result.gas_burnt.toString());
     test.is(
         Number(balance2.add(result.gas_burnt).toHuman().slice(0, -1)).toFixed(1),
         Number(balance1.add(ONE_NEAR).toHuman().slice(0, -1)).toFixed(1)
