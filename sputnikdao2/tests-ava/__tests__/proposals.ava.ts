@@ -1,6 +1,6 @@
 import { toYocto, NearAccount, captureError, BN } from 'near-workspaces-ava';
 
-import { workspace, initTestToken, initStaking, setStakingId } from './utils';
+import { workspace, initTestToken, initStaking, setStakingId, workspaceWithoutInit } from './utils';
 
 async function voteApprove(root: NearAccount, dao: NearAccount, proposalId: number) {
     await root.call(dao, 'act_proposal',
@@ -398,3 +398,40 @@ workspace.test('Proposal SetStakingContract', async (test, {alice, root, dao})=>
     test.regex(errorString, /ERR_STAKING_CONTRACT_CANT_CHANGE/); 
 });
 
+// If the number of votes in the group has changed (new members has been added)
+//  the proposal can lose it's approved state.
+//  In this case new proposal needs to be made, this one should expire
+workspace.test('Proposal group changed during voting', async (test, {alice, root, dao})=>{
+    const transferId:number = await root.call(
+        dao,
+        'add_proposal', {
+        proposal: {
+            description: 'rename the dao',
+            kind: {
+                Transfer: {
+                    token_id: "",
+                    receiver_id: alice,
+                    amount: toYocto('1'),
+                }
+            }
+        },
+    }, {attachedDeposit: toYocto('1')})
+
+    const addMemberToRoleId:number = await root.call(
+        dao,
+        'add_proposal', {
+        proposal: {
+            description: 'rename the dao',
+            kind: {
+                AddMemberToRole: {
+                    member_id: alice,
+                    role: 'council',
+                }
+            }
+        },
+    }, {attachedDeposit: toYocto('1')});
+    await voteApprove(root, dao, addMemberToRoleId);
+    await voteApprove(root, dao, transferId);
+    const {status} = await dao.view('get_proposal', {id: transferId});
+    test.is(status, 'InProgress');
+});
