@@ -156,15 +156,41 @@ workspace.test('View has_blob', async (test, { alice, root, dao }) => {
 });
 
 workspace.test('View get_locked_storage_amount', async (test, { alice, root, dao }) => {
-    test.log('Locked amount:');
-    test.log(await dao.view('get_locked_storage_amount'));
-    test.is(await dao.view('get_locked_storage_amount'), '4614410000000000000000000');
+    const beforeProposal = new BN(await dao.view('get_locked_storage_amount'));
+    test.log('Locked amount: ' + beforeProposal);
+    await root.call(
+        dao,
+        'add_proposal',
+        {
+            proposal: {
+                description: 'adding some bytes',
+                kind: 'Vote',
+            }
+        },
+        {
+            attachedDeposit: toYocto('1'),
+        }
+    );
+    const afterProposal = new BN(await dao.view('get_locked_storage_amount'));
+    test.assert(beforeProposal < afterProposal);
 });
 
 workspace.test('View get_available_amount', async (test, { alice, root, dao }) => {
-    test.log('Available amount:');
-    test.log(await dao.view('get_available_amount'));
-    test.is(await dao.view('get_available_amount'), '195385850615588502000000000');
+    const beforeProposal = new BN(await dao.view('get_available_amount'));
+    test.log('Available amount: ' + beforeProposal);
+    await root.call(dao, 'add_proposal',
+        {
+            proposal: {
+                description: 'adding some bytes',
+                kind: 'Vote',
+            }
+        },
+        {
+            attachedDeposit: toYocto('1'),
+        }
+    );
+    const afterProposal = new BN(await dao.view('get_available_amount'));
+    test.assert(beforeProposal > afterProposal);
 });
 
 workspace.test('View methods for delegation', async (test, { alice, root, dao }) => {
