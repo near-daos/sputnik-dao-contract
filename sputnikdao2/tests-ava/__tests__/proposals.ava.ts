@@ -307,12 +307,12 @@ workspace.test('Proposal SetStakingContract', async (test, {alice, root, dao})=>
 // If the number of votes in the group has changed (new members has been added)
 //  the proposal can lose it's approved state.
 //  In this case new proposal needs to be made, this one should expire
-workspace.test('Proposal group changed during voting', async (test, {alice, root, dao})=>{
+workspace.test('Proposal group changed during voting', async (test, {alice, root, dao}) => {
     const transferId:number = await root.call(
         dao,
         'add_proposal', {
         proposal: {
-            description: 'rename the dao',
+            description: 'give me tokens',
             kind: {
                 Transfer: {
                     token_id: "",
@@ -323,11 +323,11 @@ workspace.test('Proposal group changed during voting', async (test, {alice, root
         },
     }, {attachedDeposit: toYocto('1')})
 
-    const addMemberToRoleId:number = await root.call(
+    const addMemberToRoleId: number = await root.call(
         dao,
         'add_proposal', {
         proposal: {
-            description: 'rename the dao',
+            description: 'add alice',
             kind: {
                 AddMemberToRole: {
                     member_id: alice,
@@ -336,8 +336,156 @@ workspace.test('Proposal group changed during voting', async (test, {alice, root
             }
         },
     }, {attachedDeposit: toYocto('1')});
-    await voteApprove(root, dao, addMemberToRoleId);
     await voteApprove(root, dao, transferId);
+    await voteApprove(root, dao, addMemberToRoleId);
     const {status} = await dao.view('get_proposal', {id: transferId});
-    test.is(status, 'InProgress');
+    test.is(status, 'InProgress'); // would have been approved without adding a new member
+});
+
+workspaceWithoutInit.test('Proposal action types', async (test, {alice, root, dao}) => {
+    const user1 = await root.createAccount('user1');
+    const user2 = await root.createAccount('user2');
+    const user3 = await root.createAccount('user3');
+    const period = new BN('1000000000').muln(60).muln(60).muln(24).muln(7).toString();
+    const policy =
+    {
+        roles: [
+            {
+                name: "council",
+                kind: { "Group": [alice.accountId, user1.accountId, user2.accountId, user3.accountId] },
+                permissions: ["*:*"],
+                vote_policy: {}
+            }
+        ],
+        default_vote_policy:
+        {
+            weight_kind: "RoleWeight",
+            quorum: new BN('0').toString(),
+            threshold: [1,2],
+        },
+        proposal_bond: toYocto('1'),
+        proposal_period: period,
+        bounty_bond: toYocto('1'),
+        bounty_forgiveness_period: period,
+    };
+
+    let config = { name: 'sputnik', purpose: 'testing', metadata: '' };
+
+    await root.call(
+        dao,
+        'new',
+        { config, policy },
+    );
+    
+    let proposalId = await alice.call(
+        dao, 
+        'add_proposal', {
+        proposal: {
+            description: 'rename the dao',
+            kind: {
+                ChangeConfig: {
+                    config
+                }
+            }
+        },
+    }, {attachedDeposit: toYocto('1')});
+
+    // Remove proposal works
+    await alice.call(
+        dao,
+        'act_proposal',
+        {
+            id: proposalId,
+            action: 'RemoveProposal'
+        }
+    );
+    let err = await captureError(async () =>
+        dao.view('get_proposal', {id: proposalId})
+    );
+    test.regex(err, /ERR_NO_PROPOSAL/);
+
+    err = await captureError(async () =>
+    alice.call(
+        dao,
+        'act_proposal',
+        {
+            id: proposalId,
+            action: 'VoteApprove'
+        }
+        )
+    );
+    test.regex(err, /ERR_NO_PROPOSAL/);
+
+    proposalId = await alice.call(
+        dao, 
+        'add_proposal', {
+        proposal: {
+            description: 'rename the dao',
+            kind: {
+                ChangeConfig: {
+                    config
+                }
+            }
+        },
+    }, {attachedDeposit: toYocto('1')});
+
+    err = await captureError(async () =>
+    alice.call(
+        dao,
+        'act_proposal',
+        {
+            id: proposalId,
+            action: 'AddProposal'
+        }
+        )
+    );
+    test.regex(err, /ERR_WRONG_ACTION/);
+
+    // check if every vote counts
+    await user1.call(
+        dao,
+        'act_proposal',
+        {
+            id: proposalId,
+            action: 'VoteApprove'
+        }
+    );
+    await user2.call(
+        dao,
+        'act_proposal',
+        {
+            id: proposalId,
+            action: 'VoteReject'
+        }
+    );
+    await alice.call(
+        dao,
+        'act_proposal',
+        {
+            id: proposalId,
+            action: 'VoteRemove'
+        }
+    );
+    {
+        const {vote_counts, votes} = await dao.view('get_proposal', {id: proposalId});
+        test.deepEqual(vote_counts.council, [1, 1, 1]);
+        test.deepEqual(votes, {
+            [alice.accountId]: 'Remove',
+            [user1.accountId]: 'Approve',
+            [user2.accountId]: 'Reject'
+        });
+    }
+
+    // Finalize proposal will panic if not exired or failed
+    err = await captureError(async () =>
+     alice.call(
+        dao,
+        'act_proposal',
+        {
+            id: proposalId,
+            action: 'Finalize'
+        }
+        )
+    );
+    test.regex(err, /ERR_PROPOSAL_NOT_EXPIRED_OR_FAILED/);
 });
