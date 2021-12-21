@@ -225,7 +225,74 @@ workspace.test('voting is allowed for councils', async (test, {alice, root, dao}
     test.deepEqual(await dao.view('get_config'), config) 
 })
 
+workspace.test('Bob can not add proposals', async (test, {alice, root, dao})=>{
+    const bob = await root.createAccount('bob');
+
+    //First we change a policy so that Bob can't add proposals
+    const period = new BN('1000000000').muln(60).muln(60).muln(24).muln(7).toString();
+    const newPolicy = 
+    {
+        roles: [
+            {
+                name: "all",
+                kind: { "Group": 
+                    [
+                        root.accountId,
+                        alice.accountId
+                    ] },
+                permissions: [
+                    "*:VoteApprove",
+                    "*:AddProposal"
+                ],
+                vote_policy: {}
+            }
+        ],
+        default_vote_policy:
+        {
+            weight_kind: "TokenWeight",
+            quorum: new BN('1').toString(),
+            threshold: '5',
+        },
+        proposal_bond: toYocto('1'),
+        proposal_period: period,
+        bounty_bond: toYocto('1'),
+        bounty_forgiveness_period: period,
+    };
+    let id: number = await bob.call(dao, 'add_proposal', {
+        proposal: {
+            description: 'change to a new policy, so that bob can not add a proposal',
+            kind: {
+                ChangePolicy: {
+                    policy: newPolicy
+                }
+            }
+        },
+    },
+        { attachedDeposit: toYocto('1') }
+    )
+    await voteApprove(root, dao, id);
+
+    //Chrck that only those with a permission can add the proposal
+    let errorString = await captureError(async () =>
+        await bob.call(dao, 'add_proposal', {
+            proposal: {
+                description: 'change to a new policy',
+                kind: {
+                    ChangePolicy: {
+                        policy: newPolicy
+                    }
+                }
+            },
+        },
+            { attachedDeposit: toYocto('1') }
+        )
+    );
+    test.regex(errorString, /ERR_PERMISSION_DENIED/); 
+});
+
 workspace.test('Proposal ChangePolicy', async (test, {alice, root, dao})=>{
+    test.deepEqual(await dao.view('get_proposals', {from_index: 0, limit: 10}), []);
+
     //Check that we can't change policy to a policy unless it's VersionedPolicy::Current
     let policy = [root.accountId];
     let errorString = await captureError(async () =>
@@ -286,8 +353,35 @@ workspace.test('Proposal ChangePolicy', async (test, {alice, root, dao})=>{
     },
         { attachedDeposit: toYocto('1') }
     )
+
+    //Number of proposals = 1
+    test.is(await dao.view('get_last_proposal_id'), 1);
+    //Check that the proposal is added to the list of proposals
+    let proposals = await dao.view('get_proposals', {from_index: 0, limit: 10});
+    let realProposal = {
+        id: 0,
+        proposer: alice.accountId,
+        description: 'change to a new correct policy',
+        kind: {ChangePolicy: {policy: correctPolicy}},
+        status: 'InProgress',
+        vote_counts: {},
+        votes: {},
+    };
+    test.is(proposals[0].id, realProposal.id);
+    test.is(proposals[0].proposer, realProposal.proposer);
+    test.is(proposals[0].description, realProposal.description);
+    test.is(proposals[0].status, realProposal.status);
+    test.deepEqual(proposals[0].vote_counts, realProposal.vote_counts);
+    test.deepEqual(proposals[0].votes, realProposal.votes);
+    test.deepEqual(proposals[0].kind, realProposal.kind);
+
+    //After voting on the proposal it is Approved
     await voteApprove(root, dao, id);
 
+    test.deepEqual((await dao.view('get_proposals', {from_index: 0, limit: 10}))[0].vote_counts, {council: [1, 0, 0]});
+    test.is((await dao.view('get_proposals', {from_index: 0, limit: 10}))[0].status, 'Approved');
+
+    //Check that the policy is changed
     test.deepEqual(await dao.view('get_policy'), correctPolicy);
 });
 
@@ -303,3 +397,4 @@ workspace.test('Proposal SetStakingContract', async (test, {alice, root, dao})=>
     );
     test.regex(errorString, /ERR_STAKING_CONTRACT_CANT_CHANGE/); 
 });
+
