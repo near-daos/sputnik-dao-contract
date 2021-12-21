@@ -256,7 +256,7 @@ impl Contract {
         }
     }
 
-    fn internal_return_bond(&mut self, policy: &Policy, proposal: &Proposal) -> Promise {
+    fn internal_return_bonds(&mut self, policy: &Policy, proposal: &Proposal) -> Promise {
         match &proposal.kind {
             ProposalKind::BountyDone { .. } => {
                 self.locked_amount -= policy.bounty_bond.0;
@@ -360,7 +360,7 @@ impl Contract {
                     GAS_FOR_FT_TRANSFER,
                 ))
                 .into(),
-            PromiseOrValue::Value(()) => self.internal_return_bond(&policy, &proposal).into(),
+            PromiseOrValue::Value(()) => self.internal_return_bonds(&policy, &proposal).into(),
         }
     }
 
@@ -380,7 +380,7 @@ impl Contract {
             }
         }
         proposal.status = ProposalStatus::Approved;
-        self.internal_return_bond(&policy, &proposal).into()
+        self.internal_return_bonds(&policy, &proposal).into()
     }
 
     pub(crate) fn internal_callback_proposal_fail(
@@ -396,11 +396,11 @@ impl Contract {
         &mut self,
         policy: &Policy,
         proposal: &Proposal,
-        return_bond: bool,
+        return_bonds: bool,
     ) -> PromiseOrValue<()> {
-        if return_bond {
+        if return_bonds {
             // Return bond to the proposer.
-            self.internal_return_bond(policy, proposal);
+            self.internal_return_bonds(policy, proposal);
         }
         match &proposal.kind {
             ProposalKind::BountyDone {
