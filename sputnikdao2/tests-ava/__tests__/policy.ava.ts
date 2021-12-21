@@ -113,7 +113,7 @@ workspace.test('Policy self-lock', async (test, { alice, root, dao }) => {
         roles: [
             {
                 name: "all",
-                kind: { "Group": [alice.accountId] }, 
+                kind: { "Group": [alice.accountId] },
                 permissions: ["*:AddProposal",
                     "*:VoteApprove"],
                 vote_policy: {}
@@ -161,6 +161,6 @@ workspace.test('Policy self-lock', async (test, { alice, root, dao }) => {
             action: 'VoteApprove',
         }
     );
-    let a:{status} = await dao.view('get_proposal', {id: proposalId});
-    test.is(a.status, 'InProgress');
+    let { status } = await dao.view('get_proposal', { id: proposalId });
+    test.is(status, 'InProgress');
 })

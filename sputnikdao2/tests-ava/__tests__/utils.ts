@@ -2,7 +2,7 @@ import { Workspace, NearAccount, BN, toYocto } from 'near-workspaces-ava';
 
 
 async function initWorkspace(root: NearAccount) {
- 
+
     const alice = await root.createAccount('alice');
     // console.log('alice\'s balance is: ' + (await alice.balance()).total) //100N
 
@@ -57,13 +57,13 @@ export async function initTestToken(root: NearAccount) {
     return testToken;
 }
 
-export async function initStaking(root:NearAccount, dao: NearAccount, testToken: NearAccount) {
+export async function initStaking(root: NearAccount, dao: NearAccount, testToken: NearAccount) {
     const staking = await root.createAndDeploy(
         'staking',
         '../../sputnik-staking/res/sputnik_staking.wasm',
         {
             method: 'new',
-            args: {owner_id: dao, token_id: testToken, unstake_period: '100000000000'},
+            args: { owner_id: dao, token_id: testToken, unstake_period: '100000000000' },
             initialBalance: toYocto('100'),
         }
     );
