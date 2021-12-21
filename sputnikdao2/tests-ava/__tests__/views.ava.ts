@@ -1,6 +1,6 @@
 import { Workspace, BN, NearAccount, captureError, toYocto, tGas, ONE_NEAR } from 'near-workspaces-ava';
 import { workspace, initStaking, initTestToken, setStakingId, registerAndDelegate, STORAGE_PER_BYTE } from './utils';
-
+import * as fs from 'fs';
 const DEADLINE = '1925376849430593581';
 const BOND = toYocto('1');
 
@@ -131,7 +131,27 @@ workspace.test('View method get_staking_contract', async (test, { alice, root, d
 });
 
 workspace.test('View has_blob', async (test, { alice, root, dao }) => {
-    //test.log(await dao.view('has_blob', {hash: }));
+    const DAO_WASM_BYTES: Uint8Array = fs.readFileSync('../res/sputnikdao2.wasm');
+    const result = await root
+        .createTransaction(dao)
+        .functionCall(
+            'store_blob',
+            DAO_WASM_BYTES,
+            {
+                attachedDeposit: toYocto('200'),
+                gas: tGas(300),
+            })
+        .signAndSend();
+    const hash = result.parseResult<String>();
+    test.true(await dao.view('has_blob', { hash: hash }));
+    await root.call(
+        dao,
+        'remove_blob',
+        {
+            hash: hash,
+        }
+    );
+    test.false(await dao.view('has_blob', { hash: hash }));
 });
 
 workspace.test('View get_locked_storage_amount', async (test, { alice, root, dao }) => {
