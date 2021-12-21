@@ -52,6 +52,7 @@ async function claimBounty(alice: NearAccount, dao: NearAccount, proposalId: num
 workspace.test('View method version', async (test, { alice, root, dao }) => {
     test.log('Version:');
     test.log(await dao.view('version'));
+    test.is(await dao.view('version'), "2.0.0");
 });
 
 workspace.test('View method get_config', async (test, { root }) => {
@@ -156,13 +157,14 @@ workspace.test('View has_blob', async (test, { alice, root, dao }) => {
 
 workspace.test('View get_locked_storage_amount', async (test, { alice, root, dao }) => {
     test.log('Locked amount:');
-    //In case of error try building the contract
     test.log(await dao.view('get_locked_storage_amount'));
+    test.is(await dao.view('get_locked_storage_amount'), '4614410000000000000000000');
 });
 
 workspace.test('View get_available_amount', async (test, { alice, root, dao }) => {
     test.log('Available amount:');
     test.log(await dao.view('get_available_amount'));
+    test.is(await dao.view('get_available_amount'), '195385850615588502000000000');
 });
 
 workspace.test('View methods for delegation', async (test, { alice, root, dao }) => {
