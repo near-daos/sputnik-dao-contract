@@ -175,6 +175,12 @@ fn test_bounty_workflow() {
     .assert_success();
     assert!(user2.account().unwrap().amount > to_yocto("999"));
     assert_eq!(
+        view!(dao.get_bounty_claims(user2.account_id()))
+            .unwrap_json::<Vec<BountyClaim>>()
+            .len(),
+        0
+    );
+    assert_eq!(
         view!(dao.get_bounty_number_of_claims(bounty_id)).unwrap_json::<u64>(),
         0
     );

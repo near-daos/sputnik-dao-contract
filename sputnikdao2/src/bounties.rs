@@ -70,8 +70,7 @@ impl Contract {
         success: bool,
     ) -> PromiseOrValue<()> {
         let bounty: Bounty = self.bounties.get(&id).expect("ERR_NO_BOUNTY").into();
-        let (claims, claim_idx) = self.internal_get_claims(id, &receiver_id);
-        self.internal_remove_claim(id, claims, claim_idx);
+        self.internal_remove_claim(id, receiver_id);
         if success {
             self.internal_payout(
                 &bounty.token,
@@ -131,17 +130,17 @@ impl Contract {
         self.locked_amount += env::attached_deposit();
     }
 
-    /// Removes given claims from this bounty and user's claims.
-    fn internal_remove_claim(&mut self, id: u64, mut claims: Vec<BountyClaim>, claim_idx: usize) {
+    /// Remove the claim of `claimer_id` from this bounty.
+    fn internal_remove_claim(&mut self, bounty_id: u64, claimer_id: &AccountId) {
+        let (mut claims, claim_idx) = self.internal_get_claims(bounty_id, claimer_id);
         claims.remove(claim_idx);
         if claims.len() == 0 {
-            self.bounty_claimers.remove(&env::predecessor_account_id());
+            self.bounty_claimers.remove(claimer_id);
         } else {
-            self.bounty_claimers
-                .insert(&env::predecessor_account_id(), &claims);
+            self.bounty_claimers.insert(claimer_id, &claims);
         }
-        let count = self.bounty_claims_count.get(&id).unwrap() - 1;
-        self.bounty_claims_count.insert(&id, &count);
+        let count = self.bounty_claims_count.get(&bounty_id).unwrap() - 1;
+        self.bounty_claims_count.insert(&bounty_id, &count);
     }
 
     fn internal_get_claims(&mut self, id: u64, sender_id: &AccountId) -> (Vec<BountyClaim>, usize) {
@@ -165,7 +164,7 @@ impl Contract {
         assert!(!claims[claim_idx].completed, "ERR_BOUNTY_CLAIM_COMPLETED");
         if env::block_timestamp() > claims[claim_idx].start_time.0 + claims[claim_idx].deadline.0 {
             // Expired. Nothing to do.
-            self.internal_remove_claim(id, claims, claim_idx);
+            self.internal_remove_claim(id, &sender_id);
         } else {
             // Still under deadline. Only the user themself can call this.
             assert_eq!(
@@ -201,7 +200,7 @@ impl Contract {
                 .transfer(policy.bounty_bond.0)
                 .into()
         };
-        self.internal_remove_claim(id, claims, claim_idx);
+        self.internal_remove_claim(id, &env::predecessor_account_id());
         result
     }
 }
