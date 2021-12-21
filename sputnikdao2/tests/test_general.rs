@@ -99,12 +99,14 @@ fn test_bounty_workflow() {
         3
     );
 
+    assert_eq!(to_yocto("1000"), user1.account().unwrap().amount);
     call!(
         user1,
         dao.bounty_claim(bounty_id, U64::from(0)),
         deposit = to_yocto("1")
     )
     .assert_success();
+    assert!(user1.account().unwrap().amount < to_yocto("999"));
     assert_eq!(
         view!(dao.get_bounty_claims(user1.account_id()))
             .unwrap_json::<Vec<BountyClaim>>()
@@ -117,6 +119,7 @@ fn test_bounty_workflow() {
     );
 
     call!(user1, dao.bounty_giveup(bounty_id)).assert_success();
+    assert!(user1.account().unwrap().amount > to_yocto("999"));
     assert_eq!(
         view!(dao.get_bounty_claims(user1.account_id()))
             .unwrap_json::<Vec<BountyClaim>>()
@@ -128,12 +131,14 @@ fn test_bounty_workflow() {
         0
     );
 
+    assert_eq!(to_yocto("1000"), user2.account().unwrap().amount);
     call!(
         user2,
         dao.bounty_claim(bounty_id, U64(env::block_timestamp() + 5_000_000_000)),
         deposit = to_yocto("1")
     )
     .assert_success();
+    assert!(user2.account().unwrap().amount < to_yocto("999"));
     assert_eq!(
         view!(dao.get_bounty_claims(user2.account_id()))
             .unwrap_json::<Vec<BountyClaim>>()
@@ -151,6 +156,7 @@ fn test_bounty_workflow() {
         deposit = to_yocto("1")
     )
     .assert_success();
+    assert!(user2.account().unwrap().amount < to_yocto("998"));
     proposal_id = view!(dao.get_last_proposal_id()).unwrap_json::<u64>() - 1;
     assert_eq!(proposal_id, 1);
     assert_eq!(
@@ -167,6 +173,7 @@ fn test_bounty_workflow() {
         dao.act_proposal(proposal_id, Action::VoteApprove, None)
     )
     .assert_success();
+    assert!(user2.account().unwrap().amount > to_yocto("999"));
     assert_eq!(
         view!(dao.get_bounty_number_of_claims(bounty_id)).unwrap_json::<u64>(),
         0
