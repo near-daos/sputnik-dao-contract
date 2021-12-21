@@ -257,6 +257,14 @@ impl Contract {
     }
 
     fn internal_return_bond(&mut self, policy: &Policy, proposal: &Proposal) -> Promise {
+        match &proposal.kind {
+            ProposalKind::BountyDone { .. } => {
+                self.locked_amount -= policy.bounty_bond.0;
+                Promise::new(proposal.proposer.clone()).transfer(policy.bounty_bond.0);
+            }
+            _ => {}
+        }
+
         self.locked_amount -= policy.proposal_bond.0;
         Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond.0)
     }
