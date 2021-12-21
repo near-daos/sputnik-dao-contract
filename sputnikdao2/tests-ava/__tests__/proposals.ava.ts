@@ -1,4 +1,4 @@
-import { toYocto, NearAccount, captureError, BN } from 'near-workspaces-ava';
+import { toYocto, NearAccount, captureError, BN, NEAR, ONE_NEAR } from 'near-workspaces-ava';
 
 import { workspace, initTestToken, initStaking, setStakingId, workspaceWithoutInit } from './utils';
 
@@ -383,6 +383,49 @@ workspace.test('Proposal ChangePolicy', async (test, {alice, root, dao})=>{
 
     //Check that the policy is changed
     test.deepEqual(await dao.view('get_policy'), correctPolicy);
+});
+
+workspace.test('Proposal Transfer', async (test, {alice, root, dao})=>{
+    let errorString = await captureError(async () =>
+        await root.call(
+            dao,
+            'add_proposal', {
+            proposal: {
+                description: 'can not use transfer without wrong token_id and msg',
+                kind: {
+                    Transfer: {
+                        token_id: "",
+                        receiver_id: alice.accountId,
+                        amount: toYocto('1'),
+                        msg: "some msg"
+                    }
+                }
+            },
+        }, 
+        {
+            attachedDeposit: toYocto('1')
+        })
+    );
+    test.regex(errorString, /ERR_BASE_TOKEN_NO_MSG/); 
+
+    const transferId: number = await root.call(
+        dao,
+        'add_proposal', {
+        proposal: {
+            description: 'transfer 1 yocto',
+            kind: {
+                Transfer: {
+                    token_id: "",
+                    receiver_id: alice,
+                    amount: toYocto('1'),
+                }
+            }
+        },
+    }, {attachedDeposit: toYocto('1')})
+    const initBalance: NEAR = (await alice.balance()).total;
+    await voteApprove(root, dao, transferId);
+    const balance: NEAR = (await alice.balance()).total;
+    test.deepEqual(balance, initBalance.add(ONE_NEAR));
 });
 
 workspace.test('Proposal SetStakingContract', async (test, {alice, root, dao})=>{
