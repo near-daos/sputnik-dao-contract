@@ -48,16 +48,11 @@ Removes given amount from given account's delegations.
 
 ## lib
 
-### migrate
-Should only be called by this contract on migration. Can be used if you haven't changed contract state.
-- Can only be called by the contract
-- Should migrate initial state
-- Should panic if contract is not initialized
 ### remove_blob
 Remove blob from contract storage and pay back to original storer.
 - Should panic if `hash` is wrong
 - Can only be called by the original storer
-- Blob shold be removed
+- Blob should be removed
 - The payback should be computed correctly
 ### on_proposal_callback
 Receiving callback after the proposal has been finalized.
@@ -84,7 +79,6 @@ Adds proposal to this DAO.
 Act on given proposal by id, if permissions allow.
 - Check that only those with a permission can act on the the proposal
 - Check that the method works correctly on any possible `action`
-- If proposal expired during the failed state it should be marked as expired
 - If the number of votes in the group has changed (new members has been added) the proposal can lose it's approved state. In this case new proposal needs to be made, this one should expire
 
 ## views
