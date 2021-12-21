@@ -104,15 +104,15 @@ workspaceWithoutInit.test('Upgrade self negative', async (test, { root, dao }) =
     test.regex(err, /ERR_NOT_ENOUGH_DEPOSIT/);
 
     await root
-    .createTransaction(dao)
-    .functionCall(
-        'store_blob',
-        DAO_WASM_BYTES,
-        {
-            attachedDeposit: toYocto('5'),
-            gas: tGas(300),
-        })
-    .signAndSend();
+        .createTransaction(dao)
+        .functionCall(
+            'store_blob',
+            DAO_WASM_BYTES,
+            {
+                attachedDeposit: toYocto('5'),
+                gas: tGas(300),
+            })
+        .signAndSend();
 
     // Already exists
     err = await captureError(async () =>

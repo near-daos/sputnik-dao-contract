@@ -113,7 +113,7 @@ workspace.test('add proposal with 1 near', async (test, { alice, root, dao }) =>
         { attachedDeposit: toYocto('1') })
     test.is(await dao.view('get_last_proposal_id'), 1);
 
-    let new_proposal: any = await dao.view('get_proposal', {id: 0})
+    let new_proposal: any = await dao.view('get_proposal', { id: 0 })
 
     test.log(new_proposal);
     test.is(new_proposal.description, 'rename the dao');
@@ -154,7 +154,7 @@ workspace.test('add proposal with 0.999... near', async (test, { alice, root, da
 
 })
 
-workspace.test('voting not allowed for non councils', async (test, {alice, root, dao})=>{
+workspace.test('voting not allowed for non councils', async (test, { alice, root, dao }) => {
     const config = {
         name: 'sputnikdao',
         purpose: 'testing',
@@ -170,7 +170,7 @@ workspace.test('voting not allowed for non councils', async (test, {alice, root,
                 }
             }
         },
-    }, {attachedDeposit: toYocto('1')})
+    }, { attachedDeposit: toYocto('1') })
 
     //here alice tries to vote for her proposal but she is not a council and has no permission to vote.
     const err = await captureError(async () => await alice.call(dao, 'act_proposal', {
@@ -182,14 +182,14 @@ workspace.test('voting not allowed for non councils', async (test, {alice, root,
     test.log(err)
     test.true(err.includes('ERR_PERMISSION_DENIED'))
 
-    let proposal: any = await dao.view('get_proposal', {id});
+    let proposal: any = await dao.view('get_proposal', { id });
 
     test.log(proposal);
     test.is(proposal.status, 'InProgress')
 })
 
 
-workspace.test('voting is allowed for councils', async (test, {alice, root, dao})=>{
+workspace.test('voting is allowed for councils', async (test, { alice, root, dao }) => {
     const config = {
         name: 'sputnikdao',
         purpose: 'testing',
@@ -205,7 +205,7 @@ workspace.test('voting is allowed for councils', async (test, {alice, root, dao}
                 }
             }
         },
-    }, {attachedDeposit: toYocto('1')})
+    }, { attachedDeposit: toYocto('1') })
 
     //council (root) votes on alice's promise
     const res = await root.call(dao, 'act_proposal', {
@@ -216,30 +216,32 @@ workspace.test('voting is allowed for councils', async (test, {alice, root, dao}
 
     test.log(res)
 
-    let proposal: any = await dao.view('get_proposal', {id});
+    let proposal: any = await dao.view('get_proposal', { id });
 
     test.log(proposal);
     test.is(proposal.status, 'Approved')
 
     // proposal approved so now the config is equal to what alice did proposed
-    test.deepEqual(await dao.view('get_config'), config) 
+    test.deepEqual(await dao.view('get_config'), config)
 })
 
-workspace.test('Bob can not add proposals', async (test, {alice, root, dao})=>{
+workspace.test('Bob can not add proposals', async (test, { alice, root, dao }) => {
     const bob = await root.createAccount('bob');
 
     //First we change a policy so that Bob can't add proposals
     const period = new BN('1000000000').muln(60).muln(60).muln(24).muln(7).toString();
-    const newPolicy = 
+    const newPolicy =
     {
         roles: [
             {
                 name: "all",
-                kind: { "Group": 
-                    [
-                        root.accountId,
-                        alice.accountId
-                    ] },
+                kind: {
+                    "Group":
+                        [
+                            root.accountId,
+                            alice.accountId
+                        ]
+                },
                 permissions: [
                     "*:VoteApprove",
                     "*:AddProposal"
@@ -287,11 +289,11 @@ workspace.test('Bob can not add proposals', async (test, {alice, root, dao})=>{
             { attachedDeposit: toYocto('1') }
         )
     );
-    test.regex(errorString, /ERR_PERMISSION_DENIED/); 
+    test.regex(errorString, /ERR_PERMISSION_DENIED/);
 });
 
-workspace.test('Proposal ChangePolicy', async (test, {alice, root, dao})=>{
-    test.deepEqual(await dao.view('get_proposals', {from_index: 0, limit: 10}), []);
+workspace.test('Proposal ChangePolicy', async (test, { alice, root, dao }) => {
+    test.deepEqual(await dao.view('get_proposals', { from_index: 0, limit: 10 }), []);
 
     //Check that we can't change policy to a policy unless it's VersionedPolicy::Current
     let policy = [root.accountId];
@@ -301,7 +303,7 @@ workspace.test('Proposal ChangePolicy', async (test, {alice, root, dao})=>{
                 description: 'change the policy',
                 kind: {
                     ChangePolicy: {
-                       policy
+                        policy
                     }
                 }
             },
@@ -309,20 +311,22 @@ workspace.test('Proposal ChangePolicy', async (test, {alice, root, dao})=>{
             { attachedDeposit: toYocto('1') }
         )
     );
-    test.regex(errorString, /ERR_INVALID_POLICY/); 
+    test.regex(errorString, /ERR_INVALID_POLICY/);
 
     //Check that we can change to a correct policy
     const period = new BN('1000000000').muln(60).muln(60).muln(24).muln(7).toString();
-    const correctPolicy = 
+    const correctPolicy =
     {
         roles: [
             {
                 name: "all",
-                kind: { "Group": 
-                    [
-                        root.accountId,
-                        alice.accountId
-                    ] },
+                kind: {
+                    "Group":
+                        [
+                            root.accountId,
+                            alice.accountId
+                        ]
+                },
                 permissions: [
                     "*:VoteApprove",
                     "*:AddProposal"
@@ -357,12 +361,12 @@ workspace.test('Proposal ChangePolicy', async (test, {alice, root, dao})=>{
     //Number of proposals = 1
     test.is(await dao.view('get_last_proposal_id'), 1);
     //Check that the proposal is added to the list of proposals
-    let proposals = await dao.view('get_proposals', {from_index: 0, limit: 10});
+    let proposals = await dao.view('get_proposals', { from_index: 0, limit: 10 });
     let realProposal = {
         id: 0,
         proposer: alice.accountId,
         description: 'change to a new correct policy',
-        kind: {ChangePolicy: {policy: correctPolicy}},
+        kind: { ChangePolicy: { policy: correctPolicy } },
         status: 'InProgress',
         vote_counts: {},
         votes: {},
@@ -378,14 +382,14 @@ workspace.test('Proposal ChangePolicy', async (test, {alice, root, dao})=>{
     //After voting on the proposal it is Approved
     await voteApprove(root, dao, id);
 
-    test.deepEqual((await dao.view('get_proposals', {from_index: 0, limit: 10}))[0].vote_counts, {council: [1, 0, 0]});
-    test.is((await dao.view('get_proposals', {from_index: 0, limit: 10}))[0].status, 'Approved');
+    test.deepEqual((await dao.view('get_proposals', { from_index: 0, limit: 10 }))[0].vote_counts, { council: [1, 0, 0] });
+    test.is((await dao.view('get_proposals', { from_index: 0, limit: 10 }))[0].status, 'Approved');
 
     //Check that the policy is changed
     test.deepEqual(await dao.view('get_policy'), correctPolicy);
 });
 
-workspace.test('Proposal SetStakingContract', async (test, {alice, root, dao})=>{
+workspace.test('Proposal SetStakingContract', async (test, { alice, root, dao }) => {
     const testToken = await initTestToken(root);
     const staking = await initStaking(root, dao, testToken);
     await setStakingId(root, dao, staking);
@@ -395,14 +399,14 @@ workspace.test('Proposal SetStakingContract', async (test, {alice, root, dao})=>
     let errorString = await captureError(async () =>
         await setStakingId(root, dao, staking)
     );
-    test.regex(errorString, /ERR_STAKING_CONTRACT_CANT_CHANGE/); 
+    test.regex(errorString, /ERR_STAKING_CONTRACT_CANT_CHANGE/);
 });
 
 // If the number of votes in the group has changed (new members has been added)
 //  the proposal can lose it's approved state.
 //  In this case new proposal needs to be made, this one should expire
-workspace.test('Proposal group changed during voting', async (test, {alice, root, dao}) => {
-    const transferId:number = await root.call(
+workspace.test('Proposal group changed during voting', async (test, { alice, root, dao }) => {
+    const transferId: number = await root.call(
         dao,
         'add_proposal', {
         proposal: {
@@ -415,7 +419,7 @@ workspace.test('Proposal group changed during voting', async (test, {alice, root
                 }
             }
         },
-    }, {attachedDeposit: toYocto('1')})
+    }, { attachedDeposit: toYocto('1') })
 
     const addMemberToRoleId: number = await root.call(
         dao,
@@ -429,14 +433,14 @@ workspace.test('Proposal group changed during voting', async (test, {alice, root
                 }
             }
         },
-    }, {attachedDeposit: toYocto('1')});
-    await voteApprove(root, dao, transferId);
+    }, { attachedDeposit: toYocto('1') });
     await voteApprove(root, dao, addMemberToRoleId);
-    const {status} = await dao.view('get_proposal', {id: transferId});
+    await voteApprove(root, dao, transferId);
+    const { status } = await dao.view('get_proposal', { id: transferId });
     test.is(status, 'InProgress');
 });
 
-workspaceWithoutInit.test('Proposal action types', async (test, {alice, root, dao}) => {
+workspaceWithoutInit.test('Proposal action types', async (test, { alice, root, dao }) => {
     const user1 = await root.createAccount('user1');
     const user2 = await root.createAccount('user2');
     const user3 = await root.createAccount('user3');
@@ -455,7 +459,7 @@ workspaceWithoutInit.test('Proposal action types', async (test, {alice, root, da
         {
             weight_kind: "RoleWeight",
             quorum: new BN('0').toString(),
-            threshold: [1,2],
+            threshold: [1, 2],
         },
         proposal_bond: toYocto('1'),
         proposal_period: period,
@@ -470,9 +474,9 @@ workspaceWithoutInit.test('Proposal action types', async (test, {alice, root, da
         'new',
         { config, policy },
     );
-    
+
     let proposalId = await alice.call(
-        dao, 
+        dao,
         'add_proposal', {
         proposal: {
             description: 'rename the dao',
@@ -482,7 +486,7 @@ workspaceWithoutInit.test('Proposal action types', async (test, {alice, root, da
                 }
             }
         },
-    }, {attachedDeposit: toYocto('1')});
+    }, { attachedDeposit: toYocto('1') });
 
     // Remove proposal works
     await alice.call(
@@ -494,24 +498,24 @@ workspaceWithoutInit.test('Proposal action types', async (test, {alice, root, da
         }
     );
     let err = await captureError(async () =>
-        dao.view('get_proposal', {id: proposalId})
+        dao.view('get_proposal', { id: proposalId })
     );
     test.regex(err, /ERR_NO_PROPOSAL/);
 
     err = await captureError(async () =>
-    alice.call(
-        dao,
-        'act_proposal',
-        {
-            id: proposalId,
-            action: 'VoteApprove'
-        }
+        alice.call(
+            dao,
+            'act_proposal',
+            {
+                id: proposalId,
+                action: 'VoteApprove'
+            }
         )
     );
     test.regex(err, /ERR_NO_PROPOSAL/);
 
     proposalId = await alice.call(
-        dao, 
+        dao,
         'add_proposal', {
         proposal: {
             description: 'rename the dao',
@@ -521,16 +525,16 @@ workspaceWithoutInit.test('Proposal action types', async (test, {alice, root, da
                 }
             }
         },
-    }, {attachedDeposit: toYocto('1')});
+    }, { attachedDeposit: toYocto('1') });
 
     err = await captureError(async () =>
-    alice.call(
-        dao,
-        'act_proposal',
-        {
-            id: proposalId,
-            action: 'AddProposal'
-        }
+        alice.call(
+            dao,
+            'act_proposal',
+            {
+                id: proposalId,
+                action: 'AddProposal'
+            }
         )
     );
     test.regex(err, /ERR_WRONG_ACTION/);
@@ -561,7 +565,7 @@ workspaceWithoutInit.test('Proposal action types', async (test, {alice, root, da
         }
     );
     {
-        const {vote_counts, votes} = await dao.view('get_proposal', {id: proposalId});
+        const { vote_counts, votes } = await dao.view('get_proposal', { id: proposalId });
         test.deepEqual(vote_counts.council, [1, 1, 1]);
         test.deepEqual(votes, {
             [alice.accountId]: 'Remove',
@@ -572,13 +576,13 @@ workspaceWithoutInit.test('Proposal action types', async (test, {alice, root, da
 
     // Finalize proposal will panic if not exired or failed
     err = await captureError(async () =>
-     alice.call(
-        dao,
-        'act_proposal',
-        {
-            id: proposalId,
-            action: 'Finalize'
-        }
+        alice.call(
+            dao,
+            'act_proposal',
+            {
+                id: proposalId,
+                action: 'Finalize'
+            }
         )
     );
     test.regex(err, /ERR_PROPOSAL_NOT_EXPIRED_OR_FAILED/);
