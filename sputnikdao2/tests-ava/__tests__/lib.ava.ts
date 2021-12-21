@@ -129,4 +129,56 @@ workspaceWithoutInit.test('Upgrade self negative', async (test, { root, dao }) =
     );
     test.regex(err, /ERR_ALREADY_EXISTS/);
 
-})
+});
+
+workspace.test('Remove blob', async (test, { root, dao, alice }) => {
+    const result = await root
+        .createTransaction(dao)
+        .functionCall(
+            'store_blob',
+            DAO_WASM_BYTES,
+            {
+                attachedDeposit: toYocto('200'),
+                gas: tGas(300),
+            })
+        .signAndSend();
+
+    const hash = result.parseResult<String>()
+    
+    // fails if hash is wrong
+    let err = await captureError(async () =>
+        root.call(
+            dao,
+            'remove_blob',
+            {
+                hash: "HLBiX51txizmQzZJMrHMCq4u7iEEqNbaJppZ84yW7628", // some_random hash
+            }
+        )
+    );
+    test.regex(err, /ERR_NO_BLOB/);
+
+    // Can only be called by the original storer
+    err = await captureError(async () =>
+        alice.call(
+            dao,
+            'remove_blob',
+            {
+                hash: hash,
+            }
+        )
+    );
+    test.regex(err, /ERR_INVALID_CALLER/);
+
+    // blob is removed with payback
+    const rootAmountBeforeRemove = (await root.balance()).total
+    await root.call(
+        dao,
+        'remove_blob',
+        {
+            hash: hash,
+        }
+    );
+    const rootAmountAfterRemove = (await root.balance()).total
+    test.false(await dao.view('has_blob', { hash: hash }));
+    test.assert(rootAmountAfterRemove > rootAmountBeforeRemove);
+});
