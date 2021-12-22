@@ -519,3 +519,43 @@ workspaceWithoutInit.test('Proposal action types', async (test, { alice, root, d
     );
     test.regex(err, /ERR_PROPOSAL_NOT_EXPIRED_OR_FAILED/);
 });
+
+workspace.test('Callback transfer', async (test, { alice, root, dao }) => {
+    // Fail transfer by transfering to non-existent accountId
+    let transferId: number = await root.call(
+        dao,
+        'add_proposal', {
+        proposal: {
+            description: 'give me tokens',
+            kind: {
+                Transfer: {
+                    token_id: "",
+                    receiver_id: "broken_id",
+                    amount: toYocto('1'),
+                }
+            }
+        },
+    }, { attachedDeposit: toYocto('1') });
+    await voteApprove(root, dao, transferId);
+    let {status} = await dao.view('get_proposal', { id: transferId });
+    test.is(status, 'Failed');
+
+    // now we transfer to real accountId
+    transferId = await root.call(
+        dao,
+        'add_proposal', {
+        proposal: {
+            description: 'give me tokens',
+            kind: {
+                Transfer: {
+                    token_id: "",
+                    receiver_id: alice.accountId, // valid id this time
+                    amount: toYocto('1'),
+                }
+            }
+        },
+    }, { attachedDeposit: toYocto('1') });
+    await voteApprove(root, dao, transferId);
+    ({status} = await dao.view('get_proposal', { id: transferId }));
+    test.is(status, 'Approved');
+});
