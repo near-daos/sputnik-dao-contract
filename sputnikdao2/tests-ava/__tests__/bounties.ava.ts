@@ -270,3 +270,16 @@ workspace.test('Bounty giveup', async (test, { alice, root, dao }) => {
     //claim should be removed from the list of claims, done by this account
     test.deepEqual(await dao.view('get_bounty_claims', { account_id: alice }), []);
 });
+
+workspace.test('Callback for BountyDone', async (test, { alice, root, dao }) => {
+    //During the callback the number bounty_claims_count should decrease
+    const proposalId = await proposeBounty(alice, dao);
+    await voteOnBounty(root, dao, proposalId);
+    await claimBounty(alice, dao, proposalId);
+    await doneBounty(alice, alice, dao, proposalId);
+    //Before the bounty is done there is 1 claim
+    test.is(await dao.view('get_bounty_number_of_claims', {id: 0}), 1);
+    //During the callback this number is decreased
+    await voteOnBounty(root, dao, proposalId + 1);
+    test.is(await dao.view('get_bounty_number_of_claims', {id: 0}), 0);
+});
