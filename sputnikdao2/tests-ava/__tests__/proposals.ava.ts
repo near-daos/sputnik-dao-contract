@@ -521,8 +521,9 @@ workspaceWithoutInit.test('Proposal action types', async (test, { alice, root, d
 });
 
 workspace.test('Callback transfer', async (test, { alice, root, dao }) => {
+    const user1 = await root.createAccount('user1');
     // Fail transfer by transfering to non-existent accountId
-    let transferId: number = await root.call(
+    let transferId: number = await user1.call(
         dao,
         'add_proposal', {
         proposal: {
@@ -536,12 +537,14 @@ workspace.test('Callback transfer', async (test, { alice, root, dao }) => {
             }
         },
     }, { attachedDeposit: toYocto('1') });
+    let user1Balance = (await user1.balance()).total
     await voteApprove(root, dao, transferId);
     let { status } = await dao.view('get_proposal', { id: transferId });
     test.is(status, 'Failed');
+    test.assert((await user1.balance()).total.eq(user1Balance)); // no bond returns on fail
 
     // now we transfer to real accountId
-    transferId = await root.call(
+    transferId = await user1.call(
         dao,
         'add_proposal', {
         proposal: {
@@ -555,9 +558,11 @@ workspace.test('Callback transfer', async (test, { alice, root, dao }) => {
             }
         },
     }, { attachedDeposit: toYocto('1') });
+    user1Balance = (await user1.balance()).total
     await voteApprove(root, dao, transferId);
     ({ status } = await dao.view('get_proposal', { id: transferId }));
     test.is(status, 'Approved');
+    test.assert((await user1.balance()).total.gt(user1Balance)); // returns bond
 });
 
 workspace.test('Callback function call', async (test, { alice, root, dao }) => {

@@ -284,7 +284,5 @@ workspace.test('Callback for BountyDone', async (test, { alice, root, dao }) => 
     await voteOnBounty(root, dao, proposalId + 1);
     const balanceAfter: NEAR = (await alice.balance()).total;
     test.is(await dao.view('get_bounty_number_of_claims', {id: 0}), 0);
-    console.log(balanceBefore.toString());
-    console.log(balanceAfter.toString());
-    test.assert(balanceBefore > balanceAfter);
+    test.assert(balanceBefore.lt(balanceAfter));
 });

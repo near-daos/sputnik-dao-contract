@@ -58,7 +58,7 @@ workspace.test('Upgrade self', async (test, { root, dao }) => {
         }
     );
     test.assert(
-        new BN(await dao.view('get_available_amount')) > beforeBlobRemove
+        new BN(await dao.view('get_available_amount')).gt(beforeBlobRemove)
     )
 });
 
@@ -180,5 +180,5 @@ workspace.test('Remove blob', async (test, { root, dao, alice }) => {
     );
     const rootAmountAfterRemove = (await root.balance()).total
     test.false(await dao.view('has_blob', { hash: hash }));
-    test.assert(rootAmountAfterRemove > rootAmountBeforeRemove);
+    test.assert(rootAmountAfterRemove.gt(rootAmountBeforeRemove));
 });
