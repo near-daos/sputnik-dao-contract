@@ -279,7 +279,12 @@ workspace.test('Callback for BountyDone', async (test, { alice, root, dao }) => 
     await doneBounty(alice, alice, dao, proposalId);
     //Before the bounty is done there is 1 claim
     test.is(await dao.view('get_bounty_number_of_claims', {id: 0}), 1);
+    const balanceBefore: NEAR = (await alice.balance()).total;
     //During the callback this number is decreased
     await voteOnBounty(root, dao, proposalId + 1);
+    const balanceAfter: NEAR = (await alice.balance()).total;
     test.is(await dao.view('get_bounty_number_of_claims', {id: 0}), 0);
+    console.log(balanceBefore.toString());
+    console.log(balanceAfter.toString());
+    test.assert(balanceBefore > balanceAfter);
 });

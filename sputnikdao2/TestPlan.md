@@ -58,7 +58,6 @@ Remove blob from contract storage and pay back to original storer.
 Receiving callback after the proposal has been finalized.
 - If successful, should returns bond money to the proposal originator
 - If the proposal execution failed (funds didn't transfer or function call failure), should move proposal to the "Failed" state
-- Works only with one callback
 ### store_blob
 Stores attached data into blob store and returns hash of it.
 - Should panic if contract is not initialized
