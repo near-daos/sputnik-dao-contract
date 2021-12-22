@@ -1,4 +1,4 @@
-import { toYocto, NearAccount, captureError, BN, NEAR, ONE_NEAR } from 'near-workspaces-ava';
+import { toYocto, NearAccount, captureError, BN, NEAR, ONE_NEAR, tGas } from 'near-workspaces-ava';
 
 import { workspace, initTestToken, initStaking, setStakingId, workspaceWithoutInit } from './utils';
 
@@ -236,7 +236,7 @@ workspace.test('Proposal ChangePolicy', async (test, { alice, root, dao }) => {
     test.deepEqual(await dao.view('get_policy'), correctPolicy);
 });
 
-workspace.test('Proposal Transfer', async (test, {alice, root, dao})=>{
+workspace.test('Proposal Transfer', async (test, { alice, root, dao }) => {
     let errorString = await captureError(async () =>
         await root.call(
             dao,
@@ -252,12 +252,12 @@ workspace.test('Proposal Transfer', async (test, {alice, root, dao})=>{
                     }
                 }
             },
-        }, 
-        {
-            attachedDeposit: toYocto('1')
-        })
+        },
+            {
+                attachedDeposit: toYocto('1')
+            })
     );
-    test.regex(errorString, /ERR_BASE_TOKEN_NO_MSG/); 
+    test.regex(errorString, /ERR_BASE_TOKEN_NO_MSG/);
 
     const transferId: number = await root.call(
         dao,
@@ -272,7 +272,7 @@ workspace.test('Proposal Transfer', async (test, {alice, root, dao})=>{
                 }
             }
         },
-    }, {attachedDeposit: toYocto('1')})
+    }, { attachedDeposit: toYocto('1') })
     const initBalance: NEAR = (await alice.balance()).total;
     await voteApprove(root, dao, transferId);
     const balance: NEAR = (await alice.balance()).total;
@@ -292,7 +292,7 @@ workspace.test('Proposal SetStakingContract', async (test, { alice, root, dao })
     test.regex(errorString, /ERR_STAKING_CONTRACT_CANT_CHANGE/);
 });
 
-workspace.test('Voting is only allowed for councils', async (test, { alice, root, dao }) => {   
+workspace.test('Voting is only allowed for councils', async (test, { alice, root, dao }) => {
     const config = {
         name: 'sputnikdao',
         purpose: 'testing',
@@ -312,7 +312,7 @@ workspace.test('Voting is only allowed for councils', async (test, { alice, root
 
     //Check that voting is not allowed for non councils
     //Here alice tries to vote for her proposal but she is not a council and has no permission to vote.
-    const err = await captureError(async () => 
+    const err = await captureError(async () =>
         await voteApprove(alice, dao, id)
     );
     test.log(err)
@@ -537,7 +537,7 @@ workspace.test('Callback transfer', async (test, { alice, root, dao }) => {
         },
     }, { attachedDeposit: toYocto('1') });
     await voteApprove(root, dao, transferId);
-    let {status} = await dao.view('get_proposal', { id: transferId });
+    let { status } = await dao.view('get_proposal', { id: transferId });
     test.is(status, 'Failed');
 
     // now we transfer to real accountId
@@ -556,6 +556,59 @@ workspace.test('Callback transfer', async (test, { alice, root, dao }) => {
         },
     }, { attachedDeposit: toYocto('1') });
     await voteApprove(root, dao, transferId);
-    ({status} = await dao.view('get_proposal', { id: transferId }));
+    ({ status } = await dao.view('get_proposal', { id: transferId }));
+    test.is(status, 'Approved');
+});
+
+workspace.test('Callback function call', async (test, { alice, root, dao }) => {
+    const testToken = await initTestToken(root);
+    let transferId: number = await root.call(
+        dao,
+        'add_proposal', {
+        proposal: {
+            description: 'give me tokens',
+            kind: {
+                FunctionCall: {
+                    receiver_id: testToken.accountId,
+                    actions: [{ method_name: 'fail', args: Buffer.from('bad args').toString('base64'), deposit: toYocto('1'), gas: tGas(10) }],
+                }
+            }
+        },
+    }, { attachedDeposit: toYocto('1') });
+    await root.call(dao, 'act_proposal',
+        {
+            id: transferId,
+            action: 'VoteApprove'
+        },
+        {
+            gas: tGas(200),
+        });
+    let { status } = await dao.view('get_proposal', { id: transferId });
+    test.is(status, 'Failed');
+
+    transferId = await root.call(
+        dao,
+        'add_proposal', {
+        proposal: {
+            description: 'give me tokens',
+            kind: {
+                FunctionCall: {
+                    receiver_id: testToken.accountId,
+                    actions: [
+                        { method_name: 'mint', args: Buffer.from('{"account_id": "' + alice.accountId + '", "amount": "10"}').toString('base64'), deposit: '0', gas: tGas(10) },
+                        { method_name: 'burn', args: Buffer.from('{"account_id": "' + alice.accountId + '", "amount": "10"}').toString('base64'), deposit: '0', gas: tGas(10) }],
+                }
+            }
+        },
+    }, { attachedDeposit: toYocto('1') });
+    await root.call(dao, 'act_proposal',
+        {
+            id: transferId,
+            action: 'VoteApprove'
+        },
+        {
+            gas: tGas(200),
+        });
+    ({ status } = await dao.view('get_proposal', { id: transferId }));
     test.is(status, 'Approved');
 });
