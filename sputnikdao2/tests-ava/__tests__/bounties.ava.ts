@@ -166,6 +166,27 @@ workspace.test('Bounty done', async (test, { alice, root, dao }) => {
 
     console.log(await dao.view('get_proposals', { from_index: 0, limit: 10 }));
 
+    const whale = await root.createAccount('whale');
+    await whale.call(testToken, 'mint',
+        {
+            account_id: whale.accountId,
+            amount: '6000000000',
+        },
+        {
+            gas: tGas(200)
+        }
+    );
+    await whale.call(testToken, 'ft_transfer',
+        {
+            receiver_id: dao.accountId,
+            amount: '10000',
+            memo: 'Heard you are in a pinch, let me help.'
+        },
+        {
+            attachedDeposit: tGas(1)
+        }
+    );
+
     await doneBounty(alice, alice, dao, proposalId);
 
     //claim is marked as completed
