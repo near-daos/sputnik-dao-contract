@@ -1,53 +1,7 @@
 import { Workspace, BN, NearAccount, captureError, toYocto, tGas, ONE_NEAR } from 'near-workspaces-ava';
 import { workspace, initStaking, initTestToken, setStakingId, registerAndDelegate, STORAGE_PER_BYTE } from './utils';
+import { DEADLINE, BOND, proposeBounty, voteOnBounty, claimBounty } from './utils';
 import * as fs from 'fs';
-const DEADLINE = '1925376849430593581';
-const BOND = toYocto('1');
-
-async function proposeBounty(alice: NearAccount, dao: NearAccount) {
-    const bounty = {
-        description: 'test_bounties',
-        //token: alice,
-        amount: '19000000000000000000000000',
-        times: 3,
-        max_deadline: DEADLINE
-    }
-    const proposalId: number = await alice.call(dao, 'add_proposal', {
-        proposal: {
-            description: 'add_new_bounty',
-            kind: {
-                AddBounty: {
-                    bounty
-                }
-            }
-        },
-    },
-        {
-            attachedDeposit: toYocto('1')
-        }
-    )
-    return proposalId;
-}
-
-async function voteOnBounty(root: NearAccount, dao: NearAccount, proposalId: number) {
-    await root.call(dao, 'act_proposal',
-        {
-            id: proposalId,
-            action: 'VoteApprove'
-        })
-}
-
-async function claimBounty(alice: NearAccount, dao: NearAccount, proposalId: number) {
-    await alice.call(dao, 'bounty_claim',
-        {
-            id: proposalId,
-            deadline: DEADLINE
-
-        },
-        {
-            attachedDeposit: BOND
-        })
-}
 
 workspace.test('View method version', async (test, { alice, root, dao }) => {
     test.log('Version:');

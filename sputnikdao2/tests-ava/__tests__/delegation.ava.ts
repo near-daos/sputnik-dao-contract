@@ -159,7 +159,7 @@ workspace.test('Undelegate fail', async (test, { root, dao, alice }) => {
     );
     test.regex(errorString, /ERR_NO_STAKING/);
 
-    // set staking
+    // Set staking
     await setStakingId(root, dao, staking);
 
     // Check that it can only be called by the `staking_id`

@@ -464,7 +464,7 @@ workspaceWithoutInit.test('Proposal action types', async (test, { alice, root, d
     );
     test.regex(err, /ERR_WRONG_ACTION/);
 
-    // check if every vote counts
+    // Check if every vote counts
     await user1.call(
         dao,
         'act_proposal',

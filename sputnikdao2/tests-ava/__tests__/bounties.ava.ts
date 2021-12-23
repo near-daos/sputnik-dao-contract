@@ -190,12 +190,6 @@ workspace.test('Bounty giveup', async (test, { alice, root, dao }) => {
     const balance1: NEAR = (await alice.balance()).total;
     const result = await giveupBounty(alice, dao, proposalId);
     const balance2: NEAR = (await alice.balance()).total;
-    //test.log(balance1.toString());
-    //test.log(balance2.toString());
-    //test.log('-----------');
-    //test.log(new BN(balance1).add(ONE_NEAR).toString());
-    //test.log(new BN(balance2).add(ONE_NEAR).toString());
-    //test.log(result.gas_burnt.toString());
     test.is(
         Number(balance2.add(result.gas_burnt).toHuman().slice(0, -1)).toFixed(1),
         Number(balance1.add(ONE_NEAR).toHuman().slice(0, -1)).toFixed(1)
