@@ -1,4 +1,4 @@
-import { Workspace, NearAccount, BN, toYocto } from 'near-workspaces-ava';
+import { Workspace, NearAccount, BN, toYocto, tGas } from 'near-workspaces-ava';
 
 
 async function initWorkspace(root: NearAccount) {
@@ -119,7 +119,7 @@ export const BOND = toYocto('1');
 export async function proposeBounty(alice: NearAccount, dao: NearAccount) {
     const bounty = {
         description: 'test_bounties',
-        //token: alice,
+        token: alice,
         amount: '19000000000000000000000000',
         times: 3,
         max_deadline: DEADLINE
@@ -146,6 +146,9 @@ export async function voteOnBounty(root: NearAccount, dao: NearAccount, proposal
         {
             id: proposalId,
             action: 'VoteApprove'
+        },
+        {
+            gas: tGas(50)
         })
 }
 
