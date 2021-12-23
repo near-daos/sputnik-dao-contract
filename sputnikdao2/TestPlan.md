@@ -49,17 +49,17 @@ Removes given amount from given account's delegations.
 ## lib
 
 ### remove_blob
-Remove blob from contract storage and pay back to original storer.
+Removes blob from contract storage and pays back to the original storer.
 - Should panic if `hash` is wrong
 - Can only be called by the original storer
 - Blob should be removed
 - The payback should be computed correctly
 ### on_proposal_callback
 Receiving callback after the proposal has been finalized.
-- If successful, should returns bond money to the proposal originator
-- If the proposal execution failed (funds didn't transfer or function call failure), should move proposal to the "Failed" state
+- If successful, should return bond money to the proposal originator
+- If the proposal execution failed (funds didn't transfer or function call failure), should move the proposal to the "Failed" state
 ### store_blob
-Stores attached data into blob store and returns hash of it.
+Stores attached data into blob store and returns the hash of it.
 - Should panic if contract is not initialized
 - Should panic if the blob already exists
 - Should panic if the amount of the attached deposit is not enough
