@@ -186,7 +186,8 @@ workspace.test('Remove blob', async (test, { root, dao, alice }) => {
 
 workspace.test('Callback for BountyDone', async (test, { alice, root, dao }) => {
     //During the callback the number bounty_claims_count should decrease
-    const proposalId = await proposeBounty(alice, dao, root);
+    const testToken = await initTestToken(root);
+    const proposalId = await proposeBounty(alice, dao, testToken);
     await voteOnBounty(root, dao, proposalId);
     await claimBounty(alice, dao, proposalId);
     await doneBounty(alice, alice, dao, proposalId);

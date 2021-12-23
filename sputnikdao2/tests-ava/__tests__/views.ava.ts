@@ -249,11 +249,12 @@ workspace.test('View methods for bounties', async (test, { alice, root, dao }) =
     //Test get_bounties
     test.deepEqual(await dao.view('get_bounties', { from_index: 0, limit: 100 }), []);
 
-    const proposalId = await proposeBounty(alice, dao, root);
+    const testToken = await initTestToken(root);
+    const proposalId = await proposeBounty(alice, dao, testToken);
     const bounty = {
         id: 0,
         description: 'test_bounties',
-        token: 'test-token.test.near',
+        token: testToken.accountId,
         amount: '19000000000000000000000000',
         times: 3,
         max_deadline: DEADLINE

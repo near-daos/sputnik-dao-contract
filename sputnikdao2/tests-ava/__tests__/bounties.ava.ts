@@ -3,7 +3,8 @@ import { workspace, initStaking, initTestToken, STORAGE_PER_BYTE } from './utils
 import { DEADLINE, BOND, proposeBounty, voteOnBounty, claimBounty, doneBounty, giveupBounty } from './utils'
 
 workspace.test('Bounty workflow', async (test, { alice, root, dao }) => {
-    const proposalId = await proposeBounty(alice, dao, root);
+    const testToken = await initTestToken(root);
+    const proposalId = await proposeBounty(alice, dao, testToken);
     await voteOnBounty(root, dao, proposalId);
     await claimBounty(alice, dao, proposalId);
     const proposal = await dao.view('get_bounty_claims', { account_id: alice })
@@ -21,7 +22,8 @@ workspace.test('Bounty workflow', async (test, { alice, root, dao }) => {
 });
 
 workspace.test('Bounty claim', async (test, { alice, root, dao }) => {
-    const proposalId = await proposeBounty(alice, dao, root);
+    const testToken = await initTestToken(root);
+    const proposalId = await proposeBounty(alice, dao, testToken);
 
     //The method chould panic if the bounty with given id doesn't exist
     let errorString1 = await captureError(async () =>
@@ -112,12 +114,31 @@ workspace.test('Bounty claim', async (test, { alice, root, dao }) => {
 });
 
 workspace.test('Bounty done', async (test, { alice, root, dao }) => {
-    const proposalId = await proposeBounty(alice, dao, root);
+    const testToken = await initTestToken(root);
+    const proposalId = await proposeBounty(alice, dao, testToken);
+    await dao.call(testToken, 'mint',
+        {
+            account_id: dao.accountId,
+            amount: '100',
+        },
+        {
+            gas: tGas(200)
+        }
+    );
+
     await voteOnBounty(root, dao, proposalId);
     await claimBounty(alice, dao, proposalId);
 
     const bob = await root.createAccount('bob');
-
+    await bob.call(testToken, 'storage_deposit', 
+    {
+        account_id: bob.accountId,
+        registration_only: true,
+    },
+    {
+        attachedDeposit: toYocto('50'),
+    }
+    );
     //Should panic if the caller is not in the list of claimers
     let errorString1 = await captureError(async () =>
         await doneBounty(alice, bob, dao, proposalId)
@@ -143,7 +164,7 @@ workspace.test('Bounty done', async (test, { alice, root, dao }) => {
     let bounty: any = await dao.view('get_bounty_claims', { account_id: alice });
     test.is(bounty[0].completed, false);
 
-    console.log(await dao.view('get_proposals', {from_index: 0, limit: 10}));
+    console.log(await dao.view('get_proposals', { from_index: 0, limit: 10 }));
 
     await doneBounty(alice, alice, dao, proposalId);
 
@@ -154,11 +175,11 @@ workspace.test('Bounty done', async (test, { alice, root, dao }) => {
     let proposal: any = await dao.view('get_proposal', { id: proposalId + 1 });
     test.is(proposal.status, 'InProgress');
 
-    console.log(await dao.view('get_proposals', {from_index: 0, limit: 10}));
+    console.log(await dao.view('get_proposals', { from_index: 0, limit: 10 }));
 
     await voteOnBounty(root, dao, proposalId + 1);
 
-    console.log(await dao.view('get_proposals', {from_index: 0, limit: 10}));
+    console.log(await dao.view('get_proposals', { from_index: 0, limit: 10 }));
 
     //proposal is approved
     proposal = await dao.view('get_proposal', { id: proposalId + 1 });
@@ -174,7 +195,8 @@ workspace.test('Bounty done', async (test, { alice, root, dao }) => {
 });
 
 workspace.test('Bounty giveup', async (test, { alice, root, dao }) => {
-    const proposalId = await proposeBounty(alice, dao, root);
+    const testToken = await initTestToken(root);
+    const proposalId = await proposeBounty(alice, dao, testToken);
     await voteOnBounty(root, dao, proposalId);
     await claimBounty(alice, dao, proposalId);
 
