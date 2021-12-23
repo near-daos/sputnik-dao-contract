@@ -253,7 +253,7 @@ workspace.test('View methods for bounties', async (test, { alice, root, dao }) =
     const bounty = {
         id: 0,
         description: 'test_bounties',
-        token: null,
+        token: alice.accountId,
         amount: '19000000000000000000000000',
         times: 3,
         max_deadline: DEADLINE
