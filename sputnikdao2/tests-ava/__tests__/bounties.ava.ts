@@ -1,6 +1,6 @@
 import { Workspace, BN, NearAccount, captureError, toYocto, tGas, ONE_NEAR, NEAR } from 'near-workspaces-ava';
 import { workspace, initStaking, initTestToken, STORAGE_PER_BYTE } from './utils';
-import { DEADLINE, BOND, proposeBounty, proposeBountyWithNear, voteOnBounty, claimBounty, doneBounty, giveupBounty } from './utils'
+import { DEADLINE, BOND, proposeBounty, proposeBountyWithNear, voteOnBounty, claimBounty, doneBounty, giveupBounty, voteApprove } from './utils'
 
 workspace.test('Bounty workflow', async (test, { alice, root, dao }) => {
     const testToken = await initTestToken(root);
@@ -324,3 +324,70 @@ workspace.test('Bounty giveup', async (test, { alice, root, dao }) => {
     //claim should be removed from the list of claims, done by this account
     test.deepEqual(await dao.view('get_bounty_claims', { account_id: alice }), []);
 });
+
+workspace.test('Bounty ft done', async (test, { alice, root, dao }) => {
+    const testToken = await initTestToken(root);
+    let proposalId = await proposeBounty(alice, dao, testToken);
+    await dao.call(
+        testToken,
+        'mint',
+        {
+            account_id: dao,
+            amount: '1000000000',
+        },
+        {
+            gas: tGas(50)
+        }
+    );
+    await alice.call(
+        testToken,
+        'storage_deposit',
+        {
+            account_id: alice.accountId,
+            registration_only: true,
+        },
+        {
+            attachedDeposit: toYocto('90'),
+        }
+    );
+    const bounty = {
+        description: 'test_bounties',
+        token: testToken.accountId,
+        amount: '10',
+        times: 3,
+        max_deadline: DEADLINE
+    }
+    proposalId = await alice.call(dao, 'add_proposal', {
+        proposal: {
+            description: 'add_new_bounty',
+            kind: {
+                AddBounty: {
+                    bounty
+                }
+            }
+        },
+    },
+        {
+            attachedDeposit: toYocto('1')
+        }
+    );
+    await voteApprove(root, dao, proposalId);
+    let { status } = await dao.view('get_proposal', { id: proposalId });
+    test.is(status, 'Approved');
+    const bountyId = 0; // first bounty
+    await claimBounty(alice, dao, bountyId);
+    await alice.call(dao, 'bounty_done',
+    {
+        id: bountyId,
+        account_id: alice.accountId,
+        description: 'This bounty is done'
+
+    },
+    {
+        attachedDeposit: toYocto('1')
+    });
+
+    await voteApprove(root, dao, proposalId + 1);
+    ({ status } = await dao.view('get_proposal', { id: proposalId }));
+    test.is(status, 'Approved');
+})
