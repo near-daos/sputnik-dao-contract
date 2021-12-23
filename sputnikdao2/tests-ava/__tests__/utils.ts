@@ -141,6 +141,30 @@ export async function proposeBounty(alice: NearAccount, dao: NearAccount, token:
     return proposalId;
 }
 
+export async function proposeBountyWithNear(alice: NearAccount, dao: NearAccount) {
+    const bounty = {
+        description: 'test_bounties_with_near_token',
+        amount: '19000000000000000000000000',
+        times: 3,
+        max_deadline: DEADLINE
+    }
+    const proposalId: number = await alice.call(dao, 'add_proposal', {
+        proposal: {
+            description: 'add_new_bounty',
+            kind: {
+                AddBounty: {
+                    bounty
+                }
+            }
+        },
+    },
+        {
+            attachedDeposit: toYocto('1')
+        }
+    )
+    return proposalId;
+}
+
 export async function voteOnBounty(root: NearAccount, dao: NearAccount, proposalId: number) {
     await root.call(dao, 'act_proposal',
         {

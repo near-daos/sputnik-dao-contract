@@ -1,6 +1,6 @@
 import { Workspace, BN, NearAccount, captureError, toYocto, tGas, ONE_NEAR, NEAR } from 'near-workspaces-ava';
 import { workspace, initStaking, initTestToken, STORAGE_PER_BYTE } from './utils';
-import { DEADLINE, BOND, proposeBounty, voteOnBounty, claimBounty, doneBounty, giveupBounty } from './utils'
+import { DEADLINE, BOND, proposeBounty, proposeBountyWithNear, voteOnBounty, claimBounty, doneBounty, giveupBounty } from './utils'
 
 workspace.test('Bounty workflow', async (test, { alice, root, dao }) => {
     const testToken = await initTestToken(root);
@@ -113,13 +113,32 @@ workspace.test('Bounty claim', async (test, { alice, root, dao }) => {
     test.regex(errorString4, /ERR_BOUNTY_ALL_CLAIMED/);
 });
 
+/*
 workspace.test('Bounty done', async (test, { alice, root, dao }) => {
     const testToken = await initTestToken(root);
     const proposalId = await proposeBounty(alice, dao, testToken);
     await dao.call(testToken, 'mint',
         {
-            account_id: dao.accountId,
-            amount: '100',
+            account_id: dao,
+            amount: '1000000000',
+        },
+        {
+            gas: tGas(200)
+        }
+    );
+    await dao.call(testToken, 'mint',
+        {
+            account_id: root,
+            amount: '1000000000',
+        },
+        {
+            gas: tGas(200)
+        }
+    );
+    await dao.call(testToken, 'mint',
+        {
+            account_id: alice,
+            amount: '1000000000',
         },
         {
             gas: tGas(200)
@@ -183,9 +202,10 @@ workspace.test('Bounty done', async (test, { alice, root, dao }) => {
             memo: 'Heard you are in a pinch, let me help.'
         },
         {
-            attachedDeposit: tGas(1)
+            attachedDeposit: new BN(1)
         }
     );
+    
 
     await doneBounty(alice, alice, dao, proposalId);
 
@@ -206,6 +226,61 @@ workspace.test('Bounty done', async (test, { alice, root, dao }) => {
     proposal = await dao.view('get_proposal', { id: proposalId + 1 });
     test.is(proposal.status, 'Approved');
 
+
+    //Should panic if the bounty claim is completed
+    let errorString4 = await captureError(async () =>
+        await doneBounty(alice, alice, dao, proposalId)
+    );
+    test.regex(errorString4, /ERR_BOUNTY_CLAIM_COMPLETED/);
+
+});*/
+
+workspace.test('Bounty done with NEAR token', async (test, { alice, root, dao }) => {
+    const proposalId = await proposeBountyWithNear(alice, dao);
+    
+    await voteOnBounty(root, dao, proposalId);
+    await claimBounty(alice, dao, proposalId);
+
+    const bob = await root.createAccount('bob');
+    //Should panic if the caller is not in the list of claimers
+    let errorString1 = await captureError(async () =>
+        await doneBounty(alice, bob, dao, proposalId)
+    );
+    test.regex(errorString1, /ERR_NO_BOUNTY_CLAIMS/);
+
+    await claimBounty(bob, dao, proposalId);
+
+    //Should panic if the list of claims for the caller of the method 
+    //doesn't contain the claim with given ID
+    let errorString2 = await captureError(async () =>
+        await doneBounty(alice, alice, dao, proposalId + 10)
+    );
+    test.regex(errorString2, /ERR_NO_BOUNTY_CLAIM/);
+
+
+    //`bounty_done` can only be called by the claimer
+    let errorString3 = await captureError(async () =>
+        await doneBounty(alice, bob, dao, proposalId)
+    );
+    test.regex(errorString3, /ERR_BOUNTY_DONE_MUST_BE_SELF/);
+
+    let bounty: any = await dao.view('get_bounty_claims', { account_id: alice });
+    test.is(bounty[0].completed, false);
+
+    await doneBounty(alice, alice, dao, proposalId);
+
+    //claim is marked as completed
+    bounty = await dao.view('get_bounty_claims', { account_id: alice });
+    test.is(bounty[0].completed, true);
+
+    let proposal: any = await dao.view('get_proposal', { id: proposalId + 1 });
+    test.is(proposal.status, 'InProgress');
+
+    await voteOnBounty(root, dao, proposalId + 1);
+
+    //proposal is approved
+    proposal = await dao.view('get_proposal', { id: proposalId + 1 });
+    test.is(proposal.status, 'Approved');
 
     //Should panic if the bounty claim is completed
     let errorString4 = await captureError(async () =>

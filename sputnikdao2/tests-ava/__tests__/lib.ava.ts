@@ -1,7 +1,7 @@
 import { BN, NearAccount, captureError, toYocto, tGas, DEFAULT_FUNCTION_CALL_GAS, Gas, NEAR } from 'near-workspaces-ava';
 import { workspace, initStaking, initTestToken, STORAGE_PER_BYTE, workspaceWithoutInit } from './utils';
 import { voteApprove } from './utils';
-import { DEADLINE, BOND, proposeBounty, voteOnBounty, claimBounty, doneBounty } from './utils'
+import { DEADLINE, BOND, proposeBounty, proposeBountyWithNear, voteOnBounty, claimBounty, doneBounty } from './utils'
 import * as fs from 'fs';
 
 const DAO_WASM_BYTES: Uint8Array = fs.readFileSync('../res/sputnikdao2.wasm');
@@ -184,10 +184,9 @@ workspace.test('Remove blob', async (test, { root, dao, alice }) => {
     test.assert(rootAmountAfterRemove.gt(rootAmountBeforeRemove));
 });
 
-workspace.test('Callback for BountyDone', async (test, { alice, root, dao }) => {
+workspace.test('Callback for BountyDone with NEAR token', async (test, { alice, root, dao }) => {
     //During the callback the number bounty_claims_count should decrease
-    const testToken = await initTestToken(root);
-    const proposalId = await proposeBounty(alice, dao, testToken);
+    const proposalId = await proposeBountyWithNear(alice, dao);
     await voteOnBounty(root, dao, proposalId);
     await claimBounty(alice, dao, proposalId);
     await doneBounty(alice, alice, dao, proposalId);
@@ -198,7 +197,6 @@ workspace.test('Callback for BountyDone', async (test, { alice, root, dao }) => 
     await voteOnBounty(root, dao, proposalId + 1);
     const balanceAfter: NEAR = (await alice.balance()).total;
     test.is(await dao.view('get_bounty_number_of_claims', {id: 0}), 0);
-    console.log(await dao.view('get_proposals', {from_index: 0, limit: 10}));
     test.assert(balanceBefore.lt(balanceAfter));
 });
 
