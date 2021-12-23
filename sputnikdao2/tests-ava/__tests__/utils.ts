@@ -116,10 +116,11 @@ export async function registerAndDelegate(dao: NearAccount, staking: NearAccount
 export const DEADLINE = '1925376849430593581';
 export const BOND = toYocto('1');
 
-export async function proposeBounty(alice: NearAccount, dao: NearAccount) {
+export async function proposeBounty(alice: NearAccount, dao: NearAccount, root :NearAccount) {
+    const token = await initTestToken(root);
     const bounty = {
         description: 'test_bounties',
-        token: alice,
+        token: token.accountId,
         amount: '19000000000000000000000000',
         times: 3,
         max_deadline: DEADLINE
