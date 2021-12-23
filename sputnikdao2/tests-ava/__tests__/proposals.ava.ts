@@ -2,7 +2,7 @@ import { toYocto, NearAccount, captureError, BN, NEAR, ONE_NEAR, tGas } from 'ne
 
 import { workspace, initTestToken, initStaking, setStakingId, workspaceWithoutInit } from './utils';
 
-async function voteApprove(root: NearAccount, dao: NearAccount, proposalId: number) {
+export async function voteApprove(root: NearAccount, dao: NearAccount, proposalId: number) {
     await root.call(dao, 'act_proposal',
         {
             id: proposalId,
@@ -518,102 +518,4 @@ workspaceWithoutInit.test('Proposal action types', async (test, { alice, root, d
         )
     );
     test.regex(err, /ERR_PROPOSAL_NOT_EXPIRED_OR_FAILED/);
-});
-
-workspace.test('Callback transfer', async (test, { alice, root, dao }) => {
-    const user1 = await root.createAccount('user1');
-    // Fail transfer by transfering to non-existent accountId
-    let transferId: number = await user1.call(
-        dao,
-        'add_proposal', {
-        proposal: {
-            description: 'give me tokens',
-            kind: {
-                Transfer: {
-                    token_id: "",
-                    receiver_id: "broken_id",
-                    amount: toYocto('1'),
-                }
-            }
-        },
-    }, { attachedDeposit: toYocto('1') });
-    let user1Balance = (await user1.balance()).total
-    await voteApprove(root, dao, transferId);
-    let { status } = await dao.view('get_proposal', { id: transferId });
-    test.is(status, 'Failed');
-    test.assert((await user1.balance()).total.eq(user1Balance)); // no bond returns on fail
-
-    // now we transfer to real accountId
-    transferId = await user1.call(
-        dao,
-        'add_proposal', {
-        proposal: {
-            description: 'give me tokens',
-            kind: {
-                Transfer: {
-                    token_id: "",
-                    receiver_id: alice.accountId, // valid id this time
-                    amount: toYocto('1'),
-                }
-            }
-        },
-    }, { attachedDeposit: toYocto('1') });
-    user1Balance = (await user1.balance()).total
-    await voteApprove(root, dao, transferId);
-    ({ status } = await dao.view('get_proposal', { id: transferId }));
-    test.is(status, 'Approved');
-    test.assert((await user1.balance()).total.gt(user1Balance)); // returns bond
-});
-
-workspace.test('Callback function call', async (test, { alice, root, dao }) => {
-    const testToken = await initTestToken(root);
-    let transferId: number = await root.call(
-        dao,
-        'add_proposal', {
-        proposal: {
-            description: 'give me tokens',
-            kind: {
-                FunctionCall: {
-                    receiver_id: testToken.accountId,
-                    actions: [{ method_name: 'fail', args: Buffer.from('bad args').toString('base64'), deposit: toYocto('1'), gas: tGas(10) }],
-                }
-            }
-        },
-    }, { attachedDeposit: toYocto('1') });
-    await root.call(dao, 'act_proposal',
-        {
-            id: transferId,
-            action: 'VoteApprove'
-        },
-        {
-            gas: tGas(200),
-        });
-    let { status } = await dao.view('get_proposal', { id: transferId });
-    test.is(status, 'Failed');
-
-    transferId = await root.call(
-        dao,
-        'add_proposal', {
-        proposal: {
-            description: 'give me tokens',
-            kind: {
-                FunctionCall: {
-                    receiver_id: testToken.accountId,
-                    actions: [
-                        { method_name: 'mint', args: Buffer.from('{"account_id": "' + alice.accountId + '", "amount": "10"}').toString('base64'), deposit: '0', gas: tGas(10) },
-                        { method_name: 'burn', args: Buffer.from('{"account_id": "' + alice.accountId + '", "amount": "10"}').toString('base64'), deposit: '0', gas: tGas(10) }],
-                }
-            }
-        },
-    }, { attachedDeposit: toYocto('1') });
-    await root.call(dao, 'act_proposal',
-        {
-            id: transferId,
-            action: 'VoteApprove'
-        },
-        {
-            gas: tGas(200),
-        });
-    ({ status } = await dao.view('get_proposal', { id: transferId }));
-    test.is(status, 'Approved');
 });

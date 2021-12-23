@@ -1,10 +1,10 @@
 import { Workspace, BN, NearAccount, captureError, toYocto, tGas, ONE_NEAR, NEAR } from 'near-workspaces-ava';
 import { workspace, initStaking, initTestToken, STORAGE_PER_BYTE } from './utils';
 
-const DEADLINE = '1925376849430593581';
-const BOND = toYocto('1');
+export const DEADLINE = '1925376849430593581';
+export const BOND = toYocto('1');
 
-async function proposeBounty(alice: NearAccount, dao: NearAccount) {
+export async function proposeBounty(alice: NearAccount, dao: NearAccount) {
     const bounty = {
         description: 'test_bounties',
         //token: alice,
@@ -29,7 +29,7 @@ async function proposeBounty(alice: NearAccount, dao: NearAccount) {
     return proposalId;
 }
 
-async function voteOnBounty(root: NearAccount, dao: NearAccount, proposalId: number) {
+export async function voteOnBounty(root: NearAccount, dao: NearAccount, proposalId: number) {
     await root.call(dao, 'act_proposal',
         {
             id: proposalId,
@@ -37,7 +37,7 @@ async function voteOnBounty(root: NearAccount, dao: NearAccount, proposalId: num
         })
 }
 
-async function claimBounty(alice: NearAccount, dao: NearAccount, proposalId: number) {
+export async function claimBounty(alice: NearAccount, dao: NearAccount, proposalId: number) {
     await alice.call(dao, 'bounty_claim',
         {
             id: proposalId,
@@ -49,7 +49,7 @@ async function claimBounty(alice: NearAccount, dao: NearAccount, proposalId: num
         })
 }
 
-async function doneBounty(alice: NearAccount, bob: NearAccount, dao: NearAccount, proposalId: number) {
+export async function doneBounty(alice: NearAccount, bob: NearAccount, dao: NearAccount, proposalId: number) {
     await alice.call(dao, 'bounty_done',
         {
             id: proposalId,
@@ -269,20 +269,4 @@ workspace.test('Bounty giveup', async (test, { alice, root, dao }) => {
     //If within forgiveness period, 
     //claim should be removed from the list of claims, done by this account
     test.deepEqual(await dao.view('get_bounty_claims', { account_id: alice }), []);
-});
-
-workspace.test('Callback for BountyDone', async (test, { alice, root, dao }) => {
-    //During the callback the number bounty_claims_count should decrease
-    const proposalId = await proposeBounty(alice, dao);
-    await voteOnBounty(root, dao, proposalId);
-    await claimBounty(alice, dao, proposalId);
-    await doneBounty(alice, alice, dao, proposalId);
-    //Before the bounty is done there is 1 claim
-    test.is(await dao.view('get_bounty_number_of_claims', {id: 0}), 1);
-    const balanceBefore: NEAR = (await alice.balance()).total;
-    //During the callback this number is decreased
-    await voteOnBounty(root, dao, proposalId + 1);
-    const balanceAfter: NEAR = (await alice.balance()).total;
-    test.is(await dao.view('get_bounty_number_of_claims', {id: 0}), 0);
-    test.assert(balanceBefore.lt(balanceAfter));
 });
