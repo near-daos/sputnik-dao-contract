@@ -172,7 +172,7 @@ workspace.test('View get_locked_storage_amount', async (test, { alice, root, dao
         }
     );
     const afterProposal = new BN(await dao.view('get_locked_storage_amount'));
-    test.assert(beforeProposal < afterProposal);
+    test.assert(beforeProposal.lt(afterProposal));
 });
 
 workspace.test('View get_available_amount', async (test, { alice, root, dao }) => {
@@ -190,7 +190,7 @@ workspace.test('View get_available_amount', async (test, { alice, root, dao }) =
         }
     );
     const afterProposal = new BN(await dao.view('get_available_amount'));
-    test.assert(beforeProposal > afterProposal);
+    test.assert(beforeProposal.gt(afterProposal));
 });
 
 workspace.test('View methods for delegation', async (test, { alice, root, dao }) => {

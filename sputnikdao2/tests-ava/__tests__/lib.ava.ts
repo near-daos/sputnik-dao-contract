@@ -64,7 +64,6 @@ workspace.test('Upgrade self', async (test, { root, dao }) => {
     )
 });
 
-
 workspaceWithoutInit.test('Upgrade self negative', async (test, { root, dao }) => {
     const config = { name: 'sputnik', purpose: 'testing', metadata: '' };
 
