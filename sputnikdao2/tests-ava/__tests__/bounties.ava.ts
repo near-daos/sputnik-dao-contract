@@ -113,128 +113,6 @@ workspace.test('Bounty claim', async (test, { alice, root, dao }) => {
     test.regex(errorString4, /ERR_BOUNTY_ALL_CLAIMED/);
 });
 
-/*
-workspace.test('Bounty done', async (test, { alice, root, dao }) => {
-    const testToken = await initTestToken(root);
-    const proposalId = await proposeBounty(alice, dao, testToken);
-    await dao.call(testToken, 'mint',
-        {
-            account_id: dao,
-            amount: '1000000000',
-        },
-        {
-            gas: tGas(200)
-        }
-    );
-    await dao.call(testToken, 'mint',
-        {
-            account_id: root,
-            amount: '1000000000',
-        },
-        {
-            gas: tGas(200)
-        }
-    );
-    await dao.call(testToken, 'mint',
-        {
-            account_id: alice,
-            amount: '1000000000',
-        },
-        {
-            gas: tGas(200)
-        }
-    );
-
-    await voteOnBounty(root, dao, proposalId);
-    await claimBounty(alice, dao, proposalId);
-
-    const bob = await root.createAccount('bob');
-    await bob.call(testToken, 'storage_deposit', 
-    {
-        account_id: bob.accountId,
-        registration_only: true,
-    },
-    {
-        attachedDeposit: toYocto('50'),
-    }
-    );
-    //Should panic if the caller is not in the list of claimers
-    let errorString1 = await captureError(async () =>
-        await doneBounty(alice, bob, dao, proposalId)
-    );
-    test.regex(errorString1, /ERR_NO_BOUNTY_CLAIMS/);
-
-    await claimBounty(bob, dao, proposalId);
-
-    //Should panic if the list of claims for the caller of the method 
-    //doesn't contain the claim with given ID
-    let errorString2 = await captureError(async () =>
-        await doneBounty(alice, alice, dao, proposalId + 10)
-    );
-    test.regex(errorString2, /ERR_NO_BOUNTY_CLAIM/);
-
-
-    //`bounty_done` can only be called by the claimer
-    let errorString3 = await captureError(async () =>
-        await doneBounty(alice, bob, dao, proposalId)
-    );
-    test.regex(errorString3, /ERR_BOUNTY_DONE_MUST_BE_SELF/);
-
-    let bounty: any = await dao.view('get_bounty_claims', { account_id: alice });
-    test.is(bounty[0].completed, false);
-
-    console.log(await dao.view('get_proposals', { from_index: 0, limit: 10 }));
-
-    const whale = await root.createAccount('whale');
-    await whale.call(testToken, 'mint',
-        {
-            account_id: whale.accountId,
-            amount: '6000000000',
-        },
-        {
-            gas: tGas(200)
-        }
-    );
-    await whale.call(testToken, 'ft_transfer',
-        {
-            receiver_id: dao.accountId,
-            amount: '10000',
-            memo: 'Heard you are in a pinch, let me help.'
-        },
-        {
-            attachedDeposit: new BN(1)
-        }
-    );
-    
-
-    await doneBounty(alice, alice, dao, proposalId);
-
-    //claim is marked as completed
-    bounty = await dao.view('get_bounty_claims', { account_id: alice });
-    test.is(bounty[0].completed, true);
-
-    let proposal: any = await dao.view('get_proposal', { id: proposalId + 1 });
-    test.is(proposal.status, 'InProgress');
-
-    console.log(await dao.view('get_proposals', { from_index: 0, limit: 10 }));
-
-    await voteOnBounty(root, dao, proposalId + 1);
-
-    console.log(await dao.view('get_proposals', { from_index: 0, limit: 10 }));
-
-    //proposal is approved
-    proposal = await dao.view('get_proposal', { id: proposalId + 1 });
-    test.is(proposal.status, 'Approved');
-
-
-    //Should panic if the bounty claim is completed
-    let errorString4 = await captureError(async () =>
-        await doneBounty(alice, alice, dao, proposalId)
-    );
-    test.regex(errorString4, /ERR_BOUNTY_CLAIM_COMPLETED/);
-
-});*/
-
 workspace.test('Bounty done with NEAR token', async (test, { alice, root, dao }) => {
     const proposalId = await proposeBountyWithNear(alice, dao);
     
@@ -327,7 +205,6 @@ workspace.test('Bounty giveup', async (test, { alice, root, dao }) => {
 
 workspace.test('Bounty ft done', async (test, { alice, root, dao }) => {
     const testToken = await initTestToken(root);
-    let proposalId = await proposeBounty(alice, dao, testToken);
     await dao.call(
         testToken,
         'mint',
@@ -357,7 +234,7 @@ workspace.test('Bounty ft done', async (test, { alice, root, dao }) => {
         times: 3,
         max_deadline: DEADLINE
     }
-    proposalId = await alice.call(dao, 'add_proposal', {
+    let proposalId: number = await alice.call(dao, 'add_proposal', {
         proposal: {
             description: 'add_new_bounty',
             kind: {
