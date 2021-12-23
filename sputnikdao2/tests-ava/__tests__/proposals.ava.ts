@@ -1,14 +1,7 @@
 import { toYocto, NearAccount, captureError, BN, NEAR, ONE_NEAR, tGas } from 'near-workspaces-ava';
 
-import { workspace, initTestToken, initStaking, setStakingId, workspaceWithoutInit } from './utils';
+import { workspace, initTestToken, initStaking, setStakingId, workspaceWithoutInit, voteApprove } from './utils';
 
-export async function voteApprove(root: NearAccount, dao: NearAccount, proposalId: number) {
-    await root.call(dao, 'act_proposal',
-        {
-            id: proposalId,
-            action: 'VoteApprove'
-        })
-}
 
 workspace.test('basic', async (test, { alice, root, dao }) => {
     test.true(await alice.exists())

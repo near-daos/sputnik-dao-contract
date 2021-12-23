@@ -1,7 +1,7 @@
 import { BN, NearAccount, captureError, toYocto, tGas, DEFAULT_FUNCTION_CALL_GAS, Gas, NEAR } from 'near-workspaces-ava';
 import { workspace, initStaking, initTestToken, STORAGE_PER_BYTE, workspaceWithoutInit } from './utils';
-import { voteApprove } from './proposals.ava';
-import { DEADLINE, BOND, proposeBounty, voteOnBounty, claimBounty, doneBounty } from './bounties.ava'
+import { voteApprove } from './utils';
+import { DEADLINE, BOND, proposeBounty, voteOnBounty, claimBounty, doneBounty } from './utils'
 import * as fs from 'fs';
 
 const DAO_WASM_BYTES: Uint8Array = fs.readFileSync('../res/sputnikdao2.wasm');

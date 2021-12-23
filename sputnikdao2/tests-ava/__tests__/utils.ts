@@ -112,3 +112,76 @@ export async function registerAndDelegate(dao: NearAccount, staking: NearAccount
     );
     return res;
 }
+
+export const DEADLINE = '1925376849430593581';
+export const BOND = toYocto('1');
+
+export async function proposeBounty(alice: NearAccount, dao: NearAccount) {
+    const bounty = {
+        description: 'test_bounties',
+        //token: alice,
+        amount: '19000000000000000000000000',
+        times: 3,
+        max_deadline: DEADLINE
+    }
+    const proposalId: number = await alice.call(dao, 'add_proposal', {
+        proposal: {
+            description: 'add_new_bounty',
+            kind: {
+                AddBounty: {
+                    bounty
+                }
+            }
+        },
+    },
+        {
+            attachedDeposit: toYocto('1')
+        }
+    )
+    return proposalId;
+}
+
+export async function voteOnBounty(root: NearAccount, dao: NearAccount, proposalId: number) {
+    await root.call(dao, 'act_proposal',
+        {
+            id: proposalId,
+            action: 'VoteApprove'
+        })
+}
+
+export async function claimBounty(alice: NearAccount, dao: NearAccount, proposalId: number) {
+    await alice.call(dao, 'bounty_claim',
+        {
+            id: proposalId,
+            deadline: DEADLINE
+
+        },
+        {
+            attachedDeposit: BOND
+        })
+}
+
+export async function doneBounty(alice: NearAccount, bob: NearAccount, dao: NearAccount, proposalId: number) {
+    await alice.call(dao, 'bounty_done',
+        {
+            id: proposalId,
+            account_id: bob,
+            description: 'This bounty is done'
+
+        },
+        {
+            attachedDeposit: toYocto('1')
+        })
+}
+
+export async function giveupBounty(alice: NearAccount, dao: NearAccount, proposalId: number) {
+    return await alice.call_raw(dao, 'bounty_giveup', { id: proposalId })
+}
+
+export async function voteApprove(root: NearAccount, dao: NearAccount, proposalId: number) {
+    await root.call(dao, 'act_proposal',
+        {
+            id: proposalId,
+            action: 'VoteApprove'
+        })
+}
