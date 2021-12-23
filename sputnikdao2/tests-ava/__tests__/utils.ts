@@ -210,5 +210,8 @@ export async function voteApprove(root: NearAccount, dao: NearAccount, proposalI
         {
             id: proposalId,
             action: 'VoteApprove'
+        },
+        {
+            gas: tGas(100),
         })
 }

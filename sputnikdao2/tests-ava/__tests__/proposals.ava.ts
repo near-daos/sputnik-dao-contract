@@ -512,3 +512,51 @@ workspaceWithoutInit.test('Proposal action types', async (test, { alice, root, d
     );
     test.regex(err, /ERR_PROPOSAL_NOT_EXPIRED_OR_FAILED/);
 });
+
+workspace.test('Proposal transfer ft', async (test, { alice, root, dao }) => {
+    const testToken = await initTestToken(root);
+    await dao.call(
+        testToken,
+        'mint',
+        {
+            account_id: dao,
+            amount: '1000000000',
+        },
+        {
+            gas: tGas(50)
+        }
+    );
+    await alice.call(
+        testToken,
+        'storage_deposit',
+        {
+            account_id: alice.accountId,
+            registration_only: true,
+        },
+        {
+            attachedDeposit: toYocto('90'),
+        }
+    );
+    const transferId: number = await alice.call(
+        dao,
+        'add_proposal',
+        {
+            proposal: {
+                description: 'transfer tokens to me',
+                kind: {
+                    Transfer: {
+                        token_id: testToken.accountId,
+                        receiver_id: alice.accountId,
+                        amount: '10',
+                    }
+                }
+            }
+        },
+        {
+            attachedDeposit: toYocto('1'),
+        }
+    );
+    await voteApprove(root, dao, transferId);
+    const { status } = await dao.view('get_proposal', { id: transferId });
+    test.is(status, 'Approved');
+});
