@@ -1,11 +1,10 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
-#[cfg(target_arch = "wasm32")]
-use near_sdk::env::BLOCKCHAIN_INTERFACE;
-use near_sdk::json_types::{Base58CryptoHash, ValidAccountId, U128};
+use near_sdk::json_types::{Base58CryptoHash, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    env, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash, PanicOnDefault, Promise,
+    env, ext_contract, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash,
+    PanicOnDefault, Promise, PromiseOrValue, PromiseResult,
 };
 
 use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
@@ -21,11 +20,6 @@ mod proposals;
 mod types;
 pub mod views;
 
-near_sdk::setup_alloc!();
-
-#[cfg(target_arch = "wasm32")]
-const BLOCKCHAIN_INTERFACE_NOT_SET_ERR: &str = "Blockchain interface not set.";
-
 #[derive(BorshStorageKey, BorshSerialize)]
 pub enum StorageKeys {
     Config,
@@ -38,6 +32,13 @@ pub enum StorageKeys {
     Blobs,
 }
 
+/// After payouts, allows a callback
+#[ext_contract(ext_self)]
+pub trait ExtSelf {
+    /// Callback after proposal execution.
+    fn on_proposal_callback(&mut self, proposal_id: u64) -> PromiseOrValue<()>;
+}
+
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
 pub struct Contract {
@@ -46,7 +47,7 @@ pub struct Contract {
     /// Voting and permissions policy.
     pub policy: LazyOption<VersionedPolicy>,
 
-    /// Amount of $NEAR locked for storage / bonds.
+    /// Amount of $NEAR locked for bonds.
     pub locked_amount: Balance,
 
     /// Vote staking contract id. That contract must have this account as owner.
@@ -91,8 +92,7 @@ impl Contract {
             bounty_claimers: LookupMap::new(StorageKeys::BountyClaimers),
             bounty_claims_count: LookupMap::new(StorageKeys::BountyClaimCounts),
             blobs: LookupMap::new(StorageKeys::Blobs),
-            // TODO: only accounts for contract but not for this state object. Can just add fixed size of it.
-            locked_amount: env::storage_byte_cost() * (env::storage_usage() as u128),
+            locked_amount: 0,
         }
     }
 
@@ -124,76 +124,83 @@ impl Contract {
         env::storage_remove(&hash);
         let blob_len = env::register_len(u64::MAX - 1).unwrap();
         let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
-        self.locked_amount -= storage_cost;
         Promise::new(account_id).transfer(storage_cost)
     }
 }
+
+// Cross-contract calls
+
+#[near_bindgen]
+impl Contract {
+    /// Receiving callback after the proposal has been finalized.
+    /// If successful, returns bond money to the proposal originator.
+    /// If the proposal execution failed (funds didn't transfer or function call failure),
+    /// move proposal to "Failed" state.
+    #[private]
+    pub fn on_proposal_callback(&mut self, proposal_id: u64) -> PromiseOrValue<()> {
+        let mut proposal: Proposal = self
+            .proposals
+            .get(&proposal_id)
+            .expect("ERR_NO_PROPOSAL")
+            .into();
+        assert_eq!(
+            env::promise_results_count(),
+            1,
+            "ERR_UNEXPECTED_CALLBACK_PROMISES"
+        );
+        let result = match env::promise_result(0) {
+            PromiseResult::NotReady => unreachable!(),
+            PromiseResult::Successful(_) => self.internal_callback_proposal_success(&mut proposal),
+            PromiseResult::Failed => self.internal_callback_proposal_fail(&mut proposal),
+        };
+        self.proposals
+            .insert(&proposal_id, &VersionedProposal::Default(proposal.into()));
+        result
+    }
+}
+
+// Upgrading the contract
 
 /// Stores attached data into blob store and returns hash of it.
 /// Implemented to avoid loading the data into WASM for optimal gas usage.
 #[cfg(target_arch = "wasm32")]
 #[no_mangle]
 pub extern "C" fn store_blob() {
+    use near_sdk::sys;
     env::setup_panic_hook();
-    env::set_blockchain_interface(Box::new(near_blockchain::NearBlockchain {}));
     let mut contract: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
     unsafe {
-        BLOCKCHAIN_INTERFACE.with(|b| {
-            // Load input into register 0.
-            b.borrow()
-                .as_ref()
-                .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
-                .input(0);
-            // Compute sha256 hash of register 0 and store in 1.
-            b.borrow()
-                .as_ref()
-                .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
-                .sha256(u64::MAX as _, 0 as _, 1);
-            // Check if such blob already stored.
-            assert_eq!(
-                b.borrow()
-                    .as_ref()
-                    .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
-                    .storage_has_key(u64::MAX as _, 1 as _),
-                0,
-                "ERR_ALREADY_EXISTS"
-            );
-            // Get length of the input argument and check that enough $NEAR has been attached.
-            let blob_len = b
-                .borrow()
-                .as_ref()
-                .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
-                .register_len(0);
-            let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
-            assert!(
-                env::attached_deposit() >= storage_cost,
-                "ERR_NOT_ENOUGH_DEPOSIT:{}",
-                storage_cost
-            );
-            contract.locked_amount += storage_cost;
-            // Store value of register 0 into key = register 1.
-            b.borrow()
-                .as_ref()
-                .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
-                .storage_write(u64::MAX as _, 1 as _, u64::MAX as _, 0 as _, 2);
-            // Load register 1 into blob_hash and save into LookupMap.
-            let blob_hash = [0u8; 32];
-            b.borrow()
-                .as_ref()
-                .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
-                .read_register(1, blob_hash.as_ptr() as _);
-            contract
-                .blobs
-                .insert(&blob_hash, &env::predecessor_account_id());
-            // Return from function value of register 1.
-            let blob_hash_str = near_sdk::serde_json::to_string(&Base58CryptoHash::from(blob_hash))
-                .unwrap()
-                .into_bytes();
-            b.borrow()
-                .as_ref()
-                .expect(BLOCKCHAIN_INTERFACE_NOT_SET_ERR)
-                .value_return(blob_hash_str.len() as _, blob_hash_str.as_ptr() as _);
-        });
+        // Load input into register 0.
+        sys::input(0);
+        // Compute sha256 hash of register 0 and store in 1.
+        sys::sha256(u64::MAX as _, 0 as _, 1);
+        // Check if such blob already stored.
+        assert_eq!(
+            sys::storage_has_key(u64::MAX as _, 1 as _),
+            0,
+            "ERR_ALREADY_EXISTS"
+        );
+        // Get length of the input argument and check that enough $NEAR has been attached.
+        let blob_len = sys::register_len(0);
+        let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
+        assert!(
+            env::attached_deposit() >= storage_cost,
+            "ERR_NOT_ENOUGH_DEPOSIT:{}",
+            storage_cost
+        );
+        // Store value of register 0 into key = register 1.
+        sys::storage_write(u64::MAX as _, 1 as _, u64::MAX as _, 0 as _, 2);
+        // Load register 1 into blob_hash and save into LookupMap.
+        let blob_hash = [0u8; 32];
+        sys::read_register(1, blob_hash.as_ptr() as _);
+        contract
+            .blobs
+            .insert(&blob_hash, &env::predecessor_account_id());
+        // Return from function value of register 1.
+        let blob_hash_str = near_sdk::serde_json::to_string(&Base58CryptoHash::from(blob_hash))
+            .unwrap()
+            .into_bytes();
+        sys::value_return(blob_hash_str.len() as _, blob_hash_str.as_ptr() as _);
     }
     env::state_write(&contract);
 }
@@ -201,11 +208,10 @@ pub extern "C" fn store_blob() {
 #[cfg(test)]
 mod tests {
     use near_sdk::test_utils::{accounts, VMContextBuilder};
-    use near_sdk::{testing_env, MockedBlockchain};
+    use near_sdk::testing_env;
     use near_sdk_sim::to_yocto;
 
     use crate::proposals::ProposalStatus;
-    use crate::types::BASE_TOKEN;
 
     use super::*;
 
@@ -214,7 +220,7 @@ mod tests {
         contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
-                token_id: BASE_TOKEN.to_string(),
+                token_id: None,
                 receiver_id: accounts(2).into(),
                 amount: U128(to_yocto("100")),
                 msg: None,

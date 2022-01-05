@@ -13,7 +13,7 @@ impl StorageManagement for Contract {
     #[payable]
     fn storage_deposit(
         &mut self,
-        account_id: Option<ValidAccountId>,
+        account_id: Option<AccountId>,
         registration_only: Option<bool>,
     ) -> StorageBalance {
         let amount = env::attached_deposit();
@@ -24,7 +24,7 @@ impl StorageManagement for Contract {
         let min_balance = User::min_storage() as Balance * env::storage_byte_cost();
         let already_registered = self.users.contains_key(&account_id);
         if amount < min_balance && !already_registered {
-            env::panic(b"ERR_DEPOSIT_LESS_THAN_MIN_STORAGE");
+            env::panic_str("ERR_DEPOSIT_LESS_THAN_MIN_STORAGE");
         }
         if registration_only {
             // Registration only setups the account but doesn't leave space for tokens.
@@ -83,8 +83,8 @@ impl StorageManagement for Contract {
         }
     }
 
-    fn storage_balance_of(&self, account_id: ValidAccountId) -> Option<StorageBalance> {
-        self.internal_get_user_opt(account_id.as_ref())
+    fn storage_balance_of(&self, account_id: AccountId) -> Option<StorageBalance> {
+        self.internal_get_user_opt(&account_id)
             .map(|user| StorageBalance {
                 total: user.near_amount,
                 available: U128(user.storage_available()),

@@ -1,0 +1,26 @@
+name: Tests
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+jobs:
+  tests:
+    strategy:
+      matrix:
+        platform: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
+      - name: Build
+        env:
+          IS_GITHUB_ACTION: true
+        run: cargo +stable build --workspace --target wasm32-unknown-unknown --release
+      - name: Run tests
+        env:
+          IS_GITHUB_ACTION: true
+        run: cargo test --workspace -- --nocapture

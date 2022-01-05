@@ -40,8 +40,8 @@ impl Contract {
     }
 
     /// Returns staking contract if available. Otherwise returns empty.
-    pub fn get_staking_contract(&self) -> AccountId {
-        self.staking_id.clone().unwrap_or_default()
+    pub fn get_staking_contract(self) -> Option<AccountId> {
+        self.staking_id
     }
 
     /// Returns if blob with given hash is stored.
@@ -49,9 +49,15 @@ impl Contract {
         env::storage_has_key(&CryptoHash::from(hash))
     }
 
+    /// Returns locked amount of NEAR that is used for storage.
+    pub fn get_locked_storage_amount(&self) -> U128 {
+        let locked_storage_amount = env::storage_byte_cost() * (env::storage_usage() as u128);
+        U128(locked_storage_amount)
+    }
+
     /// Returns available amount of NEAR that can be spent (outside of amount for storage and bonds).
     pub fn get_available_amount(&self) -> U128 {
-        U128(env::account_balance() - self.locked_amount)
+        U128(env::account_balance() - self.get_locked_storage_amount().0 - self.locked_amount)
     }
 
     /// Returns total delegated stake.
@@ -60,11 +66,15 @@ impl Contract {
     }
 
     /// Returns delegated stake to given account.
-    pub fn delegation_balance_of(&self, account_id: ValidAccountId) -> U128 {
-        U128(
-            self.delegations
-                .get(account_id.as_ref())
-                .unwrap_or_default(),
+    pub fn delegation_balance_of(&self, account_id: AccountId) -> U128 {
+        U128(self.delegations.get(&account_id).unwrap_or_default())
+    }
+
+    /// Combines balance and total amount for calling from external contracts.
+    pub fn delegation_balance_ratio(&self, account_id: AccountId) -> (U128, U128) {
+        (
+            self.delegation_balance_of(account_id),
+            self.delegation_total_supply(),
         )
     }
 
@@ -121,10 +131,8 @@ impl Contract {
     }
 
     /// Get bounty claims for given user.
-    pub fn get_bounty_claims(&self, account_id: ValidAccountId) -> Vec<BountyClaim> {
-        self.bounty_claimers
-            .get(account_id.as_ref())
-            .unwrap_or_default()
+    pub fn get_bounty_claims(&self, account_id: AccountId) -> Vec<BountyClaim> {
+        self.bounty_claimers.get(&account_id).unwrap_or_default()
     }
 
     /// Returns number of claims per given bounty.

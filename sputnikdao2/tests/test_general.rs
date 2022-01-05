@@ -4,18 +4,17 @@ use near_sdk::json_types::U128;
 use near_sdk::AccountId;
 use near_sdk_sim::{call, to_yocto, view};
 
+use crate::utils::*;
 use sputnik_staking::User;
 use sputnikdao2::{
     Action, Policy, Proposal, ProposalInput, ProposalKind, ProposalStatus, RoleKind,
     RolePermission, VersionedPolicy, VotePolicy,
 };
 
-use crate::utils::*;
-
 mod utils;
 
-fn user(id: u32) -> String {
-    format!("user{}", id)
+fn user(id: u32) -> AccountId {
+    format!("user{}", id).parse().unwrap()
 }
 
 #[test]
@@ -47,9 +46,9 @@ fn test_multi_council() {
         ],
         default_vote_policy: VotePolicy::default(),
         proposal_bond: U128(10u128.pow(24)),
-        proposal_period: WrappedDuration::from(1_000_000_000 * 60 * 60 * 24 * 7),
+        proposal_period: U64::from(1_000_000_000 * 60 * 60 * 24 * 7),
         bounty_bond: U128(10u128.pow(24)),
-        bounty_forgiveness_period: WrappedDuration::from(1_000_000_000 * 60 * 60 * 24),
+        bounty_forgiveness_period: U64::from(1_000_000_000 * 60 * 60 * 24),
     };
     add_proposal(
         &root,
@@ -85,8 +84,8 @@ fn test_create_dao_and_use_token() {
     let staking = setup_staking(&root);
 
     assert!(view!(dao.get_staking_contract())
-        .unwrap_json::<AccountId>()
-        .is_empty());
+        .unwrap_json::<Option<AccountId>>()
+        .is_none());
     add_member_proposal(&root, &dao, user2.account_id.clone()).assert_success();
     assert_eq!(view!(dao.get_last_proposal_id()).unwrap_json::<u64>(), 1);
     // Voting by user who is not member should fail.
@@ -117,7 +116,7 @@ fn test_create_dao_and_use_token() {
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::SetStakingContract {
-                staking_id: to_va("staking".to_string()),
+                staking_id: "staking".parse().unwrap(),
             },
         },
     )
@@ -125,23 +124,28 @@ fn test_create_dao_and_use_token() {
     vote(vec![&user3, &user2], &dao, 2);
     assert!(!view!(dao.get_staking_contract())
         .unwrap_json::<AccountId>()
+        .as_str()
         .is_empty());
     assert_eq!(
         view!(dao.get_proposal(2)).unwrap_json::<Proposal>().status,
         ProposalStatus::Approved
     );
+
+    staking
+        .user_account
+        .view_method_call(staking.contract.ft_total_supply());
     assert_eq!(
         view!(staking.ft_total_supply()).unwrap_json::<U128>().0,
         to_yocto("0")
     );
     call!(
         user2,
-        test_token.mint(to_va(user2.account_id.clone()), U128(to_yocto("100")))
+        test_token.mint(user2.account_id.clone(), U128(to_yocto("100")))
     )
     .assert_success();
     call!(
         user2,
-        test_token.storage_deposit(Some(to_va(staking.account_id())), None),
+        test_token.storage_deposit(Some(staking.account_id()), None),
         deposit = to_yocto("1")
     )
     .assert_success();
@@ -153,7 +157,7 @@ fn test_create_dao_and_use_token() {
     call!(
         user2,
         test_token.ft_transfer_call(
-            to_va(staking.account_id()),
+            staking.account_id(),
             U128(to_yocto("10")),
             None,
             "".to_string()
@@ -165,7 +169,7 @@ fn test_create_dao_and_use_token() {
         view!(staking.ft_total_supply()).unwrap_json::<U128>().0,
         to_yocto("10")
     );
-    let user2_id = to_va(user2.account_id.clone());
+    let user2_id = user2.account_id.clone();
     assert_eq!(
         view!(staking.ft_balance_of(user2_id.clone()))
             .unwrap_json::<U128>()
@@ -207,14 +211,14 @@ fn test_create_dao_and_use_token() {
     let user = view!(staking.get_user(user2_id.clone())).unwrap_json::<User>();
     assert_eq!(
         user.delegated_amounts,
-        vec![(user2_id.to_string(), U128(to_yocto("4")))]
+        vec![(user2_id.clone(), U128(to_yocto("4")))]
     );
     assert_eq!(
         view!(dao.delegation_total_supply()).unwrap_json::<U128>().0,
         to_yocto("4")
     );
     assert_eq!(
-        view!(dao.delegation_balance_of(user2_id))
+        view!(dao.delegation_balance_of(user2_id.clone()))
             .unwrap_json::<U128>()
             .0,
         to_yocto("4")
@@ -233,12 +237,81 @@ fn test_failures() {
         1_000_000,
         Some("some".to_string()),
     ));
-    should_fail(add_transfer_proposal(
+}
+
+/// Test payments that fail
+#[test]
+fn test_payment_failures() {
+    let (root, dao) = setup_dao();
+    let user1 = root.create_user(user(1), to_yocto("1000"));
+    let whale = root.create_user(user(2), to_yocto("1000"));
+
+    // Add user1
+    add_member_proposal(&root, &dao, user1.account_id.clone()).assert_success();
+    vote(vec![&root], &dao, 0);
+
+    // Set up fungible tokens and give 5 to the dao
+    let test_token = setup_test_token(&root);
+    call!(
+        dao.user_account,
+        test_token.mint(dao.user_account.account_id.clone(), U128(5))
+    )
+    .assert_success();
+    call!(
+        user1,
+        test_token.storage_deposit(Some(user1.account_id.clone()), Some(true)),
+        deposit = to_yocto("125")
+    )
+    .assert_success();
+
+    // Attempt to transfer more than it has
+    add_transfer_proposal(
         &root,
         &dao,
-        "not:a^valid.token@".to_string(),
+        Some(test_token.account_id()),
         user(1),
-        1_000_000,
+        10,
         None,
-    ));
+    )
+    .assert_success();
+
+    // Vote in the transfer
+    vote(vec![&root, &user1], &dao, 1);
+    let mut proposal = view!(dao.get_proposal(1)).unwrap_json::<Proposal>();
+    assert_eq!(proposal.status, ProposalStatus::Failed);
+
+    // Set up benefactor whale who will donate the needed tokens
+    call!(
+        whale,
+        test_token.mint(whale.account_id.clone(), U128(6_000_000_000))
+    )
+    .assert_success();
+    call!(
+        whale,
+        test_token.ft_transfer(
+            dao.account_id(),
+            U128::from(1000),
+            Some("Heard you're in a pinch, let me help.".to_string())
+        ),
+        deposit = 1
+    )
+    .assert_success();
+
+    // Council member retries payment via an action
+    call!(
+        root,
+        dao.act_proposal(
+            1,
+            Action::Finalize,
+            Some("Sorry! We topped up our tokens. Thanks.".to_string())
+        )
+    )
+    .assert_success();
+
+    proposal = view!(dao.get_proposal(1)).unwrap_json::<Proposal>();
+    assert_eq!(
+        proposal.status,
+        ProposalStatus::Approved,
+        "Did not return to approved status."
+    );
 }

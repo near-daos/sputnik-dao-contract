@@ -1,14 +1,13 @@
 use std::collections::HashMap;
-use std::convert::TryFrom;
 
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::json_types::{Base64VecU8, WrappedTimestamp, U64};
-use near_sdk::{log, AccountId, Balance, PromiseOrValue};
+use near_sdk::json_types::{Base64VecU8, U128, U64};
+use near_sdk::{log, AccountId, Balance, Gas, PromiseOrValue};
 
 use crate::policy::UserInfo;
 use crate::types::{
-    upgrade_remote, upgrade_self, Action, Config, BASE_TOKEN, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR,
+    upgrade_remote, upgrade_self, Action, Config, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR,
 };
 use crate::*;
 
@@ -28,6 +27,8 @@ pub enum ProposalStatus {
     Expired,
     /// If proposal was moved to Hub or somewhere else.
     Moved,
+    /// If proposal has failed when finalizing. Allowed to re-finalize again to either expire or approved.
+    Failed,
 }
 
 /// Function call arguments.
@@ -51,26 +52,20 @@ pub enum ProposalKind {
     /// Change the full policy.
     ChangePolicy { policy: VersionedPolicy },
     /// Add member to given role in the policy. This is short cut to updating the whole policy.
-    AddMemberToRole {
-        member_id: ValidAccountId,
-        role: String,
-    },
+    AddMemberToRole { member_id: AccountId, role: String },
     /// Remove member to given role in the policy. This is short cut to updating the whole policy.
-    RemoveMemberFromRole {
-        member_id: ValidAccountId,
-        role: String,
-    },
+    RemoveMemberFromRole { member_id: AccountId, role: String },
     /// Calls `receiver_id` with list of method names in a single promise.
     /// Allows this contract to execute any arbitrary set of actions in other contracts.
     FunctionCall {
-        receiver_id: ValidAccountId,
+        receiver_id: AccountId,
         actions: Vec<ActionCall>,
     },
     /// Upgrade this contract with given hash from blob store.
     UpgradeSelf { hash: Base58CryptoHash },
     /// Upgrade another contract, by calling method with the code from given hash from blob store.
     UpgradeRemote {
-        receiver_id: ValidAccountId,
+        receiver_id: AccountId,
         method_name: String,
         hash: Base58CryptoHash,
     },
@@ -79,19 +74,20 @@ pub enum ProposalKind {
     /// For `ft_transfer` and `ft_transfer_call` `memo` is the `description` of the proposal.
     Transfer {
         /// Can be "" for $NEAR or a valid account id.
-        token_id: AccountId,
-        receiver_id: ValidAccountId,
+        #[serde(with = "serde_with::rust::string_empty_as_none")]
+        token_id: Option<AccountId>,
+        receiver_id: AccountId,
         amount: U128,
         msg: Option<String>,
     },
     /// Sets staking contract. Can only be proposed if staking contract is not set yet.
-    SetStakingContract { staking_id: ValidAccountId },
+    SetStakingContract { staking_id: AccountId },
     /// Add new bounty.
     AddBounty { bounty: Bounty },
     /// Indicates that given bounty is done by given user.
     BountyDone {
         bounty_id: u64,
-        receiver_id: ValidAccountId,
+        receiver_id: AccountId,
     },
     /// Just a signaling vote, with no execution.
     Vote,
@@ -155,7 +151,7 @@ pub struct Proposal {
     /// Map of who voted and how.
     pub votes: HashMap<AccountId, Vote>,
     /// Submission time (for voting period).
-    pub submission_time: WrappedTimestamp,
+    pub submission_time: U64,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -218,7 +214,7 @@ impl From<ProposalInput> for Proposal {
             status: ProposalStatus::InProgress,
             vote_counts: HashMap::default(),
             votes: HashMap::default(),
-            submission_time: WrappedTimestamp::from(env::block_timestamp()),
+            submission_time: U64::from(env::block_timestamp()),
         }
     }
 }
@@ -227,13 +223,13 @@ impl Contract {
     /// Execute payout of given token to given user.
     pub(crate) fn internal_payout(
         &mut self,
-        token_id: &AccountId,
+        token_id: &Option<AccountId>,
         receiver_id: &AccountId,
         amount: Balance,
         memo: String,
         msg: Option<String>,
     ) -> PromiseOrValue<()> {
-        if token_id == BASE_TOKEN {
+        if token_id.is_none() {
             Promise::new(receiver_id.clone()).transfer(amount).into()
         } else {
             if let Some(msg) = msg {
@@ -242,23 +238,27 @@ impl Contract {
                     U128(amount),
                     Some(memo),
                     msg,
-                    &token_id,
+                    token_id.as_ref().unwrap().clone(),
                     ONE_YOCTO_NEAR,
                     GAS_FOR_FT_TRANSFER,
                 )
-                .into()
             } else {
                 ext_fungible_token::ft_transfer(
                     receiver_id.clone(),
                     U128(amount),
                     Some(memo),
-                    &token_id,
+                    token_id.as_ref().unwrap().clone(),
                     ONE_YOCTO_NEAR,
                     GAS_FOR_FT_TRANSFER,
                 )
-                .into()
             }
+            .into()
         }
+    }
+
+    fn internal_return_bond(&mut self, policy: &Policy, proposal: &Proposal) -> Promise {
+        self.locked_amount -= policy.proposal_bond.0;
+        Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond.0)
     }
 
     /// Executes given proposal and updates the contract's state.
@@ -266,10 +266,9 @@ impl Contract {
         &mut self,
         policy: &Policy,
         proposal: &Proposal,
+        proposal_id: u64,
     ) -> PromiseOrValue<()> {
-        // Return the proposal bond.
-        Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond.0);
-        match &proposal.kind {
+        let result = match &proposal.kind {
             ProposalKind::ChangeConfig { config } => {
                 self.config.set(config);
                 PromiseOrValue::Value(())
@@ -297,10 +296,10 @@ impl Contract {
                 let mut promise = Promise::new(receiver_id.clone().into());
                 for action in actions {
                     promise = promise.function_call(
-                        action.method_name.clone().into_bytes(),
+                        action.method_name.clone().into(),
                         action.args.clone().into(),
                         action.deposit.0,
-                        action.gas.0,
+                        Gas(action.gas.0),
                     )
                 }
                 promise.into()
@@ -314,11 +313,7 @@ impl Contract {
                 method_name,
                 hash,
             } => {
-                upgrade_remote(
-                    &receiver_id.clone().into(),
-                    method_name,
-                    &CryptoHash::from(hash.clone()),
-                );
+                upgrade_remote(&receiver_id, method_name, &CryptoHash::from(hash.clone()));
                 PromiseOrValue::Value(())
             }
             ProposalKind::Transfer {
@@ -327,8 +322,8 @@ impl Contract {
                 amount,
                 msg,
             } => self.internal_payout(
-                token_id,
-                &receiver_id.clone().into(),
+                &token_id,
+                &receiver_id,
                 amount.0,
                 proposal.description.clone(),
                 msg.clone(),
@@ -347,7 +342,45 @@ impl Contract {
                 receiver_id,
             } => self.internal_execute_bounty_payout(*bounty_id, &receiver_id.clone().into(), true),
             ProposalKind::Vote => PromiseOrValue::Value(()),
+        };
+        match result {
+            PromiseOrValue::Promise(promise) => promise
+                .then(ext_self::on_proposal_callback(
+                    proposal_id,
+                    env::current_account_id(),
+                    0,
+                    GAS_FOR_FT_TRANSFER,
+                ))
+                .into(),
+            PromiseOrValue::Value(()) => self.internal_return_bond(&policy, &proposal).into(),
         }
+    }
+
+    pub(crate) fn internal_callback_proposal_success(
+        &mut self,
+        proposal: &mut Proposal,
+    ) -> PromiseOrValue<()> {
+        let policy = self.policy.get().unwrap().to_policy();
+        if let ProposalKind::BountyDone { bounty_id, .. } = proposal.kind {
+            let mut bounty: Bounty = self.bounties.get(&bounty_id).expect("ERR_NO_BOUNTY").into();
+            if bounty.times == 0 {
+                self.bounties.remove(&bounty_id);
+            } else {
+                bounty.times -= 1;
+                self.bounties
+                    .insert(&bounty_id, &VersionedBounty::Default(bounty));
+            }
+        }
+        proposal.status = ProposalStatus::Approved;
+        self.internal_return_bond(&policy, &proposal).into()
+    }
+
+    pub(crate) fn internal_callback_proposal_fail(
+        &mut self,
+        proposal: &mut Proposal,
+    ) -> PromiseOrValue<()> {
+        proposal.status = ProposalStatus::Failed;
+        PromiseOrValue::Value(())
     }
 
     /// Process rejecting proposal.
@@ -359,7 +392,7 @@ impl Contract {
     ) -> PromiseOrValue<()> {
         if return_bond {
             // Return bond to the proposer.
-            Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond.0);
+            self.internal_return_bond(policy, proposal);
         }
         match &proposal.kind {
             ProposalKind::BountyDone {
@@ -402,15 +435,9 @@ impl Contract {
             },
             ProposalKind::Transfer { token_id, msg, .. } => {
                 assert!(
-                    !(token_id == BASE_TOKEN) || msg.is_none(),
+                    !(token_id.is_none()) || msg.is_none(),
                     "ERR_BASE_TOKEN_NO_MSG"
                 );
-                if token_id != BASE_TOKEN {
-                    assert!(
-                        ValidAccountId::try_from(token_id.clone()).is_ok(),
-                        "ERR_TOKEN_ID_INVALID"
-                    );
-                }
             }
             ProposalKind::SetStakingContract { .. } => assert!(
                 self.staking_id.is_none(),
@@ -437,6 +464,7 @@ impl Contract {
         self.proposals
             .insert(&id, &VersionedProposal::Default(proposal.into()));
         self.last_proposal_id += 1;
+        self.locked_amount += env::attached_deposit();
         id
     }
 
@@ -452,16 +480,15 @@ impl Contract {
         let sender_id = env::predecessor_account_id();
         // Update proposal given action. Returns true if should be updated in storage.
         let update = match action {
-            Action::AddProposal => env::panic(b"ERR_WRONG_ACTION"),
+            Action::AddProposal => env::panic_str("ERR_WRONG_ACTION"),
             Action::RemoveProposal => {
                 self.proposals.remove(&id);
                 false
             }
             Action::VoteApprove | Action::VoteReject | Action::VoteRemove => {
-                assert_eq!(
-                    proposal.status,
-                    ProposalStatus::InProgress,
-                    "ERR_PROPOSAL_NOT_IN_PROGRESS"
+                assert!(
+                    matches!(proposal.status, ProposalStatus::InProgress),
+                    "ERR_PROPOSAL_NOT_READY_FOR_VOTE"
                 );
                 proposal.update_votes(
                     &sender_id,
@@ -474,7 +501,7 @@ impl Contract {
                 proposal.status =
                     policy.proposal_status(&proposal, roles, self.total_delegation_amount);
                 if proposal.status == ProposalStatus::Approved {
-                    self.internal_execute_proposal(&policy, &proposal);
+                    self.internal_execute_proposal(&policy, &proposal, id);
                     true
                 } else if proposal.status == ProposalStatus::Removed {
                     self.internal_reject_proposal(&policy, &proposal, false);
@@ -488,18 +515,30 @@ impl Contract {
                     true
                 }
             }
+            // There are two cases when proposal must be finalized manually: expired or failed.
+            // In case of failed, we just recompute the status and if it still approved, we re-execute the proposal.
+            // In case of expired, we reject the proposal and return the bond.
+            // Corner cases:
+            //  - if proposal expired during the failed state - it will be marked as expired.
+            //  - if the number of votes in the group has changed (new members has been added) -
+            //      the proposal can loose it's approved state. In this case new proposal needs to be made, this one can only expire.
             Action::Finalize => {
                 proposal.status = policy.proposal_status(
                     &proposal,
                     policy.roles.iter().map(|r| r.name.clone()).collect(),
                     self.total_delegation_amount,
                 );
-                assert_eq!(
-                    proposal.status,
-                    ProposalStatus::Expired,
-                    "ERR_PROPOSAL_NOT_EXPIRED"
-                );
-                self.internal_reject_proposal(&policy, &proposal, true);
+                match proposal.status {
+                    ProposalStatus::Approved => {
+                        self.internal_execute_proposal(&policy, &proposal, id);
+                    }
+                    ProposalStatus::Expired => {
+                        self.internal_reject_proposal(&policy, &proposal, true);
+                    }
+                    _ => {
+                        env::panic_str("ERR_PROPOSAL_NOT_EXPIRED_OR_FAILED");
+                    }
+                }
                 true
             }
             Action::MoveToHub => false,

@@ -1,15 +1,12 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedSet;
-use near_sdk::json_types::{Base58PublicKey, Base64VecU8};
-use near_sdk::{env, near_bindgen, AccountId, Promise};
-
-#[global_allocator]
-static ALLOC: near_sdk::wee_alloc::WeeAlloc<'_> = near_sdk::wee_alloc::WeeAlloc::INIT;
+use near_sdk::json_types::Base64VecU8;
+use near_sdk::{env, near_bindgen, AccountId, Gas, Promise, PublicKey};
 
 const CODE: &[u8] = include_bytes!("../../sputnikdao/res/sputnikdao.wasm");
 
 /// This gas spent on the call & account creation, the rest goes to the `new` call.
-const CREATE_CALL_GAS: u64 = 40_000_000_000_000;
+const CREATE_CALL_GAS: Gas = Gas(40_000_000_000_000);
 
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -19,7 +16,7 @@ pub struct SputnikDAOFactory {
 
 impl Default for SputnikDAOFactory {
     fn default() -> Self {
-        env::panic(b"SputnikDAOFactory should be initialized before usage")
+        env::panic_str("SputnikDAOFactory should be initialized before usage")
     }
 }
 
@@ -41,10 +38,12 @@ impl SputnikDAOFactory {
     pub fn create(
         &mut self,
         name: AccountId,
-        public_key: Option<Base58PublicKey>,
+        public_key: Option<PublicKey>,
         args: Base64VecU8,
     ) -> Promise {
-        let account_id = format!("{}.{}", name, env::current_account_id());
+        let account_id: AccountId = format!("{}.{}", name, env::current_account_id())
+            .parse()
+            .unwrap();
         self.daos.insert(&account_id);
         let mut promise = Promise::new(account_id)
             .create_account()
@@ -54,7 +53,7 @@ impl SputnikDAOFactory {
             promise = promise.add_full_access_key(key.into())
         }
         promise.function_call(
-            b"new".to_vec(),
+            "new".to_string(),
             args.into(),
             0,
             env::prepaid_gas() - CREATE_CALL_GAS,
@@ -64,7 +63,7 @@ impl SputnikDAOFactory {
 
 #[cfg(test)]
 mod tests {
-    use near_sdk::{testing_env, MockedBlockchain};
+    use near_sdk::testing_env;
 
     use super::*;
     use near_sdk::test_utils::{accounts, VMContextBuilder};
@@ -80,13 +79,17 @@ mod tests {
             .attached_deposit(10)
             .build());
         factory.create(
-            "test".to_string(),
-            Some(Base58PublicKey(vec![])),
+            "test".parse().unwrap(),
+            Some(
+                "ed25519:6E8sCci9badyRkXb3JoRpBj5p8C6Tw41ELDZoiihKEtp"
+                    .parse()
+                    .unwrap(),
+            ),
             "{}".as_bytes().to_vec().into(),
         );
         assert_eq!(
             factory.get_dao_list(),
-            vec![format!("test.{}", accounts(0))]
+            vec![format!("test.{}", accounts(0)).parse().unwrap()]
         );
     }
 }

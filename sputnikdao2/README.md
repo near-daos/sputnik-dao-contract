@@ -257,19 +257,18 @@ near view $SPUTNIK_ID get_policy
 > Each kind of proposal represents an operation the DAO can perform. Here are the kinds of proposals:
 
 ```rs
-ProposalKind::ChangeConfig { .. } => "config",
-ProposalKind::ChangePolicy { .. } => "policy",
-ProposalKind::AddMemberToRole { .. } => "add_member_to_role",
-ProposalKind::RemoveMemberFromRole { .. } => "remove_member_from_role",
-ProposalKind::FunctionCall { .. } => "call",
-ProposalKind::UpgradeSelf { .. } => "upgrade_self",
-ProposalKind::UpgradeRemote { .. } => "upgrade_remote",
-ProposalKind::Transfer { .. } => "transfer",
-ProposalKind::Mint { .. } => "mint",
-ProposalKind::Burn { .. } => "burn",
-ProposalKind::AddBounty { .. } => "add_bounty",
-ProposalKind::BountyDone { .. } => "bounty_done",
-ProposalKind::Vote => "vote",
+ProposalKind::ChangeConfig { .. },
+ProposalKind::ChangePolicy { .. },
+ProposalKind::AddMemberToRole { .. },
+ProposalKind::RemoveMemberFromRole { .. },
+ProposalKind::FunctionCall { .. },
+ProposalKind::UpgradeSelf { .. },
+ProposalKind::UpgradeRemote { .. },
+ProposalKind::Transfer { .. },
+ProposalKind::SetStakingContract { .. },
+ProposalKind::AddBounty { .. },
+ProposalKind::BountyDone { .. },
+ProposalKind::Vote,
 ```
 
 - **ChangeConfig** - used to change the configuration of the DAO
@@ -280,8 +279,7 @@ ProposalKind::Vote => "vote",
 - **UpgradeSelf** - used to upgrade the DAO contract itself.  Consider using `FunctionCall` to extend the capabilities of the DAO before modifying DAO contract code directly.
 - **UpgradeRemote** - used to upgrade other contracts.  This capability pairs nicely with the `FunctionCall` proposal type.
 - **Transfer** - used to move assets from this DAO to any other another account on the network.
-- **Mint** - used to mint tokens controlled by the DAO
-- **Burn** - used to burn tokens controlled by the DAO
+- **SetStakingContract** - used to set the staking contract of the DAO to help users delegate their tokens.
 - **AddBounty** - used to add a bounty to encourage members of the DAO community to contribute their time and attention to the needs of the DAO
 - **BountyDone** - used to mark the completion of an available bounty
 - **Vote** - used to vote on existing proposals
