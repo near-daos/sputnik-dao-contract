@@ -459,14 +459,23 @@ near view genesis.sputnik-v2.testnet get_proposals '{"from_index": 1, "limit": 2
   - `action`
 - account ID that is a council member.
 
-**Example:**
+**Example near-cli command:**
 
 ```bash
 near call genesis.sputnik-v2.testnet act_proposal '{"id": 0, "action": "VoteApprove"}' \
 --accountId council_member_1.testnet
 ```
 
-//TODO: add example response (testnet down)
+**RESPONSE:**
+
+```bash
+Receipts: 3mkSgRaHsd46FHkf9AtTcPbNXkYkxMCzPfJFHsHk8NPm, GjJ6hmoAhxt2a7si4hVPYZiL9CWeM5fmSEzMTpC7URxV
+        Log [genesis.sputnik-v2.testnet]: ["council"]
+Transaction Id BZPHxNoBpyMG4seCojzeNrKpr685vWPynDMTdg1JACa7
+To see the transaction in the transaction explorer, please open this url in your browser
+https://explorer.testnet.near.org/transactions/BZPHxNoBpyMG4seCojzeNrKpr685vWPynDMTdg1JACa7
+''
+```
 
 ---
 
