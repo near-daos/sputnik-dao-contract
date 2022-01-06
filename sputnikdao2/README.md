@@ -12,7 +12,6 @@
 | [Voting](#voting)                             | Configure policies, setup governance tokens, and vote on proposals.   |
 | [Bounties](#bounties)                         | Add and configure bounties.                                           |
 | [Blob Storage](#blob-storage)                 | Store large data blobs and content and index them by the data's hash. |
-| [Examples](./examples/README.md)              | Examples and guides for interacting with Sputnik DAO v2.              |
 
 ---
 
