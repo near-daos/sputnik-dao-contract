@@ -276,8 +276,8 @@ ProposalKind::Vote,
 - **AddMemberToRole** - used to add a member to a role in the DAO
 - **RemoveMemberFromRole** - used to remove a member from a role in the DAO
 - **FunctionCall** - used to a call a function on any valid account on the network including the DAO itself, any other DAO, or any other contract. This is a useful mechanism for extending the capabilities of the DAO without modifying or complicating the DAO contract code.  One can imagine a family of contracts built specifically to serve the DAO as agents, proxies, oracles and banks, for example.
-- **UpgradeSelf** - used to upgrade the DAO contract itself.  Consider using `FunctionCall` to extend the capabilities of the DAO before modifying DAO contract code directly.
-- **UpgradeRemote** - used to upgrade other contracts.  This capability pairs nicely with the `FunctionCall` proposal type.
+- **UpgradeSelf** - used to upgrade the DAO contract itself.
+- **UpgradeRemote** - used to upgrade other contracts. For DAOs that are governing other protocols, this type of proposal will allow to upgrade another contract with its newer version.
 - **Transfer** - used to move assets from this DAO to another account on the network. Supports both `NEAR` and any `NEP-141` token that this DAO has.
 - **SetStakingContract** - used to set the staking contract of the DAO to help users delegate their tokens.
 - **AddBounty** - used to add a bounty to encourage members of the DAO community to contribute their time and attention to the needs of the DAO
