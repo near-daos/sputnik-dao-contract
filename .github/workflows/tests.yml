@@ -23,4 +23,4 @@ jobs:
       - name: Run tests
         env:
           IS_GITHUB_ACTION: true
-        run: cargo test --workspace -- --nocapture
+        run: cargo test --workspace -- --nocapture && cd sputnikdao2 && sh test.sh
