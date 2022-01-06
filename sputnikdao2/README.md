@@ -219,9 +219,9 @@ near view $SPUTNIK_ID get_policy
 
 **Examples:**
 
-- A role with: `["mint:VoteReject","mint:VoteRemove"]` means they can only vote to _reject_ or _remove_ a `mint` proposal but they can't vote to approve.
+- A role with: `["transfer:VoteReject","transfer:VoteRemove"]` means they can only vote to _reject_ or _remove_ a `transfer` proposal but they can't vote to approve.
 
-- A role with: `["mint:*"]` can perform any vote action on `mint` proposals.
+- A role with: `["transfer:*"]` can perform any vote action on `transfer` proposals.
 
 - A role with: `["*:*"]` has _unlimited_ permission. Normally, the `council` role has `*:*` as its permission so they can perform _any_ vote action on _any_ kind of proposal.
 
