@@ -278,11 +278,11 @@ ProposalKind::Vote,
 - **FunctionCall** - used to a call a function on any valid account on the network including the DAO itself, any other DAO, or any other contract. This is a useful mechanism for extending the capabilities of the DAO without modifying or complicating the DAO contract code.  One can imagine a family of contracts built specifically to serve the DAO as agents, proxies, oracles and banks, for example.
 - **UpgradeSelf** - used to upgrade the DAO contract itself.  Consider using `FunctionCall` to extend the capabilities of the DAO before modifying DAO contract code directly.
 - **UpgradeRemote** - used to upgrade other contracts.  This capability pairs nicely with the `FunctionCall` proposal type.
-- **Transfer** - used to move assets from this DAO to any other another account on the network.
+- **Transfer** - used to move assets from this DAO to another account on the network. Supports both `NEAR` and any `NEP-141` token that this DAO has.
 - **SetStakingContract** - used to set the staking contract of the DAO to help users delegate their tokens.
 - **AddBounty** - used to add a bounty to encourage members of the DAO community to contribute their time and attention to the needs of the DAO
 - **BountyDone** - used to mark the completion of an available bounty
-- **Vote** - used to vote on existing proposals
+- **Vote** - used to create polls. Vote proposal doesn't have any action.
 
 ---
 
@@ -496,10 +496,10 @@ When vote policy is `RoleWeight(role)`, vote % is measured against the count of 
 
 > DAO votes to select some token to become voting token (only can be done once, can't change later).
 
-User flow is next:
+User flow to vote with selected token:
 
-- User's deposit the token into the DAO.
-- They can then choose who to delegate these tokens. It can be to themself or to other users to increase their vote weight.
+- Users deposit the desired amount of the token to the separate staking contract defined by the DAO.
+- They can then choose who to delegate these tokens. It can be to themselves or to other users to increase their vote weight.
 - When users vote for proposals, their vote is weighted by all the delegations to them.
 - Undelegating will block delegating / withdrawing until one voting period passes.
 - Undelegated tokens can be withdrawn by the user.
