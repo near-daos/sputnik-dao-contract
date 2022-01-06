@@ -543,9 +543,3 @@ Blob lifecycle:
 - Remove blob and receive funds locked for storage back.
 
 Blob can be removed only by the original storer.
-
----
-
-```
-
-```
