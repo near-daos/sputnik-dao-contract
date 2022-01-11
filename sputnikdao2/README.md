@@ -132,6 +132,7 @@ ProposalKind::SetStakingContract { .. },
 ProposalKind::AddBounty { .. },
 ProposalKind::BountyDone { .. },
 ProposalKind::Vote,
+ProposalKind::FactoryInfoUpdate { .. },
 ```
 ### Voting Policy
 
