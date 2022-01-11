@@ -59,9 +59,14 @@ pub fn update() {
         "{}",
         ERR_MUST_BE_SELF_OR_FACTORY
     );
+    let is_callback = env::predecessor_account_id() == current_id;
     unsafe {
-        // Load code into register 0 result from the promise.
-        sys::promise_result(0, 0);
+        // Load code into register 0 result from the input argument if factory call or from promise if callback.
+        if is_callback {
+            sys::promise_result(0, 0);
+        } else {
+            sys::input(0);
+        }
         // Update current contract with code from register 0.
         let promise_id = sys::promise_batch_create(
             current_id.as_bytes().len() as _,
