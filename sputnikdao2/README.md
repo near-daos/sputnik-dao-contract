@@ -40,6 +40,14 @@ Blob lifecycle:
 
 Blob can be removed only by the original storer.
 
+## Upgradability
+
+There are two major ways to upgrade the DAO:
+ - Self upgrade by storing blob on the DAO contract and then voting to UpgradeSelf
+ - Upgrade from the factory - factory stores new contract and then if allowed upgrades DAO by calling `upgrade(code)`.
+
+DAO contracts can explicitly vote to disable factory auto upgrades and require to pull the upgrade themself from factory.
+
 ## Testing
 
 To test the sputnik2 DAO you will need a testnet account. If you don't have one yet create it in https://wallet.testnet.near.org/.
