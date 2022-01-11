@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
 use near_sdk::json_types::U128;
-use near_sdk::AccountId;
+use near_sdk::{env, AccountId};
 use near_sdk_sim::{call, to_yocto, view};
 
 use crate::utils::*;
 use sputnik_staking::User;
 use sputnikdao2::{
-    Action, Policy, Proposal, ProposalInput, ProposalKind, ProposalStatus, RoleKind,
-    RolePermission, VersionedPolicy, VotePolicy,
+    Action, BountyClaim, BountyOutput, Policy, Proposal, ProposalInput, ProposalKind,
+    ProposalOutput, ProposalStatus, RoleKind, RolePermission, VersionedPolicy, VotePolicy,
 };
 
 mod utils;
@@ -73,6 +73,124 @@ fn test_multi_council() {
     vote(vec![&user1], &dao, 1);
     let proposal = view!(dao.get_proposal(1)).unwrap_json::<Proposal>();
     assert_eq!(proposal.status, ProposalStatus::Approved);
+}
+
+#[test]
+fn test_bounty_workflow() {
+    let (root, dao) = setup_dao();
+    let user1 = root.create_user(user(1), to_yocto("1000"));
+    let user2 = root.create_user(user(2), to_yocto("1000"));
+
+    let mut proposal_id = add_bounty_proposal(&root, &dao).unwrap_json::<u64>();
+    assert_eq!(proposal_id, 0);
+    call!(
+        root,
+        dao.act_proposal(proposal_id, Action::VoteApprove, None)
+    )
+    .assert_success();
+
+    let bounty_id = view!(dao.get_last_bounty_id()).unwrap_json::<u64>() - 1;
+    assert_eq!(bounty_id, 0);
+    assert_eq!(
+        view!(dao.get_bounty(bounty_id))
+            .unwrap_json::<BountyOutput>()
+            .bounty
+            .times,
+        3
+    );
+
+    assert_eq!(to_yocto("1000"), user1.account().unwrap().amount);
+    call!(
+        user1,
+        dao.bounty_claim(bounty_id, U64::from(0)),
+        deposit = to_yocto("1")
+    )
+    .assert_success();
+    assert!(user1.account().unwrap().amount < to_yocto("999"));
+    assert_eq!(
+        view!(dao.get_bounty_claims(user1.account_id()))
+            .unwrap_json::<Vec<BountyClaim>>()
+            .len(),
+        1
+    );
+    assert_eq!(
+        view!(dao.get_bounty_number_of_claims(bounty_id)).unwrap_json::<u64>(),
+        1
+    );
+
+    call!(user1, dao.bounty_giveup(bounty_id)).assert_success();
+    assert!(user1.account().unwrap().amount > to_yocto("999"));
+    assert_eq!(
+        view!(dao.get_bounty_claims(user1.account_id()))
+            .unwrap_json::<Vec<BountyClaim>>()
+            .len(),
+        0
+    );
+    assert_eq!(
+        view!(dao.get_bounty_number_of_claims(bounty_id)).unwrap_json::<u64>(),
+        0
+    );
+
+    assert_eq!(to_yocto("1000"), user2.account().unwrap().amount);
+    call!(
+        user2,
+        dao.bounty_claim(bounty_id, U64(env::block_timestamp() + 5_000_000_000)),
+        deposit = to_yocto("1")
+    )
+    .assert_success();
+    assert!(user2.account().unwrap().amount < to_yocto("999"));
+    assert_eq!(
+        view!(dao.get_bounty_claims(user2.account_id()))
+            .unwrap_json::<Vec<BountyClaim>>()
+            .len(),
+        1
+    );
+    assert_eq!(
+        view!(dao.get_bounty_number_of_claims(bounty_id)).unwrap_json::<u64>(),
+        1
+    );
+
+    call!(
+        user2,
+        dao.bounty_done(bounty_id, None, "Bounty is done".to_string()),
+        deposit = to_yocto("1")
+    )
+    .assert_success();
+    assert!(user2.account().unwrap().amount < to_yocto("998"));
+    proposal_id = view!(dao.get_last_proposal_id()).unwrap_json::<u64>() - 1;
+    assert_eq!(proposal_id, 1);
+    assert_eq!(
+        view!(dao.get_proposal(proposal_id))
+            .unwrap_json::<ProposalOutput>()
+            .proposal
+            .kind
+            .to_policy_label(),
+        "bounty_done"
+    );
+
+    call!(
+        root,
+        dao.act_proposal(proposal_id, Action::VoteApprove, None)
+    )
+    .assert_success();
+    assert!(user2.account().unwrap().amount > to_yocto("999"));
+    assert_eq!(
+        view!(dao.get_bounty_claims(user2.account_id()))
+            .unwrap_json::<Vec<BountyClaim>>()
+            .len(),
+        0
+    );
+    assert_eq!(
+        view!(dao.get_bounty_number_of_claims(bounty_id)).unwrap_json::<u64>(),
+        0
+    );
+    assert_eq!(
+        view!(dao.get_bounty(bounty_id))
+            .unwrap_json::<BountyOutput>()
+            .bounty
+            .times,
+        2
+    );
 }
 
 #[test]

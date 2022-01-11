@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 pub use near_sdk::json_types::{Base64VecU8, U64};
-use near_sdk::{AccountId, Balance};
+use near_sdk::{env, AccountId, Balance};
 use near_sdk_sim::transaction::ExecutionStatus;
 use near_sdk_sim::{
     call, deploy, init_simulator, to_yocto, ContractAccount, ExecutionResult, UserAccount,
@@ -9,7 +9,8 @@ use near_sdk_sim::{
 use near_sdk::json_types::U128;
 use sputnik_staking::ContractContract as StakingContract;
 use sputnikdao2::{
-    Action, Config, ContractContract as DAOContract, ProposalInput, ProposalKind, VersionedPolicy,
+    Action, Bounty, Config, ContractContract as DAOContract, ProposalInput, ProposalKind,
+    VersionedPolicy,
 };
 use test_token::ContractContract as TestTokenContract;
 
@@ -116,6 +117,25 @@ pub fn add_transfer_proposal(
                 receiver_id,
                 amount: U128(amount),
                 msg,
+            },
+        },
+    )
+}
+
+pub fn add_bounty_proposal(root: &UserAccount, dao: &Contract) -> ExecutionResult {
+    add_proposal(
+        root,
+        dao,
+        ProposalInput {
+            description: "test".to_string(),
+            kind: ProposalKind::AddBounty {
+                bounty: Bounty {
+                    description: "test bounty".to_string(),
+                    token: None,
+                    amount: U128(to_yocto("10")),
+                    times: 3,
+                    max_deadline: U64(env::block_timestamp() + 10_000_000_000),
+                },
             },
         },
     )
