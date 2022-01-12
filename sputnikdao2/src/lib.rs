@@ -3,8 +3,8 @@ use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::json_types::{Base58CryptoHash, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    env, ext_contract, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash,
-    PanicOnDefault, Promise, PromiseOrValue, PromiseResult,
+    env, ext_contract, near_bindgen, sys, AccountId, Balance, BorshStorageKey, CryptoHash,
+    PanicOnDefault, Promise, PromiseResult,
 };
 
 pub use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
@@ -12,6 +12,7 @@ pub use crate::policy::{Policy, RoleKind, RolePermission, VersionedPolicy, VoteP
 use crate::proposals::VersionedProposal;
 pub use crate::proposals::{Proposal, ProposalInput, ProposalKind, ProposalStatus};
 pub use crate::types::{Action, Config};
+use crate::upgrade::{internal_get_factory_info, internal_set_factory_info, FactoryInfo};
 pub use crate::views::{BountyOutput, ProposalOutput};
 
 mod bounties;
@@ -19,6 +20,7 @@ mod delegation;
 mod policy;
 mod proposals;
 mod types;
+mod upgrade;
 pub mod views;
 
 #[derive(BorshStorageKey, BorshSerialize)]
@@ -80,7 +82,7 @@ pub struct Contract {
 impl Contract {
     #[init]
     pub fn new(config: Config, policy: VersionedPolicy) -> Self {
-        Self {
+        let this = Self {
             config: LazyOption::new(StorageKeys::Config, Some(&config)),
             policy: LazyOption::new(StorageKeys::Policy, Some(&policy.upgrade())),
             staking_id: None,
@@ -94,7 +96,12 @@ impl Contract {
             bounty_claims_count: LookupMap::new(StorageKeys::BountyClaimCounts),
             blobs: LookupMap::new(StorageKeys::Blobs),
             locked_amount: 0,
-        }
+        };
+        internal_set_factory_info(&FactoryInfo {
+            factory_id: env::predecessor_account_id(),
+            auto_update: true,
+        });
+        this
     }
 
     /// Should only be called by this contract on migration.
@@ -127,47 +134,17 @@ impl Contract {
         let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
         Promise::new(account_id).transfer(storage_cost)
     }
-}
 
-// Cross-contract calls
-
-#[near_bindgen]
-impl Contract {
-    /// Receiving callback after the proposal has been finalized.
-    /// If successful, returns bond money to the proposal originator.
-    /// If the proposal execution failed (funds didn't transfer or function call failure),
-    /// move proposal to "Failed" state.
-    #[private]
-    pub fn on_proposal_callback(&mut self, proposal_id: u64) -> PromiseOrValue<()> {
-        let mut proposal: Proposal = self
-            .proposals
-            .get(&proposal_id)
-            .expect("ERR_NO_PROPOSAL")
-            .into();
-        assert_eq!(
-            env::promise_results_count(),
-            1,
-            "ERR_UNEXPECTED_CALLBACK_PROMISES"
-        );
-        let result = match env::promise_result(0) {
-            PromiseResult::NotReady => unreachable!(),
-            PromiseResult::Successful(_) => self.internal_callback_proposal_success(&mut proposal),
-            PromiseResult::Failed => self.internal_callback_proposal_fail(&mut proposal),
-        };
-        self.proposals
-            .insert(&proposal_id, &VersionedProposal::Default(proposal.into()));
-        result
+    /// Returns factory information, including if auto update is allowed.
+    pub fn get_factory_info(&self) -> FactoryInfo {
+        internal_get_factory_info()
     }
 }
 
-// Upgrading the contract
-
 /// Stores attached data into blob store and returns hash of it.
 /// Implemented to avoid loading the data into WASM for optimal gas usage.
-#[cfg(target_arch = "wasm32")]
 #[no_mangle]
 pub extern "C" fn store_blob() {
-    use near_sdk::sys;
     env::setup_panic_hook();
     let mut contract: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
     unsafe {
