@@ -16,7 +16,9 @@
 
 ---
 
-## Prerequisites
+## Setup
+
+### Prerequisites
 
 1. [NEAR Account](https://wallet.testnet.near.org)
 2. [NEAR-CLI](https://docs.near.org/docs/tools/near-cli#setup)
@@ -50,8 +52,6 @@ rustup target add wasm32-unknown-unknown
 </details>
 
 ---
-
-## Setup
 
 <details>
 <summary>1. Login with your account.</summary>
@@ -503,6 +503,8 @@ https://explorer.testnet.near.org/transactions/BZPHxNoBpyMG4seCojzeNrKpr685vWPyn
 ### Vote on a proposal
 
 > Only council members are allowed to vote on a proposal.
+
+---
 
 ### Voting policy
 
