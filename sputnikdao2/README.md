@@ -12,6 +12,7 @@
 | [Voting](#voting)                             | Configure policies, setup governance tokens, and vote on proposals.   |
 | [Bounties](#bounties)                         | Add and configure bounties.                                           |
 | [Blob Storage](#blob-storage)                 | Store large data blobs and content and index them by the data's hash. |
+| [Upgradability](#upgradability)               | Upgrade the DAO to different contract code versions.                  |
 
 ---
 
@@ -268,6 +269,7 @@ ProposalKind::SetStakingContract { .. },
 ProposalKind::AddBounty { .. },
 ProposalKind::BountyDone { .. },
 ProposalKind::Vote,
+ProposalKind::FactoryInfoUpdate { .. },
 ```
 
 - **ChangeConfig** - used to change the configuration of the DAO
@@ -282,6 +284,7 @@ ProposalKind::Vote,
 - **AddBounty** - used to add a bounty to encourage members of the DAO community to contribute their time and attention to the needs of the DAO
 - **BountyDone** - used to mark the completion of an available bounty
 - **Vote** - used to create polls. Vote proposal doesn't have any action.
+- **FactoryInfoUpdate** - used for changing permissions of the factory that created the DAO. By default, the factory has permission to upgrade the DAO, but this can be modified by using `FactoryInfoUpdate`.
 
 ---
 
@@ -557,3 +560,15 @@ Blob lifecycle:
 - Remove blob and receive funds locked for storage back.
 
 Blob can be removed only by the original storer.
+
+---
+
+## Upgradability
+
+> Allow the DAO to be upgraded to different contract code versions. This allows the DAO to use a newer, more stable and faster version of the contract code. New versions usually include new features, bug fixes and improvements in performance. Downgrade to an older version is also possible.
+
+There are two major ways to upgrade the DAO:
+ - Self upgrade by storing blob on the DAO contract and then voting to UpgradeSelf
+ - Upgrade from the factory - factory stores new contract and then if allowed upgrades DAO by calling `upgrade(code)`.
+
+DAO contracts can explicitly vote to disable factory auto upgrades and require to pull the upgrade themself from factory.

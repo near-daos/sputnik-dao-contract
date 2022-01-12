@@ -6,9 +6,8 @@ use near_sdk::json_types::{Base64VecU8, U128, U64};
 use near_sdk::{log, AccountId, Balance, Gas, PromiseOrValue};
 
 use crate::policy::UserInfo;
-use crate::types::{
-    upgrade_remote, upgrade_self, Action, Config, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR,
-};
+use crate::types::{Action, Config, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR};
+use crate::upgrade::{upgrade_remote, upgrade_self};
 use crate::*;
 
 /// Status of a proposal.
@@ -91,6 +90,8 @@ pub enum ProposalKind {
     },
     /// Just a signaling vote, with no execution.
     Vote,
+    /// Change information about factory and auto update.
+    FactoryInfoUpdate { factory_info: FactoryInfo },
 }
 
 impl ProposalKind {
@@ -109,6 +110,7 @@ impl ProposalKind {
             ProposalKind::AddBounty { .. } => "add_bounty",
             ProposalKind::BountyDone { .. } => "bounty_done",
             ProposalKind::Vote => "vote",
+            ProposalKind::FactoryInfoUpdate { .. } => "factory_info_update",
         }
     }
 }
@@ -256,7 +258,15 @@ impl Contract {
         }
     }
 
-    fn internal_return_bond(&mut self, policy: &Policy, proposal: &Proposal) -> Promise {
+    fn internal_return_bonds(&mut self, policy: &Policy, proposal: &Proposal) -> Promise {
+        match &proposal.kind {
+            ProposalKind::BountyDone { .. } => {
+                self.locked_amount -= policy.bounty_bond.0;
+                Promise::new(proposal.proposer.clone()).transfer(policy.bounty_bond.0);
+            }
+            _ => {}
+        }
+
         self.locked_amount -= policy.proposal_bond.0;
         Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond.0)
     }
@@ -342,6 +352,10 @@ impl Contract {
                 receiver_id,
             } => self.internal_execute_bounty_payout(*bounty_id, &receiver_id.clone().into(), true),
             ProposalKind::Vote => PromiseOrValue::Value(()),
+            ProposalKind::FactoryInfoUpdate { factory_info } => {
+                internal_set_factory_info(factory_info);
+                PromiseOrValue::Value(())
+            }
         };
         match result {
             PromiseOrValue::Promise(promise) => promise
@@ -352,7 +366,7 @@ impl Contract {
                     GAS_FOR_FT_TRANSFER,
                 ))
                 .into(),
-            PromiseOrValue::Value(()) => self.internal_return_bond(&policy, &proposal).into(),
+            PromiseOrValue::Value(()) => self.internal_return_bonds(&policy, &proposal).into(),
         }
     }
 
@@ -372,7 +386,7 @@ impl Contract {
             }
         }
         proposal.status = ProposalStatus::Approved;
-        self.internal_return_bond(&policy, &proposal).into()
+        self.internal_return_bonds(&policy, &proposal).into()
     }
 
     pub(crate) fn internal_callback_proposal_fail(
@@ -388,11 +402,11 @@ impl Contract {
         &mut self,
         policy: &Policy,
         proposal: &Proposal,
-        return_bond: bool,
+        return_bonds: bool,
     ) -> PromiseOrValue<()> {
-        if return_bond {
+        if return_bonds {
             // Return bond to the proposer.
-            self.internal_return_bond(policy, proposal);
+            self.internal_return_bonds(policy, proposal);
         }
         match &proposal.kind {
             ProposalKind::BountyDone {
@@ -550,5 +564,31 @@ impl Contract {
         if let Some(memo) = memo {
             log!("Memo: {}", memo);
         }
+    }
+
+    /// Receiving callback after the proposal has been finalized.
+    /// If successful, returns bond money to the proposal originator.
+    /// If the proposal execution failed (funds didn't transfer or function call failure),
+    /// move proposal to "Failed" state.
+    #[private]
+    pub fn on_proposal_callback(&mut self, proposal_id: u64) -> PromiseOrValue<()> {
+        let mut proposal: Proposal = self
+            .proposals
+            .get(&proposal_id)
+            .expect("ERR_NO_PROPOSAL")
+            .into();
+        assert_eq!(
+            env::promise_results_count(),
+            1,
+            "ERR_UNEXPECTED_CALLBACK_PROMISES"
+        );
+        let result = match env::promise_result(0) {
+            PromiseResult::NotReady => unreachable!(),
+            PromiseResult::Successful(_) => self.internal_callback_proposal_success(&mut proposal),
+            PromiseResult::Failed => self.internal_callback_proposal_fail(&mut proposal),
+        };
+        self.proposals
+            .insert(&proposal_id, &VersionedProposal::Default(proposal.into()));
+        result
     }
 }
