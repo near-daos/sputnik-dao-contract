@@ -569,6 +569,6 @@ Blob can be removed only by the original storer.
 
 There are two major ways to upgrade the DAO:
  - Self upgrade by storing blob on the DAO contract and then voting to UpgradeSelf
- - Upgrade from the factory - factory stores new contract and then if allowed upgrades DAO by calling `upgrade(code)`.
+ - Upgrade from the factory - factory stores new contract and then, if allowed, it upgrades the DAO by calling `upgrade(code)`.
 
-DAO contracts can explicitly vote to disable factory auto upgrades and require to pull the upgrade themself from factory.
+DAOs can explicitly vote to disable factory auto upgrades and can pull the upgrade themselves from the factory.
