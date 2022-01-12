@@ -245,10 +245,10 @@ near view $SPUTNIK_ID get_policy
 | Contents                                            |
 | --------------------------------------------------- |
 | [Proposal types](#proposal-types)                   |
-| [Add a proposal](#add-proposal)                     |
-| [View a proposal](#view-proposal)                   |
+| [Add proposal](#add-proposal)                       |
+| [View proposal](#view-proposal)                     |
 | [View multiple proposals](#view-multiple-proposals) |
-| [Vote on a proposal](#vote-on-a-proposal)           |
+| [Approve proposal](#approve-proposal)               |
 
 ---
 
