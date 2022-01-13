@@ -6,7 +6,7 @@ use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, AccountId, Balance};
 
-use crate::proposals::{Proposal, ProposalKind, ProposalStatus, Vote};
+use crate::proposals::{PolicyParameters, Proposal, ProposalKind, ProposalStatus, Vote};
 use crate::types::Action;
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
@@ -265,6 +265,22 @@ impl Policy {
     pub fn update_default_vote_policy(&mut self, vote_policy: &VotePolicy) {
         self.default_vote_policy = vote_policy.clone();
         env::log_str("Successfully updated the default vote policy.");
+    }
+
+    pub fn update_parameters(&mut self, parameters: &PolicyParameters) {
+        if parameters.proposal_bond.is_some() {
+            self.proposal_bond = parameters.proposal_bond.unwrap();
+        }
+        if parameters.proposal_period.is_some() {
+            self.proposal_period = parameters.proposal_period.unwrap();
+        }
+        if parameters.bounty_bond.is_some() {
+            self.bounty_bond = parameters.bounty_bond.unwrap();
+        }
+        if parameters.bounty_forgiveness_period.is_some() {
+            self.bounty_forgiveness_period = parameters.bounty_forgiveness_period.unwrap();
+        }
+        env::log_str("Successfully updated the policy parameters.");
     }
 
     pub fn add_member_to_role(&mut self, role: &String, member_id: &AccountId) {

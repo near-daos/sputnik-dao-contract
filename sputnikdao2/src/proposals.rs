@@ -41,6 +41,17 @@ pub struct ActionCall {
     gas: U64,
 }
 
+/// Function call arguments.
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
+#[serde(crate = "near_sdk::serde")]
+pub struct PolicyParameters {
+    pub proposal_bond: Option<U128>,
+    pub proposal_period: Option<U64>,
+    pub bounty_bond: Option<U128>,
+    pub bounty_forgiveness_period: Option<U64>,
+}
+
 /// Kinds of proposals, doing different action.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
@@ -56,6 +67,8 @@ pub enum ProposalKind {
     ChangePolicyRemoveRole { role: String },
     /// Update the default vote policy from the policy. This is short cut to updating the whole policy.
     ChangePolicyUpdateDefaultVotePolicy { vote_policy: VotePolicy },
+    /// Update the parameters from the policy. This is short cut to updating the whole policy.
+    ChangePolicyUpdateParameters { parameters: PolicyParameters },
     /// Add member to given role in the policy. This is short cut to updating the whole policy.
     AddMemberToRole { member_id: AccountId, role: String },
     /// Remove member to given role in the policy. This is short cut to updating the whole policy.
@@ -111,6 +124,7 @@ impl ProposalKind {
             ProposalKind::ChangePolicyUpdateDefaultVotePolicy { .. } => {
                 "policy_update_default_vote_policy"
             }
+            ProposalKind::ChangePolicyUpdateParameters { .. } => "policy_update_parameters",
             ProposalKind::AddMemberToRole { .. } => "add_member_to_role",
             ProposalKind::RemoveMemberFromRole { .. } => "remove_member_from_role",
             ProposalKind::FunctionCall { .. } => "call",
@@ -313,6 +327,12 @@ impl Contract {
             ProposalKind::ChangePolicyUpdateDefaultVotePolicy { vote_policy } => {
                 let mut new_policy = policy.clone();
                 new_policy.update_default_vote_policy(vote_policy);
+                self.policy.set(&VersionedPolicy::Current(new_policy));
+                PromiseOrValue::Value(())
+            }
+            ProposalKind::ChangePolicyUpdateParameters { parameters } => {
+                let mut new_policy = policy.clone();
+                new_policy.update_parameters(parameters);
                 self.policy.set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
