@@ -438,6 +438,8 @@ impl Policy {
 
 #[cfg(test)]
 mod tests {
+    use near_sdk::test_utils::accounts;
+
     use super::*;
 
     #[test]
@@ -450,5 +452,77 @@ mod tests {
         assert_eq!(r2.to_weight(5), 3);
         let r2 = WeightOrRatio::Ratio(1, 1);
         assert_eq!(r2.to_weight(5), 5);
+    }
+
+    #[test]
+    fn test_add_role() {
+        let council = vec![accounts(0), accounts(1)];
+        let mut policy = default_policy(council);
+
+        let community_role = policy.internal_get_role(&String::from("community"));
+        assert!(community_role.is_none());
+
+        let name: String = "community".to_string();
+        let kind: RoleKind = RoleKind::Group(vec![accounts(2), accounts(3)].into_iter().collect());
+        let permissions: HashSet<String> = vec!["*:*".to_string()].into_iter().collect();
+        let vote_policy: HashMap<String, VotePolicy> = HashMap::default();
+        let new_role = RolePermission {
+            name: name.clone(),
+            kind: kind.clone(),
+            permissions: permissions.clone(),
+            vote_policy: vote_policy.clone(),
+        };
+        assert_eq!(2, policy.roles.len());
+        policy.add_or_update_role(&new_role);
+        assert_eq!(3, policy.roles.len());
+
+        let community_role = policy.internal_get_role(&String::from("community"));
+        assert!(community_role.is_some());
+
+        let community_role = community_role.unwrap();
+        assert_eq!(name, community_role.name);
+        assert_eq!(kind, community_role.kind);
+        assert_eq!(permissions, community_role.permissions);
+        assert_eq!(vote_policy, community_role.vote_policy);
+    }
+
+    #[test]
+    fn test_update_role() {
+        let council = vec![accounts(0), accounts(1)];
+        let mut policy = default_policy(council);
+
+        let name: String = "council".to_string();
+        let kind: RoleKind = RoleKind::Group(vec![accounts(0), accounts(1)].into_iter().collect());
+        let permissions: HashSet<String> = vec!["*:*".to_string()].into_iter().collect();
+        let vote_policy: HashMap<String, VotePolicy> = HashMap::default();
+
+        let council_role = policy.internal_get_role(&String::from("council"));
+        assert!(council_role.is_some());
+
+        let council_role = council_role.unwrap();
+        assert_eq!(name, council_role.name);
+        assert_eq!(kind, council_role.kind);
+        assert_eq!(permissions, council_role.permissions);
+        assert_eq!(vote_policy, council_role.vote_policy);
+
+        let kind: RoleKind = RoleKind::Group(vec![accounts(2), accounts(3)].into_iter().collect());
+        let updated_role = RolePermission {
+            name: name.clone(),
+            kind: kind.clone(),
+            permissions: permissions.clone(),
+            vote_policy: vote_policy.clone(),
+        };
+        assert_eq!(2, policy.roles.len());
+        policy.add_or_update_role(&updated_role);
+        assert_eq!(2, policy.roles.len());
+
+        let council_role = policy.internal_get_role(&String::from("council"));
+        assert!(council_role.is_some());
+
+        let council_role = council_role.unwrap();
+        assert_eq!(name, council_role.name);
+        assert_eq!(kind, council_role.kind);
+        assert_eq!(permissions, council_role.permissions);
+        assert_eq!(vote_policy, council_role.vote_policy);
     }
 }
