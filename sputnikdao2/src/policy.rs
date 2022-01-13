@@ -262,6 +262,11 @@ impl Policy {
         env::log_str(&format!("ERR_ROLE_NOT_FOUND:{}", role));
     }
 
+    pub fn update_default_vote_policy(&mut self, vote_policy: &VotePolicy) {
+        self.default_vote_policy = vote_policy.clone();
+        env::log_str("Successfully updated the default vote policy.");
+    }
+
     pub fn add_member_to_role(&mut self, role: &String, member_id: &AccountId) {
         for i in 0..self.roles.len() {
             if &self.roles[i].name == role {

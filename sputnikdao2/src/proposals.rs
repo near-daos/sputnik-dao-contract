@@ -54,6 +54,8 @@ pub enum ProposalKind {
     ChangePolicyAddOrUpdateRole { role: RolePermission },
     /// Remove role from the policy. This is short cut to updating the whole policy.
     ChangePolicyRemoveRole { role: String },
+    /// Update the default vote policy from the policy. This is short cut to updating the whole policy.
+    ChangePolicyUpdateDefaultVotePolicy { vote_policy: VotePolicy },
     /// Add member to given role in the policy. This is short cut to updating the whole policy.
     AddMemberToRole { member_id: AccountId, role: String },
     /// Remove member to given role in the policy. This is short cut to updating the whole policy.
@@ -106,6 +108,9 @@ impl ProposalKind {
             ProposalKind::ChangePolicy { .. } => "policy",
             ProposalKind::ChangePolicyAddOrUpdateRole { .. } => "policy_add_or_update_role",
             ProposalKind::ChangePolicyRemoveRole { .. } => "policy_remove_role",
+            ProposalKind::ChangePolicyUpdateDefaultVotePolicy { .. } => {
+                "policy_update_default_vote_policy"
+            }
             ProposalKind::AddMemberToRole { .. } => "add_member_to_role",
             ProposalKind::RemoveMemberFromRole { .. } => "remove_member_from_role",
             ProposalKind::FunctionCall { .. } => "call",
@@ -302,6 +307,12 @@ impl Contract {
             ProposalKind::ChangePolicyRemoveRole { role } => {
                 let mut new_policy = policy.clone();
                 new_policy.remove_role(role);
+                self.policy.set(&VersionedPolicy::Current(new_policy));
+                PromiseOrValue::Value(())
+            }
+            ProposalKind::ChangePolicyUpdateDefaultVotePolicy { vote_policy } => {
+                let mut new_policy = policy.clone();
+                new_policy.update_default_vote_policy(vote_policy);
                 self.policy.set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
