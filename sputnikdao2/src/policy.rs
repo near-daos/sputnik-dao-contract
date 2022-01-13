@@ -237,8 +237,31 @@ impl VersionedPolicy {
 }
 
 impl Policy {
-    ///
-    /// Doesn't fail, because will be used on the finalization of the proposal.
+    pub fn add_or_update_role(&mut self, role: &RolePermission) {
+        for i in 0..self.roles.len() {
+            if &self.roles[i].name == &role.name {
+                env::log_str(&format!(
+                    "Updating existing role in the policy:{}",
+                    &role.name
+                ));
+                let _ = std::mem::replace(&mut self.roles[i], role.clone());
+                return;
+            }
+        }
+        env::log_str(&format!("Adding new role to the policy:{}", &role.name));
+        self.roles.push(role.clone());
+    }
+
+    pub fn remove_role(&mut self, role: &String) {
+        for i in 0..self.roles.len() {
+            if &self.roles[i].name == role {
+                self.roles.remove(i);
+                return;
+            }
+        }
+        env::log_str(&format!("ERR_ROLE_NOT_FOUND:{}", role));
+    }
+
     pub fn add_member_to_role(&mut self, role: &String, member_id: &AccountId) {
         for i in 0..self.roles.len() {
             if &self.roles[i].name == role {

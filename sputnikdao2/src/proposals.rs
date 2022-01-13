@@ -50,6 +50,10 @@ pub enum ProposalKind {
     ChangeConfig { config: Config },
     /// Change the full policy.
     ChangePolicy { policy: VersionedPolicy },
+    /// Add new role to the policy. If the role already exists, update it. This is short cut to updating the whole policy.
+    ChangePolicyAddOrUpdateRole { role: RolePermission },
+    /// Remove role from the policy. This is short cut to updating the whole policy.
+    ChangePolicyRemoveRole { role: String },
     /// Add member to given role in the policy. This is short cut to updating the whole policy.
     AddMemberToRole { member_id: AccountId, role: String },
     /// Remove member to given role in the policy. This is short cut to updating the whole policy.
@@ -100,6 +104,8 @@ impl ProposalKind {
         match self {
             ProposalKind::ChangeConfig { .. } => "config",
             ProposalKind::ChangePolicy { .. } => "policy",
+            ProposalKind::ChangePolicyAddOrUpdateRole { .. } => "policy_add_or_update_role",
+            ProposalKind::ChangePolicyRemoveRole { .. } => "policy_remove_role",
             ProposalKind::AddMemberToRole { .. } => "add_member_to_role",
             ProposalKind::RemoveMemberFromRole { .. } => "remove_member_from_role",
             ProposalKind::FunctionCall { .. } => "call",
@@ -285,6 +291,18 @@ impl Contract {
             }
             ProposalKind::ChangePolicy { policy } => {
                 self.policy.set(policy);
+                PromiseOrValue::Value(())
+            }
+            ProposalKind::ChangePolicyAddOrUpdateRole { role } => {
+                let mut new_policy = policy.clone();
+                new_policy.add_or_update_role(role);
+                self.policy.set(&VersionedPolicy::Current(new_policy));
+                PromiseOrValue::Value(())
+            }
+            ProposalKind::ChangePolicyRemoveRole { role } => {
+                let mut new_policy = policy.clone();
+                new_policy.remove_role(role);
+                self.policy.set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
             ProposalKind::AddMemberToRole { member_id, role } => {

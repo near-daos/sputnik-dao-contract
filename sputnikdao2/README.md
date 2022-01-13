@@ -259,6 +259,8 @@ near view $SPUTNIK_ID get_policy
 ```rs
 ProposalKind::ChangeConfig { .. },
 ProposalKind::ChangePolicy { .. },
+ProposalKind::ChangePolicyAddOrUpdateRole { .. },
+ProposalKind::ChangePolicyRemoveRole { .. },
 ProposalKind::AddMemberToRole { .. },
 ProposalKind::RemoveMemberFromRole { .. },
 ProposalKind::FunctionCall { .. },
@@ -273,7 +275,9 @@ ProposalKind::FactoryInfoUpdate { .. },
 ```
 
 - **ChangeConfig** - used to change the configuration of the DAO
-- **ChangePolicy** - used to change the policy of the DAO
+- **ChangePolicy** - used to change the full policy of the DAO
+- **ChangePolicyAddOrUpdateRole** - used to add a new role to the policy. If the role already exists, update it.
+- **ChangePolicyRemoveRole** - used to remove a role from the policy.
 - **AddMemberToRole** - used to add a member to a role in the DAO
 - **RemoveMemberFromRole** - used to remove a member from a role in the DAO
 - **FunctionCall** - used to a call a function on any valid account on the network including the DAO itself, any other DAO, or any other contract. This is a useful mechanism for extending the capabilities of the DAO without modifying or complicating the DAO contract code.  One can imagine a family of contracts built specifically to serve the DAO as agents, proxies, oracles and banks, for example.
