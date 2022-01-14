@@ -585,4 +585,39 @@ mod tests {
             policy.default_vote_policy.threshold
         );
     }
+
+    #[test]
+    fn test_update_parameters() {
+        let council = vec![accounts(0), accounts(1)];
+        let mut policy = default_policy(council);
+
+        assert_eq!(U128(10u128.pow(24)), policy.proposal_bond);
+        assert_eq!(
+            U64::from(1_000_000_000 * 60 * 60 * 24 * 7),
+            policy.proposal_period
+        );
+        assert_eq!(U128(10u128.pow(24)), policy.bounty_bond);
+        assert_eq!(
+            U64::from(1_000_000_000 * 60 * 60 * 24),
+            policy.bounty_forgiveness_period
+        );
+
+        let new_parameters = PolicyParameters {
+            proposal_bond: Some(U128(10u128.pow(26))),
+            proposal_period: None,
+            bounty_bond: None,
+            bounty_forgiveness_period: Some(U64::from(1_000_000_000 * 60 * 60 * 24 * 5)),
+        };
+        policy.update_parameters(&new_parameters);
+        assert_eq!(U128(10u128.pow(26)), policy.proposal_bond);
+        assert_eq!(
+            U64::from(1_000_000_000 * 60 * 60 * 24 * 7),
+            policy.proposal_period
+        );
+        assert_eq!(U128(10u128.pow(24)), policy.bounty_bond);
+        assert_eq!(
+            U64::from(1_000_000_000 * 60 * 60 * 24 * 5),
+            policy.bounty_forgiveness_period
+        );
+    }
 }
