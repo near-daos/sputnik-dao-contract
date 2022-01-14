@@ -1,6 +1,6 @@
 # Sputnik DAO v2
 
-> Building on the functionality of v1, Sputnik DAO v2 offers even more features and enhanced configuration ability.
+> Building on the functionality of [v1](sputnikdao/README.md), Sputnik DAO v2 offers even more features and enhanced configuration ability.
 
 ## Overview
 
