@@ -534,4 +534,20 @@ mod tests {
         assert_eq!(permissions, council_role.permissions);
         assert_eq!(vote_policy, council_role.vote_policy);
     }
+
+    #[test]
+    fn test_remove_role() {
+        let council = vec![accounts(0), accounts(1)];
+        let mut policy = default_policy(council);
+
+        let council_role = policy.internal_get_role(&String::from("council"));
+        assert!(council_role.is_some());
+        assert_eq!(2, policy.roles.len());
+
+        policy.remove_role(&String::from("council"));
+
+        let council_role = policy.internal_get_role(&String::from("council"));
+        assert!(council_role.is_none());
+        assert_eq!(1, policy.roles.len());
+    }
 }
