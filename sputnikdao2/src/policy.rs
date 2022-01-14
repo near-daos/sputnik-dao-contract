@@ -550,4 +550,39 @@ mod tests {
         assert!(council_role.is_none());
         assert_eq!(1, policy.roles.len());
     }
+
+    #[test]
+    fn test_update_default_vote_policy() {
+        let council = vec![accounts(0), accounts(1)];
+        let mut policy = default_policy(council);
+
+        assert_eq!(
+            WeightKind::RoleWeight,
+            policy.default_vote_policy.weight_kind
+        );
+        assert_eq!(U128(0), policy.default_vote_policy.quorum);
+        assert_eq!(
+            WeightOrRatio::Ratio(1, 2),
+            policy.default_vote_policy.threshold
+        );
+
+        let new_default_vote_policy = VotePolicy {
+            weight_kind: WeightKind::TokenWeight,
+            quorum: U128(100),
+            threshold: WeightOrRatio::Ratio(1, 4),
+        };
+        policy.update_default_vote_policy(&new_default_vote_policy);
+        assert_eq!(
+            new_default_vote_policy.weight_kind,
+            policy.default_vote_policy.weight_kind
+        );
+        assert_eq!(
+            new_default_vote_policy.quorum,
+            policy.default_vote_policy.quorum
+        );
+        assert_eq!(
+            new_default_vote_policy.threshold,
+            policy.default_vote_policy.threshold
+        );
+    }
 }
