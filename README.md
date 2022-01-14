@@ -1,155 +1,584 @@
-# Sputnik DAO Contracts
+# Sputnik DAO v2
 
-A simple version of a DAO to give out tips, bounties and grants.
-Allows anyone to send a proposal to reward other people with funds and get a council to vote for it.
+> Building on the functionality of v1, Sputnik DAO v2 offers even more features and enhanced configuration ability.
 
-The major difference with Moloch DAO design is that this contract would receive its function via donation and council has equal rights.
+## Overview
 
-Spec for v1:
- - Contract contains all the $NEAR in itself. It's initialized with it or receives later in form of donation.
- - There are council members: list of accounts that can vote for various activity. All council members have equal weight.
- - Next methods are available that can be called by anyone who attaches `bond` $NEAR (to prevent spam):
-     - Add new council member
-     - Remove council member
-     - Given funds to `receiver` for `description` (up to 280 characters) and proposed `amount`
-     - Finalize proposal
-        When proposal has passed the require time, anyone can call to finalize it. Rules for passing proposal see below.
-     - X of votes to approve proposal depends on the "policy": Policy allows to set number of votes required for different amount of funds spent.
- - Only council members (or self) can call:
-     - `vote` for a given proposal.
- - ``Finalize proposal can be called 
-        - If this vote achieves >50% of council members saying "YES" - it executes action on success.
- - Upgradability with super majority vote of the council
+| Name                                          | Description                                                           |
+| --------------------------------------------- | --------------------------------------------------------------------- |
+| [Setup](#setup)                               | Step-by-step guide to deploy a DAO factory and DAO contracts.         |
+| [Roles & Permissions](#roles-and-permissions) | Setup roles and define permissions for each role.                     |
+| [Proposals](#proposals)                       | Each action on the DAO is done by creating and approving a proposal.  |
+| [Voting](#voting)                             | Configure policies, setup governance tokens, and vote on proposals.   |
+| [Bounties](#bounties)                         | Add and configure bounties.                                           |
+| [Blob Storage](#blob-storage)                 | Store large data blobs and content and index them by the data's hash. |
+| [Upgradability](#upgradability)               | Upgrade the DAO to different contract code versions.                  |
 
-Voting policy is a list of amounts and number or percentage of votes required.
-Where the last number in the list is used for all the non payouts (let's call it MAX_VOTE).
+---
 
-## Voting rules
+## Setup
 
-Next rules are used for voting:
- - There is a policy that defines for `Payout` proposals at different `amount` how much "YES" votes are required. For non-`Payout` proposals - it's always 1/2 + 1 of council.
- - If there is 0 "NO" votes and given "YES" votes - the expiration date updates to current time + cooldown time.
- - If there is at least 1 "NO" then MAX_VOTE of "YES" votes is required.
- - If there is MAX_VOTE "NO" votes - the proposal gets rejected and bond not returned
- - If there is no super majority and time to withdraw have passed - proposal fails and the bond gets returned.
+### Prerequisites
 
-For example, voting policy:
-  - `[(0, NumOrRation::Ration(1, 2))]` -- meaning that for any amount or vote MAX_VOTE = 1/2 + 1 is used.
-  - `[(100, NumOrRation::Number(2)), (10000000, NumOrRation::Ration(2, 3))]` -- if amount is below 100 - 2 votes is enough within grace period. Otherwise MAX_VOTE = 2/3 + 1 to pass any larger proposal or add/remove council members.  
+1. [NEAR Account](https://wallet.testnet.near.org)
+2. [NEAR-CLI](https://docs.near.org/docs/tools/near-cli#setup)
+3. [Rust](https://www.rust-lang.org)
 
-Specific examples:
-  - If there are 2 councils, with default policy of 50%: proposal needs both of them to vote YES to "Succeed" or both of them to vote NO to be "Rejected". If they vote differently, the vote will be considered "Fail" and `bond` will be returned back to proposer. 
+<details>
+<summary>3-Step Rust Installation.</summary>
+<p>
 
-## Use cases
+1. Install Rustup:
 
- - A person made a cool video about NEAR Wallet, development IDE, etc. They themself or anyone else can suggest to give them a bounty.
- - You saw really cool tweet bashing STATE bill - send that person a bounty (need them to create account though).
- - Someone contributed a small PR to one of NEAR libraries. One of maintainers can send them a bounty.
- - A person in NEAR Collective went beyond and above - another person in NEAR Collective sent them a grant.
- - Another GrantDAO applies for a grant to achieve their longer term goal via distributing to their guild members.
- - Validators have their own GrantDAO to fund ping bot or other helpful tools for validators. 
-
-**Even better: fork this code and create a more interesting ways to distribute.**
-
-Every guild can fork it and expand how this can be made more inclusive or more sophisticated.
-
-## Needs
-
- - Nice frontend to visualize past and present proposals, creation of proposal, payouts, stats, etc.
- - This needs some form of notification service
-
-# Development
-
-Follow general WASM / Rust contract instructions.
-
-## Deploy to TestNet
-
-```bash
-
-# Deploy to new account on TestNet
-near dev-deploy res/sputnikdao.wasm
-
-# Set contract Id (fish)
-set CONTRACT_ID "dev-1608720833104-8969578"
-
-# Initialize contract with given council and parameters (this is for testing, where you stil have access key to the contract).
-# For production use either a single command or the factory in ../sputnikdao-factory 
-near call $CONTRACT_ID new '{"purpose": "test", "council": ["testmewell.testnet", "illia"], "bond": "1000000000000000000000000", "vote_period": "1800000000000", "grace_period": "1800000000000"}' --accountId $CONTRACT_ID
-
-# Get current number of proposals.
-near view $CONTRACT_ID get_num_proposals
-
-# Add new proposal to pay `illia` 1N. 
-near call $CONTRACT_ID add_proposal '{"proposal": {"target": "illia", "description": "test", "kind": {"type": "Payout", "amount": "1000000000000000000000000"}}}' --accountId=illia --amount 1
-
-# View proposal #0
-near view $CONTRACT_ID get_proposal '{"id": 0}'
-{
-  status: 'Vote',
-  proposer: 'illia',
-  target: 'illia',
-  description: 'test',
-  kind: { Payout: { amount: '1000000000000000000000000' } },
-  vote_period_end: 1607497778113967900,
-  vote_yes: 0,
-  vote_no: 0,
-  votes: {}
-}
-
-# Get `limit=1` proposals from id=0 
-near view $CONTRACT_ID get_proposals '{"from_index": 0, "limit": 1}'
-
-# Vote for a proposal #0 `Yes` from `illia`
-near call $CONTRACT_ID vote '{"id": 0, "vote": "Yes"}' --accountId illia
-
-# Vote for a proposal #0 `No` from `testmewell.testnet`
-near call $CONTRACT_ID vote '{"id": 0, "vote": "No"}' --accountId testmewell.testnet
-
-# Proposal to add new council `testnet`.
-near call $CONTRACT_ID add_proposal '{"proposal": {"target": "testnet", "description": "test", "kind": {"type": "NewCouncil"}}}' --accountId=illia --amount 1
-
-# Proposal to remove council `illia`.
-near call $CONTRACT_ID add_proposal '{"proposal": {"target": "illia", "description": "test", "kind": {"type": RemoveCouncil"}}}' --accountId=illia --amount 1
-
-# Proposal to change vote period to 30min (in nanoseconds):
-near call $CONTRACT_ID add_proposal '{"proposal": {"target": "illia", "description": "test", "kind": {"type": "ChangeVotePeriod", "vote_period": "1800000000000"}}}' --accountId=illia --amount 1
-
-# Proposal to change purpose of this DAO:
-near call $CONTRACT_ID add_proposal '{"proposal": {"target": "illia", "description": "test", "kind": {"type": "ChangePurpose", "purpose": "test me well"}}}' --accountId=illia --amount 1
-
-# Proposal to change policy for this DAO, with next voting policy:
-# - up until 100N: just need 2 votes
-# - up until 1000N: need 3 votes
-# - up until 2000N: need 50% + 1 votes
-# - for anything larger or other types of proposals need 66% + 1 of votes
-near call $CONTRACT_ID add_proposal '{"proposal": {"target": "illia", "description": "test", "kind": {"type": "ChangePolicy", "policy": [{"max_amount": "100", "votes": 2}, {"max_amount": "1000", "votes": 3}, {"max_amount": "2000", "votes": [1, 2]}, {"max_amount": "10000000", "votes": [2, 3]}]}}}' --accountId=illia --amount 1
-
-# Finalize a proposal that has no deciding vote and expired.
-near call $CONTRACT_ID finalize '{"id": 4}'
+```
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-# Ideas for improving
+[_(Taken from official installation guide)_](https://www.rust-lang.org/tools/install)
 
-## Other tokens
+2. Configure your current shell:
 
-Add support for other tokens in the "bank".
-Proposal can then specify amount in a token from whitelisted set.
-There can be internal exchange function as well in case it's needed.
+```
+source $HOME/.cargo/env
+```
+
+3. Add Wasm target to your toolchain:
+
+```
+rustup target add wasm32-unknown-unknown
+```
+
+</p>
+</details>
+
+---
+
+<details>
+<summary>1. Login with your account.</summary>
+<p>
+
+Using [`near-cli`](https://docs.near.org/docs/tools/near-cli#near-login), login to your account which will save your credentials locally:
+
+```bash
+near login
+```
+
+</p>
+</details>
+
+<details>
+<summary>2. Clone repository.</summary>
+<p>
+
+```bash
+git clone https://github.com/near-daos/sputnik-dao-contract
+```
+
+</p>
+</details>
+
+<details>
+<summary>3. Build factory contract.</summary>
+<p>
+
+```bash
+cd sputnik-dao-contract/sputnikdao-factory2 && ./build.sh
+```
+
+</p>
+</details>
+
+<details>
+<summary>4. Deploy factory.</summary>
+<p>
+
+- Create an env variable replacing `YOUR_ACCOUNT.testnet` with the name of the account you logged in with earlier:
+
+```bash
+export CONTRACT_ID=YOUR_ACCOUNT.testnet
+```
+
+- Deploy factory contract by running the following command from your current directory _(`sputnik-dao-contract/sputnikdao-factory2`)_:
+
+```bash
+near deploy $CONTRACT_ID --wasmFile=res/sputnikdao_factory2.wasm --accountId $CONTRACT_ID
+```
+
+</p>
+</details>
+
+<details>
+<summary>5. Initialize factory.</summary>
+<p>
+
+```bash
+near call $CONTRACT_ID new --accountId $CONTRACT_ID
+```
+
+</p>
+</details>
+
+<details>
+<summary>6. Define the parameters of the new DAO, its council, and create it.</summary>
+<p>
+
+- Define the council of your DAO:
+
+```bash
+export COUNCIL='["council-member.testnet", "YOUR_ACCOUNT.testnet"]'
+```
+
+- Configure the name, purpose, and initial council members of the DAO and convert the arguments in base64:
+
+```bash
+export ARGS=`echo '{"config": {"name": "genesis", "purpose": "Genesis DAO", "metadata":""}, "policy": '$COUNCIL'}' | base64`
+```
+
+- Create the new DAO!:
+
+```bash
+near call $CONTRACT_ID create "{\"name\": \"genesis\", \"args\": \"$ARGS\"}" --accountId $CONTRACT_ID --amount 5 --gas 150000000000000
+```
+
+**Example Response:**
+
+```bash
+Scheduling a call: sputnik-v2.testnet.create({"name": "genesis", "args": "eyJjb25maWciOiB7Im5hbWUiOiAiZ2VuZXNpcyIsICJwdXJwb3NlIjogIkdlbmVzaXMgREFPIiwgIm1ldGFkYXRhIjoiIn0sICJwb2xpY3kiOiBbImNvdW5jaWwtbWVtYmVyLnRlc3RuZXQiLCAiWU9VUl9BQ0NPVU5ULnRlc3RuZXQiXX0K"}) with attached 5 NEAR
+Transaction Id 5beqy8ZMkzpzw7bTLPMv6qswukqqowfzYXZnMAitRVS7
+To see the transaction in the transaction explorer, please open this url in your browser
+https://explorer.testnet.near.org/transactions/5beqy8ZMkzpzw7bTLPMv6qswukqqowfzYXZnMAitRVS7
+true
+```
+
+**Note:** If you see `false` at the bottom (after the transaction link) something went wrong. Check your arguments passed and target contracts and re-deploy.
+
+</p>
+</details>
+
+<details>
+<summary>7. Verify successful deployment and policy configuration.</summary>
+<p>
+
+The DAO deployment will create a new [sub-account](https://docs.near.org/docs/concepts/account#subaccounts) ( `genesis.YOUR_ACCOUNT.testnet` ) and deploy a Sputnik v2 DAO contract to it.
+
+- Setup another env variable for your DAO contract:
+
+```bash
+export SPUTNIK_ID=genesis.$CONTRACT_ID
+```
+
+- Now call `get_policy` on this contract using [`near view`](https://docs.near.org/docs/tools/near-cli#near-view)
+
+```bash
+near view $SPUTNIK_ID get_policy
+```
+
+- Verify that the name, purpose, metadata, and council are all configured correctly. Also note the following default values:
+
+```json
+{
+  "roles": [
+    {
+      "name": "all",
+      "kind": "Everyone",
+      "permissions": ["*:AddProposal"],
+      "vote_policy": {}
+    },
+    {
+      "name": "council",
+      "kind": { "Group": ["council-member.testnet", "YOUR_ACCOUNT.testnet"] },
+      "permissions": [
+        "*:Finalize",
+        "*:AddProposal",
+        "*:VoteApprove",
+        "*:VoteReject",
+        "*:VoteRemove"
+      ],
+      "vote_policy": {}
+    }
+  ],
+  "default_vote_policy": {
+    "weight_kind": "RoleWeight",
+    "quorum": "0",
+    "threshold": [1, 2]
+  },
+  "proposal_bond": "1000000000000000000000000",
+  "proposal_period": "604800000000000",
+  "bounty_bond": "1000000000000000000000000",
+  "bounty_forgiveness_period": "86400000000000"
+}
+```
+
+</p>
+</details>
+
+---
+
+## Roles and Permissions
+
+> The DAO can have several roles, each of which allows for permission configuring. These permissions are a combination of [`proposal_kind`](#proposal-types) and `VotingAction`. Due to this combination these permissions can be scoped to be very specific or you can use wildcards to grant greater access.
+
+**Examples:**
+
+- A role with: `["transfer:VoteReject","transfer:VoteRemove"]` means they can only vote to _reject_ or _remove_ a `transfer` proposal but they can't vote to approve.
+
+- A role with: `["transfer:*"]` can perform any vote action on `transfer` proposals.
+
+- A role with: `["*:*"]` has _unlimited_ permission. Normally, the `council` role has `*:*` as its permission so they can perform _any_ vote action on _any_ kind of proposal.
+
+**Here is a list of actions:**
+
+- `AddProposal` - _Adds given proposal to the DAO (this is the primary mechanism for getting things done)._
+- `RemoveProposal` - _Removes given proposal (this is used for immediate deletion in special cases)._
+- `VoteApprove` - _Votes to approve given proposal or bounty._
+- `VoteReject` - _Votes to reject given proposal or bounty._
+- `VoteRemove` - _Votes to remove given proposal or bounty (this may be because the proposal is spam or otherwise invalid)._
+- `Finalize` - _Finalizes proposal which is cancelled when proposal has expired (this action also returns funds)._
+- `MoveToHub` - _Moves a proposal to the hub (this is used to move a proposal into another DAO)._
+
+---
+
+## Proposals
+
+> Proposals are the main way to interact with the DAO. Each action on the DAO is performed by creating and approving a proposal.
+
+| Contents                                            |
+| --------------------------------------------------- |
+| [Proposal types](#proposal-types)                   |
+| [Add proposal](#add-proposal)                       |
+| [View proposal](#view-proposal)                     |
+| [View multiple proposals](#view-multiple-proposals) |
+| [Approve proposal](#approve-proposal)               |
+
+---
+
+### Proposal types
+
+> Each kind of proposal represents an operation the DAO can perform. Here are the kinds of proposals:
+
+```rs
+ProposalKind::ChangeConfig { .. },
+ProposalKind::ChangePolicy { .. },
+ProposalKind::ChangePolicyAddOrUpdateRole { .. },
+ProposalKind::ChangePolicyRemoveRole { .. },
+ProposalKind::ChangePolicyUpdateDefaultVotePolicy { .. },
+ProposalKind::ChangePolicyUpdateParameters { .. },
+ProposalKind::AddMemberToRole { .. },
+ProposalKind::RemoveMemberFromRole { .. },
+ProposalKind::FunctionCall { .. },
+ProposalKind::UpgradeSelf { .. },
+ProposalKind::UpgradeRemote { .. },
+ProposalKind::Transfer { .. },
+ProposalKind::SetStakingContract { .. },
+ProposalKind::AddBounty { .. },
+ProposalKind::BountyDone { .. },
+ProposalKind::Vote,
+ProposalKind::FactoryInfoUpdate { .. },
+```
+
+- **ChangeConfig** - used to change the configuration of the DAO
+- **ChangePolicy** - used to change the full policy of the DAO
+- **ChangePolicyAddOrUpdateRole** - used to add a new role to the policy of the DAO. If the role already exists, update it.
+- **ChangePolicyRemoveRole** - used to remove a role from the policy of the DAO.
+- **ChangePolicyUpdateDefaultVotePolicy** - used to update the default vote policy from the policy of the DAO.
+- **ChangePolicyUpdateParameters** - used to update the parameters from the policy of the DAO. Parameters include: proposal bond, proposal period, bounty bond, bounty forgiveness period.
+- **AddMemberToRole** - used to add a member to a role in the DAO
+- **RemoveMemberFromRole** - used to remove a member from a role in the DAO
+- **FunctionCall** - used to a call a function on any valid account on the network including the DAO itself, any other DAO, or any other contract. This is a useful mechanism for extending the capabilities of the DAO without modifying or complicating the DAO contract code.  One can imagine a family of contracts built specifically to serve the DAO as agents, proxies, oracles and banks, for example.
+- **UpgradeSelf** - used to upgrade the DAO contract itself.
+- **UpgradeRemote** - used to upgrade other contracts. For DAOs that are governing other protocols, this type of proposal will allow to upgrade another contract with its newer version.
+- **Transfer** - used to move assets from this DAO to another account on the network. Supports both `NEAR` and any `NEP-141` token that this DAO has.
+- **SetStakingContract** - used to set the staking contract of the DAO to help users delegate their tokens.
+- **AddBounty** - used to add a bounty to encourage members of the DAO community to contribute their time and attention to the needs of the DAO
+- **BountyDone** - used to mark the completion of an available bounty
+- **Vote** - used to create polls. Vote proposal doesn't have any action.
+- **FactoryInfoUpdate** - used for changing permissions of the factory that created the DAO. By default, the factory has permission to upgrade the DAO, but this can be modified by using `FactoryInfoUpdate`.
+
+---
+
+### Add proposal
+
+> Adds a proposal to the DAO contract and returns the index number of the proposal or "proposal ID". By default, anyone can add a proposal but it requires a minimum 1 Ⓝ bond (attached deposit).
+
+- method: `add_proposal`
+- params:
+  - `proposal`
+    - `description`
+    - `kind`
+- proposer account ID
+- attached deposit (minimum 1 Ⓝ)
+
+<details>
+<summary>Example argument structure:</summary>
+<p>
+
+```json
+{
+  "proposal": {
+    "description": "Add New Council",
+    "kind": {
+      "AddMemberToRole": {
+        "member_id": "council_member_3.testnet",
+        "role": "council"
+      }
+    }
+  }
+}
+```
+
+</p>
+</details>
+
+<details>
+<summary>Example near-cli command:</summary>
+<p>
+
+```bash
+near call genesis.sputnik-v2.testnet add_proposal \
+'{"proposal": {"description": "Add New Council", "kind": {"AddMemberToRole": {"member_id": "council_member_3.testnet", "role": "council"}}}}' \
+--accountId proposer.testnet \
+--amount 1
+```
+
+</p>
+</details>
+
+<details>
+<summary>Example response:</summary>
+<p>
+
+```bash
+Transaction Id HbJdK9AnZrvjuuoys2z1PojdkyFiuWBvrDbXsAf5ndvu
+To see the transaction in the transaction explorer, please open this url in your browser
+https://explorer.testnet.near.org/transactions/HbJdK9AnZrvjuuoys2z1PojdkyFiuWBvrDbXsAf5ndvu
+0
+```
+
+**Note:** The number under the transaction link is the proposal ID.
+
+</p>
+</details>
+
+---
+
+### View proposal
+
+> Returns proposal details by passing the ID or index of a given proposal.
+
+- method: `get_proposal`
+  - params: `id`
+
+<details>
+<summary>Example near-cli command:</summary>
+<p>
+
+```bash
+near view genesis.sputnik-v2.testnet get_proposal '{"id": 0}'
+```
+
+</p>
+</details>
+
+<details>
+<summary>Example response:</summary>
+<p>
+
+```json
+{
+  "id": 0,
+  "proposer": "near-example.testnet",
+  "description": "Add New Council",
+  "kind": {
+    "AddMemberToRole": {
+      "member_id": "council_member_3.testnet",
+      "role": "council"
+    }
+  },
+  "status": "InProgress",
+  "vote_counts": {},
+  "votes": {},
+  "submission_time": "1624947631810665051"
+}
+```
+
+</p>
+</details>
+
+---
+
+### View multiple proposals
+
+> Returns multiple proposal details by passing the index ("ID") starting point and a limit of how many records you would like returned.
+
+- method: `get_proposals`
+- params:
+  - `from_index`
+  - `limit`
+
+<details>
+<summary>Example near-cli command:</summary>
+<p>
+
+```bash
+near view genesis.sputnik-v2.testnet get_proposals '{"from_index": 1, "limit": 2}'
+```
+
+</p>
+</details>
+
+<details>
+<summary>Example response:</summary>
+<p>
+
+```js
+[
+  {
+    id: 1,
+    proposer: 'near-example.testnet',
+    description: 'Add New Council',
+    kind: {
+      AddMemberToRole: { member_id: 'council_member_4.testnet', role: 'council' }
+    },
+    status: 'InProgress',
+    vote_counts: {},
+    votes: {},
+  submission_time: '1624947785010147691'
+  },
+  {
+    id: 2,
+    proposer: 'near-example.testnet',
+    description: 'Add New Council',
+    kind: {
+      AddMemberToRole: { member_id: 'council_member_5.testnet', role: 'council' }
+    },
+    status: 'InProgress',
+    vote_counts: {},
+    votes: {},
+    submission_time: '1624947838518330827'
+  }
+]
+```
+
+</p>
+</details>
+
+---
+
+### Approve proposal
+
+> Approves proposal by ID. Only council members can approve a proposal
+
+- method: `act_proposal`
+- params:
+  - `id`
+  - `action`
+- account ID that is a council member.
+
+<details>
+<summary>Example near-cli command:</summary>
+<p>
+
+```bash
+near call genesis.sputnik-v2.testnet act_proposal '{"id": 0, "action": "VoteApprove"}' \
+--accountId council_member_1.testnet
+```
+
+</p>
+</details>
+
+<details>
+<summary>Example response:</summary>
+<p>
+
+```bash
+Receipts: 3mkSgRaHsd46FHkf9AtTcPbNXkYkxMCzPfJFHsHk8NPm, GjJ6hmoAhxt2a7si4hVPYZiL9CWeM5fmSEzMTpC7URxV
+        Log [genesis.sputnik-v2.testnet]: ["council"]
+Transaction Id BZPHxNoBpyMG4seCojzeNrKpr685vWPynDMTdg1JACa7
+To see the transaction in the transaction explorer, please open this url in your browser
+https://explorer.testnet.near.org/transactions/BZPHxNoBpyMG4seCojzeNrKpr685vWPynDMTdg1JACa7
+''
+```
+
+</p>
+</details>
+
+---
+
+## Voting
+
+>
+
+### Vote on a proposal
+
+> Only council members are allowed to vote on a proposal.
+
+---
+
+### Voting policy
+
+> You can set a different vote policy for each one of the proposal kinds.
+
+Vote policy can be: `TokenWeight`, meaning members vote with tokens, or `RoleWeight(role)` where all users with such role (e.g."council") can vote.
+
+Also a vote policy has a "threshold". The threshold could be a ratio. e.g. `threshold:[1,2]` => 1/2 or 50% of the votes approve the proposal, or the threshold could be a fixed number (weight), so you can say that you need 3 votes to approve a proposal disregarding the amount of people in the role, and you can say that you need 1m tokens to approve a proposal disregarding total token supply.
+
+When vote policy is `TokenWeight`, vote % is measured against total toke supply, and each member vote weight is based on tokens owned. So if threshold is 1/2 you need half the token supply to vote "yes" to pass a proposal.
+
+When vote policy is `RoleWeight(role)`, vote % is measured against the count of people with that role, and each member has one vote. So if threshold is 1/2 you need half the members with the role to vote "yes" to pass a proposal.
+
+---
+
+### Token voting
+
+> DAO votes to select some token to become voting token (only can be done once, can't change later).
+
+User flow to vote with selected token:
+
+- Users deposit the desired amount of the token to the separate staking contract defined by the DAO.
+- They can then choose who to delegate these tokens. It can be to themselves or to other users to increase their vote weight.
+- When users vote for proposals, their vote is weighted by all the delegations to them.
+- Undelegating will block delegating / withdrawing until one voting period passes.
+- Undelegated tokens can be withdrawn by the user.
+
+---
 
 ## Bounties
 
-Bounties management is hard right now and done via github / notion.
+> Add and configure bounties using `AddBounty` proposal.
 
-Here is the idea to attach bounties to the same council:
- - Anyone can add a bounty: description + how much to pay for the bounty
- - Council votes to approve the bounty (same thing with small bounties need less votes)
- - There is a list of bounties, separate from requests
- - People can indicate that they are working on it
- - When someone completed bounty - they ping the bounty for "review" and council votes if the bounty is solved.
- - When council voted -> bounty gets paid out
+The lifecycle of a bounty is the next:
 
-## Canceling / redirecting proposals
+- Anyone with permission can add proposal `AddBounty` which contains the bounty information including `token` to pay the reward in and `amount` to pay it out.
+- This proposal gets voted in by the current voting policy.
+- After proposal is passed, the bounty gets added. Now it has an `id` in the bounty list which can be queried via `get_bounties`.
+- Anyone can claim a bounty by calling `bounty_claim(id, deadline)` up to `repeat` times which was specified in the bounty. This allows to have repetitive bounties or multiple working collaboratively.
+- `deadline` specifies how long it will take the sender to complete the bounty.
+- If claimer decides to give up, they can call `bounty_giveup(id)`, and within `forgiveness_period` their claim bond will be returned. After this period, their bond is forfeited and is kept in the DAO.
+- When a bounty is complete, call `bounty_done(id)`, which will add a proposal `BountyDone` that, when voted, will pay to whoever completed the bounty.
 
-If proposal is made to a wrong DAO, it's not great to take the bond away from proposer.
-It's possible to add an option to transfer proposals from one DAO to another DAO.
-Also people can vote to dismiss instead of rejecting it, which will return bond.
+---
+
+## Blob storage
+
+> DAO supports storing larger blobs of data and content indexing them by hash of the data. This is done to allow upgrading the DAO itself and other contracts.
+
+Blob lifecycle:
+
+- Store blob in the DAO.
+- Create upgradability proposal.
+- Proposal passes or fails.
+- Remove blob and receive funds locked for storage back.
+
+Blob can be removed only by the original storer.
+
+---
+
+## Upgradability
+
+> Allow the DAO to be upgraded to different contract code versions. This allows the DAO to use a newer, more stable and faster version of the contract code. New versions usually include new features, bug fixes and improvements in performance. Downgrade to an older version is also possible.
+
+There are two major ways to upgrade the DAO:
+ - Self upgrade by storing blob on the DAO contract and then voting to UpgradeSelf
+ - Upgrade from the factory - factory stores new contract and then, if allowed, it upgrades the DAO by calling `upgrade(code)`.
+
+DAOs can explicitly vote to disable factory auto upgrades and can pull the upgrade themselves from the factory.
