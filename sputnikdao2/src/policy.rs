@@ -6,7 +6,7 @@ use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, AccountId, Balance};
 
-use crate::proposals::{Proposal, ProposalKind, ProposalStatus, Vote};
+use crate::proposals::{PolicyParameters, Proposal, ProposalKind, ProposalStatus, Vote};
 use crate::types::Action;
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
@@ -237,8 +237,52 @@ impl VersionedPolicy {
 }
 
 impl Policy {
-    ///
-    /// Doesn't fail, because will be used on the finalization of the proposal.
+    pub fn add_or_update_role(&mut self, role: &RolePermission) {
+        for i in 0..self.roles.len() {
+            if &self.roles[i].name == &role.name {
+                env::log_str(&format!(
+                    "Updating existing role in the policy:{}",
+                    &role.name
+                ));
+                let _ = std::mem::replace(&mut self.roles[i], role.clone());
+                return;
+            }
+        }
+        env::log_str(&format!("Adding new role to the policy:{}", &role.name));
+        self.roles.push(role.clone());
+    }
+
+    pub fn remove_role(&mut self, role: &String) {
+        for i in 0..self.roles.len() {
+            if &self.roles[i].name == role {
+                self.roles.remove(i);
+                return;
+            }
+        }
+        env::log_str(&format!("ERR_ROLE_NOT_FOUND:{}", role));
+    }
+
+    pub fn update_default_vote_policy(&mut self, vote_policy: &VotePolicy) {
+        self.default_vote_policy = vote_policy.clone();
+        env::log_str("Successfully updated the default vote policy.");
+    }
+
+    pub fn update_parameters(&mut self, parameters: &PolicyParameters) {
+        if parameters.proposal_bond.is_some() {
+            self.proposal_bond = parameters.proposal_bond.unwrap();
+        }
+        if parameters.proposal_period.is_some() {
+            self.proposal_period = parameters.proposal_period.unwrap();
+        }
+        if parameters.bounty_bond.is_some() {
+            self.bounty_bond = parameters.bounty_bond.unwrap();
+        }
+        if parameters.bounty_forgiveness_period.is_some() {
+            self.bounty_forgiveness_period = parameters.bounty_forgiveness_period.unwrap();
+        }
+        env::log_str("Successfully updated the policy parameters.");
+    }
+
     pub fn add_member_to_role(&mut self, role: &String, member_id: &AccountId) {
         for i in 0..self.roles.len() {
             if &self.roles[i].name == role {
@@ -394,6 +438,8 @@ impl Policy {
 
 #[cfg(test)]
 mod tests {
+    use near_sdk::test_utils::accounts;
+
     use super::*;
 
     #[test]
@@ -406,5 +452,172 @@ mod tests {
         assert_eq!(r2.to_weight(5), 3);
         let r2 = WeightOrRatio::Ratio(1, 1);
         assert_eq!(r2.to_weight(5), 5);
+    }
+
+    #[test]
+    fn test_add_role() {
+        let council = vec![accounts(0), accounts(1)];
+        let mut policy = default_policy(council);
+
+        let community_role = policy.internal_get_role(&String::from("community"));
+        assert!(community_role.is_none());
+
+        let name: String = "community".to_string();
+        let kind: RoleKind = RoleKind::Group(vec![accounts(2), accounts(3)].into_iter().collect());
+        let permissions: HashSet<String> = vec!["*:*".to_string()].into_iter().collect();
+        let vote_policy: HashMap<String, VotePolicy> = HashMap::default();
+        let new_role = RolePermission {
+            name: name.clone(),
+            kind: kind.clone(),
+            permissions: permissions.clone(),
+            vote_policy: vote_policy.clone(),
+        };
+        assert_eq!(2, policy.roles.len());
+        policy.add_or_update_role(&new_role);
+        assert_eq!(3, policy.roles.len());
+
+        let community_role = policy.internal_get_role(&String::from("community"));
+        assert!(community_role.is_some());
+
+        let community_role = community_role.unwrap();
+        assert_eq!(name, community_role.name);
+        assert_eq!(kind, community_role.kind);
+        assert_eq!(permissions, community_role.permissions);
+        assert_eq!(vote_policy, community_role.vote_policy);
+    }
+
+    #[test]
+    fn test_update_role() {
+        let council = vec![accounts(0), accounts(1)];
+        let mut policy = default_policy(council);
+
+        let name: String = "council".to_string();
+        let kind: RoleKind = RoleKind::Group(vec![accounts(0), accounts(1)].into_iter().collect());
+        let permissions: HashSet<String> = vec![
+            "*:AddProposal".to_string(),
+            "*:VoteApprove".to_string(),
+            "*:VoteReject".to_string(),
+            "*:VoteRemove".to_string(),
+            "*:Finalize".to_string(),
+        ]
+        .into_iter()
+        .collect();
+        let vote_policy: HashMap<String, VotePolicy> = HashMap::default();
+
+        let council_role = policy.internal_get_role(&String::from("council"));
+        assert!(council_role.is_some());
+
+        let council_role = council_role.unwrap();
+        assert_eq!(name, council_role.name);
+        assert_eq!(kind, council_role.kind);
+        assert_eq!(permissions, council_role.permissions);
+        assert_eq!(vote_policy, council_role.vote_policy);
+
+        let kind: RoleKind = RoleKind::Group(vec![accounts(2), accounts(3)].into_iter().collect());
+        let permissions: HashSet<String> = vec!["*:*".to_string()].into_iter().collect();
+        let updated_role = RolePermission {
+            name: name.clone(),
+            kind: kind.clone(),
+            permissions: permissions.clone(),
+            vote_policy: vote_policy.clone(),
+        };
+        assert_eq!(2, policy.roles.len());
+        policy.add_or_update_role(&updated_role);
+        assert_eq!(2, policy.roles.len());
+
+        let council_role = policy.internal_get_role(&String::from("council"));
+        assert!(council_role.is_some());
+
+        let council_role = council_role.unwrap();
+        assert_eq!(name, council_role.name);
+        assert_eq!(kind, council_role.kind);
+        assert_eq!(permissions, council_role.permissions);
+        assert_eq!(vote_policy, council_role.vote_policy);
+    }
+
+    #[test]
+    fn test_remove_role() {
+        let council = vec![accounts(0), accounts(1)];
+        let mut policy = default_policy(council);
+
+        let council_role = policy.internal_get_role(&String::from("council"));
+        assert!(council_role.is_some());
+        assert_eq!(2, policy.roles.len());
+
+        policy.remove_role(&String::from("council"));
+
+        let council_role = policy.internal_get_role(&String::from("council"));
+        assert!(council_role.is_none());
+        assert_eq!(1, policy.roles.len());
+    }
+
+    #[test]
+    fn test_update_default_vote_policy() {
+        let council = vec![accounts(0), accounts(1)];
+        let mut policy = default_policy(council);
+
+        assert_eq!(
+            WeightKind::RoleWeight,
+            policy.default_vote_policy.weight_kind
+        );
+        assert_eq!(U128(0), policy.default_vote_policy.quorum);
+        assert_eq!(
+            WeightOrRatio::Ratio(1, 2),
+            policy.default_vote_policy.threshold
+        );
+
+        let new_default_vote_policy = VotePolicy {
+            weight_kind: WeightKind::TokenWeight,
+            quorum: U128(100),
+            threshold: WeightOrRatio::Ratio(1, 4),
+        };
+        policy.update_default_vote_policy(&new_default_vote_policy);
+        assert_eq!(
+            new_default_vote_policy.weight_kind,
+            policy.default_vote_policy.weight_kind
+        );
+        assert_eq!(
+            new_default_vote_policy.quorum,
+            policy.default_vote_policy.quorum
+        );
+        assert_eq!(
+            new_default_vote_policy.threshold,
+            policy.default_vote_policy.threshold
+        );
+    }
+
+    #[test]
+    fn test_update_parameters() {
+        let council = vec![accounts(0), accounts(1)];
+        let mut policy = default_policy(council);
+
+        assert_eq!(U128(10u128.pow(24)), policy.proposal_bond);
+        assert_eq!(
+            U64::from(1_000_000_000 * 60 * 60 * 24 * 7),
+            policy.proposal_period
+        );
+        assert_eq!(U128(10u128.pow(24)), policy.bounty_bond);
+        assert_eq!(
+            U64::from(1_000_000_000 * 60 * 60 * 24),
+            policy.bounty_forgiveness_period
+        );
+
+        let new_parameters = PolicyParameters {
+            proposal_bond: Some(U128(10u128.pow(26))),
+            proposal_period: None,
+            bounty_bond: None,
+            bounty_forgiveness_period: Some(U64::from(1_000_000_000 * 60 * 60 * 24 * 5)),
+        };
+        policy.update_parameters(&new_parameters);
+        assert_eq!(U128(10u128.pow(26)), policy.proposal_bond);
+        assert_eq!(
+            U64::from(1_000_000_000 * 60 * 60 * 24 * 7),
+            policy.proposal_period
+        );
+        assert_eq!(U128(10u128.pow(24)), policy.bounty_bond);
+        assert_eq!(
+            U64::from(1_000_000_000 * 60 * 60 * 24 * 5),
+            policy.bounty_forgiveness_period
+        );
     }
 }
