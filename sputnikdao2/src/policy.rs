@@ -493,7 +493,15 @@ mod tests {
 
         let name: String = "council".to_string();
         let kind: RoleKind = RoleKind::Group(vec![accounts(0), accounts(1)].into_iter().collect());
-        let permissions: HashSet<String> = vec!["*:*".to_string()].into_iter().collect();
+        let permissions: HashSet<String> = vec![
+            "*:AddProposal".to_string(),
+            "*:VoteApprove".to_string(),
+            "*:VoteReject".to_string(),
+            "*:VoteRemove".to_string(),
+            "*:Finalize".to_string(),
+        ]
+        .into_iter()
+        .collect();
         let vote_policy: HashMap<String, VotePolicy> = HashMap::default();
 
         let council_role = policy.internal_get_role(&String::from("council"));
@@ -506,6 +514,7 @@ mod tests {
         assert_eq!(vote_policy, council_role.vote_policy);
 
         let kind: RoleKind = RoleKind::Group(vec![accounts(2), accounts(3)].into_iter().collect());
+        let permissions: HashSet<String> = vec!["*:*".to_string()].into_iter().collect();
         let updated_role = RolePermission {
             name: name.clone(),
             kind: kind.clone(),
