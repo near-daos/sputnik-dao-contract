@@ -207,7 +207,7 @@ impl Contract {
 
 #[cfg(test)]
 mod tests {
-    use near_sdk::test_utils::{accounts, testing_env_with_promise_results, VMContextBuilder};
+    use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::testing_env;
     use near_sdk_sim::to_yocto;
 
@@ -271,7 +271,13 @@ mod tests {
         );
 
         contract.act_proposal(1, Action::VoteApprove, None);
-        testing_env_with_promise_results(context.build(), PromiseResult::Successful(vec![]));
+        testing_env!(
+            context.build(),
+            near_sdk::VMConfig::test(),
+            near_sdk::RuntimeFeesConfig::test(),
+            Default::default(),
+            vec![PromiseResult::Successful(vec![])],
+        );
         contract.on_proposal_callback(1);
 
         assert_eq!(contract.get_bounty_claims(accounts(1)).len(), 0);
@@ -280,7 +286,13 @@ mod tests {
         contract.bounty_claim(0, U64::from(500));
         contract.bounty_done(0, None, "Bounty is done 2".to_string());
         contract.act_proposal(2, Action::VoteApprove, None);
-        testing_env_with_promise_results(context.build(), PromiseResult::Successful(vec![]));
+        testing_env!(
+            context.build(),
+            near_sdk::VMConfig::test(),
+            near_sdk::RuntimeFeesConfig::test(),
+            Default::default(),
+            vec![PromiseResult::Successful(vec![])],
+        );
         contract.on_proposal_callback(2);
 
         assert_eq!(contract.get_bounty(0).bounty.times, 0);
