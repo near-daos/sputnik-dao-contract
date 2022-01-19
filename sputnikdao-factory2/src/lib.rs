@@ -33,8 +33,9 @@ impl SputnikDAOFactory {
     }
 
     pub fn internal_store_initial_version(&self) {
-        let sha256_hash = env::sha256(DAO_CONTRACT_CODE);
-        env::storage_write(&sha256_hash, DAO_CONTRACT_CODE);
+        let code = DAO_CONTRACT_CODE.to_vec();
+        let sha256_hash = env::sha256(&code);
+        env::storage_write(&sha256_hash, &code);
 
         self.set_code_hash(slice_to_hash(&sha256_hash));
     }
