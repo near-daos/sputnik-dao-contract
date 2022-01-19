@@ -161,7 +161,7 @@ pub extern "C" fn store() {
 
 #[cfg(test)]
 mod tests {
-    use near_sdk::test_utils::{accounts, testing_env_with_promise_results, VMContextBuilder};
+    use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::{testing_env, PromiseResult, VMContext};
 
     use super::*;
@@ -189,9 +189,13 @@ mod tests {
 
         testing_env!(context.attached_deposit(10).build());
         factory.create("test".parse().unwrap(), "{}".as_bytes().to_vec().into());
-        testing_env_with_promise_results(
+
+        testing_env!(
             context.predecessor_account_id(accounts(0)).build(),
-            PromiseResult::Successful(vec![]),
+            near_sdk::VMConfig::test(),
+            near_sdk::RuntimeFeesConfig::test(),
+            Default::default(),
+            vec![PromiseResult::Successful(vec![])],
         );
         factory.on_create(
             format!("test.{}", accounts(0)).parse().unwrap(),
