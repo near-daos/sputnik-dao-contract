@@ -112,7 +112,7 @@ near deploy $CONTRACT_ID --wasmFile=res/sputnikdao_factory2.wasm --accountId $CO
 <p>
 
 ```bash
-near call $CONTRACT_ID new --accountId $CONTRACT_ID
+near call $CONTRACT_ID new --accountId $CONTRACT_ID --gas 100000000000000
 ```
 
 </p>
@@ -137,7 +137,7 @@ export ARGS=`echo '{"config": {"name": "genesis", "purpose": "Genesis DAO", "met
 - Create the new DAO!:
 
 ```bash
-near call $CONTRACT_ID create "{\"name\": \"genesis\", \"args\": \"$ARGS\"}" --accountId $CONTRACT_ID --amount 5 --gas 150000000000000
+near call $CONTRACT_ID create "{\"name\": \"genesis\", \"args\": \"$ARGS\"}" --accountId $CONTRACT_ID --amount 10 --gas 150000000000000
 ```
 
 **Example Response:**

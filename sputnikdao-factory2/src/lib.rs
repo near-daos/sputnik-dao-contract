@@ -8,6 +8,8 @@ use near_sdk::{env, near_bindgen, AccountId, CryptoHash, PanicOnDefault, Promise
 
 use factory_manager::FactoryManager;
 
+const DAO_CONTRACT_CODE: &[u8] = include_bytes!("../../sputnikdao2/res/sputnikdao2.wasm");
+
 const LATEST_CODE_HASH_KEY: &[u8; 4] = b"CODE";
 const OWNER_KEY: &[u8; 5] = b"OWNER";
 
@@ -22,10 +24,19 @@ pub struct SputnikDAOFactory {
 impl SputnikDAOFactory {
     #[init]
     pub fn new() -> Self {
-        Self {
+        let this = Self {
             factory_manager: FactoryManager {},
             daos: UnorderedSet::new(b"d".to_vec()),
-        }
+        };
+        this.internal_store_initial_version();
+        this
+    }
+
+    pub fn internal_store_initial_version(&self) {
+        let sha256_hash = env::sha256(&DAO_CONTRACT_CODE);
+        env::storage_write(&sha256_hash, DAO_CONTRACT_CODE);
+
+        self.set_code_hash(slice_to_hash(&sha256_hash));
     }
 
     pub fn set_owner(&self, owner_id: AccountId) {
@@ -162,30 +173,18 @@ pub extern "C" fn store() {
 #[cfg(test)]
 mod tests {
     use near_sdk::test_utils::{accounts, VMContextBuilder};
-    use near_sdk::{testing_env, PromiseResult, VMContext};
+    use near_sdk::{testing_env, PromiseResult};
 
     use super::*;
-
-    pub fn add_contract(
-        context: &mut VMContext,
-        contract: &mut SputnikDAOFactory,
-    ) -> Base58CryptoHash {
-        context.input = include_bytes!("../../sputnikdao2/res/sputnikdao2.wasm").to_vec();
-        let hash = slice_to_hash(&env::sha256(&context.input));
-        testing_env!(context.clone());
-        contract.factory_manager.store_contract();
-        context.input = vec![];
-        hash
-    }
 
     #[test]
     fn test_basics() {
         let mut context = VMContextBuilder::new();
-        testing_env!(context.current_account_id(accounts(0)).build());
+        testing_env!(context
+            .current_account_id(accounts(0))
+            .predecessor_account_id(accounts(0))
+            .build());
         let mut factory = SputnikDAOFactory::new();
-        let hash = add_contract(&mut context.build(), &mut factory);
-        testing_env!(context.predecessor_account_id(accounts(0)).build());
-        factory.set_code_hash(hash);
 
         testing_env!(context.attached_deposit(10).build());
         factory.create("test".parse().unwrap(), "{}".as_bytes().to_vec().into());
