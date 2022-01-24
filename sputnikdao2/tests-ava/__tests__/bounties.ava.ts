@@ -164,7 +164,7 @@ workspace.test('Bounty done with NEAR token', async (test, { alice, root, dao })
     let errorString4 = await captureError(async () =>
         await doneBounty(alice, alice, dao, proposalId)
     );
-    test.regex(errorString4, /ERR_BOUNTY_CLAIM_COMPLETED/);
+    test.regex(errorString4, /ERR_NO_BOUNTY_CLAIMS/);
 
 });
 

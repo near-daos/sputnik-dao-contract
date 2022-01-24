@@ -110,7 +110,7 @@ workspaceWithoutInit.test('Upgrade self negative', async (test, { root, dao }) =
             'store_blob',
             DAO_WASM_BYTES,
             {
-                attachedDeposit: toYocto('5'),
+                attachedDeposit: toYocto('200'),
                 gas: tGas(300),
             })
         .signAndSend();
