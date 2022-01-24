@@ -145,7 +145,7 @@ impl SputnikDAOFactory {
         self.factory_manager.get_code(code_hash);
     }
 
-    pub fn store_contract_metadata(&mut self, metadata: DaoContractMetadata) {
+    pub fn store_contract_metadata(&self, metadata: DaoContractMetadata) {
         self.assert_owner();
         let code_hash: CryptoHash = metadata.code_hash.into();
         let storage_metadata = env::storage_read(CODE_METADATA_KEY);
@@ -166,6 +166,13 @@ impl SputnikDAOFactory {
         }
 
         env::storage_write(LATEST_CODE_HASH_KEY, &code_hash);
+    }
+
+    pub fn get_contract_metadata(&self) -> Vec<DaoContractMetadata> {
+        let storage_metadata = env::storage_read(CODE_METADATA_KEY).expect("INTERNAL_FAIL");
+        let deserialized_metadata: Vec<DaoContractMetadata> =
+            BorshDeserialize::try_from_slice(&storage_metadata).expect("INTERNAL_FAIL");
+        return deserialized_metadata;
     }
 
     fn assert_owner(&self) {
