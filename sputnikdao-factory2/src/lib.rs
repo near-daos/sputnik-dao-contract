@@ -3,15 +3,28 @@ mod factory_manager;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::UnorderedSet;
 use near_sdk::json_types::{Base58CryptoHash, Base64VecU8, U128};
+use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::serde_json::{self, json};
 use near_sdk::{env, near_bindgen, AccountId, CryptoHash, PanicOnDefault, Promise};
 
 use factory_manager::FactoryManager;
 
+// The keys used for writing data to storage via `env::storage_write`.
+const LATEST_CODE_HASH_KEY: &[u8; 4] = b"CODE";
+const FACTORY_OWNER_KEY: &[u8; 5] = b"OWNER";
+const CODE_METADATA_KEY: &[u8; 8] = b"METADATA";
+
 const DAO_CONTRACT_CODE: &[u8] = include_bytes!("../../sputnikdao2/res/sputnikdao2.wasm");
 
-const LATEST_CODE_HASH_KEY: &[u8; 4] = b"CODE";
-const OWNER_KEY: &[u8; 5] = b"OWNER";
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
+#[serde(crate = "near_sdk::serde")]
+pub struct DaoContractMetadata {
+    pub code_hash: Base58CryptoHash,
+    pub version: String,
+    pub commit_id: String,
+    pub readme: String,
+}
 
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
@@ -32,23 +45,15 @@ impl SputnikDAOFactory {
         this
     }
 
-    pub fn internal_store_initial_version(&self) {
+    fn internal_store_initial_version(&self) {
         let code = DAO_CONTRACT_CODE.to_vec();
         let sha256_hash = env::sha256(&code);
         env::storage_write(&sha256_hash, &code);
-
-        self.set_code_hash(slice_to_hash(&sha256_hash));
     }
 
     pub fn set_owner(&self, owner_id: AccountId) {
         self.assert_owner();
-        env::storage_write(OWNER_KEY, owner_id.as_bytes());
-    }
-
-    pub fn set_code_hash(&self, code_hash: Base58CryptoHash) {
-        self.assert_owner();
-        let code_hash: CryptoHash = code_hash.into();
-        env::storage_write(LATEST_CODE_HASH_KEY, &code_hash);
+        env::storage_write(FACTORY_OWNER_KEY, owner_id.as_bytes());
     }
 
     pub fn delete_contract(&self, code_hash: Base58CryptoHash) {
@@ -124,7 +129,7 @@ impl SputnikDAOFactory {
     pub fn get_owner(&self) -> AccountId {
         AccountId::new_unchecked(
             String::from_utf8(
-                env::storage_read(OWNER_KEY)
+                env::storage_read(FACTORY_OWNER_KEY)
                     .unwrap_or(env::current_account_id().as_bytes().to_vec()),
             )
             .expect("INTERNAL_FAIL"),
@@ -138,6 +143,29 @@ impl SputnikDAOFactory {
     /// Returns non serialized code by given code hash.
     pub fn get_code(&self, code_hash: Base58CryptoHash) {
         self.factory_manager.get_code(code_hash);
+    }
+
+    pub fn store_contract_metadata(&mut self, metadata: DaoContractMetadata) {
+        self.assert_owner();
+        let code_hash: CryptoHash = metadata.code_hash.into();
+        let storage_metadata = env::storage_read(CODE_METADATA_KEY);
+
+        if storage_metadata.is_none() {
+            let storage_metadata = vec![metadata];
+            let serialized_metadata =
+                BorshSerialize::try_to_vec(&storage_metadata).expect("INTERNAL_FAIL");
+            env::storage_write(CODE_METADATA_KEY, &serialized_metadata);
+        } else {
+            let storage_metadata = storage_metadata.expect("INTERNAL_FAIL");
+            let mut deserialized_metadata: Vec<DaoContractMetadata> =
+                BorshDeserialize::try_from_slice(&storage_metadata).expect("INTERNAL_FAIL");
+            deserialized_metadata.push(metadata);
+            let serialized_metadata =
+                BorshSerialize::try_to_vec(&deserialized_metadata).expect("INTERNAL_FAIL");
+            env::storage_write(CODE_METADATA_KEY, &serialized_metadata);
+        }
+
+        env::storage_write(LATEST_CODE_HASH_KEY, &code_hash);
     }
 
     fn assert_owner(&self) {
@@ -161,6 +189,7 @@ pub fn slice_to_hash(hash: &[u8]) -> Base58CryptoHash {
 pub extern "C" fn store() {
     env::setup_panic_hook();
     let contract: SputnikDAOFactory = env::state_read().expect("Contract is not initialized");
+    contract.assert_owner();
     let prev_storage = env::storage_usage();
     contract.factory_manager.store_contract();
     let storage_cost = (env::storage_usage() - prev_storage) as u128 * env::storage_byte_cost();
