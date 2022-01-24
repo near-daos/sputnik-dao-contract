@@ -41,14 +41,21 @@ impl SputnikDAOFactory {
             factory_manager: FactoryManager {},
             daos: UnorderedSet::new(b"d".to_vec()),
         };
-        this.internal_store_initial_version();
+        this.internal_store_initial_contract();
         this
     }
 
-    fn internal_store_initial_version(&self) {
+    fn internal_store_initial_contract(&self) {
         let code = DAO_CONTRACT_CODE.to_vec();
         let sha256_hash = env::sha256(&code);
         env::storage_write(&sha256_hash, &code);
+
+        self.store_contract_metadata(DaoContractMetadata {
+            code_hash: slice_to_hash(&sha256_hash),
+            version: String::new(),
+            commit_id: String::new(),
+            readme: String::new(),
+        });
     }
 
     pub fn set_owner(&self, owner_id: AccountId) {
