@@ -52,9 +52,9 @@ impl SputnikDAOFactory {
 
         self.store_contract_metadata(DaoContractMetadata {
             code_hash: slice_to_hash(&sha256_hash),
-            version: String::new(),
-            commit_id: String::new(),
-            readme: String::new(),
+            version: String::from("V3"),
+            commit_id: String::from("unavailable"),
+            readme: String::from("unavailable"),
         });
     }
 
