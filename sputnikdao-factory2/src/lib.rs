@@ -14,7 +14,10 @@ const LATEST_CODE_HASH_KEY: &[u8; 4] = b"CODE";
 const FACTORY_OWNER_KEY: &[u8; 5] = b"OWNER";
 const CODE_METADATA_KEY: &[u8; 8] = b"METADATA";
 
+// The values used for writing data to storage via `env::storage_write`.
 const DAO_CONTRACT_CODE: &[u8] = include_bytes!("../../sputnikdao2/res/sputnikdao2.wasm");
+const DAO_CONTRACT_VERSION: &str = "V3";
+const DAO_CONTRACT_NO_DATA: &str = "unavailable";
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
@@ -37,6 +40,7 @@ pub struct SputnikDAOFactory {
 impl SputnikDAOFactory {
     #[init]
     pub fn new() -> Self {
+        assert!(!env::state_exists(), "The contract is already initialized");
         let this = Self {
             factory_manager: FactoryManager {},
             daos: UnorderedSet::new(b"d".to_vec()),
@@ -46,15 +50,16 @@ impl SputnikDAOFactory {
     }
 
     fn internal_store_initial_contract(&self) {
+        self.assert_owner();
         let code = DAO_CONTRACT_CODE.to_vec();
         let sha256_hash = env::sha256(&code);
         env::storage_write(&sha256_hash, &code);
 
         self.store_contract_metadata(DaoContractMetadata {
             code_hash: slice_to_hash(&sha256_hash),
-            version: String::from("V3"),
-            commit_id: String::from("unavailable"),
-            readme: String::from("unavailable"),
+            version: String::from(DAO_CONTRACT_VERSION),
+            commit_id: String::from(DAO_CONTRACT_NO_DATA),
+            readme: String::from(DAO_CONTRACT_NO_DATA),
         });
     }
 
