@@ -51,6 +51,11 @@ Since this is the first time that the factory and the DAO are being upgraded and
 
 ## V3 Release Plan
 
+Everything that's described next should be tried in the following order:
+- 1. testnet, using a personal account 
+- 2. testnet, using the official factory account
+- 3. mainnet, using the official factory account
+
 1. Download the current `wasm` code used for creating new DAOs.
 
 ```bash
