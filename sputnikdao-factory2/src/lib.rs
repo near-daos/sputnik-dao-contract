@@ -10,7 +10,7 @@ use near_sdk::{env, near_bindgen, AccountId, CryptoHash, PanicOnDefault, Promise
 use factory_manager::FactoryManager;
 
 // The keys used for writing data to storage via `env::storage_write`.
-const LATEST_CODE_HASH_KEY: &[u8; 4] = b"CODE";
+const DEFAULT_CODE_HASH_KEY: &[u8; 4] = b"CODE";
 const FACTORY_OWNER_KEY: &[u8; 5] = b"OWNER";
 const CODE_METADATA_KEY: &[u8; 8] = b"METADATA";
 
@@ -55,17 +55,26 @@ impl SputnikDAOFactory {
         let sha256_hash = env::sha256(&code);
         env::storage_write(&sha256_hash, &code);
 
-        self.store_contract_metadata(DaoContractMetadata {
-            code_hash: slice_to_hash(&sha256_hash),
-            version: String::from(DAO_CONTRACT_VERSION),
-            commit_id: String::from(DAO_CONTRACT_NO_DATA),
-            readme: String::from(DAO_CONTRACT_NO_DATA),
-        });
+        self.store_contract_metadata(
+            DaoContractMetadata {
+                code_hash: slice_to_hash(&sha256_hash),
+                version: String::from(DAO_CONTRACT_VERSION),
+                commit_id: String::from(DAO_CONTRACT_NO_DATA),
+                readme: String::from(DAO_CONTRACT_NO_DATA),
+            },
+            true,
+        );
     }
 
     pub fn set_owner(&self, owner_id: AccountId) {
         self.assert_owner();
         env::storage_write(FACTORY_OWNER_KEY, owner_id.as_bytes());
+    }
+
+    pub fn set_default_code_hash(&self, code_hash: Base58CryptoHash) {
+        self.assert_owner();
+        let code_hash: CryptoHash = code_hash.into();
+        env::storage_write(DEFAULT_CODE_HASH_KEY, &code_hash);
     }
 
     pub fn delete_contract(&self, code_hash: Base58CryptoHash) {
@@ -85,7 +94,7 @@ impl SputnikDAOFactory {
         }))
         .expect("Failed to serialize");
         self.factory_manager.create_contract(
-            self.get_latest_code_hash(),
+            self.get_default_code_hash(),
             account_id,
             "new",
             &args.0,
@@ -118,7 +127,7 @@ impl SputnikDAOFactory {
             "Must be contract created by factory"
         );
         self.factory_manager
-            .update_contract(account_id, self.get_latest_code_hash(), "update");
+            .update_contract(account_id, self.get_default_code_hash(), "update");
     }
 
     pub fn get_dao_list(&self) -> Vec<AccountId> {
@@ -148,8 +157,8 @@ impl SputnikDAOFactory {
         )
     }
 
-    pub fn get_latest_code_hash(&self) -> Base58CryptoHash {
-        slice_to_hash(&env::storage_read(LATEST_CODE_HASH_KEY).expect("Must have code hash"))
+    pub fn get_default_code_hash(&self) -> Base58CryptoHash {
+        slice_to_hash(&env::storage_read(DEFAULT_CODE_HASH_KEY).expect("Must have code hash"))
     }
 
     /// Returns non serialized code by given code hash.
@@ -157,7 +166,7 @@ impl SputnikDAOFactory {
         self.factory_manager.get_code(code_hash);
     }
 
-    pub fn store_contract_metadata(&self, metadata: DaoContractMetadata) {
+    pub fn store_contract_metadata(&self, metadata: DaoContractMetadata, set_default: bool) {
         self.assert_owner();
         let code_hash: CryptoHash = metadata.code_hash.into();
         let storage_metadata = env::storage_read(CODE_METADATA_KEY);
@@ -177,7 +186,9 @@ impl SputnikDAOFactory {
             env::storage_write(CODE_METADATA_KEY, &serialized_metadata);
         }
 
-        env::storage_write(LATEST_CODE_HASH_KEY, &code_hash);
+        if set_default {
+            env::storage_write(DEFAULT_CODE_HASH_KEY, &code_hash);
+        }
     }
 
     pub fn get_contract_metadata(&self) -> Vec<DaoContractMetadata> {
