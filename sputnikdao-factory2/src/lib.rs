@@ -16,8 +16,8 @@ const CODE_METADATA_KEY: &[u8; 8] = b"METADATA";
 
 // The values used for writing data to storage via `env::storage_write`.
 const DAO_CONTRACT_CODE: &[u8] = include_bytes!("../../sputnikdao2/res/sputnikdao2.wasm");
-const DAO_CONTRACT_VERSION: &str = "V3";
-const DAO_CONTRACT_NO_DATA: &str = "unavailable";
+const DAO_CONTRACT_VERSION: &str = "v3";
+const DAO_CONTRACT_NO_DATA: &str = "no data";
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
