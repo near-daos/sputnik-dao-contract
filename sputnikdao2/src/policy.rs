@@ -124,7 +124,7 @@ pub struct VotePolicy {
     /// Minimum number required for vote to finalize.
     /// If weight kind is TokenWeight - this is minimum number of tokens required.
     ///     This allows to avoid situation where the number of staked tokens from total supply is too small.
-    /// If RoleWeight - this is minimum umber of votes.
+    /// If RoleWeight - this is minimum number of votes.
     ///     This allows to avoid situation where the role is got too small but policy kept at 1/2, for example.
     pub quorum: U128,
     /// How many votes to pass this vote.
