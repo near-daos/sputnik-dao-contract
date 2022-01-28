@@ -56,48 +56,65 @@ Everything that's described next should be tried in the following order:
 - 2. testnet, using the official factory account
 - 3. mainnet, using the official factory account
 
-1. Download the current `wasm` code used for creating new DAOs.
+### Localnet
+
+1. Create a new NEAR account for the factory:
 
 ```bash
-near view sputnikv2.testnet get_dao_list
+near create-account sputnik-factory.ctindogaru.testnet --masterAccount ctindogaru.testnet --initialBalance 50
+```
+
+2. Download the current `wasm` code used for creating new DAOs:
+
+```bash
+near view sputnik-factory.ctindogaru.testnet get_dao_list
 ```
 Now pick any dao from the returned list and use it to download the wasm code:
 ```bash
 http --json post https://rpc.testnet.near.org jsonrpc=2.0 id=dontcare method=query \
 params:='{"request_type":"view_code","finality":"final","account_id":"thegame.sputnikv2.testnet"}' \
 | jq -r .result.code_base64 \
-| base64 --decode > thegame.sputnikv2.testnet.wasm
+| base64 --decode > dao-code-v2.wasm
 ```
 
-2. Upgrade the testnet factory:
+3. Upgrade the testnet factory:
 ```bash
 ./build.sh
-near deploy sputnikv2.testnet sputnikdao-factory2/res/sputnikdao_factory2.wasm
 ```
-
-3. Use the code downloaded at step 1 to store it inside the factory and use it as a default version for the DAOs
 ```bash
-BYTES=$(cat thegame.sputnikv2.testnet.wasm | base64)
-near call sputnikv2.testnet store $BYTES --base64 --accountId sputnikv2.testnet --gas 100000000000000 --amount 10
+near deploy sputnik-factory.ctindogaru.testnet sputnikdao-factory2/res/sputnikdao_factory2.wasm
 ```
 
-4. Use the code hash returned from the previous step to store the metadata associated with the code
+4. Init the factory:
 ```bash
-near call sputnikv2.testnet store_contract_metadata '{"metadata": {"code_hash": "TBD", "version": "V2", "commit_id": "c2cf1553b070d04eed8f659571440b27d398c588", "readme": "unavailable"}, "set_default": "true"}' --accountId sputnikv2.testnet
+near call sputnik-factory.ctindogaru.testnet new '{}' --accountId sputnik-factory.ctindogaru.testnet --gas 100000000000000
 ```
 
-5. Try to create a new DAO from the new factory - using NEAR CLI
+5. Use the code downloaded at step 2 to store it inside the factory and use it as a default version for the DAOs:
+```bash
+BYTES='cat dao-code-v2.wasm | base64'
+```
+```bash
+near call sputnik-factory.ctindogaru.testnet store $(eval "$BYTES") --base64 --accountId sputnik-factory.ctindogaru.testnet --gas 100000000000000 --amount 10
+```
+
+6. Use the code hash returned from the previous step to store the metadata associated with the code:
+```bash
+near call sputnik-factory.ctindogaru.testnet store_contract_metadata '{"metadata": {"code_hash": "ZGdM2TFdQpcXrxPxvq25514EViyi9xBSboetDiB3Uiq", "version": "V2", "commit_id": "c2cf1553b070d04eed8f659571440b27d398c588"}, "set_default": true}' --accountId sputnik-factory.ctindogaru.testnet
+```
+
+7. Try to create a new DAO from the new factory - using NEAR CLI:
 ```bash
 export COUNCIL='["council-member.testnet", "ctindogaru.testnet"]'
 export ARGS=`echo '{"config": {"name": "ctindogaru-dao", "purpose": "ctindogaru DAO", "metadata":""}, "policy": '$COUNCIL'}' | base64`
-near call sputnikv2.testnet create "{\"name\": \"ctindogaru-dao\", \"args\": \"$ARGS\"}" --accountId sputnikv2.testnet --amount 10 --gas 150000000000000
+near call sputnik-factory.ctindogaru.testnet create "{\"name\": \"ctindogaru-dao\", \"args\": \"$ARGS\"}" --accountId sputnik-factory.ctindogaru.testnet --gas 150000000000000 --amount 10
 ```
 
-6. Try to create a new DAO from the new factory - using Astro DAO
+8. Try to create a new DAO from the new factory - using Astro DAO:
 
 Go to https://testnet.app.astrodao.com/all/daos and try to create a new DAO from the UI. It should use the new version of the factory code.
 
-7. The main goal is for everything to work just as before and for users to not notice any difference, since they are still creating V2 DAOs. The only difference is that the factory is now upgraded and it can handle multiple DAO versions simultaneously. Let the new version of the factory rest on testnet for 1-2 weeks and make sure it didn't cause any issues.
+9. The main goal is for everything to work just as before and for users to not notice any difference, since they are still creating V2 DAOs. The only difference is that the factory is now upgraded and it can handle multiple DAO versions simultaneously. Let the new version of the factory rest on testnet for 1-2 weeks and make sure it didn't cause any issues.
 
 TBD:
 - steps for storing the V3 code for the DAOs and use it to create new DAOs
