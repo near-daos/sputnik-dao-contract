@@ -79,6 +79,7 @@ impl SputnikDAOFactory {
     pub fn delete_contract(&self, code_hash: Base58CryptoHash) {
         self.assert_owner();
         self.factory_manager.delete_contract(code_hash);
+        self.delete_contract_metadata(code_hash);
     }
 
     #[payable]
@@ -187,6 +188,25 @@ impl SputnikDAOFactory {
 
         if set_default {
             env::storage_write(DEFAULT_CODE_HASH_KEY, &code_hash);
+        }
+    }
+
+    pub fn delete_contract_metadata(&self, code_hash: Base58CryptoHash) {
+        self.assert_owner();
+        let storage_metadata = env::storage_read(CODE_METADATA_KEY);
+
+        if storage_metadata.is_some() {
+            let storage_metadata = storage_metadata.expect("INTERNAL_FAIL");
+            let mut deserialized_metadata: Vec<DaoContractMetadata> =
+                BorshDeserialize::try_from_slice(&storage_metadata).expect("INTERNAL_FAIL");
+            let idx = deserialized_metadata
+                .iter()
+                .position(|data| data.code_hash == code_hash)
+                .unwrap();
+            deserialized_metadata.remove(idx);
+            let serialized_metadata =
+                BorshSerialize::try_to_vec(&deserialized_metadata).expect("INTERNAL_FAIL");
+            env::storage_write(CODE_METADATA_KEY, &serialized_metadata);
         }
     }
 
