@@ -26,7 +26,7 @@ pub struct DaoContractMetadata {
     pub code_hash: Base58CryptoHash,
     pub version: String,
     pub commit_id: String,
-    pub readme: String,
+    pub changelog_url: Option<String>,
 }
 
 #[near_bindgen]
@@ -40,7 +40,6 @@ pub struct SputnikDAOFactory {
 impl SputnikDAOFactory {
     #[init]
     pub fn new() -> Self {
-        assert!(!env::state_exists(), "The contract is already initialized");
         let this = Self {
             factory_manager: FactoryManager {},
             daos: UnorderedSet::new(b"d".to_vec()),
@@ -60,7 +59,7 @@ impl SputnikDAOFactory {
                 code_hash: slice_to_hash(&sha256_hash),
                 version: String::from(DAO_CONTRACT_VERSION),
                 commit_id: String::from(DAO_CONTRACT_NO_DATA),
-                readme: String::from(DAO_CONTRACT_NO_DATA),
+                changelog_url: None,
             },
             true,
         );
@@ -191,7 +190,7 @@ impl SputnikDAOFactory {
         }
     }
 
-    pub fn get_contract_metadata(&self) -> Vec<DaoContractMetadata> {
+    pub fn get_contracts_metadata(&self) -> Vec<DaoContractMetadata> {
         let storage_metadata = env::storage_read(CODE_METADATA_KEY).expect("INTERNAL_FAIL");
         let deserialized_metadata: Vec<DaoContractMetadata> =
             BorshDeserialize::try_from_slice(&storage_metadata).expect("INTERNAL_FAIL");
