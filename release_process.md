@@ -67,7 +67,7 @@ near create-account sputnik-factory.ctindogaru.testnet --masterAccount ctindogar
 **2. Download the current `wasm` code used for creating new DAOs:**
 
 ```bash
-near view sputnik-factory.ctindogaru.testnet get_dao_list
+near view sputnikv2.testnet get_dao_list
 ```
 Now pick any dao from the returned list and use it to download the wasm code:
 ```bash
@@ -90,7 +90,7 @@ near deploy sputnik-factory.ctindogaru.testnet sputnikdao-factory2/res/sputnikda
 near call sputnik-factory.ctindogaru.testnet new '{}' --accountId sputnik-factory.ctindogaru.testnet --gas 100000000000000
 ```
 
-**5. Use the code downloaded at step 2 to store it inside the factory and use it as a default version for the DAOs:**
+**5. Use the code downloaded at step 2 to store it inside the factory and use it as a default version for creating DAOs:**
 ```bash
 BYTES='cat dao-code-v2.wasm | base64'
 ```
@@ -103,18 +103,32 @@ near call sputnik-factory.ctindogaru.testnet store $(eval "$BYTES") --base64 --a
 near call sputnik-factory.ctindogaru.testnet store_contract_metadata '{"metadata": {"code_hash": "ZGdM2TFdQpcXrxPxvq25514EViyi9xBSboetDiB3Uiq", "version": "V2", "commit_id": "c2cf1553b070d04eed8f659571440b27d398c588"}, "set_default": true}' --accountId sputnik-factory.ctindogaru.testnet
 ```
 
-**7. Try to create a new DAO from the new factory - using NEAR CLI:**
+**7. Get all the contract versions stored inside the factory:**
+```bash
+near view sputnik-factory.ctindogaru.testnet get_contracts_metadata
+```
+
+**8. Try to create a new DAO from the factory - using NEAR CLI:**
 ```bash
 export COUNCIL='["council-member.testnet", "ctindogaru.testnet"]'
+```
+```bash
 export ARGS=`echo '{"config": {"name": "ctindogaru-dao", "purpose": "ctindogaru DAO", "metadata":""}, "policy": '$COUNCIL'}' | base64`
+```
+```bash
 near call sputnik-factory.ctindogaru.testnet create "{\"name\": \"ctindogaru-dao\", \"args\": \"$ARGS\"}" --accountId sputnik-factory.ctindogaru.testnet --gas 150000000000000 --amount 10
 ```
 
-**8. Try to create a new DAO from the new factory - using Astro DAO:**
+**9. Get all the DAOs created by the factory:**
+```bash
+near view sputnik-factory.ctindogaru.testnet get_dao_list
+```
+
+**Try to create a new DAO from the new factory - using Astro DAO:**
 
 Go to https://testnet.app.astrodao.com/all/daos and try to create a new DAO from the UI. It should use the new version of the factory code.
 
-**9. The main goal is for everything to work just as before and for users to not notice any difference, since they are still creating V2 DAOs. The only difference is that the factory is now upgraded and it can handle multiple DAO versions simultaneously. Let the new version of the factory rest on testnet for 1-2 weeks and make sure it didn't cause any issues.**
+**The main goal is for everything to work just as before and for users to not notice any difference, since they are still creating V2 DAOs. The only difference is that the factory is now upgraded and it can handle multiple DAO versions simultaneously. Let the new version of the factory rest on testnet for 1-2 weeks and make sure it didn't cause any issues.**
 
 TBD:
 - steps for storing the V3 code for the DAOs and use it to create new DAOs
