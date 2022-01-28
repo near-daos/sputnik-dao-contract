@@ -23,9 +23,14 @@ const DAO_CONTRACT_NO_DATA: &str = "unavailable";
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct DaoContractMetadata {
+    // sha256 hash of the wasm contract code
     pub code_hash: Base58CryptoHash,
+    // version of the DAO contract code (e.g. "V1", "V2", "V3")
     pub version: String,
+    // commit id of https://github.com/near-daos/sputnik-dao-contract
+    // representing a snapshot of the code that generated the wasm
     pub commit_id: String,
+    // if available, url to the changelog to see the changes introduced in this version
     pub changelog_url: Option<String>,
 }
 
