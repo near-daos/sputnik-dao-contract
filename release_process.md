@@ -60,9 +60,11 @@ Everything that's described next should be tried in the following order:
 
 ```bash
 near view sputnikv2.testnet get_dao_list
-# pick any dao from the returned list and use it to download the wasm code
+```
+Now pick any dao from the returned list and use it to download the wasm code:
+```bash
 http --json post https://rpc.testnet.near.org jsonrpc=2.0 id=dontcare method=query \
-params:='{"request_type":"view_code","finality":"final","account_id":"thegame.sputnikv2.testnet"}' \  
+params:='{"request_type":"view_code","finality":"final","account_id":"thegame.sputnikv2.testnet"}' \
 | jq -r .result.code_base64 \
 | base64 --decode > thegame.sputnikv2.testnet.wasm
 ```
