@@ -93,9 +93,14 @@ impl SputnikDAOFactory {
 
     #[payable]
     pub fn create(&mut self, name: AccountId, args: Base64VecU8) {
-        let account_id: AccountId = format!("{}.{}", name, env::current_account_id())
-            .parse()
-            .unwrap();
+        let account_id: AccountId = format!(
+            "{}-{}.{}",
+            name,
+            self.get_default_version(),
+            env::current_account_id()
+        )
+        .parse()
+        .unwrap();
         let callback_args = serde_json::to_vec(&json!({
             "account_id": account_id,
             "attached_deposit": U128(env::attached_deposit()),
@@ -168,6 +173,11 @@ impl SputnikDAOFactory {
 
     pub fn get_default_code_hash(&self) -> Base58CryptoHash {
         slice_to_hash(&env::storage_read(DEFAULT_CODE_HASH_KEY).expect("Must have code hash"))
+    }
+
+    pub fn get_default_version(&self) -> String {
+        String::from_utf8(env::storage_read(DEFAULT_VERSION_KEY).expect("Must have version"))
+            .unwrap()
     }
 
     /// Returns non serialized code by given code hash.
