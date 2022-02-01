@@ -39,7 +39,11 @@ pub enum StorageKeys {
 #[ext_contract(ext_self)]
 pub trait ExtSelf {
     /// Callback after proposal execution.
-    fn on_proposal_callback(&mut self, proposal_id: u64) -> PromiseOrValue<()>;
+    fn on_proposal_callback(
+        &mut self,
+        proposal_id: u64,
+        num_callbacks: Option<u64>
+    ) -> PromiseOrValue<()>;
 }
 
 #[near_bindgen]

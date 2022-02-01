@@ -288,6 +288,7 @@ ProposalKind::FactoryInfoUpdate { .. },
 - **UpgradeSelf** - used to upgrade the DAO contract itself.
 - **UpgradeRemote** - used to upgrade other contracts. For DAOs that are governing other protocols, this type of proposal will allow to upgrade another contract with its newer version.
 - **Transfer** - used to move assets from this DAO to another account on the network. Supports both `NEAR` and any `NEP-141` token that this DAO has.
+- **TransferBatch** - runs the same Transfer logic, but for the given list of receivers.
 - **SetStakingContract** - used to set the staking contract of the DAO to help users delegate their tokens.
 - **AddBounty** - used to add a bounty to encourage members of the DAO community to contribute their time and attention to the needs of the DAO
 - **BountyDone** - used to mark the completion of an available bounty
