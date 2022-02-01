@@ -11,12 +11,12 @@ use factory_manager::FactoryManager;
 
 // The keys used for writing data to storage via `env::storage_write`.
 const DEFAULT_CODE_HASH_KEY: &[u8; 4] = b"CODE";
+const DEFAULT_VERSION_KEY: &[u8; 7] = b"VERSION";
 const FACTORY_OWNER_KEY: &[u8; 5] = b"OWNER";
 const CODE_METADATA_KEY: &[u8; 8] = b"METADATA";
 
-// The values used for writing data to storage via `env::storage_write`.
-const DAO_CONTRACT_CODE: &[u8] = include_bytes!("../../sputnikdao2/res/sputnikdao2.wasm");
-const DAO_CONTRACT_VERSION: &str = "v3";
+// The values used when writing initial data to the storage.
+const DAO_CONTRACT_INITIAL_CODE: &[u8] = include_bytes!("../../sputnikdao2/res/sputnikdao2.wasm");
 const DAO_CONTRACT_NO_DATA: &str = "no data";
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -25,7 +25,7 @@ const DAO_CONTRACT_NO_DATA: &str = "no data";
 pub struct DaoContractMetadata {
     // sha256 hash of the wasm contract code
     pub code_hash: Base58CryptoHash,
-    // version of the DAO contract code (e.g. "V1", "V2", "V3")
+    // version of the DAO contract code (e.g. "v1", "v2", "v3")
     pub version: String,
     // commit id of https://github.com/near-daos/sputnik-dao-contract
     // representing a snapshot of the code that generated the wasm
@@ -55,14 +55,14 @@ impl SputnikDAOFactory {
 
     fn internal_store_initial_contract(&self) {
         self.assert_owner();
-        let code = DAO_CONTRACT_CODE.to_vec();
+        let code = DAO_CONTRACT_INITIAL_CODE.to_vec();
         let sha256_hash = env::sha256(&code);
         env::storage_write(&sha256_hash, &code);
 
         self.store_contract_metadata(
             DaoContractMetadata {
                 code_hash: slice_to_hash(&sha256_hash),
-                version: String::from(DAO_CONTRACT_VERSION),
+                version: String::from(DAO_CONTRACT_NO_DATA),
                 commit_id: String::from(DAO_CONTRACT_NO_DATA),
                 changelog_url: None,
             },
@@ -78,6 +78,10 @@ impl SputnikDAOFactory {
     pub fn set_default_code_hash(&self, code_hash: Base58CryptoHash) {
         self.assert_owner();
         let code_hash: CryptoHash = code_hash.into();
+        assert!(
+            env::storage_has_key(&code_hash),
+            "Code not found for the given code hash. Please store the code first."
+        );
         env::storage_write(DEFAULT_CODE_HASH_KEY, &code_hash);
     }
 
@@ -124,7 +128,7 @@ impl SputnikDAOFactory {
         }
     }
 
-    /// Tries to upgrade given account created by this factory to the latest code.
+    /// Tries to upgrade given account created by this factory to the default code.
     pub fn upgrade(&self, account_id: AccountId) {
         self.assert_owner();
         assert!(
@@ -174,8 +178,13 @@ impl SputnikDAOFactory {
     pub fn store_contract_metadata(&self, metadata: DaoContractMetadata, set_default: bool) {
         self.assert_owner();
         let code_hash: CryptoHash = metadata.code_hash.into();
-        let storage_metadata = env::storage_read(CODE_METADATA_KEY);
+        let version = metadata.version.clone();
+        assert!(
+            env::storage_has_key(&code_hash),
+            "Code not found for the given code hash. Please store the code first."
+        );
 
+        let storage_metadata = env::storage_read(CODE_METADATA_KEY);
         if storage_metadata.is_none() {
             let storage_metadata = vec![metadata];
             let serialized_metadata =
@@ -193,6 +202,7 @@ impl SputnikDAOFactory {
 
         if set_default {
             env::storage_write(DEFAULT_CODE_HASH_KEY, &code_hash);
+            env::storage_write(DEFAULT_VERSION_KEY, version.as_bytes());
         }
     }
 
@@ -207,7 +217,7 @@ impl SputnikDAOFactory {
             let idx = deserialized_metadata
                 .iter()
                 .position(|data| data.code_hash == code_hash)
-                .unwrap();
+                .expect("NOTHING_TO_DELETE");
             deserialized_metadata.remove(idx);
             let serialized_metadata =
                 BorshSerialize::try_to_vec(&deserialized_metadata).expect("INTERNAL_FAIL");
