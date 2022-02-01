@@ -91,14 +91,9 @@ impl SputnikDAOFactory {
 
     #[payable]
     pub fn create(&mut self, name: AccountId, args: Base64VecU8) {
-        let account_id: AccountId = format!(
-            "{}-{}.{}",
-            name,
-            self.get_default_version(),
-            env::current_account_id()
-        )
-        .parse()
-        .unwrap();
+        let account_id: AccountId = format!("{}.{}", name, env::current_account_id())
+            .parse()
+            .unwrap();
         let callback_args = serde_json::to_vec(&json!({
             "account_id": account_id,
             "attached_deposit": U128(env::attached_deposit()),
@@ -301,27 +296,17 @@ mod tests {
             vec![PromiseResult::Successful(vec![])],
         );
         factory.on_create(
-            format!("test-{}.{}", DAO_CONTRACT_INITIAL_VERSION, accounts(0))
-                .parse()
-                .unwrap(),
+            format!("test.{}", accounts(0)).parse().unwrap(),
             U128(10),
             accounts(0),
         );
         assert_eq!(
             factory.get_dao_list(),
-            vec![
-                format!("test-{}.{}", DAO_CONTRACT_INITIAL_VERSION, accounts(0))
-                    .parse()
-                    .unwrap()
-            ]
+            vec![format!("test.{}", accounts(0)).parse().unwrap()]
         );
         assert_eq!(
             factory.get_daos(0, 100),
-            vec![
-                format!("test-{}.{}", DAO_CONTRACT_INITIAL_VERSION, accounts(0))
-                    .parse()
-                    .unwrap()
-            ]
+            vec![format!("test.{}", accounts(0)).parse().unwrap()]
         );
     }
 }
