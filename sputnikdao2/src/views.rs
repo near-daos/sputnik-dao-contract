@@ -1,9 +1,11 @@
+use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+
 use std::cmp::min;
 
 use crate::*;
 
 /// This is format of output via JSON for the proposal.
-#[derive(Serialize, Deserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct ProposalOutput {
     /// Id of the proposal.
@@ -13,7 +15,7 @@ pub struct ProposalOutput {
 }
 
 /// This is format of output via JSON for the bounty.
-#[derive(Serialize, Deserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[serde(crate = "near_sdk::serde")]
 pub struct BountyOutput {
     /// Id of the bounty.
