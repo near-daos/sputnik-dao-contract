@@ -113,6 +113,7 @@ pub enum ProposalKind {
         #[serde(with = "serde_with::rust::string_empty_as_none")]
         token_id: Option<AccountId>,
         receivers: Vec<TransferAmount>,
+        msg: Option<String>,
     },
     /// Sets staking contract. Can only be proposed if staking contract is not set yet.
     SetStakingContract { staking_id: AccountId },
@@ -409,6 +410,7 @@ impl Contract {
             ProposalKind::TransferBatch {
                 token_id,
                 receivers,
+                msg,
             } => {
                 let mut promise: Option<Promise> = None;
 
@@ -420,7 +422,7 @@ impl Contract {
                         &receiver.account_id,
                         receiver.amount.0,
                         proposal.description.clone(),
-                        None,
+                        msg.clone(),
                     );
 
                     match payout_promise {
