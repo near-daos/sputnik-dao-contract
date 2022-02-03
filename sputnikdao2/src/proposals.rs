@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::convert::TryInto;
+use std::usize;
 
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
@@ -10,6 +11,9 @@ use crate::policy::UserInfo;
 use crate::types::{Action, Config, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR};
 use crate::upgrade::{upgrade_remote, upgrade_self};
 use crate::*;
+
+/// Max number of receivers for Proposal of kind TransferBatch, otherwise the 'Exceeded the prepaid gas' error occurs.
+pub const TRANSFER_BATCH_MAX_RECEIVERS_COUNT: u8 = 15;
 
 /// Status of a proposal.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -553,6 +557,23 @@ impl Contract {
                     !(token_id.is_none()) || msg.is_none(),
                     "ERR_BASE_TOKEN_NO_MSG"
                 );
+            }
+            ProposalKind::TransferBatch {
+                token_id,
+                receivers,
+                msg
+            } => {
+                assert!(
+                    !(token_id.is_none()) || msg.is_none(),
+                    "ERR_BASE_TOKEN_NO_MSG"
+                );
+
+                assert!(
+                    receivers.len() <= usize::from(TRANSFER_BATCH_MAX_RECEIVERS_COUNT),
+                    "ERR_TRANSFER_BATCH_MAX_{}_RECEIVERS_COUNT_EXCEEDED:{}",
+                    TRANSFER_BATCH_MAX_RECEIVERS_COUNT,
+                    receivers.len()
+                )
             }
             ProposalKind::SetStakingContract { .. } => assert!(
                 self.staking_id.is_none(),
