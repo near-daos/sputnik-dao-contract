@@ -58,6 +58,7 @@ fn test_multi_council() {
             kind: ProposalKind::ChangePolicy {
                 policy: VersionedPolicy::Current(new_policy.clone()),
             },
+            deadline: None
         },
     )
     .assert_success();
@@ -152,7 +153,7 @@ fn test_bounty_workflow() {
 
     call!(
         user2,
-        dao.bounty_done(bounty_id, None, "Bounty is done".to_string()),
+        dao.bounty_done(bounty_id, None, "Bounty is done".to_string(), None),
         deposit = to_yocto("1")
     )
     .assert_success();
@@ -236,6 +237,7 @@ fn test_create_dao_and_use_token() {
             kind: ProposalKind::SetStakingContract {
                 staking_id: "staking".parse().unwrap(),
             },
+            deadline: None,
         },
     )
     .assert_success();

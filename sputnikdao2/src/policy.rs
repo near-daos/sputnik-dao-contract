@@ -6,7 +6,7 @@ use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, AccountId, Balance};
 
-use crate::proposals::{PolicyParameters, Proposal, ProposalKind, ProposalStatus, Vote};
+use crate::proposals::{is_deadline_passed, get_biggest_votes_status, PolicyParameters, Proposal, ProposalKind, ProposalStatus, Vote};
 use crate::types::Action;
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
@@ -398,6 +398,9 @@ impl Policy {
             // Proposal expired.
             return ProposalStatus::Expired;
         };
+
+        let is_deadline_passed = is_deadline_passed(proposal.deadline);
+
         for role in roles {
             let role_info = self.internal_get_role(&role).expect("ERR_MISSING_ROLE");
             let vote_policy = role_info
@@ -416,12 +419,20 @@ impl Policy {
                 }
                 RoleKind::Member(_) => total_supply,
             };
-            let threshold = std::cmp::max(
-                vote_policy.quorum.0,
-                vote_policy.threshold.to_weight(total_weight),
-            );
+
             // Check if there is anything voted above the threshold specified by policy for given role.
             let vote_counts = proposal.vote_counts.get(&role).unwrap_or(&[0u128; 3]);
+
+            let threshold = if !is_deadline_passed {
+                std::cmp::max(
+                    vote_policy.quorum.0,
+                    vote_policy.threshold.to_weight(total_weight),
+                )
+            }
+            else {
+                return get_biggest_votes_status(&vote_counts);
+            };
+
             if vote_counts[Vote::Approve as usize] >= threshold {
                 return ProposalStatus::Approved;
             } else if vote_counts[Vote::Reject as usize] >= threshold {

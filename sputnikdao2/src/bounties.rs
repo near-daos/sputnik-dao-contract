@@ -1,7 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, near_bindgen, AccountId, Promise, PromiseOrValue};
+use near_sdk::{env, near_bindgen, AccountId, Promise, PromiseOrValue, Timestamp};
 
 use crate::*;
 
@@ -158,7 +158,7 @@ impl Contract {
     /// Only creator of the claim can call `done` on bounty that is still in progress.
     /// On expired, anyone can call it to free up the claim slot.
     #[payable]
-    pub fn bounty_done(&mut self, id: u64, account_id: Option<AccountId>, description: String) {
+    pub fn bounty_done(&mut self, id: u64, account_id: Option<AccountId>, description: String, deadline: Option<Timestamp>) {
         let sender_id = account_id.unwrap_or_else(|| env::predecessor_account_id());
         let (mut claims, claim_idx) = self.internal_get_claims(id, &sender_id);
         assert!(!claims[claim_idx].completed, "ERR_BOUNTY_CLAIM_COMPLETED");
@@ -172,12 +172,17 @@ impl Contract {
                 env::predecessor_account_id(),
                 "ERR_BOUNTY_DONE_MUST_BE_SELF"
             );
+            let kind = ProposalKind::BountyDone {
+                bounty_id: id,
+                receiver_id: sender_id.clone(),
+            };
+
+            proposals::assert_proposal_deadline(deadline, &kind);
+
             self.add_proposal(ProposalInput {
                 description,
-                kind: ProposalKind::BountyDone {
-                    bounty_id: id,
-                    receiver_id: sender_id.clone(),
-                },
+                kind,
+                deadline
             });
             claims[claim_idx].completed = true;
             self.bounty_claimers.insert(&sender_id, &claims);
@@ -229,6 +234,7 @@ mod tests {
                     max_deadline: U64::from(1_000),
                 },
             },
+            deadline: None
         });
         assert_eq!(contract.get_last_bounty_id(), id);
         contract.act_proposal(id, Action::VoteApprove, None);
@@ -261,7 +267,7 @@ mod tests {
         assert_eq!(contract.get_bounty_claims(accounts(1)).len(), 1);
         assert_eq!(contract.get_bounty_number_of_claims(0), 1);
 
-        contract.bounty_done(0, None, "Bounty is done".to_string());
+        contract.bounty_done(0, None, "Bounty is done".to_string(), None);
         assert!(contract.get_bounty_claims(accounts(1))[0].completed);
 
         assert_eq!(contract.get_last_proposal_id(), 2);
@@ -284,7 +290,7 @@ mod tests {
         assert_eq!(contract.get_bounty(0).bounty.times, 1);
 
         contract.bounty_claim(0, U64::from(500));
-        contract.bounty_done(0, None, "Bounty is done 2".to_string());
+        contract.bounty_done(0, None, "Bounty is done 2".to_string(), None);
         contract.act_proposal(2, Action::VoteApprove, None);
         testing_env!(
             context.build(),
@@ -309,7 +315,7 @@ mod tests {
         );
         let id = add_bounty(&mut context, &mut contract, 1);
         contract.bounty_claim(id, U64::from(500));
-        contract.bounty_done(id, None, "Bounty is done 2".to_string());
+        contract.bounty_done(id, None, "Bounty is done 2".to_string(), None);
         contract.bounty_claim(id, U64::from(500));
     }
 }

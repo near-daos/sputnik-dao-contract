@@ -30,7 +30,8 @@ fn test_upgrade() {
         root,
         dao.add_proposal(ProposalInput {
             description: "test".to_string(),
-            kind: ProposalKind::UpgradeSelf { hash }
+            kind: ProposalKind::UpgradeSelf { hash },
+            deadline: None
         }),
         deposit = to_yocto("1")
     )
@@ -87,6 +88,7 @@ fn test_upgrade_other() {
                 method_name: "upgrade".to_string(),
                 hash,
             },
+            deadline: None
         },
     )
     .assert_success();

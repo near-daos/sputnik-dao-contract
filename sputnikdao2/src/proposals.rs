@@ -3,12 +3,15 @@ use std::collections::HashMap;
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{Base64VecU8, U128, U64};
-use near_sdk::{log, AccountId, Balance, Gas, PromiseOrValue};
+use near_sdk::{log, AccountId, Balance, Gas, PromiseOrValue, Timestamp};
 
 use crate::policy::UserInfo;
 use crate::types::{Action, Config, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR};
 use crate::upgrade::{upgrade_remote, upgrade_self};
 use crate::*;
+
+/// Minimum 3 days to vote
+pub const MIN_VOTING_TIME: Timestamp = 3 * 24 * 60 * 60 * 1_000_000_000;
 
 /// Status of a proposal.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -179,6 +182,8 @@ pub struct Proposal {
     pub votes: HashMap<AccountId, Vote>,
     /// Submission time (for voting period).
     pub submission_time: U64,
+    /// Deadline to vote just by majority of votes
+    pub deadline: Option<Timestamp>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -230,6 +235,8 @@ pub struct ProposalInput {
     pub description: String,
     /// Kind of proposal with relevant information.
     pub kind: ProposalKind,
+    /// Voting deadline
+    pub deadline: Option<Timestamp>,
 }
 
 impl From<ProposalInput> for Proposal {
@@ -242,6 +249,7 @@ impl From<ProposalInput> for Proposal {
             vote_counts: HashMap::default(),
             votes: HashMap::default(),
             submission_time: U64::from(env::block_timestamp()),
+            deadline: input.deadline,
         }
     }
 }
@@ -482,6 +490,8 @@ impl Contract {
     /// Add proposal to this DAO.
     #[payable]
     pub fn add_proposal(&mut self, proposal: ProposalInput) -> u64 {
+        assert_proposal_deadline(proposal.deadline, &proposal.kind);
+
         // 0. validate bond attached.
         // TODO: consider bond in the token of this DAO.
         let policy = self.policy.get().unwrap().to_policy();
@@ -553,13 +563,17 @@ impl Contract {
                     matches!(proposal.status, ProposalStatus::InProgress),
                     "ERR_PROPOSAL_NOT_READY_FOR_VOTE"
                 );
-                proposal.update_votes(
-                    &sender_id,
-                    &roles,
-                    Vote::from(action),
-                    &policy,
-                    self.get_user_weight(&sender_id),
-                );
+
+                if !is_deadline_passed(proposal.deadline) {
+                    proposal.update_votes(
+                        &sender_id,
+                        &roles,
+                        Vote::from(action),
+                        &policy,
+                        self.get_user_weight(&sender_id),
+                    );
+                }
+
                 // Updates proposal status with new votes using the policy.
                 proposal.status =
                     policy.proposal_status(&proposal, roles, self.total_delegation_amount);
@@ -591,11 +605,16 @@ impl Contract {
                     policy.roles.iter().map(|r| r.name.clone()).collect(),
                     self.total_delegation_amount,
                 );
+
                 match proposal.status {
                     ProposalStatus::Approved => {
                         self.internal_execute_proposal(&policy, &proposal, id);
                     }
-                    ProposalStatus::Expired => {
+                    ProposalStatus::Removed => {
+                        self.internal_reject_proposal(&policy, &proposal, false);
+                        self.proposals.remove(&id);
+                    }
+                    ProposalStatus::Expired | ProposalStatus::Rejected => {
                         self.internal_reject_proposal(&policy, &proposal, true);
                     }
                     _ => {
@@ -639,5 +658,52 @@ impl Contract {
         self.proposals
             .insert(&proposal_id, &VersionedProposal::Default(proposal.into()));
         result
+    }
+}
+
+pub fn assert_proposal_deadline(proposal_deadline: Option<Timestamp>, kind: &ProposalKind) {
+    if let Some(deadline) = proposal_deadline {
+        assert!(
+            deadline >= env::block_timestamp() + MIN_VOTING_TIME,
+            "ERR_DEADLINE_SET_TOO_EARLY"
+        );
+
+        let label = kind.to_policy_label();
+        assert!(
+            (label == "transfer" || label == "add_bounty" || label == "bounty_done"),
+            "ERR_DEADLINE_FORBIDDEN_KIND"
+        );
+    }
+}
+
+pub fn is_deadline_passed(proposal_deadline: Option<Timestamp>) -> bool {
+    if let Some(deadline) = proposal_deadline {
+        env::block_timestamp() >= deadline
+    } else {
+        false
+    }
+}
+
+pub fn get_biggest_votes_status(vote_counts: &[Balance; 3]) -> ProposalStatus {
+    let approved = vote_counts[Vote::Approve as usize];
+    let rejected = vote_counts[Vote::Reject as usize];
+    let removed = vote_counts[Vote::Remove as usize];
+
+    if approved == 0 && rejected == 0 {
+        return ProposalStatus::Removed;
+    }
+
+    if approved >= rejected {
+        if approved >= removed {
+            ProposalStatus::Approved
+        } else {
+            ProposalStatus::Removed
+        }
+    } else {
+        if rejected >= removed {
+            ProposalStatus::Rejected
+        } else {
+            ProposalStatus::Removed
+        }
     }
 }

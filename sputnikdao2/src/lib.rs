@@ -186,14 +186,18 @@ pub extern "C" fn store_blob() {
 #[cfg(test)]
 mod tests {
     use near_sdk::test_utils::{accounts, VMContextBuilder};
-    use near_sdk::testing_env;
+    use near_sdk::{testing_env, Timestamp};
     use near_sdk_sim::to_yocto;
 
     use crate::proposals::ProposalStatus;
 
     use super::*;
 
-    fn create_proposal(context: &mut VMContextBuilder, contract: &mut Contract) -> u64 {
+    fn create_proposal(
+        context: &mut VMContextBuilder,
+        contract: &mut Contract,
+        deadline: Option<Timestamp>,
+    ) -> u64 {
         testing_env!(context.attached_deposit(to_yocto("1")).build());
         contract.add_proposal(ProposalInput {
             description: "test".to_string(),
@@ -203,6 +207,7 @@ mod tests {
                 amount: U128(to_yocto("100")),
                 msg: None,
             },
+            deadline,
         })
     }
 
@@ -214,18 +219,18 @@ mod tests {
             Config::test_config(),
             VersionedPolicy::Default(vec![accounts(1).into()]),
         );
-        let id = create_proposal(&mut context, &mut contract);
+        let id = create_proposal(&mut context, &mut contract, None);
         assert_eq!(contract.get_proposal(id).proposal.description, "test");
         assert_eq!(contract.get_proposals(0, 10).len(), 1);
 
-        let id = create_proposal(&mut context, &mut contract);
+        let id = create_proposal(&mut context, &mut contract, None);
         contract.act_proposal(id, Action::VoteApprove, None);
         assert_eq!(
             contract.get_proposal(id).proposal.status,
             ProposalStatus::Approved
         );
 
-        let id = create_proposal(&mut context, &mut contract);
+        let id = create_proposal(&mut context, &mut contract, None);
         // proposal expired, finalize.
         testing_env!(context
             .block_timestamp(1_000_000_000 * 24 * 60 * 60 * 8)
@@ -247,6 +252,7 @@ mod tests {
                 member_id: accounts(2).into(),
                 role: "council".to_string(),
             },
+            deadline: None,
         });
     }
 
@@ -259,7 +265,7 @@ mod tests {
             Config::test_config(),
             VersionedPolicy::Default(vec![accounts(1).into()]),
         );
-        let id = create_proposal(&mut context, &mut contract);
+        let id = create_proposal(&mut context, &mut contract, None);
         assert_eq!(contract.get_proposal(id).proposal.description, "test");
         contract.act_proposal(id, Action::RemoveProposal, None);
     }
@@ -273,7 +279,7 @@ mod tests {
             .permissions
             .insert("*:RemoveProposal".to_string());
         let mut contract = Contract::new(Config::test_config(), policy);
-        let id = create_proposal(&mut context, &mut contract);
+        let id = create_proposal(&mut context, &mut contract, None);
         assert_eq!(contract.get_proposal(id).proposal.description, "test");
         contract.act_proposal(id, Action::RemoveProposal, None);
         assert_eq!(contract.get_proposals(0, 10).len(), 0);
@@ -287,7 +293,7 @@ mod tests {
             Config::test_config(),
             VersionedPolicy::Default(vec![accounts(1).into()]),
         );
-        let id = create_proposal(&mut context, &mut contract);
+        let id = create_proposal(&mut context, &mut contract, None);
         testing_env!(context
             .block_timestamp(1_000_000_000 * 24 * 60 * 60 * 8)
             .build());
@@ -303,7 +309,7 @@ mod tests {
             Config::test_config(),
             VersionedPolicy::Default(vec![accounts(1).into(), accounts(2).into()]),
         );
-        let id = create_proposal(&mut context, &mut contract);
+        let id = create_proposal(&mut context, &mut contract, None);
         contract.act_proposal(id, Action::VoteApprove, None);
         contract.act_proposal(id, Action::VoteApprove, None);
     }
@@ -323,6 +329,7 @@ mod tests {
                 member_id: accounts(2).into(),
                 role: "missing".to_string(),
             },
+            deadline: None,
         });
         contract.act_proposal(id, Action::VoteApprove, None);
         let x = contract.get_policy();
@@ -345,6 +352,215 @@ mod tests {
             kind: ProposalKind::ChangePolicy {
                 policy: VersionedPolicy::Default(vec![]),
             },
+            deadline: None,
+        });
+    }
+
+    #[test]
+    fn test_deadline() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        let mut contract = Contract::new(
+            Config::test_config(),
+            VersionedPolicy::Default(vec![
+                accounts(1).into(),
+                accounts(2).into(),
+                accounts(3).into(),
+                accounts(4).into(),
+                accounts(5).into(),
+            ]),
+        );
+
+        // Finalize with the only 1 approval from 5 votes AFTER the deadline
+        let id = create_proposal(
+            &mut context,
+            &mut contract,
+            Some(proposals::MIN_VOTING_TIME),
+        );
+        contract.act_proposal(id, Action::VoteApprove, None);
+
+        testing_env!(context.block_timestamp(proposals::MIN_VOTING_TIME).build());
+
+        contract.act_proposal(id, Action::Finalize, None);
+        assert_eq!(
+            contract.get_proposal(id).proposal.status,
+            ProposalStatus::Approved
+        );
+
+        // Finalize with the only 1 rejection from 5 votes AFTER the deadline
+        testing_env!(context.block_timestamp(0).build());
+        let id = create_proposal(
+            &mut context,
+            &mut contract,
+            Some(proposals::MIN_VOTING_TIME),
+        );
+        contract.act_proposal(id, Action::VoteReject, None);
+
+        testing_env!(context.block_timestamp(proposals::MIN_VOTING_TIME).build());
+
+        contract.act_proposal(id, Action::Finalize, None);
+        assert_eq!(
+            contract.get_proposal(id).proposal.status,
+            ProposalStatus::Rejected
+        );
+
+        // Reject after a deadline with only 2 approvals & 1 rejection from 5 votes
+        testing_env!(context
+            .block_timestamp(0)
+            .predecessor_account_id(accounts(1))
+            .build());
+        let id = create_proposal(
+            &mut context,
+            &mut contract,
+            Some(proposals::MIN_VOTING_TIME),
+        );
+
+        contract.act_proposal(id, Action::VoteApprove, None);
+
+        testing_env!(context.predecessor_account_id(accounts(2)).build());
+        contract.act_proposal(id, Action::VoteReject, None);
+
+        testing_env!(context.predecessor_account_id(accounts(3)).build());
+        contract.act_proposal(id, Action::VoteApprove, None);
+
+        testing_env!(context
+            .block_timestamp(proposals::MIN_VOTING_TIME)
+            .predecessor_account_id(accounts(4))
+            .build());
+
+        contract.act_proposal(id, Action::VoteReject, None);
+        assert_eq!(
+            contract.get_proposal(id).proposal.status,
+            ProposalStatus::Approved
+        );
+
+        // Approve after a deadline with only 1 approval & 2 rejection from 5 votes
+        testing_env!(context
+            .block_timestamp(0)
+            .predecessor_account_id(accounts(1))
+            .build());
+        let id = create_proposal(
+            &mut context,
+            &mut contract,
+            Some(proposals::MIN_VOTING_TIME),
+        );
+
+        contract.act_proposal(id, Action::VoteApprove, None);
+
+        testing_env!(context.predecessor_account_id(accounts(2)).build());
+        contract.act_proposal(id, Action::VoteReject, None);
+
+        testing_env!(context.predecessor_account_id(accounts(3)).build());
+        contract.act_proposal(id, Action::VoteReject, None);
+
+        testing_env!(context
+            .block_timestamp(proposals::MIN_VOTING_TIME)
+            .predecessor_account_id(accounts(4))
+            .build());
+
+        contract.act_proposal(id, Action::VoteApprove, None);
+
+        assert_eq!(
+            contract.get_proposal(id).proposal.status,
+            ProposalStatus::Rejected
+        );
+
+        // Approve after a deadline with the only 1 approval from 5 votes
+        testing_env!(context
+            .block_timestamp(0)
+            .predecessor_account_id(accounts(1))
+            .build());
+        let id = create_proposal(
+            &mut context,
+            &mut contract,
+            Some(proposals::MIN_VOTING_TIME),
+        );
+        contract.act_proposal(id, Action::VoteApprove, None);
+
+        testing_env!(context
+            .block_timestamp(proposals::MIN_VOTING_TIME)
+            .predecessor_account_id(accounts(2))
+            .build());
+
+        contract.act_proposal(id, Action::VoteApprove, None);
+        assert_eq!(
+            contract.get_proposal(id).proposal.status,
+            ProposalStatus::Approved
+        );
+
+        // Reject after a deadline with the only 1 approval from 5 votes
+        testing_env!(context
+            .block_timestamp(0)
+            .predecessor_account_id(accounts(1))
+            .build());
+        let id = create_proposal(
+            &mut context,
+            &mut contract,
+            Some(proposals::MIN_VOTING_TIME),
+        );
+        contract.act_proposal(id, Action::VoteApprove, None);
+
+        testing_env!(context
+            .block_timestamp(proposals::MIN_VOTING_TIME)
+            .predecessor_account_id(accounts(2))
+            .build());
+
+        contract.act_proposal(id, Action::VoteReject, None);
+        assert_eq!(
+            contract.get_proposal(id).proposal.status,
+            ProposalStatus::Approved
+        );
+
+        //  Proposal with 0 votes. Finalize after deadline
+        testing_env!(context.block_timestamp(0).build());
+        let id = create_proposal(
+            &mut context,
+            &mut contract,
+            Some(proposals::MIN_VOTING_TIME),
+        );
+        testing_env!(context.block_timestamp(proposals::MIN_VOTING_TIME).build());
+
+        contract.act_proposal(id, Action::Finalize, None);
+        assert_eq!(
+            contract.get_proposal(id).proposal.status,
+            ProposalStatus::Removed
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "ERR_DEADLINE_SET_TOO_EARLY")]
+    fn test_deadline_period() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        let mut contract = Contract::new(
+            Config::test_config(),
+            VersionedPolicy::Default(vec![accounts(1).into()]),
+        );
+
+        create_proposal(
+            &mut context,
+            &mut contract,
+            Some(proposals::MIN_VOTING_TIME / 2),
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "ERR_DEADLINE_FORBIDDEN_KIND")]
+    fn test_deadline_type() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        let mut contract = Contract::new(
+            Config::test_config(),
+            VersionedPolicy::Default(vec![accounts(1).into()]),
+        );
+
+        testing_env!(context.attached_deposit(to_yocto("1")).build());
+        contract.add_proposal(ProposalInput {
+            description: "test".to_string(),
+            kind: ProposalKind::ChangeConfig {
+                config: Config::test_config(),
+            },
+            deadline: Some(proposals::MIN_VOTING_TIME),
         });
     }
 }

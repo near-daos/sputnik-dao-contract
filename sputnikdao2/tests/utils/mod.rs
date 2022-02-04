@@ -92,9 +92,10 @@ pub fn add_member_proposal(
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::AddMemberToRole {
-                member_id: member_id,
+                member_id,
                 role: "council".to_string(),
             },
+            deadline: None
         },
     )
 }
@@ -118,6 +119,7 @@ pub fn add_transfer_proposal(
                 amount: U128(amount),
                 msg,
             },
+            deadline: None
         },
     )
 }
@@ -137,6 +139,7 @@ pub fn add_bounty_proposal(root: &UserAccount, dao: &Contract) -> ExecutionResul
                     max_deadline: U64(env::block_timestamp() + 10_000_000_000),
                 },
             },
+            deadline: None
         },
     )
 }
