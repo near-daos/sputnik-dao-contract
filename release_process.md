@@ -190,23 +190,3 @@ Go to https://testnet.app.astrodao.com/all/daos and try to create a new DAO from
 #### 1.3 Mainnet - using official factory account
 
 The process is very similar with 1.2.
-
-**9. See all the DAOs created by the factory:**
-```bash
-near view sputnik-factory.ctindogaru.testnet get_dao_list
-```
-The DAO created in the previous step should be displayed here.
-
-
-
-**Try to create a new DAO from the new factory - using Astro DAO:**
-
-Go to https://testnet.app.astrodao.com/all/daos and try to create a new DAO from the UI. It should use the new version of the factory code.
-
-**The main goal is for everything to work just as before and for users to not notice any difference, since they are still creating v2 DAOs. The only difference is that the factory is now upgraded and it can handle multiple DAO versions simultaneously. Let the new version of the factory rest on testnet for 1-2 weeks and make sure it didn't cause any issues.**
-
-TBD:
-- steps for storing the v3 code for the DAOs and use it to create new DAOs
-- steps for upgrading v2 DAOs from the factory, but also from the DAO itself
-
-Last step. If nothing burned so far, repeat steps, but for mainnet.
