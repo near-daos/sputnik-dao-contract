@@ -51,21 +51,20 @@ Since this is the first time that the factory and the DAO are being upgraded and
 
 ## v3 Release Plan
 
-#### 1. Upgrade the factory from v2 to v3 and then set up the default code for the DAO to be v2.
-#### 2. After we get enough confidence using factory v3 and DAO v2, change the default code for the DAO from v2 to v3.
-#### 3. New DAOs will get created using the v3 code that should include all the fixes and the new features.
-#### 4. Existing DAOs will need to migrate from v2 to v3.
+[1. Upgrade the factory from v2 to v3 and then set up the default code for the DAO to be v2.](#upgrade-the-factory-from-v2-to-v3)  
+[2. After we get enough confidence using factory v3 and DAO v2, change the default code for the DAO from v2 to v3.](#change-dao-default-code-from-v2-to-v3)  
+[3. Existing DAOs will need to migrate from v2 to v3.](#migrate-dao-from-v2-to-v3)  
 
-Now, let's dive deeper into how to achieve each step from the list above.
+---
 
-### 1. Upgrade the factory from v2 to v3.
+### Upgrade the factory from v2 to v3
 
 This should be done in the following order:
-- 1. testnet, using a personal account 
-- 2. testnet, using the official testnet factory account
-- 3. mainnet, using the official mainnet factory account
+- [testnet - using a personal account](#using-personal-account-on-testnet)
+- [testnet - using the official testnet factory account](#using-official-account-on-testnet)
+- [mainnet - using the official mainnet factory account](#using-official-account-on-mainnet)
 
-#### 1.1 Testnet - using personal account
+#### Using personal account on testnet
 
 **1. Create a new NEAR account for the factory:**
 
@@ -140,7 +139,7 @@ The DAO created in the previous step should be displayed here.
 near view ctindogaru-dao.sputnik-factory.ctindogaru.testnet get_available_amount
 ```
 
-#### 1.2 Testnet - using official factory account
+#### Using official account on testnet
 
 **1. Upgrade the factory code:**
 ```bash
@@ -188,12 +187,13 @@ Go to https://testnet.app.astrodao.com/all/daos and try to create a new DAO from
 
 Please note that the DAO itself is still v2. The only difference is that the DAO gets created through the v3 version of the factory.
 
-#### 1.3 Mainnet - using official factory account
+#### Using official account on mainnet
 
 The process is very similar with 1.2.
 
+---
 
-### 2. After we get enough confidence using factory v3 and DAO v2, change the default code for the DAO from v2 to v3.
+### Change DAO default code from v2 to v3
 
 After a few weeks of running factory v3 + DAO v2, it's time to step up the game and upgrade the default DAO version to v3.
 
@@ -246,7 +246,9 @@ The DAO that gets created should be a brand new v3 DAO.
 
 The process is very similar with 2.1.
 
-### 4. Existing DAOs will need to migrate from v2 to v3.
+---
+
+### Migrate DAO from v2 to v3
 
 Assumptions:
 - we are the trying to upgrade `amber.sputnik-dao.near` from v2 to v3
