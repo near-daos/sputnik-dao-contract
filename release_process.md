@@ -2,7 +2,7 @@
 
 ## Background
 
-Sometimes, the code inside a smart contract can change as a result of adding new features or improve existing functionality. When that happens, to take advantage of the new contract code, we must re-deploy the smart contract to the mainnet. This should be done in a very responsible manner, especially in Sputnik, since it contains sensitive information and it has more than $1M Total Value Locked inside the smart contracts.
+Sometimes, the code inside a smart contract can change as a result of adding new features or improving existing functionality. When that happens, to take advantage of the new contract code, we must re-deploy the smart contract to the mainnet. This should be done in a very responsible manner, especially in Sputnik, since it contains sensitive information and it has more than $1M Total Value Locked inside the smart contracts.
 
 There are two important concepts you need to know about Sputnik. There is a *mother* called the factory and her *children* called the DAOs.
 - the factory aka *the mother*: it is considered to be the mother of all the DAOs, since it's responsible for creating them. A new child (DAO) is born when calling the `create` method on the mother (factory) contract (check `sputnikdao-factory2/src/lib.rs` for the factory code).
@@ -51,11 +51,10 @@ Since this is the first time that the factory and the DAO are being upgraded and
 
 ## v3 Release Plan
 
-### 1. Upgrade the factory from v2 to v3.
-### 2. Inside the factory, set up the default code for the DAO to be v2.
-### 3. After we get enough confidence using factory v3 and DAO v2, change the default code for the DAO from v2 to v3.
-### 4. New DAOs will get created using the v3 code that should include all the fixes and the new features.
-### 5. Existing DAOs will need to migrate from v2 to v3.
+### 1. Upgrade the factory from v2 to v3. Inside the factory, set up the default code for the DAO to be v2.
+### 2. After we get enough confidence using factory v3 and DAO v2, change the default code for the DAO from v2 to v3.
+### 3. New DAOs will get created using the v3 code that should include all the fixes and the new features.
+### 4. Existing DAOs will need to migrate from v2 to v3.
 
 Now, let's dive deeper into how to achieve each step from the list above.
 
@@ -190,3 +189,20 @@ Go to https://testnet.app.astrodao.com/all/daos and try to create a new DAO from
 #### 1.3 Mainnet - using official factory account
 
 The process is very similar with 1.2.
+
+
+### 2. After we get enough confidence using factory v3 and DAO v2, change the default code for the DAO from v2 to v3.
+
+After a few weeks of running factory v3 + DAO v2, it's time to step up the game and upgrade the default DAO version to v3.
+
+This should be done in the following order:
+- 1. testnet, using the official testnet factory account
+- 2. mainnet, using the official mainnet factory account
+
+#### 2.1 Testnet - using official factory account
+
+
+
+#### 2.2 Mainnet - using official factory account
+
+The process is very similar with 2.1.
