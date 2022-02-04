@@ -262,6 +262,8 @@ ___
 
 ### 3 Migrate DAO from v2 to v3
 
+**!!!!!!!!!!! THIS MAY INTRODUCE BACKWARD COMPATIBILITY ISSUES. DO IT ON YOUR OWN RISK !!!!!!!!!!!**
+
 Assumptions:
 - we are the trying to upgrade `amber.sputnik-dao.near` from v2 to v3
 - we have the account id `ctindogaru.near`
