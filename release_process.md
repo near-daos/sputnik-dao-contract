@@ -184,7 +184,9 @@ Only the version stored in the previous step should be displayed.
 
 **6. Try to create a new DAO using the new factory - using Astro DAO:**
 
-Go to https://testnet.app.astrodao.com/all/daos and try to create a new DAO from the UI. It should use the new version of the factory code.
+Go to https://testnet.app.astrodao.com/all/daos and try to create a new DAO from the UI. It should use the new version of the factory code.  
+
+Please note that the DAO itself is still v2. The only difference is that the DAO gets created through the v3 version of the factory.
 
 #### 1.3 Mainnet - using official factory account
 
@@ -199,9 +201,46 @@ This should be done in the following order:
 - 1. testnet, using the official testnet factory account
 - 2. mainnet, using the official mainnet factory account
 
+Assumptions:
+- the DAO v3 code will be a snapshot of the code from commit id 596f27a649c5df3310e945a37a41a957492c0322.
+
 #### 2.1 Testnet - using official factory account
 
+**1. Checkout to the right commit id**
+```bash
+git checkout 596f27a649c5df3310e945a37a41a957492c0322
+```
 
+**2. Build the DAO v3 code:**
+```bash
+./build.sh
+```
+
+**3. Use the code built at the previous step and store it inside the factory as the default code used for creating new DAOs:**
+```bash
+BYTES='cat sputnikdao2/res/sputnikdao2.wasm | base64'
+```
+```bash
+near call sputnikv2.testnet store $(eval "$BYTES") --base64 --accountId sputnikv2.testnet --gas 100000000000000 --amount 10
+```
+
+**4. Use the code hash returned from the previous step to store the metadata associated with the code:**
+```bash
+near call sputnikv2.testnet store_contract_metadata '{"code_hash": "TBD", "metadata": {"version": "v3", "commit_id": "596f27a649c5df3310e945a37a41a957492c0322"}, "set_default": true}' --accountId sputnikv2.testnet
+```
+
+**5. See all the contract versions stored inside the factory:**
+```bash
+near view sputnikv2.testnet get_contracts_metadata
+```
+2 versions should be displayed:
+- v2 with commit id `c2cf1553b070d04eed8f659571440b27d398c588` and hash `ZGdM2TFdQpcXrxPxvq25514EViyi9xBSboetDiB3Uiq`
+- v3 with commit id `596f27a649c5df3310e945a37a41a957492c0322` and hash `TBD`
+
+**6. Try to create a DAO v3 - using Astro DAO:**
+
+Go to https://testnet.app.astrodao.com/all/daos and try to create a new DAO from the UI.  
+The DAO that gets created should be a brand new v3 DAO.
 
 #### 2.2 Mainnet - using official factory account
 
