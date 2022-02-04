@@ -24,7 +24,7 @@ There are two important concepts you need to know about Sputnik. There is a *mot
 - see all the DAOs that live on mainnet by calling `near view sputnikdao.near get_dao_list`
 - see all the DAOs that live on testnet by calling `near view sputnik-v1.testnet get_dao_list`
 
-### Sputnik V2 smart contracts
+### Sputnik v2 smart contracts
 **Factory**: 
 - the factory code can be found inside `sputnikdao-factory2/src`
 - the factory code is deployed on mainnet on `sputnik-dao.near` account
@@ -40,23 +40,33 @@ There are two important concepts you need to know about Sputnik. There is a *mot
 ### UI DApps built on top of the Sputnik smart contracts (from oldest to newest)
 - https://old.sputnik.fund/ -> it uses V1 smart contracts
 - https://www.sputnik.fund/ -> it uses V1 smart contracts
-- https://v2.sputnik.fund/ -> it uses V2 smart contracts
-- https://astrodao.com/ -> it uses V2 smart contracts
+- https://v2.sputnik.fund/ -> it uses v2 smart contracts
+- https://astrodao.com/ -> it uses v2 smart contracts
 
-## Introducing Sputnik V3 smart contracts
+## Introducing Sputnik v3 smart contracts
 
-The biggest advantage of V3 smart contracts is introducing an easy way for the DAO to upgrade to a new version of the code so it can take full advantage of the new features/performance improvements/bug fixes.  
+The biggest advantage of v3 smart contracts is introducing an easy way for the DAO to upgrade to a new version of the code so it can take full advantage of the new features/performance improvements/bug fixes.  
 
 Since this is the first time that the factory and the DAO are being upgraded and upgrading smart contracts is a very sensitive topic, everything must be done with due diligence.
 
-## V3 Release Plan
+## v3 Release Plan
 
-Everything that's described next should be tried in the following order:
+### 1. Upgrade the factory from v2 to v3.
+### 2. Inside the factory, set up the default code for the DAO to be v2.
+### 3. After we get enough confidence using factory v3 and DAO v2, change the default code for the DAO from v2 to v3.
+### 4. New DAOs will get created using the v3 code that should include all the fixes and the new features.
+### 5. Existing DAOs will need to migrate from v2 to v3.
+
+Now, let's dive deeper into how to achieve each step from the list above.
+
+### 1. Upgrade the factory from v2 to v3.
+
+This should be done in the following order:
 - 1. testnet, using a personal account 
-- 2. testnet, using the official factory account
-- 3. mainnet, using the official factory account
+- 2. testnet, using the official testnet factory account
+- 3. mainnet, using the official mainnet factory account
 
-### Localnet
+#### 1.1 Testnet - using personal account
 
 **1. Create a new NEAR account for the factory:**
 
@@ -64,7 +74,20 @@ Everything that's described next should be tried in the following order:
 near create-account sputnik-factory.ctindogaru.testnet --masterAccount ctindogaru.testnet --initialBalance 50
 ```
 
-**2. Download the current `wasm` code used for creating new DAOs:**
+**2. Deploy the factory code:**
+```bash
+./build.sh
+```
+```bash
+near deploy sputnik-factory.ctindogaru.testnet sputnikdao-factory2/res/sputnikdao_factory2.wasm
+```
+
+**3. Init the factory:**
+```bash
+near call sputnik-factory.ctindogaru.testnet new '{}' --accountId sputnik-factory.ctindogaru.testnet --gas 100000000000000
+```
+
+**4. Download the current `wasm` code used for creating new DAOs:**
 
 ```bash
 near view sputnikv2.testnet get_dao_list
@@ -77,20 +100,7 @@ params:='{"request_type":"view_code","finality":"final","account_id":"thegame.sp
 | base64 --decode > dao-code-v2.wasm
 ```
 
-**3. Upgrade the factory:**
-```bash
-./build.sh
-```
-```bash
-near deploy sputnik-factory.ctindogaru.testnet sputnikdao-factory2/res/sputnikdao_factory2.wasm
-```
-
-**4. Init the factory:**
-```bash
-near call sputnik-factory.ctindogaru.testnet new '{}' --accountId sputnik-factory.ctindogaru.testnet --gas 100000000000000
-```
-
-**5. Use the code downloaded at step 2 to store it inside the factory and use it as a default version for creating DAOs:**
+**5. Use the code downloaded at the previous step and store it inside the factory as the default code used for creating new DAOs:**
 ```bash
 BYTES='cat dao-code-v2.wasm | base64'
 ```
@@ -100,17 +110,18 @@ near call sputnik-factory.ctindogaru.testnet store $(eval "$BYTES") --base64 --a
 
 **6. Use the code hash returned from the previous step to store the metadata associated with the code:**
 ```bash
-near call sputnik-factory.ctindogaru.testnet store_contract_metadata '{"metadata": {"code_hash": "ZGdM2TFdQpcXrxPxvq25514EViyi9xBSboetDiB3Uiq", "version": "V2", "commit_id": "c2cf1553b070d04eed8f659571440b27d398c588"}, "set_default": true}' --accountId sputnik-factory.ctindogaru.testnet
+near call sputnik-factory.ctindogaru.testnet store_contract_metadata '{"code_hash": "ZGdM2TFdQpcXrxPxvq25514EViyi9xBSboetDiB3Uiq", "metadata": {"version": "v2", "commit_id": "c2cf1553b070d04eed8f659571440b27d398c588"}, "set_default": true}' --accountId sputnik-factory.ctindogaru.testnet
 ```
 
-**7. Get all the contract versions stored inside the factory:**
+**7. See all the contract versions stored inside the factory:**
 ```bash
 near view sputnik-factory.ctindogaru.testnet get_contracts_metadata
 ```
+2 versions should be displayed. The one that got created on init and the one that you stored in the previous step.
 
 **8. Try to create a new DAO from the factory - using NEAR CLI:**
 ```bash
-export COUNCIL='["council-member.testnet", "ctindogaru.testnet"]'
+export COUNCIL='["ctindogaru.testnet"]'
 ```
 ```bash
 export ARGS=`echo '{"config": {"name": "ctindogaru-dao", "purpose": "ctindogaru DAO", "metadata":""}, "policy": '$COUNCIL'}' | base64`
@@ -119,19 +130,22 @@ export ARGS=`echo '{"config": {"name": "ctindogaru-dao", "purpose": "ctindogaru 
 near call sputnik-factory.ctindogaru.testnet create "{\"name\": \"ctindogaru-dao\", \"args\": \"$ARGS\"}" --accountId sputnik-factory.ctindogaru.testnet --gas 150000000000000 --amount 10
 ```
 
-**9. Get all the DAOs created by the factory:**
+**9. See all the DAOs created by the factory:**
 ```bash
 near view sputnik-factory.ctindogaru.testnet get_dao_list
 ```
+The DAO created in the previous step should be displayed here.
+
+
 
 **Try to create a new DAO from the new factory - using Astro DAO:**
 
 Go to https://testnet.app.astrodao.com/all/daos and try to create a new DAO from the UI. It should use the new version of the factory code.
 
-**The main goal is for everything to work just as before and for users to not notice any difference, since they are still creating V2 DAOs. The only difference is that the factory is now upgraded and it can handle multiple DAO versions simultaneously. Let the new version of the factory rest on testnet for 1-2 weeks and make sure it didn't cause any issues.**
+**The main goal is for everything to work just as before and for users to not notice any difference, since they are still creating v2 DAOs. The only difference is that the factory is now upgraded and it can handle multiple DAO versions simultaneously. Let the new version of the factory rest on testnet for 1-2 weeks and make sure it didn't cause any issues.**
 
 TBD:
-- steps for storing the V3 code for the DAOs and use it to create new DAOs
-- steps for upgrading V2 DAOs from the factory, but also from the DAO itself
+- steps for storing the v3 code for the DAOs and use it to create new DAOs
+- steps for upgrading v2 DAOs from the factory, but also from the DAO itself
 
 Last step. If nothing burned so far, repeat steps, but for mainnet.
