@@ -429,14 +429,16 @@ impl Contract {
                         msg.clone(),
                     );
 
-                    match payout_promise {
+                    promise = match payout_promise {
                         PromiseOrValue::Promise(payout_promise) => {
-                            promise = match promise {
-                                Some(promise) => Some(promise.and(payout_promise)),
-                                None => Some(payout_promise),
-                            }
+                            Some(
+                                match promise {
+                                    Some(promise) => promise.and(payout_promise),
+                                    _ => payout_promise,
+                                }
+                            )
                         },
-                        PromiseOrValue::Value(()) => continue,
+                        _ => continue,
                     };
                 }
                 
