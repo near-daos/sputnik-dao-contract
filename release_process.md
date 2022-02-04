@@ -210,7 +210,7 @@ This should be done in the following order:
 - [mainnet - using the official mainnet factory account](#2-2-using-official-account-on-mainnet)
 
 Assumptions:
-- the DAO v3 code will be a snapshot of the code from commit id 596f27a649c5df3310e945a37a41a957492c0322.
+- the DAO v3 code will be a snapshot of the code from commit id `596f27a649c5df3310e945a37a41a957492c0322`.
 
 ___
 
@@ -296,7 +296,9 @@ BYTES='cat sputnikdao2/res/sputnikdao2.wasm | base64'
 near call amber.sputnik-dao.near store_blob $(eval "$BYTES") --base64 --accountId ctindogaru.near --gas 100000000000000 --amount 10
 ```
 
-After running the command from above, you should get the following code hash in return: `GUMFKZP6kdLgy3NjKy1EAkn77AfZFLKkj96VAgjmHXeS`. If your result differs from `GUMFKZP6kdLgy3NjKy1EAkn77AfZFLKkj96VAgjmHXeS`, do not proceed further as you could harm your DAO. Ask for help on the telegram group: `SputnikDAO v2.0`.
+After running the command from above, you should get the following code hash in return: `GUMFKZP6kdLgy3NjKy1EAkn77AfZFLKkj96VAgjmHXeS`.  
+
+If your result differs from `GUMFKZP6kdLgy3NjKy1EAkn77AfZFLKkj96VAgjmHXeS`, **DO NOT** proceed further. Please ask for help in [Telegram](https://t.me/astro_near).
 
 ***4. Create an upgrade proposal for your DAO.***
 
@@ -307,7 +309,7 @@ near call amber.sputnik-dao.near add_proposal '{"proposal": {"description": "Upg
 
 ***5. Approve the proposal.***
 
-Everyone from the DAO should go to `https://app.astrodao.com/dao/amber.sputnik-dao.near/proposals` and approve the proposal.
+Everyone from the DAO should go to https://app.astrodao.com/dao/amber.sputnik-dao.near/proposals and approve the proposal.
 
 ***6. Once the proposal get approved, the upgrade will take place.***
 
