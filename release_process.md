@@ -51,10 +51,10 @@ Since this is the first time that the factory and the DAO are being upgraded and
 
 ## v3 Release Plan
 
-### 1. Upgrade the factory from v2 to v3. Inside the factory, set up the default code for the DAO to be v2.
-### 2. After we get enough confidence using factory v3 and DAO v2, change the default code for the DAO from v2 to v3.
-### 3. New DAOs will get created using the v3 code that should include all the fixes and the new features.
-### 4. Existing DAOs will need to migrate from v2 to v3.
+#### 1. Upgrade the factory from v2 to v3 and then set up the default code for the DAO to be v2.
+#### 2. After we get enough confidence using factory v3 and DAO v2, change the default code for the DAO from v2 to v3.
+#### 3. New DAOs will get created using the v3 code that should include all the fixes and the new features.
+#### 4. Existing DAOs will need to migrate from v2 to v3.
 
 Now, let's dive deeper into how to achieve each step from the list above.
 
@@ -226,7 +226,7 @@ near call sputnikv2.testnet store $(eval "$BYTES") --base64 --accountId sputnikv
 
 **4. Use the code hash returned from the previous step to store the metadata associated with the code:**
 ```bash
-near call sputnikv2.testnet store_contract_metadata '{"code_hash": "TBD", "metadata": {"version": "v3", "commit_id": "596f27a649c5df3310e945a37a41a957492c0322"}, "set_default": true}' --accountId sputnikv2.testnet
+near call sputnikv2.testnet store_contract_metadata '{"code_hash": "GUMFKZP6kdLgy3NjKy1EAkn77AfZFLKkj96VAgjmHXeS", "metadata": {"version": "v3", "commit_id": "596f27a649c5df3310e945a37a41a957492c0322"}, "set_default": true}' --accountId sputnikv2.testnet
 ```
 
 **5. See all the contract versions stored inside the factory:**
@@ -235,7 +235,7 @@ near view sputnikv2.testnet get_contracts_metadata
 ```
 2 versions should be displayed:
 - v2 with commit id `c2cf1553b070d04eed8f659571440b27d398c588` and hash `ZGdM2TFdQpcXrxPxvq25514EViyi9xBSboetDiB3Uiq`
-- v3 with commit id `596f27a649c5df3310e945a37a41a957492c0322` and hash `TBD`
+- v3 with commit id `596f27a649c5df3310e945a37a41a957492c0322` and hash `GUMFKZP6kdLgy3NjKy1EAkn77AfZFLKkj96VAgjmHXeS`
 
 **6. Try to create a DAO v3 - using Astro DAO:**
 
@@ -245,3 +245,62 @@ The DAO that gets created should be a brand new v3 DAO.
 #### 2.2 Mainnet - using official factory account
 
 The process is very similar with 2.1.
+
+### 4. Existing DAOs will need to migrate from v2 to v3.
+
+Assumptions:
+- we are the trying to upgrade `amber.sputnik-dao.near` from v2 to v3
+- we have the account id `ctindogaru.near`
+
+1. Open a bash terminal and login to your near account:
+
+```bash
+export NEAR_ENV=mainnet
+```
+
+```bash
+near login
+```
+
+2. Clone the sputnik repo and go to the v3 snapshot of the code.
+
+```bash
+git clone https://github.com/near-daos/sputnik-dao-contract && cd sputnik-dao-contract
+```
+
+```bash
+git checkout 596f27a649c5df3310e945a37a41a957492c0322
+```
+
+3. Store the DAO code in your DAO.
+
+```bash
+BYTES='cat sputnikdao2/res/sputnikdao2.wasm | base64'
+```
+
+```bash
+near call amber.sputnik-dao.near store_blob $(eval "$BYTES") --base64 --accountId ctindogaru.near --gas 100000000000000 --amount 10
+```
+
+After running the command from above, you should get the following code hash in return: `GUMFKZP6kdLgy3NjKy1EAkn77AfZFLKkj96VAgjmHXeS`. If your result differs from `GUMFKZP6kdLgy3NjKy1EAkn77AfZFLKkj96VAgjmHXeS`, do not proceed further as you could harm your DAO. Ask for help on the telegram group: `SputnikDAO v2.0`.
+
+4. Create an upgrade proposal for your DAO.
+
+Run the following command:
+```bash
+near call amber.sputnik-dao.near add_proposal '{"proposal": {"description": "Upgrade DAO to v3 version", "kind": {"UpgradeSelf": {"hash": "GUMFKZP6kdLgy3NjKy1EAkn77AfZFLKkj96VAgjmHXeS"}}}}' --accountId ctindogaru.near --amount 1
+```
+
+5. Approve the proposal.
+
+Everyone from the DAO should go to `https://app.astrodao.com/dao/amber.sputnik-dao.near/proposals` and approve the proposal.
+
+6. Once the proposal get approved, the upgrade will take place.
+
+7. Now that the upgrade is complete, remove the code from your DAO.
+
+```bash
+near call amber.sputnik-dao.near remove_blob '{"hash": "GUMFKZP6kdLgy3NjKy1EAkn77AfZFLKkj96VAgjmHXeS"}' --accountId ctindogaru.near --gas 100000000000000 --amount 10
+```
+
+7. Congrats! You're now using the DAO v3.
