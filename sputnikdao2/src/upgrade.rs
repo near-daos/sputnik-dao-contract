@@ -1,6 +1,6 @@
 //! Logic to upgrade Sputnik contracts.
 
-use near_sdk::serde_json::{self, json};
+use near_sdk::serde_json::json;
 use near_sdk::Gas;
 
 use crate::*;
@@ -10,6 +10,7 @@ const DEFAULT_FACTORY_ID: &str = "sputnik-dao.near";
 const ERR_MUST_BE_SELF_OR_FACTORY: &str = "ERR_MUST_BE_SELF_OR_FACTORY";
 const SELF_MIGRATE_METHOD_NAME: &[u8; 7] = b"migrate";
 const UPDATE_GAS_LEFTOVER: Gas = Gas(5_000_000_000_000);
+const GAS_LEFTOVER: Gas = Gas(15_000_000_000_000);
 const NO_DEPOSIT: Balance = 0;
 
 /// Gas for upgrading this contract on promise creation + deploying new contract.
@@ -102,7 +103,7 @@ pub(crate) fn upgrade_using_factory(code_hash: Base58CryptoHash) {
             .to_string()
             .into_bytes(),
         NO_DEPOSIT,
-        env::prepaid_gas() - env::used_gas() - UPDATE_GAS_LEFTOVER,
+        env::prepaid_gas() - env::used_gas() - GAS_LEFTOVER,
     );
     env::promise_return(promise_id);
 }
