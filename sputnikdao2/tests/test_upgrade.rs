@@ -3,7 +3,7 @@ use near_sdk::json_types::Base58CryptoHash;
 use near_sdk::serde_json::json;
 use near_sdk::AccountId;
 
-use near_sdk_sim::{call, to_yocto, view, DEFAULT_GAS};
+use near_sdk_sim::{call, init_simulator, to_yocto, view, DEFAULT_GAS};
 use sputnikdao2::{Action, ProposalInput, ProposalKind};
 
 mod utils;
@@ -40,6 +40,32 @@ fn test_upgrade() {
     assert_eq!(view!(dao.version()).unwrap_json::<String>(), "2.0.0");
     call!(root, dao.remove_blob(hash)).assert_success();
     should_fail(call!(root, dao.remove_blob(hash)));
+}
+
+#[test]
+fn test_upgrade_using_factory() {
+    let root = init_simulator(None);
+    let factory = setup_factory(&root);
+    factory
+        .user_account
+        .call(
+            factory.user_account.account_id.clone(),
+            "new",
+            &[],
+            near_sdk_sim::DEFAULT_GAS,
+            0,
+        )
+        .assert_success();
+
+    let hash = factory
+        .user_account
+        .view(
+            factory.user_account.account_id.clone(),
+            "get_default_code_hash",
+            &[],
+        )
+        .unwrap_json::<Base58CryptoHash>();
+    panic!("{:?}", hash);
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]
