@@ -1,5 +1,6 @@
 //! Logic to upgrade Sputnik contracts.
 
+use near_sdk::serde_json::{self, json};
 use near_sdk::Gas;
 
 use crate::*;
@@ -89,6 +90,24 @@ pub fn update() {
     }
 }
 
+pub(crate) fn upgrade_using_factory(code_hash: Base58CryptoHash) {
+    let account_id = AccountId::new_unchecked(DEFAULT_FACTORY_ID.to_string());
+    // Create a promise toward the factory.
+    let promise_id = env::promise_batch_create(&account_id);
+    // Call `update` method from the factory which calls `update` method on this account.
+    env::promise_batch_action_function_call(
+        promise_id,
+        "update",
+        &json!({ "account_id": env::current_account_id(), "code_hash": code_hash })
+            .to_string()
+            .into_bytes(),
+        NO_DEPOSIT,
+        env::prepaid_gas() - env::used_gas() - UPDATE_GAS_LEFTOVER,
+    );
+    env::promise_return(promise_id);
+}
+
+#[allow(dead_code)]
 /// Self upgrade, optimizes gas by not loading into memory the code.
 pub(crate) fn upgrade_self(hash: &[u8]) {
     let current_id = env::current_account_id();
