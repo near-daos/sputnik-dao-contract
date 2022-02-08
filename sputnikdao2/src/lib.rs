@@ -356,30 +356,26 @@ mod tests {
         });
     }
 
+    pub const MIN_VOTING_TIME: Timestamp = 3 * 24 * 60 * 60 * 1_000_000_000;
     #[test]
     fn test_deadline() {
         let mut context = VMContextBuilder::new();
         testing_env!(context.predecessor_account_id(accounts(1)).build());
-        let mut contract = Contract::new(
-            Config::test_config(),
-            VersionedPolicy::Default(vec![
-                accounts(1).into(),
-                accounts(2).into(),
-                accounts(3).into(),
-                accounts(4).into(),
-                accounts(5).into(),
-            ]),
-        );
+        let mut policy: Policy = policy::default_policy(vec![
+            accounts(1).into(),
+            accounts(2).into(),
+            accounts(3).into(),
+            accounts(4).into(),
+            accounts(5).into(),
+        ]);
+        policy.min_voting_time = Some(MIN_VOTING_TIME);
+        let mut contract = Contract::new(Config::test_config(), VersionedPolicy::Current(policy));
 
         // Finalize with the only 1 approval from 5 votes AFTER the deadline
-        let id = create_proposal(
-            &mut context,
-            &mut contract,
-            Some(proposals::MIN_VOTING_TIME),
-        );
+        let id = create_proposal(&mut context, &mut contract, Some(MIN_VOTING_TIME));
         contract.act_proposal(id, Action::VoteApprove, None);
 
-        testing_env!(context.block_timestamp(proposals::MIN_VOTING_TIME).build());
+        testing_env!(context.block_timestamp(MIN_VOTING_TIME).build());
 
         contract.act_proposal(id, Action::Finalize, None);
         assert_eq!(
@@ -389,14 +385,10 @@ mod tests {
 
         // Finalize with the only 1 rejection from 5 votes AFTER the deadline
         testing_env!(context.block_timestamp(0).build());
-        let id = create_proposal(
-            &mut context,
-            &mut contract,
-            Some(proposals::MIN_VOTING_TIME),
-        );
+        let id = create_proposal(&mut context, &mut contract, Some(MIN_VOTING_TIME));
         contract.act_proposal(id, Action::VoteReject, None);
 
-        testing_env!(context.block_timestamp(proposals::MIN_VOTING_TIME).build());
+        testing_env!(context.block_timestamp(MIN_VOTING_TIME).build());
 
         contract.act_proposal(id, Action::Finalize, None);
         assert_eq!(
@@ -409,11 +401,7 @@ mod tests {
             .block_timestamp(0)
             .predecessor_account_id(accounts(1))
             .build());
-        let id = create_proposal(
-            &mut context,
-            &mut contract,
-            Some(proposals::MIN_VOTING_TIME),
-        );
+        let id = create_proposal(&mut context, &mut contract, Some(MIN_VOTING_TIME));
 
         contract.act_proposal(id, Action::VoteApprove, None);
 
@@ -424,7 +412,7 @@ mod tests {
         contract.act_proposal(id, Action::VoteApprove, None);
 
         testing_env!(context
-            .block_timestamp(proposals::MIN_VOTING_TIME)
+            .block_timestamp(MIN_VOTING_TIME)
             .predecessor_account_id(accounts(4))
             .build());
 
@@ -439,11 +427,7 @@ mod tests {
             .block_timestamp(0)
             .predecessor_account_id(accounts(1))
             .build());
-        let id = create_proposal(
-            &mut context,
-            &mut contract,
-            Some(proposals::MIN_VOTING_TIME),
-        );
+        let id = create_proposal(&mut context, &mut contract, Some(MIN_VOTING_TIME));
 
         contract.act_proposal(id, Action::VoteApprove, None);
 
@@ -454,7 +438,7 @@ mod tests {
         contract.act_proposal(id, Action::VoteReject, None);
 
         testing_env!(context
-            .block_timestamp(proposals::MIN_VOTING_TIME)
+            .block_timestamp(MIN_VOTING_TIME)
             .predecessor_account_id(accounts(4))
             .build());
 
@@ -470,15 +454,11 @@ mod tests {
             .block_timestamp(0)
             .predecessor_account_id(accounts(1))
             .build());
-        let id = create_proposal(
-            &mut context,
-            &mut contract,
-            Some(proposals::MIN_VOTING_TIME),
-        );
+        let id = create_proposal(&mut context, &mut contract, Some(MIN_VOTING_TIME));
         contract.act_proposal(id, Action::VoteApprove, None);
 
         testing_env!(context
-            .block_timestamp(proposals::MIN_VOTING_TIME)
+            .block_timestamp(MIN_VOTING_TIME)
             .predecessor_account_id(accounts(2))
             .build());
 
@@ -493,15 +473,11 @@ mod tests {
             .block_timestamp(0)
             .predecessor_account_id(accounts(1))
             .build());
-        let id = create_proposal(
-            &mut context,
-            &mut contract,
-            Some(proposals::MIN_VOTING_TIME),
-        );
+        let id = create_proposal(&mut context, &mut contract, Some(MIN_VOTING_TIME));
         contract.act_proposal(id, Action::VoteApprove, None);
 
         testing_env!(context
-            .block_timestamp(proposals::MIN_VOTING_TIME)
+            .block_timestamp(MIN_VOTING_TIME)
             .predecessor_account_id(accounts(2))
             .build());
 
@@ -513,12 +489,8 @@ mod tests {
 
         //  Proposal with 0 votes. Finalize after deadline
         testing_env!(context.block_timestamp(0).build());
-        let id = create_proposal(
-            &mut context,
-            &mut contract,
-            Some(proposals::MIN_VOTING_TIME),
-        );
-        testing_env!(context.block_timestamp(proposals::MIN_VOTING_TIME).build());
+        let id = create_proposal(&mut context, &mut contract, Some(MIN_VOTING_TIME));
+        testing_env!(context.block_timestamp(MIN_VOTING_TIME).build());
 
         contract.act_proposal(id, Action::Finalize, None);
         assert_eq!(
@@ -532,21 +504,35 @@ mod tests {
     fn test_deadline_period() {
         let mut context = VMContextBuilder::new();
         testing_env!(context.predecessor_account_id(accounts(1)).build());
-        let mut contract = Contract::new(
-            Config::test_config(),
-            VersionedPolicy::Default(vec![accounts(1).into()]),
-        );
+        let mut policy: Policy = policy::default_policy(vec![accounts(1).into()]);
+        policy.min_voting_time = Some(MIN_VOTING_TIME);
+        let mut contract = Contract::new(Config::test_config(), VersionedPolicy::Current(policy));
 
-        create_proposal(
-            &mut context,
-            &mut contract,
-            Some(proposals::MIN_VOTING_TIME / 2),
-        );
+        create_proposal(&mut context, &mut contract, Some(MIN_VOTING_TIME / 2));
     }
 
     #[test]
     #[should_panic(expected = "ERR_DEADLINE_FORBIDDEN_KIND")]
     fn test_deadline_type() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        let mut policy: Policy = policy::default_policy(vec![accounts(1).into()]);
+        policy.min_voting_time = Some(MIN_VOTING_TIME);
+        let mut contract = Contract::new(Config::test_config(), VersionedPolicy::Current(policy));
+
+        testing_env!(context.attached_deposit(to_yocto("1")).build());
+        contract.add_proposal(ProposalInput {
+            description: "test".to_string(),
+            kind: ProposalKind::ChangeConfig {
+                config: Config::test_config(),
+            },
+            deadline: Some(MIN_VOTING_TIME),
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "ERR_MIN_VOTING_TIME_IS_MISSING")]
+    fn test_deadline_without_min_voting_time() {
         let mut context = VMContextBuilder::new();
         testing_env!(context.predecessor_account_id(accounts(1)).build());
         let mut contract = Contract::new(
@@ -555,12 +541,6 @@ mod tests {
         );
 
         testing_env!(context.attached_deposit(to_yocto("1")).build());
-        contract.add_proposal(ProposalInput {
-            description: "test".to_string(),
-            kind: ProposalKind::ChangeConfig {
-                config: Config::test_config(),
-            },
-            deadline: Some(proposals::MIN_VOTING_TIME),
-        });
+        create_proposal(&mut context, &mut contract, Some(MIN_VOTING_TIME));
     }
 }

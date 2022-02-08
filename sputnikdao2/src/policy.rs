@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, AccountId, Balance};
+use near_sdk::{env, AccountId, Balance, Timestamp};
 
 use crate::proposals::{
     get_biggest_votes_status, is_deadline_passed, PolicyParameters, Proposal, ProposalKind,
@@ -161,6 +161,8 @@ pub struct Policy {
     pub bounty_bond: U128,
     /// Period in which giving up on bounty is not punished.
     pub bounty_forgiveness_period: U64,
+    /// Minimum period days to vote
+    pub min_voting_time: Option<Timestamp>,
 }
 
 /// Versioned policy.
@@ -179,7 +181,7 @@ pub enum VersionedPolicy {
 ///     - non token weighted voting, requires 1/2 of the group to vote
 ///     - proposal & bounty bond is 1N
 ///     - proposal & bounty forgiveness period is 1 day
-fn default_policy(council: Vec<AccountId>) -> Policy {
+pub fn default_policy(council: Vec<AccountId>) -> Policy {
     Policy {
         roles: vec![
             RolePermission {
@@ -209,6 +211,7 @@ fn default_policy(council: Vec<AccountId>) -> Policy {
         proposal_period: U64::from(1_000_000_000 * 60 * 60 * 24 * 7),
         bounty_bond: U128(10u128.pow(24)),
         bounty_forgiveness_period: U64::from(1_000_000_000 * 60 * 60 * 24),
+        min_voting_time: None,
     }
 }
 
@@ -283,6 +286,8 @@ impl Policy {
         if parameters.bounty_forgiveness_period.is_some() {
             self.bounty_forgiveness_period = parameters.bounty_forgiveness_period.unwrap();
         }
+        self.min_voting_time = parameters.min_voting_time;
+
         env::log_str("Successfully updated the policy parameters.");
     }
 
@@ -427,7 +432,7 @@ impl Policy {
             let vote_counts = proposal.vote_counts.get(&role).unwrap_or(&[0u128; 3]);
 
             if is_deadline_passed {
-                return get_biggest_votes_status(&vote_counts);
+                return get_biggest_votes_status(vote_counts);
             }
 
             let threshold = std::cmp::max(
@@ -620,6 +625,7 @@ mod tests {
             proposal_period: None,
             bounty_bond: None,
             bounty_forgiveness_period: Some(U64::from(1_000_000_000 * 60 * 60 * 24 * 5)),
+            min_voting_time: None,
         };
         policy.update_parameters(&new_parameters);
         assert_eq!(U128(10u128.pow(26)), policy.proposal_bond);

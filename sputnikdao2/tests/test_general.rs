@@ -49,6 +49,7 @@ fn test_multi_council() {
         proposal_period: U64::from(1_000_000_000 * 60 * 60 * 24 * 7),
         bounty_bond: U128(10u128.pow(24)),
         bounty_forgiveness_period: U64::from(1_000_000_000 * 60 * 60 * 24),
+        min_voting_time: None,
     };
     add_proposal(
         &root,
@@ -58,7 +59,7 @@ fn test_multi_council() {
             kind: ProposalKind::ChangePolicy {
                 policy: VersionedPolicy::Current(new_policy.clone()),
             },
-            deadline: None
+            deadline: None,
         },
     )
     .assert_success();

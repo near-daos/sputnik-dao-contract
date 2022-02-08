@@ -10,9 +10,6 @@ use crate::types::{Action, Config, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR};
 use crate::upgrade::{upgrade_remote, upgrade_self};
 use crate::*;
 
-/// Minimum 3 days to vote
-pub const MIN_VOTING_TIME: Timestamp = 3 * 24 * 60 * 60 * 1_000_000_000;
-
 /// Status of a proposal.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq, Debug)]
 #[serde(crate = "near_sdk::serde")]
@@ -53,6 +50,7 @@ pub struct PolicyParameters {
     pub proposal_period: Option<U64>,
     pub bounty_bond: Option<U128>,
     pub bounty_forgiveness_period: Option<U64>,
+    pub min_voting_time: Option<Timestamp>,
 }
 
 /// Kinds of proposals, doing different action.
@@ -490,8 +488,6 @@ impl Contract {
     /// Add proposal to this DAO.
     #[payable]
     pub fn add_proposal(&mut self, proposal: ProposalInput) -> u64 {
-        assert_proposal_deadline(proposal.deadline, &proposal.kind);
-
         // 0. validate bond attached.
         // TODO: consider bond in the token of this DAO.
         let policy = self.policy.get().unwrap().to_policy();
@@ -499,6 +495,9 @@ impl Contract {
             env::attached_deposit() >= policy.proposal_bond.0,
             "ERR_MIN_BOND"
         );
+
+        // validate deadline
+        assert_proposal_deadline(proposal.deadline, &proposal.kind, &policy);
 
         // 1. Validate proposal.
         match &proposal.kind {
@@ -661,18 +660,32 @@ impl Contract {
     }
 }
 
-pub fn assert_proposal_deadline(proposal_deadline: Option<Timestamp>, kind: &ProposalKind) {
-    if let Some(deadline) = proposal_deadline {
-        assert!(
-            deadline >= env::block_timestamp() + MIN_VOTING_TIME,
-            "ERR_DEADLINE_SET_TOO_EARLY"
-        );
+pub fn assert_proposal_deadline(
+    proposal_deadline: Option<Timestamp>,
+    kind: &ProposalKind,
+    policy: &Policy,
+) {
+    if let Some(min_voting_time) = policy.min_voting_time {
+        if let Some(deadline) = proposal_deadline {
+            assert!(
+                deadline >= env::block_timestamp() + min_voting_time,
+                "ERR_DEADLINE_SET_TOO_EARLY"
+            );
 
-        let label = kind.to_policy_label();
+            let label = kind.to_policy_label();
+            assert!(
+                (label == "transfer"
+                    || label == "add_bounty"
+                    || label == "bounty_done"
+                    || label == "call"),
+                "ERR_DEADLINE_FORBIDDEN_KIND"
+            );
+        }
+    } else {
         assert!(
-            (label == "transfer" || label == "add_bounty" || label == "bounty_done"),
-            "ERR_DEADLINE_FORBIDDEN_KIND"
-        );
+            proposal_deadline.is_none(),
+            "ERR_MIN_VOTING_TIME_IS_MISSING"
+        )
     }
 }
 

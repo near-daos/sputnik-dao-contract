@@ -158,7 +158,13 @@ impl Contract {
     /// Only creator of the claim can call `done` on bounty that is still in progress.
     /// On expired, anyone can call it to free up the claim slot.
     #[payable]
-    pub fn bounty_done(&mut self, id: u64, account_id: Option<AccountId>, description: String, deadline: Option<Timestamp>) {
+    pub fn bounty_done(
+        &mut self,
+        id: u64,
+        account_id: Option<AccountId>,
+        description: String,
+        deadline: Option<Timestamp>,
+    ) {
         let sender_id = account_id.unwrap_or_else(|| env::predecessor_account_id());
         let (mut claims, claim_idx) = self.internal_get_claims(id, &sender_id);
         assert!(!claims[claim_idx].completed, "ERR_BOUNTY_CLAIM_COMPLETED");
@@ -177,12 +183,13 @@ impl Contract {
                 receiver_id: sender_id.clone(),
             };
 
-            proposals::assert_proposal_deadline(deadline, &kind);
+            let policy = self.policy.get().unwrap().to_policy();
+            proposals::assert_proposal_deadline(deadline, &kind, &policy);
 
             self.add_proposal(ProposalInput {
                 description,
                 kind,
-                deadline
+                deadline,
             });
             claims[claim_idx].completed = true;
             self.bounty_claimers.insert(&sender_id, &claims);
@@ -234,7 +241,7 @@ mod tests {
                     max_deadline: U64::from(1_000),
                 },
             },
-            deadline: None
+            deadline: None,
         });
         assert_eq!(contract.get_last_bounty_id(), id);
         contract.act_proposal(id, Action::VoteApprove, None);
