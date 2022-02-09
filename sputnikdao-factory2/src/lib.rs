@@ -128,7 +128,6 @@ impl SputnikDAOFactory {
 
     /// Tries to update given account created by this factory to the specified code.
     pub fn update(&self, account_id: AccountId, code_hash: Base58CryptoHash) {
-        self.assert_owner();
         assert!(
             self.daos.contains(&account_id),
             "Must be contract created by factory"

@@ -6,7 +6,7 @@ use near_sdk::Gas;
 use crate::*;
 
 const FACTORY_KEY: &[u8; 7] = b"FACTORY";
-const DEFAULT_FACTORY_ID: &str = "sputnik-dao.near";
+const DEFAULT_FACTORY_ID: &str = "factory";
 const ERR_MUST_BE_SELF_OR_FACTORY: &str = "ERR_MUST_BE_SELF_OR_FACTORY";
 const SELF_MIGRATE_METHOD_NAME: &[u8; 7] = b"migrate";
 const UPDATE_GAS_LEFTOVER: Gas = Gas(5_000_000_000_000);
