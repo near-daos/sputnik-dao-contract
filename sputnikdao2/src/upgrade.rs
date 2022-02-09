@@ -6,7 +6,6 @@ use near_sdk::Gas;
 use crate::*;
 
 const FACTORY_KEY: &[u8; 7] = b"FACTORY";
-const DEFAULT_FACTORY_ID: &str = "factory";
 const ERR_MUST_BE_SELF_OR_FACTORY: &str = "ERR_MUST_BE_SELF_OR_FACTORY";
 const SELF_MIGRATE_METHOD_NAME: &[u8; 7] = b"migrate";
 const UPDATE_GAS_LEFTOVER: Gas = Gas(5_000_000_000_000);
@@ -27,13 +26,24 @@ pub struct FactoryInfo {
     pub auto_update: bool,
 }
 
+pub fn get_default_factory_id() -> AccountId {
+    let current_id = env::current_account_id().to_string();
+    let parts: Vec<&str> = current_id.split('.').collect();
+    let network = *parts.last().expect("INTERNAL_FAIL");
+    match network {
+        "near" => AccountId::new_unchecked(String::from("sputnik-dao.near")),
+        "testnet" => AccountId::new_unchecked(String::from("sputnikv2.testnet")),
+        _ => AccountId::new_unchecked(String::from("factory")),
+    }
+}
+
 /// Fetches factory info from the storage.
 /// By design not using contract STATE to allow for upgrade of stuck contracts from factory.
 pub(crate) fn internal_get_factory_info() -> FactoryInfo {
     env::storage_read(FACTORY_KEY)
         .map(|value| FactoryInfo::try_from_slice(&value).expect("INTERNAL_FAIL"))
         .unwrap_or_else(|| FactoryInfo {
-            factory_id: AccountId::new_unchecked(DEFAULT_FACTORY_ID.to_string()),
+            factory_id: get_default_factory_id(),
             auto_update: true,
         })
 }
@@ -92,7 +102,7 @@ pub fn update() {
 }
 
 pub(crate) fn upgrade_using_factory(code_hash: Base58CryptoHash) {
-    let account_id = AccountId::new_unchecked(DEFAULT_FACTORY_ID.to_string());
+    let account_id = get_default_factory_id();
     // Create a promise toward the factory.
     let promise_id = env::promise_batch_create(&account_id);
     // Call `update` method from the factory which calls `update` method on this account.
