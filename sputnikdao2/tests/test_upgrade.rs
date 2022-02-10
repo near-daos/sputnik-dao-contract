@@ -70,7 +70,7 @@ fn test_upgrade_using_factory() {
             dao_account_id.clone(),
             "add_proposal",
             &json!({ "proposal": ProposalInput {
-                description: "proposal to test test".to_string(),
+                description: "proposal to test".to_string(),
                 kind: ProposalKind::UpgradeSelf { hash }
             }})
             .to_string()

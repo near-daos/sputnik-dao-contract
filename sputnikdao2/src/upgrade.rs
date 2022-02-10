@@ -28,13 +28,19 @@ pub struct FactoryInfo {
 
 pub fn get_default_factory_id() -> AccountId {
     let current_id = env::current_account_id().to_string();
-    let parts: Vec<&str> = current_id.split('.').collect();
-    let network = *parts.last().expect("INTERNAL_FAIL");
-    match network {
-        "near" => AccountId::new_unchecked(String::from("sputnik-dao.near")),
-        "testnet" => AccountId::new_unchecked(String::from("sputnikv2.testnet")),
-        _ => AccountId::new_unchecked(String::from("factory")),
+    if current_id.ends_with("test.near") {
+        // for sandbox testing
+        return AccountId::new_unchecked(String::from("factory.test.near"));
+    } else if current_id.ends_with("near") {
+        // for mainnet
+        return AccountId::new_unchecked(String::from("sputnik-dao.near"));
+    } else if current_id.ends_with("testnet") {
+        // for testnet
+        return AccountId::new_unchecked(String::from("sputnikv2.testnet"));
     }
+
+    // for simulation testing
+    AccountId::new_unchecked(String::from("factory"))
 }
 
 /// Fetches factory info from the storage.
