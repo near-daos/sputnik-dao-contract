@@ -6,12 +6,13 @@ import * as fs from 'fs';
 
 const DAO_WASM_BYTES: Uint8Array = fs.readFileSync('../res/sputnikdao2.wasm');
 
-workspaceWithFactory.test('Upgrade self using factory', async (test, { root, factory }) => {
+workspaceWithFactory.test('Upgrade self using factory', async (test, {
+    root,
+    factory
+}) => {
     await factory.call(
         factory,
-        'new',
-        {},
-        {
+        'new', {}, {
             gas: tGas(300),
         }
     );
@@ -22,13 +23,17 @@ workspaceWithFactory.test('Upgrade self using factory', async (test, { root, fac
         metadata: ''
     };
     const policy = [root.accountId];
-    const params = {config, policy};
+    const params = {
+        config,
+        policy
+    };
 
     await root.call(
         factory,
-        'create',
-        {name: 'testdao', args: Buffer.from(JSON.stringify(params)).toString('base64')},
-        {
+        'create', {
+            name: 'testdao',
+            args: Buffer.from(JSON.stringify(params)).toString('base64')
+        }, {
             attachedDeposit: toYocto('10'),
             gas: tGas(300),
         }
@@ -40,30 +45,29 @@ workspaceWithFactory.test('Upgrade self using factory', async (test, { root, fac
     const result = await root
         .createTransaction('testdao.factory.test.near')
         .functionCall(
-            'add_proposal',
-            {
-                proposal:
-                {
+            'add_proposal', {
+                proposal: {
                     description: 'proposal to test',
-                    kind: { "UpgradeSelf": { hash: hash } }
+                    kind: {
+                        "UpgradeSelf": {
+                            hash: hash
+                        }
+                    }
                 }
-            },
-            {
+            }, {
                 attachedDeposit: toYocto('1'),
             })
         .signAndSend();
-    const proposalId = result.parseResult<number>();
+    const proposalId = result.parseResult < number > ();
     test.is(proposalId, 0);
 
     await root
         .createTransaction('testdao.factory.test.near')
         .functionCall(
-            'act_proposal',
-            {
+            'act_proposal', {
                 id: proposalId,
                 action: 'VoteApprove',
-            },
-            {
+            }, {
                 gas: tGas(300),
             })
         .signAndSend();
