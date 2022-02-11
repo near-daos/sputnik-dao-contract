@@ -2,9 +2,7 @@
 # include a member for each contract
 members = [
   "sputnik-staking",
-  "sputnikdao",
   "sputnikdao2",
-  "sputnikdao-factory",
   "sputnikdao-factory2",
   "test-token"
 ]

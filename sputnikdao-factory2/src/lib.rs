@@ -9,6 +9,8 @@ use near_sdk::{env, near_bindgen, AccountId, CryptoHash, PanicOnDefault, Promise
 
 use factory_manager::FactoryManager;
 
+type Version = [u8; 2];
+
 // The keys used for writing data to storage via `env::storage_write`.
 const DEFAULT_CODE_HASH_KEY: &[u8; 4] = b"CODE";
 const FACTORY_OWNER_KEY: &[u8; 5] = b"OWNER";
@@ -16,15 +18,15 @@ const CODE_METADATA_KEY: &[u8; 8] = b"METADATA";
 
 // The values used when writing initial data to the storage.
 const DAO_CONTRACT_INITIAL_CODE: &[u8] = include_bytes!("../../sputnikdao2/res/sputnikdao2.wasm");
-const DAO_CONTRACT_INITIAL_VERSION: &str = "v3";
+const DAO_CONTRACT_INITIAL_VERSION: Version = [3, 0];
 const DAO_CONTRACT_NO_DATA: &str = "no data";
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct DaoContractMetadata {
-    // version of the DAO contract code (e.g. "v1", "v2", "v3")
-    pub version: String,
+    // version of the DAO contract code (e.g. [2, 0] -> 2.0, [3, 1] -> 3.1, [4, 0] -> 4.0)
+    pub version: Version,
     // commit id of https://github.com/near-daos/sputnik-dao-contract
     // representing a snapshot of the code that generated the wasm
     pub commit_id: String,
@@ -60,7 +62,7 @@ impl SputnikDAOFactory {
         self.store_contract_metadata(
             slice_to_hash(&sha256_hash),
             DaoContractMetadata {
-                version: String::from(DAO_CONTRACT_INITIAL_VERSION),
+                version: DAO_CONTRACT_INITIAL_VERSION,
                 commit_id: String::from(DAO_CONTRACT_NO_DATA),
                 changelog_url: None,
             },
@@ -167,7 +169,7 @@ impl SputnikDAOFactory {
         slice_to_hash(&env::storage_read(DEFAULT_CODE_HASH_KEY).expect("Must have code hash"))
     }
 
-    pub fn get_default_version(&self) -> String {
+    pub fn get_default_version(&self) -> Version {
         let storage_metadata = env::storage_read(CODE_METADATA_KEY).expect("INTERNAL_FAIL");
         let deserialized_metadata: UnorderedMap<Base58CryptoHash, DaoContractMetadata> =
             BorshDeserialize::try_from_slice(&storage_metadata).expect("INTERNAL_FAIL");
