@@ -2792,6 +2792,7 @@ dependencies = [
  "near-sdk-sim",
  "serde_with",
  "sputnik-staking",
+ "sputnikdao-factory2",
  "test-token",
 ]
 

@@ -7,7 +7,7 @@ use near_sdk::{log, AccountId, Balance, Gas, PromiseOrValue};
 
 use crate::policy::UserInfo;
 use crate::types::{Action, Config, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR};
-use crate::upgrade::{upgrade_remote, upgrade_self};
+use crate::upgrade::{upgrade_remote, upgrade_using_factory};
 use crate::*;
 
 /// Status of a proposal.
@@ -364,7 +364,7 @@ impl Contract {
                 promise.into()
             }
             ProposalKind::UpgradeSelf { hash } => {
-                upgrade_self(&CryptoHash::from(hash.clone()));
+                upgrade_using_factory(hash.clone());
                 PromiseOrValue::Value(())
             }
             ProposalKind::UpgradeRemote {

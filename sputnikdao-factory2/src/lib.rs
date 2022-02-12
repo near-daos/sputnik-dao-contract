@@ -128,15 +128,14 @@ impl SputnikDAOFactory {
         }
     }
 
-    /// Tries to upgrade given account created by this factory to the default code.
-    pub fn upgrade(&self, account_id: AccountId) {
-        self.assert_owner();
+    /// Tries to update given account created by this factory to the specified code.
+    pub fn update(&self, account_id: AccountId, code_hash: Base58CryptoHash) {
         assert!(
             self.daos.contains(&account_id),
             "Must be contract created by factory"
         );
         self.factory_manager
-            .update_contract(account_id, self.get_default_code_hash(), "update");
+            .update_contract(account_id, code_hash, "update");
     }
 
     pub fn get_dao_list(&self) -> Vec<AccountId> {

@@ -45,6 +45,17 @@ export const workspaceWithoutInit = Workspace.init(async ({ root }) => {
     return { alice, dao };
 });
 
+export const workspaceWithFactory = Workspace.init(async ({ root }) => {
+    const factory = await root.createAndDeploy(
+        'factory',
+        '../../sputnikdao-factory2/res/sputnikdao_factory2.wasm',
+        {
+            initialBalance: toYocto('500'),
+        }
+    );
+    return { factory };
+});
+
 export async function initTestToken(root: NearAccount) {
     const testToken = await root.createAndDeploy(
         'test-token',

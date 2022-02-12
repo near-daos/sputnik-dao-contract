@@ -1,14 +1,15 @@
 //! Logic to upgrade Sputnik contracts.
 
+use near_sdk::serde_json::json;
 use near_sdk::Gas;
 
 use crate::*;
 
 const FACTORY_KEY: &[u8; 7] = b"FACTORY";
-const DEFAULT_FACTORY_ID: &str = "sputnik-dao.near";
 const ERR_MUST_BE_SELF_OR_FACTORY: &str = "ERR_MUST_BE_SELF_OR_FACTORY";
 const SELF_MIGRATE_METHOD_NAME: &[u8; 7] = b"migrate";
 const UPDATE_GAS_LEFTOVER: Gas = Gas(5_000_000_000_000);
+const FACTORY_UPDATE_GAS_LEFTOVER: Gas = Gas(15_000_000_000_000);
 const NO_DEPOSIT: Balance = 0;
 
 /// Gas for upgrading this contract on promise creation + deploying new contract.
@@ -25,13 +26,23 @@ pub struct FactoryInfo {
     pub auto_update: bool,
 }
 
+pub fn get_default_factory_id() -> AccountId {
+    // ex: mydao.sputnik-dao.near
+    let dao_id = env::current_account_id().to_string();
+    let idx = dao_id.find('.').expect("INTERNAL_FAIL");
+    // ex: sputnik-dao.near
+    let factory_id = &dao_id[idx + 1..];
+
+    AccountId::new_unchecked(String::from(factory_id))
+}
+
 /// Fetches factory info from the storage.
 /// By design not using contract STATE to allow for upgrade of stuck contracts from factory.
 pub(crate) fn internal_get_factory_info() -> FactoryInfo {
     env::storage_read(FACTORY_KEY)
         .map(|value| FactoryInfo::try_from_slice(&value).expect("INTERNAL_FAIL"))
         .unwrap_or_else(|| FactoryInfo {
-            factory_id: AccountId::new_unchecked(DEFAULT_FACTORY_ID.to_string()),
+            factory_id: get_default_factory_id(),
             auto_update: true,
         })
 }
@@ -89,6 +100,24 @@ pub fn update() {
     }
 }
 
+pub(crate) fn upgrade_using_factory(code_hash: Base58CryptoHash) {
+    let account_id = get_default_factory_id();
+    // Create a promise toward the factory.
+    let promise_id = env::promise_batch_create(&account_id);
+    // Call `update` method from the factory which calls `update` method on this account.
+    env::promise_batch_action_function_call(
+        promise_id,
+        "update",
+        &json!({ "account_id": env::current_account_id(), "code_hash": code_hash })
+            .to_string()
+            .into_bytes(),
+        NO_DEPOSIT,
+        env::prepaid_gas() - env::used_gas() - FACTORY_UPDATE_GAS_LEFTOVER,
+    );
+    env::promise_return(promise_id);
+}
+
+#[allow(dead_code)]
 /// Self upgrade, optimizes gas by not loading into memory the code.
 pub(crate) fn upgrade_self(hash: &[u8]) {
     let current_id = env::current_account_id();
