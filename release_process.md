@@ -78,9 +78,6 @@ near create-account sputnik-factory.ctindogaru.testnet --masterAccount ctindogar
 
 ***2. Deploy the factory code:***
 ```bash
-./build.sh
-```
-```bash
 near deploy sputnik-factory.ctindogaru.testnet sputnikdao-factory2/res/sputnikdao_factory2.wasm
 ```
 
@@ -147,9 +144,6 @@ ___
 ### 1 2 Using official account on testnet
 
 ***1. Upgrade the factory code:***
-```bash
-./build.sh
-```
 ```bash
 near deploy sputnikv2.testnet sputnikdao-factory2/res/sputnikdao_factory2.wasm
 ```
@@ -220,12 +214,7 @@ ___
 git checkout 16b3bac754d18bbf88b1738cb0d6508cfd408bb2
 ```
 
-***2. Build the DAO v3 code:***
-```bash
-./build.sh
-```
-
-***3. Use the code built at the previous step and store it inside the factory as the default code used for creating new DAOs:***
+***2. Store the DAO v3 code inside the factory as the default code used for creating new DAOs:***
 ```bash
 BYTES='cat sputnikdao2/res/sputnikdao2.wasm | base64'
 ```
@@ -233,12 +222,12 @@ BYTES='cat sputnikdao2/res/sputnikdao2.wasm | base64'
 near call sputnikv2.testnet store $(eval "$BYTES") --base64 --accountId sputnikv2.testnet --gas 100000000000000 --amount 10
 ```
 
-***4. Use the code hash returned from the previous step to store the metadata associated with the code:***
+***3. Use the code hash returned from the previous step to store the metadata associated with the code:***
 ```bash
 near call sputnikv2.testnet store_contract_metadata '{"code_hash": "6SQymHtmezR3u9zAtLBQdb8RWCXxwxnigqSH2mRTxecB", "metadata": {"version": [3, 0], "commit_id": "16b3bac754d18bbf88b1738cb0d6508cfd408bb2"}, "set_default": true}' --accountId sputnikv2.testnet
 ```
 
-***5. See all the contract versions stored inside the factory:***
+***4. See all the contract versions stored inside the factory:***
 ```bash
 near view sputnikv2.testnet get_contracts_metadata
 ```
@@ -246,7 +235,7 @@ near view sputnikv2.testnet get_contracts_metadata
 - v2 with commit id `c2cf1553b070d04eed8f659571440b27d398c588` and hash `ZGdM2TFdQpcXrxPxvq25514EViyi9xBSboetDiB3Uiq`
 - v3 with commit id `16b3bac754d18bbf88b1738cb0d6508cfd408bb2` and hash `6SQymHtmezR3u9zAtLBQdb8RWCXxwxnigqSH2mRTxecB`
 
-***6. Try to create a DAO v3 - using Astro DAO:***
+***5. Try to create a DAO v3 - using Astro DAO:***
 
 Go to https://testnet.app.astrodao.com/all/daos and try to create a new DAO from the UI.  
 The DAO that gets created should be a brand new v3 DAO.
@@ -275,7 +264,7 @@ Assumptions:
 - we are the trying to upgrade `ctindogaru-dao.sputnik-factory.ctindogaru.testnet` from v2 to v3
 - we have the account id `ctindogaru.testnet`
 
-***1. Store the DAO code in your DAO.***
+***1. Store the DAO v3 code in your DAO.***
 
 ```bash
 BYTES='cat sputnikdao2/res/sputnikdao2.wasm | base64'
@@ -348,7 +337,7 @@ git clone https://github.com/near-daos/sputnik-dao-contract && cd sputnik-dao-co
 git checkout 16b3bac754d18bbf88b1738cb0d6508cfd408bb2
 ```
 
-***3. Store the DAO code in your DAO.***
+***3. Store the DAO v3 code in your DAO.***
 
 ```bash
 BYTES='cat sputnikdao2/res/sputnikdao2.wasm | base64'
