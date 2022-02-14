@@ -1,6 +1,6 @@
 # Sputnik DAO v2
 
-> Building on the functionality of [v1](sputnikdao/README.md), Sputnik DAO v2 offers even more features and enhanced configuration ability.
+> Building on the functionality of [Sputnik V1](https://github.com/near-daos/sputnik-dao-contract-legacy), Sputnik DAO V2 offers even more features and enhanced configuration ability. Sputnik V1 is archived because it can no longer be extended. Its newer version, Sputnik V2, aims to be more flexible in this regard and it provides new features that can be opt-in by the users.
 
 ## Overview
 

@@ -12,9 +12,11 @@ use sputnikdao2::{
     Action, Bounty, Config, ContractContract as DAOContract, ProposalInput, ProposalKind,
     VersionedPolicy,
 };
+use sputnikdao_factory2::SputnikDAOFactoryContract as FactoryContract;
 use test_token::ContractContract as TestTokenContract;
 
 near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
+    FACTORY_WASM_BYTES => "../sputnikdao-factory2/res/sputnikdao_factory2.wasm",
     DAO_WASM_BYTES => "res/sputnikdao2.wasm",
     TEST_TOKEN_WASM_BYTES => "../test-token/res/test_token.wasm",
     STAKING_WASM_BYTES => "../sputnik-staking/res/sputnik_staking.wasm",
@@ -31,6 +33,16 @@ pub fn should_fail(r: ExecutionResult) {
         ExecutionStatus::Failure(_) => {}
         _ => panic!("Should fail"),
     }
+}
+
+pub fn setup_factory(root: &UserAccount) -> ContractAccount<FactoryContract> {
+    deploy!(
+        contract: FactoryContract,
+        contract_id: "factory".to_string(),
+        bytes: &FACTORY_WASM_BYTES,
+        signer_account: root,
+        deposit: to_yocto("500"),
+    )
 }
 
 pub fn setup_dao() -> (UserAccount, Contract) {

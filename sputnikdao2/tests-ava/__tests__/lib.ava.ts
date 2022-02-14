@@ -1,67 +1,76 @@
 import { BN, NearAccount, captureError, toYocto, tGas, DEFAULT_FUNCTION_CALL_GAS, Gas, NEAR } from 'near-workspaces-ava';
-import { workspace, initStaking, initTestToken, STORAGE_PER_BYTE, workspaceWithoutInit } from './utils';
+import { workspace, initStaking, initTestToken, STORAGE_PER_BYTE, workspaceWithoutInit, workspaceWithFactory } from './utils';
 import { voteApprove } from './utils';
 import { DEADLINE, BOND, proposeBounty, proposeBountyWithNear, voteOnBounty, claimBounty, doneBounty } from './utils'
 import * as fs from 'fs';
 
 const DAO_WASM_BYTES: Uint8Array = fs.readFileSync('../res/sputnikdao2.wasm');
 
-workspace.test('Upgrade self', async (test, { root, dao }) => {
+workspaceWithFactory.test('Upgrade self using factory', async (test, {
+    root,
+    factory
+}) => {
+    await factory.call(
+        factory,
+        'new', {}, {
+            gas: tGas(300),
+        }
+    );
+
+    const config = {
+        name: 'testdao',
+        purpose: 'to test',
+        metadata: ''
+    };
+    const policy = [root.accountId];
+    const params = {
+        config,
+        policy
+    };
+
+    await root.call(
+        factory,
+        'create', {
+            name: 'testdao',
+            args: Buffer.from(JSON.stringify(params)).toString('base64')
+        }, {
+            attachedDeposit: toYocto('10'),
+            gas: tGas(300),
+        }
+    );
+
+    test.deepEqual(await factory.view('get_dao_list', {}), ['testdao.factory.test.near']);
+    const hash = await factory.view('get_default_code_hash', {});
+
     const result = await root
-        .createTransaction(dao)
+        .createTransaction('testdao.factory.test.near')
         .functionCall(
-            'store_blob',
-            DAO_WASM_BYTES,
-            {
-                attachedDeposit: toYocto('200'),
+            'add_proposal', {
+                proposal: {
+                    description: 'proposal to test',
+                    kind: {
+                        "UpgradeSelf": {
+                            hash: hash
+                        }
+                    }
+                }
+            }, {
+                attachedDeposit: toYocto('1'),
+            })
+        .signAndSend();
+    const proposalId = result.parseResult < number > ();
+    test.is(proposalId, 0);
+
+    await root
+        .createTransaction('testdao.factory.test.near')
+        .functionCall(
+            'act_proposal', {
+                id: proposalId,
+                action: 'VoteApprove',
+            }, {
                 gas: tGas(300),
             })
         .signAndSend();
-    const hash = result.parseResult<String>()
-    const proposalId = await root.call(
-        dao,
-        'add_proposal',
-        {
-            proposal:
-            {
-                description: 'test',
-                kind: { "UpgradeSelf": { hash: hash } }
-            }
-        },
-        {
-            attachedDeposit: toYocto('1'),
-        }
-    );
-
-
-    const id: number = await dao.view('get_last_proposal_id');
-    test.is(id, 1);
-
-    await root.call(
-        dao,
-        'act_proposal',
-        {
-            id: proposalId,
-            action: 'VoteApprove',
-        },
-        {
-            gas: tGas(300), // attempt to subtract with overflow if not enough gas, maybe add some checks?
-        }
-    );
-
-    test.is(await dao.view('version'), "2.0.0");
-
-    const beforeBlobRemove = new BN(await dao.view('get_available_amount'));
-    await root.call(
-        dao,
-        'remove_blob',
-        {
-            hash: hash,
-        }
-    );
-    test.assert(
-        new BN(await dao.view('get_available_amount')).gt(beforeBlobRemove)
-    )
 });
 
 workspaceWithoutInit.test('Upgrade self negative', async (test, { root, dao }) => {

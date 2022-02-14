@@ -3,8 +3,8 @@ use near_sdk::json_types::Base58CryptoHash;
 use near_sdk::serde_json::json;
 use near_sdk::AccountId;
 
-use near_sdk_sim::{call, to_yocto, view, DEFAULT_GAS};
-use sputnikdao2::{Action, ProposalInput, ProposalKind};
+use near_sdk_sim::{call, init_simulator, to_yocto, DEFAULT_GAS};
+use sputnikdao2::{Action, Config, ProposalInput, ProposalKind, VersionedPolicy};
 
 mod utils;
 use crate::utils::*;
@@ -15,31 +15,82 @@ near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
 }
 
 #[test]
-fn test_upgrade() {
-    let (root, dao) = setup_dao();
-    let hash = root
+fn test_upgrade_using_factory() {
+    let root = init_simulator(None);
+    let factory = setup_factory(&root);
+    factory
+        .user_account
         .call(
-            dao.user_account.account_id.clone(),
-            "store_blob",
-            &DAO_WASM_BYTES,
+            factory.user_account.account_id.clone(),
+            "new",
+            &[],
             near_sdk_sim::DEFAULT_GAS,
-            to_yocto("200"),
+            0,
         )
-        .unwrap_json::<Base58CryptoHash>();
+        .assert_success();
+
+    let config = Config {
+        name: "testdao".to_string(),
+        purpose: "to test".to_string(),
+        metadata: Base64VecU8(vec![]),
+    };
+    let policy = VersionedPolicy::Default(vec![root.account_id()]);
+    let params = json!({ "config": config, "policy": policy })
+        .to_string()
+        .into_bytes();
+
     call!(
         root,
-        dao.add_proposal(ProposalInput {
-            description: "test".to_string(),
-            kind: ProposalKind::UpgradeSelf { hash }
-        }),
-        deposit = to_yocto("1")
+        factory.create(
+            AccountId::new_unchecked("testdao".to_string()),
+            Base64VecU8(params)
+        ),
+        deposit = to_yocto("10")
     )
     .assert_success();
-    assert_eq!(view!(dao.get_last_proposal_id()).unwrap_json::<u64>(), 1);
-    call!(root, dao.act_proposal(0, Action::VoteApprove, None)).assert_success();
-    assert_eq!(view!(dao.version()).unwrap_json::<String>(), "2.0.0");
-    call!(root, dao.remove_blob(hash)).assert_success();
-    should_fail(call!(root, dao.remove_blob(hash)));
+
+    let dao_account_id = AccountId::new_unchecked("testdao.factory".to_string());
+    let dao_list = factory
+        .user_account
+        .view(factory.user_account.account_id.clone(), "get_dao_list", &[])
+        .unwrap_json::<Vec<AccountId>>();
+    assert_eq!(dao_list, vec![dao_account_id.clone()]);
+
+    let hash = factory
+        .user_account
+        .view(
+            factory.user_account.account_id.clone(),
+            "get_default_code_hash",
+            &[],
+        )
+        .unwrap_json::<Base58CryptoHash>();
+
+    let proposal_id = root
+        .call(
+            dao_account_id.clone(),
+            "add_proposal",
+            &json!({ "proposal": ProposalInput {
+                description: "proposal to test".to_string(),
+                kind: ProposalKind::UpgradeSelf { hash }
+            }})
+            .to_string()
+            .into_bytes(),
+            near_sdk_sim::DEFAULT_GAS,
+            to_yocto("1"),
+        )
+        .unwrap_json::<u64>();
+    assert_eq!(0, proposal_id);
+
+    root.call(
+        dao_account_id.clone(),
+        "act_proposal",
+        &json!({ "id": 0, "action": Action::VoteApprove})
+            .to_string()
+            .into_bytes(),
+        near_sdk_sim::DEFAULT_GAS,
+        0,
+    )
+    .assert_success();
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]
