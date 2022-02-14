@@ -109,7 +109,7 @@ near call sputnik-factory.ctindogaru.testnet store $(eval "$BYTES") --base64 --a
 
 ***6. Use the code hash returned from the previous step to store the metadata associated with the code:***
 ```bash
-near call sputnik-factory.ctindogaru.testnet store_contract_metadata '{"code_hash": "ZGdM2TFdQpcXrxPxvq25514EViyi9xBSboetDiB3Uiq", "metadata": {"version": "v2", "commit_id": "c2cf1553b070d04eed8f659571440b27d398c588"}, "set_default": true}' --accountId sputnik-factory.ctindogaru.testnet
+near call sputnik-factory.ctindogaru.testnet store_contract_metadata '{"code_hash": "ZGdM2TFdQpcXrxPxvq25514EViyi9xBSboetDiB3Uiq", "metadata": {"version": [2, 0], "commit_id": "c2cf1553b070d04eed8f659571440b27d398c588"}, "set_default": true}' --accountId sputnik-factory.ctindogaru.testnet
 ```
 
 ***7. See all the contract versions stored inside the factory:***
@@ -175,7 +175,7 @@ near call sputnikv2.testnet store $(eval "$BYTES") --base64 --accountId sputnikv
 
 ***4. Use the code hash returned from the previous step to store the metadata associated with the code:***
 ```bash
-near call sputnikv2.testnet store_contract_metadata '{"code_hash": "ZGdM2TFdQpcXrxPxvq25514EViyi9xBSboetDiB3Uiq", "metadata": {"version": "v2", "commit_id": "c2cf1553b070d04eed8f659571440b27d398c588"}, "set_default": true}' --accountId sputnikv2.testnet
+near call sputnikv2.testnet store_contract_metadata '{"code_hash": "ZGdM2TFdQpcXrxPxvq25514EViyi9xBSboetDiB3Uiq", "metadata": {"version": [2, 0], "commit_id": "c2cf1553b070d04eed8f659571440b27d398c588"}, "set_default": true}' --accountId sputnikv2.testnet
 ```
 
 ***5. See all the contract versions stored inside the factory:***
@@ -207,7 +207,7 @@ This should be done in the following order:
 - [mainnet - using the official mainnet factory account](#2-2-using-official-account-on-mainnet)
 
 Assumptions:
-- the DAO v3 code will be a snapshot of the code from commit id `596f27a649c5df3310e945a37a41a957492c0322`.
+- the DAO v3 code will be a snapshot of the code from commit id `16b3bac754d18bbf88b1738cb0d6508cfd408bb2`.
 
 ___
 
@@ -215,7 +215,7 @@ ___
 
 ***1. Checkout to the right commit id***
 ```bash
-git checkout 596f27a649c5df3310e945a37a41a957492c0322
+git checkout 16b3bac754d18bbf88b1738cb0d6508cfd408bb2
 ```
 
 ***2. Build the DAO v3 code:***
@@ -233,7 +233,7 @@ near call sputnikv2.testnet store $(eval "$BYTES") --base64 --accountId sputnikv
 
 ***4. Use the code hash returned from the previous step to store the metadata associated with the code:***
 ```bash
-near call sputnikv2.testnet store_contract_metadata '{"code_hash": "GUMFKZP6kdLgy3NjKy1EAkn77AfZFLKkj96VAgjmHXeS", "metadata": {"version": "v3", "commit_id": "596f27a649c5df3310e945a37a41a957492c0322"}, "set_default": true}' --accountId sputnikv2.testnet
+near call sputnikv2.testnet store_contract_metadata '{"code_hash": "6SQymHtmezR3u9zAtLBQdb8RWCXxwxnigqSH2mRTxecB", "metadata": {"version": [3, 0], "commit_id": "16b3bac754d18bbf88b1738cb0d6508cfd408bb2"}, "set_default": true}' --accountId sputnikv2.testnet
 ```
 
 ***5. See all the contract versions stored inside the factory:***
@@ -242,7 +242,7 @@ near view sputnikv2.testnet get_contracts_metadata
 ```
 2 versions should be displayed:
 - v2 with commit id `c2cf1553b070d04eed8f659571440b27d398c588` and hash `ZGdM2TFdQpcXrxPxvq25514EViyi9xBSboetDiB3Uiq`
-- v3 with commit id `596f27a649c5df3310e945a37a41a957492c0322` and hash `GUMFKZP6kdLgy3NjKy1EAkn77AfZFLKkj96VAgjmHXeS`
+- v3 with commit id `16b3bac754d18bbf88b1738cb0d6508cfd408bb2` and hash `6SQymHtmezR3u9zAtLBQdb8RWCXxwxnigqSH2mRTxecB`
 
 ***6. Try to create a DAO v3 - using Astro DAO:***
 
@@ -282,7 +282,7 @@ git clone https://github.com/near-daos/sputnik-dao-contract && cd sputnik-dao-co
 ```
 
 ```bash
-git checkout 596f27a649c5df3310e945a37a41a957492c0322
+git checkout 16b3bac754d18bbf88b1738cb0d6508cfd408bb2
 ```
 
 ***3. Store the DAO code in your DAO.***
@@ -295,15 +295,15 @@ BYTES='cat sputnikdao2/res/sputnikdao2.wasm | base64'
 near call amber.sputnik-dao.near store_blob $(eval "$BYTES") --base64 --accountId ctindogaru.near --gas 100000000000000 --amount 10
 ```
 
-After running the command from above, you should get the following code hash in return: `GUMFKZP6kdLgy3NjKy1EAkn77AfZFLKkj96VAgjmHXeS`.  
+After running the command from above, you should get the following code hash in return: `6SQymHtmezR3u9zAtLBQdb8RWCXxwxnigqSH2mRTxecB`.  
 
-If your result differs from `GUMFKZP6kdLgy3NjKy1EAkn77AfZFLKkj96VAgjmHXeS`, **DO NOT** proceed further. Please ask for help in [Telegram](https://t.me/astro_near).
+If your result differs from `6SQymHtmezR3u9zAtLBQdb8RWCXxwxnigqSH2mRTxecB`, **DO NOT** proceed further. Please ask for help in [Telegram](https://t.me/astro_near).
 
 ***4. Create an upgrade proposal for your DAO.***
 
 Run the following command:
 ```bash
-near call amber.sputnik-dao.near add_proposal '{"proposal": {"description": "Upgrade DAO to v3 version", "kind": {"UpgradeSelf": {"hash": "GUMFKZP6kdLgy3NjKy1EAkn77AfZFLKkj96VAgjmHXeS"}}}}' --accountId ctindogaru.near --amount 1
+near call amber.sputnik-dao.near add_proposal '{"proposal": {"description": "Upgrade DAO to v3 version", "kind": {"UpgradeSelf": {"hash": "6SQymHtmezR3u9zAtLBQdb8RWCXxwxnigqSH2mRTxecB"}}}}' --accountId ctindogaru.near --amount 1
 ```
 
 ***5. Approve the proposal.***
@@ -315,7 +315,7 @@ Everyone from the DAO should go to https://app.astrodao.com/dao/amber.sputnik-da
 ***7. Now that the upgrade is complete, remove the code from your DAO.***
 
 ```bash
-near call amber.sputnik-dao.near remove_blob '{"hash": "GUMFKZP6kdLgy3NjKy1EAkn77AfZFLKkj96VAgjmHXeS"}' --accountId ctindogaru.near --gas 100000000000000 --amount 10
+near call amber.sputnik-dao.near remove_blob '{"hash": "6SQymHtmezR3u9zAtLBQdb8RWCXxwxnigqSH2mRTxecB"}' --accountId ctindogaru.near --gas 100000000000000 --amount 10
 ```
 
 ***8. Congrats! You're now using the DAO v3.***
