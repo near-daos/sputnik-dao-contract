@@ -91,10 +91,7 @@ near call sputnik-factory.ctindogaru.testnet new '{}' --accountId sputnik-factor
 
 ***4. Download the current `wasm` code used for creating new DAOs:***
 
-```bash
-near view sputnikv2.testnet get_dao_list
-```
-Now pick any dao from the returned list and use it to download the wasm code:
+Go to [Astro DAO Testnet](https://testnet.app.astrodao.com/all/daos) and pick any dao from the list to download its wasm code. In this example, I have picked `thegame.sputnikv2.testnet`.
 ```bash
 http --json post https://rpc.testnet.near.org jsonrpc=2.0 id=dontcare method=query \
 params:='{"request_type":"view_code","finality":"final","account_id":"thegame.sputnikv2.testnet"}' \
