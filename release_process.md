@@ -73,7 +73,7 @@ ___
 ***1. Create a new NEAR account for the factory:***
 
 ```bash
-near create-account sputnik-factory.ctindogaru.testnet --masterAccount ctindogaru.testnet --initialBalance 50
+near create-account sputnik-factory.ctindogaru.testnet --masterAccount ctindogaru.testnet --initialBalance 100
 ```
 
 ***2. Deploy the factory code:***
