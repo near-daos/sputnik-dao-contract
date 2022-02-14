@@ -140,6 +140,8 @@ The DAO created in the previous step should be displayed here.
 near view ctindogaru-dao.sputnik-factory.ctindogaru.testnet get_available_amount
 ```
 
+You can now jump to section 3.1 for upgrading the dao from v2 to v3.
+
 ___
 
 ### 1 2 Using official account on testnet
@@ -313,7 +315,7 @@ near call ctindogaru-dao.sputnik-factory.ctindogaru.testnet act_proposal '{"id":
 ***6. Now that the upgrade is complete, remove the code from your DAO.***
 
 ```bash
-near call ctindogaru-dao.sputnik-factory.ctindogaru.testnet remove_blob '{"hash": "6SQymHtmezR3u9zAtLBQdb8RWCXxwxnigqSH2mRTxecB"}' --accountId ctindogaru.near --gas 100000000000000
+near call ctindogaru-dao.sputnik-factory.ctindogaru.testnet remove_blob '{"hash": "6SQymHtmezR3u9zAtLBQdb8RWCXxwxnigqSH2mRTxecB"}' --accountId ctindogaru.testnet --gas 100000000000000
 ```
 
 ***7. Congrats! You're now using the DAO v3.***
