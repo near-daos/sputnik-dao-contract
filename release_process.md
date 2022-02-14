@@ -315,7 +315,7 @@ Everyone from the DAO should go to https://app.astrodao.com/dao/amber.sputnik-da
 ***7. Now that the upgrade is complete, remove the code from your DAO.***
 
 ```bash
-near call amber.sputnik-dao.near remove_blob '{"hash": "6SQymHtmezR3u9zAtLBQdb8RWCXxwxnigqSH2mRTxecB"}' --accountId ctindogaru.near --gas 100000000000000 --amount 10
+near call amber.sputnik-dao.near remove_blob '{"hash": "6SQymHtmezR3u9zAtLBQdb8RWCXxwxnigqSH2mRTxecB"}' --accountId ctindogaru.near --gas 100000000000000
 ```
 
 ***8. Congrats! You're now using the DAO v3.***
