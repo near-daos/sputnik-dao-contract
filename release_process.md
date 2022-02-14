@@ -261,6 +261,67 @@ ___
 
 **!!!!!!!!!!! THIS MAY INTRODUCE BACKWARD COMPATIBILITY ISSUES. DO IT ON YOUR OWN RISK !!!!!!!!!!!**
 
+This should be done in the following order:
+- [testnet - using a personal account](#3-1-using-personal-account-on-testnet)
+- [mainnet - using the official mainnet factory account](#3-2-using-official-account-on-mainnet)
+
+___
+
+### 3 1 Using personal account on testnet
+
+Assumptions:
+- we are the trying to upgrade `ctindogaru-dao.sputnik-factory.ctindogaru.testnet` from v2 to v3
+- we have the account id `ctindogaru.testnet`
+
+***1. Store the DAO code in your DAO.***
+
+```bash
+BYTES='cat sputnikdao2/res/sputnikdao2.wasm | base64'
+```
+
+```bash
+near call ctindogaru-dao.sputnik-factory.ctindogaru.testnet store_blob $(eval "$BYTES") --base64 --accountId ctindogaru.testnet --gas 100000000000000 --amount 10
+```
+
+After running the command from above, you should get the following code hash in return: `6SQymHtmezR3u9zAtLBQdb8RWCXxwxnigqSH2mRTxecB`.  
+
+If your result differs from `6SQymHtmezR3u9zAtLBQdb8RWCXxwxnigqSH2mRTxecB`, **DO NOT** proceed further. Please ask for help in [Telegram](https://t.me/astro_near).
+
+***2. Create an upgrade proposal for your DAO.***
+
+Run the following command:
+```bash
+near call ctindogaru-dao.sputnik-factory.ctindogaru.testnet add_proposal '{"proposal": {"description": "Upgrade DAO to v3 version", "kind": {"UpgradeSelf": {"hash": "6SQymHtmezR3u9zAtLBQdb8RWCXxwxnigqSH2mRTxecB"}}}}' --accountId ctindogaru.testnet --amount 1
+```
+
+The command should return the proposal id which is 0.
+
+***3. Check that the proposal has been created.***
+
+```bash
+near view ctindogaru-dao.sputnik-factory.ctindogaru.testnet get_proposal '{"id": 0}'
+```
+
+***4. Approve the proposal.***
+
+```bash
+near call ctindogaru-dao.sputnik-factory.ctindogaru.testnet act_proposal '{"id": 0, "action": "VoteApprove"}' --accountId ctindogaru.testnet --gas 300000000000000
+```
+
+***5. Once the proposal get approved, the upgrade will take place.***
+
+***6. Now that the upgrade is complete, remove the code from your DAO.***
+
+```bash
+near call ctindogaru-dao.sputnik-factory.ctindogaru.testnet remove_blob '{"hash": "6SQymHtmezR3u9zAtLBQdb8RWCXxwxnigqSH2mRTxecB"}' --accountId ctindogaru.near --gas 100000000000000
+```
+
+***7. Congrats! You're now using the DAO v3.***
+
+___
+
+### 3 2 Using official account on mainnet
+
 Assumptions:
 - we are the trying to upgrade `amber.sputnik-dao.near` from v2 to v3
 - we have the account id `ctindogaru.near`
