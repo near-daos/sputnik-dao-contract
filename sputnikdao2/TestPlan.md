@@ -1,84 +1,125 @@
 # SputnikDao v2
 
+## Dao Policy Configurations
+
+### Default
+- [ ] TODO: 
+
+### Threshold
+- [ ] TODO: 
+
+### Role Weighted
+- [ ] TODO: 
+
+### Groups Weighted
+- [ ] TODO: 
+
+### Token Weighted
+- [ ] TODO: 
+
+### Groups Varying Policy
+- [ ] TODO: 
+
+## Staking Token
+
+### None
+- [ ] TODO: 
+
+### New Staking Contract
+- [ ] TODO: 
+
+
 ## bounties
+
+### Happy path
+Creates an end-to-end check of happy path completion
+- [x] Setup test token
+- [x] propose a bounty
+- [x] Vote on the bounty
+- [x] Claim the bounty
+- [x] Check bounty has claims
+- [x] Make bounty done
+- [x] Check bounty has claims
+- [x] Finalize bounty proposal
+- [x] Check bounty proposal approved
 
 ### bounty_claim
 Claims given bounty by caller with given expected duration to execute.
-- The method chould panic if the bounty with given id doesn't exist
-- Should panic if `attached_deposit` is not equal to the corresponding `bounty_bond`
-- Should panic in case of wrong deadline
-- Should panic if all bounties are claimed
-- Should increase number of claims
-- Should add this claim to the list of claims, done by this account
+- [ ] The method chould panic if the bounty with given id doesn't exist
+- [ ] Should panic if `attached_deposit` is not equal to the corresponding `bounty_bond`
+- [ ] Should panic in case of wrong deadline
+- [ ] Should panic if all bounties are claimed
+- [ ] Should increase number of claims
+- [ ] Should add this claim to the list of claims, done by this account
 ### bounty_done
 Reports that bounty is done. Creates a proposal to vote for paying out the bounty.
-- Should panic if the caller is not in the list of claimers
-- Should panic if the list of claims for the caller of the method doesn't contain the claim with given ID
-- Should panic if the bounty claim is completed
-- If claim is not expired, the `bounty_done` can only be called by the claimer
-- If not expired, proposal should be added, claim is marked as completed
+- [ ] Should panic if the caller is not in the list of claimers
+- [ ] Should panic if the list of claims for the caller of the method doesn't contain the claim with given ID
+- [ ] Should panic if the bounty claim is completed
+- [ ] If claim is not expired, the `bounty_done` can only be called by the claimer
+- [ ] If not expired, proposal should be added, claim is marked as completed
 ### bounty_giveup
 Gives up working on the bounty.
-- Should panic if the caller is not in the list of claimers
-- Should panic if the list of claims for the caller of the method doesn't contain the claim with given ID
-- If within forgiveness period, `bounty_bond` should be returned
-- If within forgiveness period, claim should be removed from the list of claims, done by this account
+- [ ] Should panic if the caller is not in the list of claimers
+- [ ] Should panic if the list of claims for the caller of the method doesn't contain the claim with given ID
+- [ ] If within forgiveness period, `bounty_bond` should be returned
+- [ ] If within forgiveness period, claim should be removed from the list of claims, done by this account
 
 ## delegation
 
 ### register_delegation
 Inserts a caller to the `delegations` LookupMap with zero balance.
-- Check that delegation appears in `delegations` LookupMap.
-- Can only be called by the `staking_id`
-- Attached deposit is handled correctly
+- [ ] Check that delegation appears in `delegations` LookupMap.
+- [ ] Can only be called by the `staking_id`
+- [ ] Attached deposit is handled correctly
 ### delegate
 Adds given amount to given account as delegated weight.
-- Should panic if `staking_id` is `None`
-- Check that amount is added correctly
-- Check that a user can't delegate more than it has
-- Check that it can only be called by the `staking_id`
-- Can't be called without previos registration
+- [ ] Should panic if `staking_id` is `None`
+- [ ] Check that amount is added correctly
+- [ ] Check that a user can't delegate more than it has
+- [ ] Check that it can only be called by the `staking_id`
+- [ ] Can't be called without previos registration
 ### undelegate
 Removes given amount from given account's delegations.
-- Should panic if `staking_id` is `None`
-- Check that it can only be called by the `staking_id`
-- Check that amount is subtracted correctly
-- Check that a user can't remove more than it delegated
-- Can't be called without previous registration
+- [ ] Should panic if `staking_id` is `None`
+- [ ] Check that it can only be called by the `staking_id`
+- [ ] Check that amount is subtracted correctly
+- [ ] Check that a user can't remove more than it delegated
+- [ ] Can't be called without previous registration
 
 ## lib
 
 ### remove_blob
 Removes blob from contract storage and pays back to the original storer.
-- Should panic if `hash` is wrong
-- Can only be called by the original storer
-- Blob should be removed
-- The payback should be computed correctly
+- [ ] Should panic if `hash` is wrong
+- [ ] Can only be called by the original storer
+- [ ] Blob should be removed
+- [ ] The payback should be computed correctly
 ### on_proposal_callback
 Receiving callback after the proposal has been finalized.
-- If successful, should return bond money to the proposal originator
-- If the proposal execution failed (funds didn't transfer or function call failure), should move the proposal to the "Failed" state
+- [ ] If successful, should return bond money to the proposal originator
+- [ ] If the proposal execution failed (funds didn't transfer or function call failure), should move the proposal to the "Failed" state
 ### store_blob
 Stores attached data into blob store and returns the hash of it.
-- Should panic if contract is not initialized
-- Should panic if the blob already exists
-- Should panic if the amount of the attached deposit is not enough
-- Should save the blob to the LookupMap
-- Should return hash of stored data
+- [ ] Should panic if contract is not initialized
+- [ ] Should panic if the blob already exists
+- [ ] Should panic if the amount of the attached deposit is not enough
+- [ ] Should save the blob to the LookupMap
+- [ ] Should return hash of stored data
 
 ## proposals
 
 ### add_proposal
 Adds proposal to this DAO.
-- Check that the method fails in case of insufficient deposit 
-- Check that different kinds of `proposal` are validated correctly
-- Check that only those with a permission can add the proposal
-- Check that the proposal is added to the list of proposals
+- [ ] Check that the method fails in case of insufficient deposit 
+- [ ] Check that different kinds of `proposal` are validated correctly
+- [ ] Check that only those with a permission can add the proposal
+- [ ] Check that the proposal is added to the list of proposals
 ### act_proposal
 Act on given proposal by id, if permissions allow.
-- Check that only those with a permission can act on the the proposal
-- Check that the method works correctly on any possible `action`
-- If the number of votes in the group has changed (new members has been added) the proposal can lose it's approved state. In this case new proposal needs to be made, this one should expire
+- [ ] Check that only those with a permission can act on the the proposal
+- [ ] Check that the method works correctly on any possible `action`
+- [ ] If the number of votes in the group has changed (new members has been added) the proposal can lose it's approved state. In this case new proposal needs to be made, this one should expire
 
 ## views
 ### version
@@ -107,10 +148,10 @@ Returns the last proposal's id.
 Returns a vector of the proposals.
 ### get_proposal
 Returns the specific proposal by id.
-- Should panic if the proposal with the given id doesn't exist
+- [ ] Should panic if the proposal with the given id doesn't exist
 ### get_bounty
 Returns the specific bounty by id.
-- Should panic if the bounty with the given id doesn't exist
+- [ ] Should panic if the bounty with the given id doesn't exist
 ### get_last_bounty_id
 Returns number of the bounties.
 ### get_bounties
