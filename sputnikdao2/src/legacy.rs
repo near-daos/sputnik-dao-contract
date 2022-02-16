@@ -1,14 +1,15 @@
 /// This file contains old structs that are required for the v2 -> v3 migration.
+use std::collections::HashMap;
+
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
-use near_sdk::json_types::{U128, U64};
+use near_sdk::json_types::{Base58CryptoHash, ValidAccountId, U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{AccountId, Balance, CryptoHash, PanicOnDefault};
 
-pub use crate::bounties::{BountyClaim, VersionedBounty};
-pub use crate::policy::{Policy, RoleKind, RolePermission, VersionedPolicy, VotePolicy};
+pub use crate::policy::{Policy, RoleKind, RolePermission, VotePolicy};
 pub use crate::proposals::{
-    Proposal, ProposalInput, ProposalKind, ProposalStatus, VersionedProposal,
+    ActionCall, Proposal, ProposalInput, ProposalKind, ProposalStatus, Vote,
 };
 pub use crate::types::{Action, Config};
 
@@ -35,7 +36,7 @@ pub struct OldContract {
     /// Last available id for the proposals.
     pub last_proposal_id: u64,
     /// Proposal map from ID to proposal information.
-    pub proposals: LookupMap<u64, VersionedProposal>,
+    pub proposals: LookupMap<u64, OldVersionedProposal>,
 
     /// Last available id for the bounty.
     pub last_bounty_id: u64,
@@ -115,4 +116,88 @@ pub struct OldBounty {
     pub times: u32,
     /// Max deadline from claim that can be spend on this bounty.
     pub max_deadline: WrappedDuration,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[serde(crate = "near_sdk::serde")]
+pub enum OldVersionedProposal {
+    Default(OldProposal),
+}
+
+/// Proposal that are sent to this DAO.
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[serde(crate = "near_sdk::serde")]
+pub struct OldProposal {
+    /// Original proposer.
+    pub proposer: AccountId,
+    /// Description of this proposal.
+    pub description: String,
+    /// Kind of proposal with relevant information.
+    pub kind: OldProposalKind,
+    /// Current status of the proposal.
+    pub status: ProposalStatus,
+    /// Count of votes per role per decision: yes / no / spam.
+    pub vote_counts: HashMap<String, [Balance; 3]>,
+    /// Map of who voted and how.
+    pub votes: HashMap<AccountId, Vote>,
+    /// Submission time (for voting period).
+    pub submission_time: WrappedTimestamp,
+}
+
+/// Kinds of proposals, doing different action.
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
+#[serde(crate = "near_sdk::serde")]
+pub enum OldProposalKind {
+    /// Change the DAO config.
+    ChangeConfig { config: Config },
+    /// Change the full policy.
+    ChangePolicy { policy: OldVersionedPolicy },
+    /// Add member to given role in the policy. This is short cut to updating the whole policy.
+    AddMemberToRole {
+        member_id: ValidAccountId,
+        role: String,
+    },
+    /// Remove member to given role in the policy. This is short cut to updating the whole policy.
+    RemoveMemberFromRole {
+        member_id: ValidAccountId,
+        role: String,
+    },
+    /// Calls `receiver_id` with list of method names in a single promise.
+    /// Allows this contract to execute any arbitrary set of actions in other contracts.
+    FunctionCall {
+        receiver_id: ValidAccountId,
+        actions: Vec<ActionCall>,
+    },
+    /// Upgrade this contract with given hash from blob store.
+    UpgradeSelf { hash: Base58CryptoHash },
+    /// Upgrade another contract, by calling method with the code from given hash from blob store.
+    UpgradeRemote {
+        receiver_id: ValidAccountId,
+        method_name: String,
+        hash: Base58CryptoHash,
+    },
+    /// Transfers given amount of `token_id` from this DAO to `receiver_id`.
+    /// If `msg` is not None, calls `ft_transfer_call` with given `msg`. Fails if this base token.
+    /// For `ft_transfer` and `ft_transfer_call` `memo` is the `description` of the proposal.
+    Transfer {
+        /// Can be "" for $NEAR or a valid account id.
+        token_id: AccountId,
+        receiver_id: ValidAccountId,
+        amount: U128,
+        msg: Option<String>,
+    },
+    /// Sets staking contract. Can only be proposed if staking contract is not set yet.
+    SetStakingContract { staking_id: ValidAccountId },
+    /// Add new bounty.
+    AddBounty { bounty: OldBounty },
+    /// Indicates that given bounty is done by given user.
+    BountyDone {
+        bounty_id: u64,
+        receiver_id: ValidAccountId,
+    },
+    /// Just a signaling vote, with no execution.
+    Vote,
 }
