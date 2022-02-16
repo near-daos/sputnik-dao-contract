@@ -7,7 +7,7 @@ use near_sdk_sim::{call, to_yocto, view};
 use crate::utils::*;
 use sputnik_staking::User;
 use sputnikdao2::{
-    Action, BountyClaim, BountyOutput, Policy, Proposal, ProposalInput, ProposalKind,
+    Action, BountyClaim, BountyOutput, OldAccountId, Policy, Proposal, ProposalInput, ProposalKind,
     ProposalOutput, ProposalStatus, RoleKind, RolePermission, VersionedPolicy, VotePolicy,
 };
 
@@ -33,13 +33,25 @@ fn test_multi_council() {
             },
             RolePermission {
                 name: "council".to_string(),
-                kind: RoleKind::Group(vec![user(1), user(2)].into_iter().collect()),
+                kind: RoleKind::Group(
+                    vec![user(1).to_string(), user(2).to_string()]
+                        .into_iter()
+                        .collect(),
+                ),
                 permissions: vec!["*:*".to_string()].into_iter().collect(),
                 vote_policy: HashMap::default(),
             },
             RolePermission {
                 name: "community".to_string(),
-                kind: RoleKind::Group(vec![user(1), user(3), user(4)].into_iter().collect()),
+                kind: RoleKind::Group(
+                    vec![
+                        user(1).to_string(),
+                        user(3).to_string(),
+                        user(4).to_string(),
+                    ]
+                    .into_iter()
+                    .collect(),
+                ),
                 permissions: vec!["*:*".to_string()].into_iter().collect(),
                 vote_policy: HashMap::default(),
             },
@@ -202,8 +214,8 @@ fn test_create_dao_and_use_token() {
     let staking = setup_staking(&root);
 
     assert!(view!(dao.get_staking_contract())
-        .unwrap_json::<Option<AccountId>>()
-        .is_none());
+        .unwrap_json::<OldAccountId>()
+        .is_empty());
     add_member_proposal(&root, &dao, user2.account_id.clone()).assert_success();
     assert_eq!(view!(dao.get_last_proposal_id()).unwrap_json::<u64>(), 1);
     // Voting by user who is not member should fail.
@@ -220,9 +232,9 @@ fn test_create_dao_and_use_token() {
         policy.roles[1].kind,
         RoleKind::Group(
             vec![
-                root.account_id.clone(),
-                user2.account_id.clone(),
-                user3.account_id.clone()
+                root.account_id.to_string(),
+                user2.account_id.to_string(),
+                user3.account_id.to_string()
             ]
             .into_iter()
             .collect()
@@ -241,8 +253,7 @@ fn test_create_dao_and_use_token() {
     .assert_success();
     vote(vec![&user3, &user2], &dao, 2);
     assert!(!view!(dao.get_staking_contract())
-        .unwrap_json::<AccountId>()
-        .as_str()
+        .unwrap_json::<OldAccountId>()
         .is_empty());
     assert_eq!(
         view!(dao.get_proposal(2)).unwrap_json::<Proposal>().status,
@@ -386,7 +397,7 @@ fn test_payment_failures() {
     add_transfer_proposal(
         &root,
         &dao,
-        Some(test_token.account_id()),
+        Some(test_token.account_id().to_string()),
         user(1),
         10,
         None,

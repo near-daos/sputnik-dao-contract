@@ -27,7 +27,9 @@ pub struct Bounty {
     /// Description of the bounty.
     pub description: String,
     /// Token the bounty will be paid out.
-    pub token: Option<AccountId>,
+    /// Can be "" for $NEAR or a valid account id.
+    #[serde(with = "serde_with::rust::string_empty_as_none")]
+    pub token: Option<OldAccountId>,
     /// Amount to be paid out.
     pub amount: U128,
     /// How many times this bounty can be done.
@@ -117,7 +119,7 @@ impl Contract {
         self.bounty_claims_count.insert(&id, &(claims_count + 1));
         let mut claims = self
             .bounty_claimers
-            .get(&env::predecessor_account_id())
+            .get(&env::predecessor_account_id().to_string())
             .unwrap_or_default();
         claims.push(BountyClaim {
             bounty_id: id,
@@ -126,7 +128,7 @@ impl Contract {
             completed: false,
         });
         self.bounty_claimers
-            .insert(&env::predecessor_account_id(), &claims);
+            .insert(&env::predecessor_account_id().to_string(), &claims);
         self.locked_amount += env::attached_deposit();
     }
 
@@ -135,9 +137,10 @@ impl Contract {
         let (mut claims, claim_idx) = self.internal_get_claims(bounty_id, claimer_id);
         claims.remove(claim_idx);
         if claims.len() == 0 {
-            self.bounty_claimers.remove(claimer_id);
+            self.bounty_claimers.remove(&claimer_id.to_string());
         } else {
-            self.bounty_claimers.insert(claimer_id, &claims);
+            self.bounty_claimers
+                .insert(&claimer_id.to_string(), &claims);
         }
         let count = self.bounty_claims_count.get(&bounty_id).unwrap() - 1;
         self.bounty_claims_count.insert(&bounty_id, &count);
@@ -146,7 +149,7 @@ impl Contract {
     fn internal_get_claims(&mut self, id: u64, sender_id: &AccountId) -> (Vec<BountyClaim>, usize) {
         let claims = self
             .bounty_claimers
-            .get(&sender_id)
+            .get(&sender_id.to_string())
             .expect("ERR_NO_BOUNTY_CLAIMS");
         let claim_idx = self
             .internal_find_claim(id, &claims)
@@ -180,7 +183,7 @@ impl Contract {
                 },
             });
             claims[claim_idx].completed = true;
-            self.bounty_claimers.insert(&sender_id, &claims);
+            self.bounty_claimers.insert(&sender_id.to_string(), &claims);
         }
     }
 

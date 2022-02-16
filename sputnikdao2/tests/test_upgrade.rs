@@ -34,7 +34,7 @@ fn test_upgrade_using_factory() {
         purpose: "to test".to_string(),
         metadata: Base64VecU8(vec![]),
     };
-    let policy = VersionedPolicy::Default(vec![root.account_id()]);
+    let policy = VersionedPolicy::Default(vec![root.account_id().to_string()]);
     let params = json!({ "config": config, "policy": policy })
         .to_string()
         .into_bytes();

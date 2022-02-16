@@ -9,8 +9,8 @@ use near_sdk_sim::{
 use near_sdk::json_types::U128;
 use sputnik_staking::ContractContract as StakingContract;
 use sputnikdao2::{
-    Action, Bounty, Config, ContractContract as DAOContract, ProposalInput, ProposalKind,
-    VersionedPolicy,
+    Action, Bounty, Config, ContractContract as DAOContract, OldAccountId, ProposalInput,
+    ProposalKind, VersionedPolicy,
 };
 use sputnikdao_factory2::SputnikDAOFactoryContract as FactoryContract;
 use test_token::ContractContract as TestTokenContract;
@@ -24,7 +24,7 @@ near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
 
 type Contract = ContractAccount<DAOContract>;
 
-pub fn base_token() -> Option<AccountId> {
+pub fn base_token() -> Option<OldAccountId> {
     None
 }
 
@@ -58,7 +58,7 @@ pub fn setup_dao() -> (UserAccount, Contract) {
         bytes: &DAO_WASM_BYTES,
         signer_account: root,
         deposit: to_yocto("200"),
-        init_method: new(config, VersionedPolicy::Default(vec![root.account_id.clone()]))
+        init_method: new(config, VersionedPolicy::Default(vec![root.account_id.to_string()]))
     );
     (root, dao)
 }
@@ -114,7 +114,7 @@ pub fn add_member_proposal(
 pub fn add_transfer_proposal(
     root: &UserAccount,
     dao: &Contract,
-    token_id: Option<AccountId>,
+    token_id: Option<OldAccountId>,
     receiver_id: AccountId,
     amount: Balance,
     msg: Option<String>,

@@ -93,7 +93,7 @@ pub enum ProposalKind {
     Transfer {
         /// Can be "" for $NEAR or a valid account id.
         #[serde(with = "serde_with::rust::string_empty_as_none")]
-        token_id: Option<AccountId>,
+        token_id: Option<OldAccountId>,
         receiver_id: AccountId,
         amount: U128,
         msg: Option<String>,
@@ -166,7 +166,7 @@ impl From<Action> for Vote {
 #[serde(crate = "near_sdk::serde")]
 pub struct Proposal {
     /// Original proposer.
-    pub proposer: AccountId,
+    pub proposer: OldAccountId,
     /// Description of this proposal.
     pub description: String,
     /// Kind of proposal with relevant information.
@@ -176,7 +176,7 @@ pub struct Proposal {
     /// Count of votes per role per decision: yes / no / spam.
     pub vote_counts: HashMap<String, [Balance; 3]>,
     /// Map of who voted and how.
-    pub votes: HashMap<AccountId, Vote>,
+    pub votes: HashMap<OldAccountId, Vote>,
     /// Submission time (for voting period).
     pub submission_time: U64,
 }
@@ -217,7 +217,7 @@ impl Proposal {
                 amount;
         }
         assert!(
-            self.votes.insert(account_id.clone(), vote).is_none(),
+            self.votes.insert(account_id.to_string(), vote).is_none(),
             "ERR_ALREADY_VOTED"
         );
     }
@@ -235,7 +235,7 @@ pub struct ProposalInput {
 impl From<ProposalInput> for Proposal {
     fn from(input: ProposalInput) -> Self {
         Self {
-            proposer: env::predecessor_account_id(),
+            proposer: env::predecessor_account_id().to_string(),
             description: input.description,
             kind: input.kind,
             status: ProposalStatus::InProgress,
@@ -250,7 +250,7 @@ impl Contract {
     /// Execute payout of given token to given user.
     pub(crate) fn internal_payout(
         &mut self,
-        token_id: &Option<AccountId>,
+        token_id: &Option<OldAccountId>,
         receiver_id: &AccountId,
         amount: Balance,
         memo: String,
@@ -265,7 +265,7 @@ impl Contract {
                     U128(amount),
                     Some(memo),
                     msg,
-                    token_id.as_ref().unwrap().clone(),
+                    AccountId::new_unchecked(token_id.as_ref().unwrap().clone()),
                     ONE_YOCTO_NEAR,
                     GAS_FOR_FT_TRANSFER,
                 )
@@ -274,7 +274,7 @@ impl Contract {
                     receiver_id.clone(),
                     U128(amount),
                     Some(memo),
-                    token_id.as_ref().unwrap().clone(),
+                    AccountId::new_unchecked(token_id.as_ref().unwrap().clone()),
                     ONE_YOCTO_NEAR,
                     GAS_FOR_FT_TRANSFER,
                 )
@@ -287,13 +287,15 @@ impl Contract {
         match &proposal.kind {
             ProposalKind::BountyDone { .. } => {
                 self.locked_amount -= policy.bounty_bond.0;
-                Promise::new(proposal.proposer.clone()).transfer(policy.bounty_bond.0);
+                Promise::new(AccountId::new_unchecked(proposal.proposer.clone()))
+                    .transfer(policy.bounty_bond.0);
             }
             _ => {}
         }
 
         self.locked_amount -= policy.proposal_bond.0;
-        Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond.0)
+        Promise::new(AccountId::new_unchecked(proposal.proposer.clone()))
+            .transfer(policy.proposal_bond.0)
     }
 
     /// Executes given proposal and updates the contract's state.

@@ -17,13 +17,13 @@ pub use crate::views::{BountyOutput, ProposalOutput};
 
 mod bounties;
 mod delegation;
-mod legacy;
-mod legacy_account;
 mod policy;
 mod proposals;
 mod types;
 mod upgrade;
 pub mod views;
+
+pub type OldAccountId = String;
 
 #[derive(BorshStorageKey, BorshSerialize)]
 pub enum StorageKeys {
@@ -56,11 +56,11 @@ pub struct Contract {
     pub locked_amount: Balance,
 
     /// Vote staking contract id. That contract must have this account as owner.
-    pub staking_id: Option<AccountId>,
+    pub staking_id: Option<OldAccountId>,
     /// Delegated  token total amount.
     pub total_delegation_amount: Balance,
     /// Delegations per user.
-    pub delegations: LookupMap<AccountId, Balance>,
+    pub delegations: LookupMap<OldAccountId, Balance>,
 
     /// Last available id for the proposals.
     pub last_proposal_id: u64,
@@ -72,12 +72,12 @@ pub struct Contract {
     /// Bounties map from ID to bounty information.
     pub bounties: LookupMap<u64, VersionedBounty>,
     /// Bounty claimers map per user. Allows quickly to query for each users their claims.
-    pub bounty_claimers: LookupMap<AccountId, Vec<BountyClaim>>,
+    pub bounty_claimers: LookupMap<OldAccountId, Vec<BountyClaim>>,
     /// Count of claims per bounty.
     pub bounty_claims_count: LookupMap<u64, u32>,
 
     /// Large blob storage.
-    pub blobs: LookupMap<CryptoHash, AccountId>,
+    pub blobs: LookupMap<CryptoHash, OldAccountId>,
 }
 
 #[near_bindgen]
@@ -127,14 +127,14 @@ impl Contract {
         let hash: CryptoHash = hash.into();
         let account_id = self.blobs.remove(&hash).expect("ERR_NO_BLOB");
         assert_eq!(
-            env::predecessor_account_id(),
+            env::predecessor_account_id().to_string(),
             account_id,
             "ERR_INVALID_CALLER"
         );
         env::storage_remove(&hash);
         let blob_len = env::register_len(u64::MAX - 1).unwrap();
         let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
-        Promise::new(account_id).transfer(storage_cost)
+        Promise::new(AccountId::new_unchecked(account_id)).transfer(storage_cost)
     }
 
     /// Returns factory information, including if auto update is allowed.
@@ -175,7 +175,7 @@ pub extern "C" fn store_blob() {
         sys::read_register(1, blob_hash.as_ptr() as _);
         contract
             .blobs
-            .insert(&blob_hash, &env::predecessor_account_id());
+            .insert(&blob_hash, &env::predecessor_account_id().to_string());
         // Return from function value of register 1.
         let blob_hash_str = near_sdk::serde_json::to_string(&Base58CryptoHash::from(blob_hash))
             .unwrap()

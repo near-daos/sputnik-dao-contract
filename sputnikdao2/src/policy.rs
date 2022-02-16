@@ -8,6 +8,7 @@ use near_sdk::{env, AccountId, Balance};
 
 use crate::proposals::{PolicyParameters, Proposal, ProposalKind, ProposalStatus, Vote};
 use crate::types::Action;
+use crate::OldAccountId;
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
@@ -18,7 +19,7 @@ pub enum RoleKind {
     /// Member greater or equal than given balance. Can use `1` as non-zero balance.
     Member(U128),
     /// Set of accounts.
-    Group(HashSet<AccountId>),
+    Group(HashSet<OldAccountId>),
 }
 
 impl RoleKind {
@@ -27,7 +28,7 @@ impl RoleKind {
         match self {
             RoleKind::Everyone => true,
             RoleKind::Member(amount) => user.amount >= amount.0,
-            RoleKind::Group(accounts) => accounts.contains(&user.account_id),
+            RoleKind::Group(accounts) => accounts.contains(&user.account_id.to_string()),
         }
     }
 
@@ -42,7 +43,7 @@ impl RoleKind {
     pub fn add_member_to_group(&mut self, member_id: &AccountId) -> Result<(), ()> {
         match self {
             RoleKind::Group(accounts) => {
-                accounts.insert(member_id.clone());
+                accounts.insert(member_id.to_string());
                 Ok(())
             }
             _ => Err(()),
@@ -52,7 +53,7 @@ impl RoleKind {
     pub fn remove_member_from_group(&mut self, member_id: &AccountId) -> Result<(), ()> {
         match self {
             RoleKind::Group(accounts) => {
-                accounts.remove(member_id);
+                accounts.remove(&member_id.to_string());
                 Ok(())
             }
             _ => Err(()),
@@ -166,7 +167,7 @@ pub struct Policy {
 #[serde(crate = "near_sdk::serde", untagged)]
 pub enum VersionedPolicy {
     /// Default policy with given accounts as council.
-    Default(Vec<AccountId>),
+    Default(Vec<OldAccountId>),
     Current(Policy),
 }
 
@@ -176,7 +177,7 @@ pub enum VersionedPolicy {
 ///     - non token weighted voting, requires 1/2 of the group to vote
 ///     - proposal & bounty bond is 1N
 ///     - proposal & bounty forgiveness period is 1 day
-fn default_policy(council: Vec<AccountId>) -> Policy {
+fn default_policy(council: Vec<OldAccountId>) -> Policy {
     Policy {
         roles: vec![
             RolePermission {
@@ -456,14 +457,18 @@ mod tests {
 
     #[test]
     fn test_add_role() {
-        let council = vec![accounts(0), accounts(1)];
+        let council = vec![accounts(0).to_string(), accounts(1).to_string()];
         let mut policy = default_policy(council);
 
         let community_role = policy.internal_get_role(&String::from("community"));
         assert!(community_role.is_none());
 
         let name: String = "community".to_string();
-        let kind: RoleKind = RoleKind::Group(vec![accounts(2), accounts(3)].into_iter().collect());
+        let kind: RoleKind = RoleKind::Group(
+            vec![accounts(2).to_string(), accounts(3).to_string()]
+                .into_iter()
+                .collect(),
+        );
         let permissions: HashSet<String> = vec!["*:*".to_string()].into_iter().collect();
         let vote_policy: HashMap<String, VotePolicy> = HashMap::default();
         let new_role = RolePermission {
@@ -488,11 +493,15 @@ mod tests {
 
     #[test]
     fn test_update_role() {
-        let council = vec![accounts(0), accounts(1)];
+        let council = vec![accounts(0).to_string(), accounts(1).to_string()];
         let mut policy = default_policy(council);
 
         let name: String = "council".to_string();
-        let kind: RoleKind = RoleKind::Group(vec![accounts(0), accounts(1)].into_iter().collect());
+        let kind: RoleKind = RoleKind::Group(
+            vec![accounts(0).to_string(), accounts(1).to_string()]
+                .into_iter()
+                .collect(),
+        );
         let permissions: HashSet<String> = vec![
             "*:AddProposal".to_string(),
             "*:VoteApprove".to_string(),
@@ -513,7 +522,11 @@ mod tests {
         assert_eq!(permissions, council_role.permissions);
         assert_eq!(vote_policy, council_role.vote_policy);
 
-        let kind: RoleKind = RoleKind::Group(vec![accounts(2), accounts(3)].into_iter().collect());
+        let kind: RoleKind = RoleKind::Group(
+            vec![accounts(2).to_string(), accounts(3).to_string()]
+                .into_iter()
+                .collect(),
+        );
         let permissions: HashSet<String> = vec!["*:*".to_string()].into_iter().collect();
         let updated_role = RolePermission {
             name: name.clone(),
@@ -537,7 +550,7 @@ mod tests {
 
     #[test]
     fn test_remove_role() {
-        let council = vec![accounts(0), accounts(1)];
+        let council = vec![accounts(0).to_string(), accounts(1).to_string()];
         let mut policy = default_policy(council);
 
         let council_role = policy.internal_get_role(&String::from("council"));
@@ -553,7 +566,7 @@ mod tests {
 
     #[test]
     fn test_update_default_vote_policy() {
-        let council = vec![accounts(0), accounts(1)];
+        let council = vec![accounts(0).to_string(), accounts(1).to_string()];
         let mut policy = default_policy(council);
 
         assert_eq!(
@@ -588,7 +601,7 @@ mod tests {
 
     #[test]
     fn test_update_parameters() {
-        let council = vec![accounts(0), accounts(1)];
+        let council = vec![accounts(0).to_string(), accounts(1).to_string()];
         let mut policy = default_policy(council);
 
         assert_eq!(U128(10u128.pow(24)), policy.proposal_bond);
