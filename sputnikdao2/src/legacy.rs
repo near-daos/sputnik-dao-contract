@@ -1,5 +1,5 @@
 /// This file contains old structs that are required for the v2 -> v3 migration.
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
@@ -7,12 +7,12 @@ use near_sdk::json_types::{Base58CryptoHash, U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{Balance, CryptoHash, PanicOnDefault};
 
+pub use crate::legacy_account::{OldAccountId, ValidAccountId};
 pub use crate::policy::{Policy, RoleKind, RolePermission, VotePolicy};
 pub use crate::proposals::{
     ActionCall, Proposal, ProposalInput, ProposalKind, ProposalStatus, Vote,
 };
 pub use crate::types::{Action, Config};
-pub use crate::legacy_account::{OldAccountId, ValidAccountId};
 
 type WrappedDuration = U64;
 type WrappedTimestamp = U64;
@@ -68,7 +68,7 @@ pub enum OldVersionedPolicy {
 #[serde(crate = "near_sdk::serde")]
 pub struct OldPolicy {
     /// List of roles and permissions for them in the current policy.
-    pub roles: Vec<RolePermission>,
+    pub roles: Vec<OldRolePermission>,
     /// Default vote policy. Used when given proposal kind doesn't have special policy.
     pub default_vote_policy: VotePolicy,
     /// Proposal bond.
@@ -79,6 +79,33 @@ pub struct OldPolicy {
     pub bounty_bond: U128,
     /// Period in which giving up on bounty is not punished.
     pub bounty_forgiveness_period: WrappedDuration,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
+#[serde(crate = "near_sdk::serde")]
+pub struct OldRolePermission {
+    /// Name of the role to display to the user.
+    pub name: String,
+    /// Kind of the role: defines which users this permissions apply.
+    pub kind: OldRoleKind,
+    /// Set of actions on which proposals that this role is allowed to execute.
+    /// <proposal_kind>:<action>
+    pub permissions: HashSet<String>,
+    /// For each proposal kind, defines voting policy.
+    pub vote_policy: HashMap<String, VotePolicy>,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
+#[serde(crate = "near_sdk::serde")]
+pub enum OldRoleKind {
+    /// Matches everyone, who is not matched by other roles.
+    Everyone,
+    /// Member greater or equal than given balance. Can use `1` as non-zero balance.
+    Member(Balance),
+    /// Set of accounts.
+    Group(HashSet<OldAccountId>),
 }
 
 /// Information recorded about claim of the bounty by given user.
