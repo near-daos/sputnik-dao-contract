@@ -3,15 +3,16 @@ use std::collections::HashMap;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
-use near_sdk::json_types::{Base58CryptoHash, ValidAccountId, U128, U64};
+use near_sdk::json_types::{Base58CryptoHash, U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{AccountId, Balance, CryptoHash, PanicOnDefault};
+use near_sdk::{Balance, CryptoHash, PanicOnDefault};
 
 pub use crate::policy::{Policy, RoleKind, RolePermission, VotePolicy};
 pub use crate::proposals::{
     ActionCall, Proposal, ProposalInput, ProposalKind, ProposalStatus, Vote,
 };
 pub use crate::types::{Action, Config};
+pub use crate::legacy_account::{OldAccountId, ValidAccountId};
 
 type WrappedDuration = U64;
 type WrappedTimestamp = U64;
@@ -27,11 +28,11 @@ pub struct OldContract {
     pub locked_amount: Balance,
 
     /// Vote staking contract id. That contract must have this account as owner.
-    pub staking_id: Option<AccountId>,
+    pub staking_id: Option<OldAccountId>,
     /// Delegated  token total amount.
     pub total_delegation_amount: Balance,
     /// Delegations per user.
-    pub delegations: LookupMap<AccountId, Balance>,
+    pub delegations: LookupMap<OldAccountId, Balance>,
 
     /// Last available id for the proposals.
     pub last_proposal_id: u64,
@@ -43,12 +44,12 @@ pub struct OldContract {
     /// Bounties map from ID to bounty information.
     pub bounties: LookupMap<u64, OldVersionedBounty>,
     /// Bounty claimers map per user. Allows quickly to query for each users their claims.
-    pub bounty_claimers: LookupMap<AccountId, Vec<OldBountyClaim>>,
+    pub bounty_claimers: LookupMap<OldAccountId, Vec<OldBountyClaim>>,
     /// Count of claims per bounty.
     pub bounty_claims_count: LookupMap<u64, u32>,
 
     /// Large blob storage.
-    pub blobs: LookupMap<CryptoHash, AccountId>,
+    pub blobs: LookupMap<CryptoHash, OldAccountId>,
 }
 
 /// Versioned policy.
@@ -57,7 +58,7 @@ pub struct OldContract {
 #[serde(crate = "near_sdk::serde", untagged)]
 pub enum OldVersionedPolicy {
     /// Default policy with given accounts as council.
-    Default(Vec<AccountId>),
+    Default(Vec<OldAccountId>),
     Current(OldPolicy),
 }
 
@@ -109,7 +110,7 @@ pub struct OldBounty {
     /// Description of the bounty.
     pub description: String,
     /// Token the bounty will be paid out.
-    pub token: AccountId,
+    pub token: OldAccountId,
     /// Amount to be paid out.
     pub amount: U128,
     /// How many times this bounty can be done.
@@ -131,7 +132,7 @@ pub enum OldVersionedProposal {
 #[serde(crate = "near_sdk::serde")]
 pub struct OldProposal {
     /// Original proposer.
-    pub proposer: AccountId,
+    pub proposer: OldAccountId,
     /// Description of this proposal.
     pub description: String,
     /// Kind of proposal with relevant information.
@@ -141,7 +142,7 @@ pub struct OldProposal {
     /// Count of votes per role per decision: yes / no / spam.
     pub vote_counts: HashMap<String, [Balance; 3]>,
     /// Map of who voted and how.
-    pub votes: HashMap<AccountId, Vote>,
+    pub votes: HashMap<OldAccountId, Vote>,
     /// Submission time (for voting period).
     pub submission_time: WrappedTimestamp,
 }
@@ -184,7 +185,7 @@ pub enum OldProposalKind {
     /// For `ft_transfer` and `ft_transfer_call` `memo` is the `description` of the proposal.
     Transfer {
         /// Can be "" for $NEAR or a valid account id.
-        token_id: AccountId,
+        token_id: OldAccountId,
         receiver_id: ValidAccountId,
         amount: U128,
         msg: Option<String>,

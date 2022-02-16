@@ -1,0 +1,101 @@
+use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use serde::Serialize;
+use std::convert::{TryFrom, TryInto};
+use std::fmt;
+
+use near_sdk::env::is_valid_account_id;
+
+pub type OldAccountId = String;
+
+/// Helper class to validate account ID during serialization and deserializiation
+#[derive(
+    Debug, Clone, PartialEq, PartialOrd, Ord, Eq, BorshDeserialize, BorshSerialize, Serialize,
+)]
+pub struct ValidAccountId(OldAccountId);
+
+impl ValidAccountId {
+    fn is_valid(&self) -> bool {
+        is_valid_account_id(&self.0.as_bytes())
+    }
+    pub fn to_string(&self) -> String {
+        self.0.clone()
+    }
+}
+
+impl fmt::Display for ValidAccountId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl AsRef<OldAccountId> for ValidAccountId {
+    fn as_ref(&self) -> &OldAccountId {
+        &self.0
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ValidAccountId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, <D as serde::Deserializer<'de>>::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = <String as serde::Deserialize>::deserialize(deserializer)?;
+        s.try_into()
+            .map_err(|err: Box<dyn std::error::Error>| serde::de::Error::custom(err.to_string()))
+    }
+}
+
+impl TryFrom<&str> for ValidAccountId {
+    type Error = Box<dyn std::error::Error>;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::try_from(value.to_string())
+    }
+}
+
+impl TryFrom<String> for ValidAccountId {
+    type Error = Box<dyn std::error::Error>;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let res = Self(value);
+        if res.is_valid() {
+            Ok(res)
+        } else {
+            Err("The account ID is invalid".into())
+        }
+    }
+}
+
+impl From<ValidAccountId> for OldAccountId {
+    fn from(value: ValidAccountId) -> Self {
+        value.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::convert::TryInto;
+
+    #[test]
+    fn test_deser() {
+        let key: ValidAccountId = serde_json::from_str("\"alice.near\"").unwrap();
+        assert_eq!(key.0, "alice.near".to_string());
+
+        let key: Result<ValidAccountId, _> = serde_json::from_str("Alice.near");
+        assert!(key.is_err());
+    }
+
+    #[test]
+    fn test_ser() {
+        let key: ValidAccountId = "alice.near".try_into().unwrap();
+        let actual: String = serde_json::to_string(&key).unwrap();
+        assert_eq!(actual, "\"alice.near\"");
+    }
+
+    #[test]
+    fn test_from_str() {
+        let key = ValidAccountId::try_from("alice.near").unwrap();
+        assert_eq!(key.as_ref(), &"alice.near".to_string());
+    }
+}
