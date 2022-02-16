@@ -17,6 +17,7 @@ pub use crate::views::{BountyOutput, ProposalOutput};
 
 mod bounties;
 mod delegation;
+mod legacy;
 mod policy;
 mod proposals;
 mod types;
