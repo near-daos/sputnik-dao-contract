@@ -10,5 +10,6 @@ crate-type = ["cdylib", "rlib"]
 
 
 [dependencies]
-near-sdk = "4.0.0-pre.4"
-near-contract-standards = "4.0.0-pre.4"
+near-sdk = {path="/home/gentbinaku/near/near-sdk-rs/near-sdk"}
+near-sys = {path="/home/gentbinaku/near/near-sdk-rs/sys"}
+near-contract-standards = {path="/home/gentbinaku/near/near-sdk-rs/near-contract-standards"}

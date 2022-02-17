@@ -5,6 +5,7 @@ use near_sdk_sim::transaction::ExecutionStatus;
 use near_sdk_sim::{
     call, deploy, init_simulator, to_yocto, ContractAccount, ExecutionResult, UserAccount,
 };
+use near_sdk::collections::{UnorderedSet};
 
 use near_sdk::json_types::U128;
 use sputnik_staking::ContractContract as StakingContract;
@@ -35,6 +36,8 @@ pub fn should_fail(r: ExecutionResult) {
 
 pub fn setup_dao() -> (UserAccount, Contract) {
     let root = init_simulator(None);
+    let mut policy = UnorderedSet::<AccountId>::new(b"s".to_vec());
+    policy.insert(&root.account_id.clone());
     let config = Config {
         name: "test".to_string(),
         purpose: "to test".to_string(),
@@ -46,7 +49,7 @@ pub fn setup_dao() -> (UserAccount, Contract) {
         bytes: &DAO_WASM_BYTES,
         signer_account: root,
         deposit: to_yocto("200"),
-        init_method: new(config, VersionedPolicy::Default(vec![root.account_id.clone()]))
+        init_method: new(config, VersionedPolicy::Default(policy))
     );
     (root, dao)
 }

@@ -1,6 +1,7 @@
 //! Logic to upgrade Sputnik contracts.
 
 use near_sdk::Gas;
+use near_sys;
 
 use crate::*;
 
@@ -63,20 +64,20 @@ pub fn update() {
     unsafe {
         // Load code into register 0 result from the input argument if factory call or from promise if callback.
         if is_callback {
-            sys::promise_result(0, 0);
+            near_sys::promise_result(0, 0);
         } else {
-            sys::input(0);
+            near_sys::input(0);
         }
         // Update current contract with code from register 0.
-        let promise_id = sys::promise_batch_create(
+        let promise_id = near_sys::promise_batch_create(
             current_id.as_bytes().len() as _,
             current_id.as_bytes().as_ptr() as _,
         );
         // Deploy the contract code.
-        sys::promise_batch_action_deploy_contract(promise_id, u64::MAX as _, 0);
+        near_sys::promise_batch_action_deploy_contract(promise_id, u64::MAX as _, 0);
         // Call promise to migrate the state.
         // Batched together to fail upgrade if migration fails.
-        sys::promise_batch_action_function_call(
+        near_sys::promise_batch_action_function_call(
             promise_id,
             SELF_MIGRATE_METHOD_NAME.len() as _,
             SELF_MIGRATE_METHOD_NAME.as_ptr() as _,
@@ -85,7 +86,7 @@ pub fn update() {
             &NO_DEPOSIT as *const u128 as _,
             (env::prepaid_gas() - env::used_gas() - UPDATE_GAS_LEFTOVER).0,
         );
-        sys::promise_return(promise_id);
+        near_sys::promise_return(promise_id);
     }
 }
 
@@ -96,16 +97,16 @@ pub(crate) fn upgrade_self(hash: &[u8]) {
     let attached_gas = env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_SELF_DEPLOY;
     unsafe {
         // Load input (wasm code) into register 0.
-        sys::storage_read(hash.len() as _, hash.as_ptr() as _, 0);
+        near_sys::storage_read(hash.len() as _, hash.as_ptr() as _, 0);
         // schedule a Promise tx to this same contract
-        let promise_id = sys::promise_batch_create(
+        let promise_id = near_sys::promise_batch_create(
             current_id.as_bytes().len() as _,
             current_id.as_bytes().as_ptr() as _,
         );
         // 1st item in the Tx: "deploy contract" (code is taken from register 0)
-        sys::promise_batch_action_deploy_contract(promise_id, u64::MAX as _, 0);
+        near_sys::promise_batch_action_deploy_contract(promise_id, u64::MAX as _, 0);
         // 2nd item in the Tx: call this_contract.migrate() with remaining gas
-        sys::promise_batch_action_function_call(
+        near_sys::promise_batch_action_function_call(
             promise_id,
             method_name.len() as _,
             method_name.as_ptr() as _,
@@ -120,13 +121,13 @@ pub(crate) fn upgrade_self(hash: &[u8]) {
 pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &[u8]) {
     unsafe {
         // Load input into register 0.
-        sys::storage_read(hash.len() as _, hash.as_ptr() as _, 0);
-        let promise_id = sys::promise_batch_create(
+        near_sys::storage_read(hash.len() as _, hash.as_ptr() as _, 0);
+        let promise_id = near_sys::promise_batch_create(
             receiver_id.as_bytes().len() as _,
             receiver_id.as_bytes().as_ptr() as _,
         );
         let attached_gas = env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_REMOTE_DEPLOY;
-        sys::promise_batch_action_function_call(
+        near_sys::promise_batch_action_function_call(
             promise_id,
             method_name.len() as _,
             method_name.as_ptr() as _,

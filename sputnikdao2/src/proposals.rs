@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+
+use near_sdk::collections::UnorderedMap;
 
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
@@ -174,9 +175,9 @@ pub struct Proposal {
     /// Current status of the proposal.
     pub status: ProposalStatus,
     /// Count of votes per role per decision: yes / no / spam.
-    pub vote_counts: HashMap<String, [Balance; 3]>,
+    pub vote_counts: UnorderedMap<String, [Balance; 3]>,
     /// Map of who voted and how.
-    pub votes: HashMap<AccountId, Vote>,
+    pub votes: UnorderedMap<AccountId, Vote>,
     /// Submission time (for voting period).
     pub submission_time: U64,
 }
@@ -213,11 +214,11 @@ impl Proposal {
             } else {
                 1
             };
-            self.vote_counts.entry(role.clone()).or_insert([0u128; 3])[vote.clone() as usize] +=
+            self.vote_counts.get(&role.clone()).insert([0u128; 3])[vote.clone() as usize] +=
                 amount;
         }
         assert!(
-            self.votes.insert(account_id.clone(), vote).is_none(),
+            self.votes.insert(&account_id.clone(), &vote).is_none(),
             "ERR_ALREADY_VOTED"
         );
     }
@@ -239,8 +240,8 @@ impl From<ProposalInput> for Proposal {
             description: input.description,
             kind: input.kind,
             status: ProposalStatus::InProgress,
-            vote_counts: HashMap::default(),
-            votes: HashMap::default(),
+            vote_counts: UnorderedMap::new(b"s".to_vec()),
+            votes: UnorderedMap::new(b"s".to_vec()),
             submission_time: U64::from(env::block_timestamp()),
         }
     }
@@ -484,7 +485,7 @@ impl Contract {
     pub fn add_proposal(&mut self, proposal: ProposalInput) -> u64 {
         // 0. validate bond attached.
         // TODO: consider bond in the token of this DAO.
-        let policy = self.policy.get().unwrap().to_policy();
+        let policy = self.get_policy();
         assert!(
             env::attached_deposit() >= policy.proposal_bond.0,
             "ERR_MIN_BOND"

@@ -9,10 +9,11 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-near-sdk = "4.0.0-pre.4"
-near-contract-standards = "4.0.0-pre.4"
+near-sdk = {path="/home/gentbinaku/near/near-sdk-rs/near-sdk"}
+near-sys = {path="/home/gentbinaku/near/near-sdk-rs/sys"}
+near-contract-standards = {path="/home/gentbinaku/near/near-sdk-rs/near-contract-standards"}
 hex = "0.4.2"
 
 [dev-dependencies]
-near-sdk-sim = "4.0.0-pre.4"
+near-sdk-sim = {path="/home/gentbinaku/near/near-sdk-rs/near-sdk-sim"}
 test-token = { path = "../test-token" }

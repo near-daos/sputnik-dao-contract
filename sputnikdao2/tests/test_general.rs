@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 
 use near_sdk::json_types::U128;
 use near_sdk::{env, AccountId};
 use near_sdk_sim::{call, to_yocto, view};
+use near_sdk::collections::{UnorderedMap, UnorderedSet};
 
 use crate::utils::*;
 use sputnik_staking::User;
@@ -23,25 +23,32 @@ fn test_multi_council() {
     let user1 = root.create_user(user(1), to_yocto("1000"));
     let user2 = root.create_user(user(2), to_yocto("1000"));
     let user3 = root.create_user(user(3), to_yocto("1000"));
+    let mut group1= UnorderedSet::<AccountId>::new(b"s".to_vec());
+    group1.insert(&user(1));
+    group1.insert(&user(2));
+    let mut group= UnorderedSet::<AccountId>::new(b"s".to_vec());
+    group.insert(&user(1));
+    group.insert(&user(3));
+    group.insert(&user( 4));
     let new_policy = Policy {
         roles: vec![
             RolePermission {
                 name: "all".to_string(),
                 kind: RoleKind::Everyone,
                 permissions: vec!["*:AddProposal".to_string()].into_iter().collect(),
-                vote_policy: HashMap::default(),
+                vote_policy: UnorderedMap::new(b"s".to_vec()),
             },
             RolePermission {
                 name: "council".to_string(),
-                kind: RoleKind::Group(vec![user(1), user(2)].into_iter().collect()),
+                kind: RoleKind::Group(group1),
                 permissions: vec!["*:*".to_string()].into_iter().collect(),
-                vote_policy: HashMap::default(),
+                vote_policy: UnorderedMap::new(b"s".to_vec()),
             },
             RolePermission {
                 name: "community".to_string(),
-                kind: RoleKind::Group(vec![user(1), user(3), user(4)].into_iter().collect()),
+                kind: RoleKind::Group(group),
                 permissions: vec!["*:*".to_string()].into_iter().collect(),
-                vote_policy: HashMap::default(),
+                vote_policy: UnorderedMap::new(b"s".to_vec()),
             },
         ],
         default_vote_policy: VotePolicy::default(),
@@ -201,6 +208,11 @@ fn test_create_dao_and_use_token() {
     let test_token = setup_test_token(&root);
     let staking = setup_staking(&root);
 
+    let mut group= UnorderedSet::<AccountId>::new(b"s".to_vec());
+    group.insert(&root.account_id.clone());
+    group.insert(&user2.account_id.clone());
+    group.insert(&user3.account_id.clone());
+
     assert!(view!(dao.get_staking_contract())
         .unwrap_json::<Option<AccountId>>()
         .is_none());
@@ -218,15 +230,7 @@ fn test_create_dao_and_use_token() {
     assert_eq!(policy.roles.len(), 2);
     assert_eq!(
         policy.roles[1].kind,
-        RoleKind::Group(
-            vec![
-                root.account_id.clone(),
-                user2.account_id.clone(),
-                user3.account_id.clone()
-            ]
-            .into_iter()
-            .collect()
-        )
+        RoleKind::Group(group)
     );
     add_proposal(
         &user2,

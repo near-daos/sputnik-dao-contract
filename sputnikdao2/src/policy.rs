@@ -1,13 +1,16 @@
 use std::cmp::min;
-use std::collections::{HashMap, HashSet};
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::collections::{UnorderedSet, UnorderedMap};
 use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, AccountId, Balance};
 
+
 use crate::proposals::{PolicyParameters, Proposal, ProposalKind, ProposalStatus, Vote};
 use crate::types::Action;
+
+
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
@@ -18,7 +21,7 @@ pub enum RoleKind {
     /// Member greater or equal than given balance. Can use `1` as non-zero balance.
     Member(U128),
     /// Set of accounts.
-    Group(HashSet<AccountId>),
+    Group(UnorderedSet<AccountId>),
 }
 
 impl RoleKind {
@@ -34,7 +37,7 @@ impl RoleKind {
     /// Returns the number of people in the this role or None if not supported role kind.
     pub fn get_role_size(&self) -> Option<usize> {
         match self {
-            RoleKind::Group(accounts) => Some(accounts.len()),
+            RoleKind::Group(accounts) => Some(accounts.len() as usize),
             _ => None,
         }
     }
@@ -42,7 +45,7 @@ impl RoleKind {
     pub fn add_member_to_group(&mut self, member_id: &AccountId) -> Result<(), ()> {
         match self {
             RoleKind::Group(accounts) => {
-                accounts.insert(member_id.clone());
+                accounts.insert(&member_id.clone());
                 Ok(())
             }
             _ => Err(()),
@@ -70,9 +73,9 @@ pub struct RolePermission {
     pub kind: RoleKind,
     /// Set of actions on which proposals that this role is allowed to execute.
     /// <proposal_kind>:<action>
-    pub permissions: HashSet<String>,
+    pub permissions: Vec<String>,
     /// For each proposal kind, defines voting policy.
-    pub vote_policy: HashMap<String, VotePolicy>,
+    pub vote_policy: UnorderedMap<String, VotePolicy>,
 }
 
 pub struct UserInfo {
@@ -166,7 +169,7 @@ pub struct Policy {
 #[serde(crate = "near_sdk::serde", untagged)]
 pub enum VersionedPolicy {
     /// Default policy with given accounts as council.
-    Default(Vec<AccountId>),
+    Default(UnorderedSet<AccountId>),
     Current(Policy),
 }
 
@@ -176,18 +179,18 @@ pub enum VersionedPolicy {
 ///     - non token weighted voting, requires 1/2 of the group to vote
 ///     - proposal & bounty bond is 1N
 ///     - proposal & bounty forgiveness period is 1 day
-fn default_policy(council: Vec<AccountId>) -> Policy {
+fn default_policy(council: UnorderedSet<AccountId>) -> Policy {
     Policy {
         roles: vec![
             RolePermission {
                 name: "all".to_string(),
                 kind: RoleKind::Everyone,
                 permissions: vec!["*:AddProposal".to_string()].into_iter().collect(),
-                vote_policy: HashMap::default(),
+                vote_policy: UnorderedMap::new(b"s".to_vec()),
             },
             RolePermission {
                 name: "council".to_string(),
-                kind: RoleKind::Group(council.into_iter().collect()),
+                kind: RoleKind::Group(council),
                 // All actions except RemoveProposal are allowed by council.
                 permissions: vec![
                     "*:AddProposal".to_string(),
@@ -198,7 +201,7 @@ fn default_policy(council: Vec<AccountId>) -> Policy {
                 ]
                 .into_iter()
                 .collect(),
-                vote_policy: HashMap::default(),
+                vote_policy: UnorderedMap::new(b"s".to_vec()),
             },
         ],
         default_vote_policy: VotePolicy::default(),
@@ -312,13 +315,12 @@ impl Policy {
         }
         env::log_str(&format!("ERR_ROLE_NOT_FOUND:{}", role));
     }
-
     /// Returns set of roles that this user is member of permissions for given user across all the roles it's member of.
-    fn get_user_roles(&self, user: UserInfo) -> HashMap<String, &HashSet<String>> {
-        let mut roles = HashMap::default();
+    fn get_user_roles(&self, user: UserInfo) -> UnorderedMap<String, Vec<String>> {
+        let mut roles:UnorderedMap<String, Vec<String> > = UnorderedMap::new(b"s".to_vec());
         for role in self.roles.iter() {
             if role.kind.match_user(&user) {
-                roles.insert(role.name.clone(), &role.permissions);
+                roles.insert(&role.name.to_string(),&role.permissions.to_vec());
             }
         }
         roles
@@ -335,7 +337,7 @@ impl Policy {
         let roles = self.get_user_roles(user);
         let mut allowed = false;
         let allowed_roles = roles
-            .into_iter()
+            .iter()
             .filter_map(|(role, permissions)| {
                 let allowed_role = permissions.contains(&format!(
                     "{}:{}",
@@ -344,7 +346,7 @@ impl Policy {
                 )) || permissions
                     .contains(&format!("{}:*", proposal_kind.to_policy_label()))
                     || permissions.contains(&format!("*:{}", action.to_policy_label()))
-                    || permissions.contains("*:*");
+                    || permissions.contains(&"*:*".to_string());
                 allowed = allowed || allowed_role;
                 if allowed_role {
                     Some(role)
@@ -362,7 +364,7 @@ impl Policy {
         match role_info
             .vote_policy
             .get(proposal_kind_label)
-            .unwrap_or(&self.default_vote_policy)
+            .unwrap_or(self.default_vote_policy.clone())
             .weight_kind
         {
             WeightKind::TokenWeight => true,
@@ -403,7 +405,7 @@ impl Policy {
             let vote_policy = role_info
                 .vote_policy
                 .get(&proposal.kind.to_policy_label().to_string())
-                .unwrap_or(&self.default_vote_policy);
+                .unwrap_or(self.default_vote_policy.clone());
             let total_weight = match &role_info.kind {
                 // Skip role that covers everyone as it doesn't provide a total size.
                 RoleKind::Everyone => continue,
@@ -421,7 +423,7 @@ impl Policy {
                 vote_policy.threshold.to_weight(total_weight),
             );
             // Check if there is anything voted above the threshold specified by policy for given role.
-            let vote_counts = proposal.vote_counts.get(&role).unwrap_or(&[0u128; 3]);
+            let vote_counts = proposal.vote_counts.get(&role).unwrap_or([0u128; 3]);
             if vote_counts[Vote::Approve as usize] >= threshold {
                 return ProposalStatus::Approved;
             } else if vote_counts[Vote::Reject as usize] >= threshold {
@@ -456,16 +458,21 @@ mod tests {
 
     #[test]
     fn test_add_role() {
-        let council = vec![accounts(0), accounts(1)];
+        let mut council= UnorderedSet::<AccountId>::new(b"s".to_vec());
+        council.insert(&accounts(0));
+        council.insert(&accounts(1));
         let mut policy = default_policy(council);
 
         let community_role = policy.internal_get_role(&String::from("community"));
         assert!(community_role.is_none());
 
         let name: String = "community".to_string();
-        let kind: RoleKind = RoleKind::Group(vec![accounts(2), accounts(3)].into_iter().collect());
-        let permissions: HashSet<String> = vec!["*:*".to_string()].into_iter().collect();
-        let vote_policy: HashMap<String, VotePolicy> = HashMap::default();
+        let mut group= UnorderedSet::<AccountId>::new(b"s".to_vec());
+        group.insert(&accounts(2));
+        group.insert(&accounts(3));
+        let kind: RoleKind = RoleKind::Group(group);
+        let permissions: Vec<String> = vec!["*:*".to_string()].into_iter().collect();
+        let vote_policy: UnorderedMap<String, VotePolicy> = UnorderedMap::new(b"s".to_vec());
         let new_role = RolePermission {
             name: name.clone(),
             kind: kind.clone(),
@@ -488,12 +495,17 @@ mod tests {
 
     #[test]
     fn test_update_role() {
-        let council = vec![accounts(0), accounts(1)];
+        let mut council= UnorderedSet::<AccountId>::new(b"s".to_vec());
+        council.insert(&accounts(0));
+        council.insert(&accounts(1));
         let mut policy = default_policy(council);
 
         let name: String = "council".to_string();
-        let kind: RoleKind = RoleKind::Group(vec![accounts(0), accounts(1)].into_iter().collect());
-        let permissions: HashSet<String> = vec![
+        let mut group= UnorderedSet::<AccountId>::new(b"s".to_vec());
+        group.insert(&accounts(2));
+        group.insert(&accounts(3));
+        let kind: RoleKind = RoleKind::Group(group);
+        let permissions: Vec<String> = vec![
             "*:AddProposal".to_string(),
             "*:VoteApprove".to_string(),
             "*:VoteReject".to_string(),
@@ -502,7 +514,7 @@ mod tests {
         ]
         .into_iter()
         .collect();
-        let vote_policy: HashMap<String, VotePolicy> = HashMap::default();
+        let vote_policy: UnorderedMap<String, VotePolicy> = UnorderedMap::new(b"s".to_vec());
 
         let council_role = policy.internal_get_role(&String::from("council"));
         assert!(council_role.is_some());
@@ -513,8 +525,11 @@ mod tests {
         assert_eq!(permissions, council_role.permissions);
         assert_eq!(vote_policy, council_role.vote_policy);
 
-        let kind: RoleKind = RoleKind::Group(vec![accounts(2), accounts(3)].into_iter().collect());
-        let permissions: HashSet<String> = vec!["*:*".to_string()].into_iter().collect();
+        let mut group= UnorderedSet::<AccountId>::new(b"s".to_vec());
+        group.insert(&accounts(2));
+        group.insert(&accounts(3));
+        let kind: RoleKind = RoleKind::Group(group);
+        let permissions: Vec<String> = vec!["*:*".to_string()].into_iter().collect();
         let updated_role = RolePermission {
             name: name.clone(),
             kind: kind.clone(),
@@ -537,7 +552,9 @@ mod tests {
 
     #[test]
     fn test_remove_role() {
-        let council = vec![accounts(0), accounts(1)];
+        let mut council= UnorderedSet::<AccountId>::new(b"s".to_vec());
+        council.insert(&accounts(0));
+        council.insert(&accounts(1));
         let mut policy = default_policy(council);
 
         let council_role = policy.internal_get_role(&String::from("council"));
@@ -553,8 +570,12 @@ mod tests {
 
     #[test]
     fn test_update_default_vote_policy() {
-        let council = vec![accounts(0), accounts(1)];
+        let mut council= UnorderedSet::<AccountId>::new(b"s".to_vec());
+        council.insert(&accounts(0));
+        council.insert(&accounts(1));
+
         let mut policy = default_policy(council);
+
 
         assert_eq!(
             WeightKind::RoleWeight,
@@ -588,7 +609,9 @@ mod tests {
 
     #[test]
     fn test_update_parameters() {
-        let council = vec![accounts(0), accounts(1)];
+        let mut council= UnorderedSet::<AccountId>::new(b"s".to_vec());
+        council.insert(&accounts(0));
+        council.insert(&accounts(1));
         let mut policy = default_policy(council);
 
         assert_eq!(U128(10u128.pow(24)), policy.proposal_bond);
