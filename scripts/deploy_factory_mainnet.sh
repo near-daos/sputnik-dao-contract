@@ -2,14 +2,6 @@
 # This file is used for starting a fresh set of all contracts & configs
 set -e
 
-if [ -d "res" ]; then
-  echo ""
-else
-  mkdir res
-fi
-
-cd "`dirname $0`"
-
 if [ -z "$KEEP_NAMES" ]; then
   export RUSTFLAGS='-C link-arg=-s'
 else
@@ -26,13 +18,7 @@ cp ../target/wasm32-unknown-unknown/release/*.wasm ../res/
 
 export NEAR_ENV=mainnet
 export FACTORY=near
-
-if [ -z ${NEAR_ACCT+x} ]; then
-  export NEAR_ACCT=sputnik-dao.$FACTORY
-else
-  export NEAR_ACCT=$NEAR_ACCT
-fi
-
+export NEAR_ACCT=sputnik-dao.$FACTORY
 export FACTORY_ACCOUNT_ID=$NEAR_ACCT
 export DAO_ACCOUNT_ID=genesis.$FACTORY_ACCOUNT_ID
 

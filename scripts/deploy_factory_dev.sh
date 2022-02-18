@@ -14,14 +14,6 @@
 #### --------------------------------------------
 set -e
 
-if [ -d "res" ]; then
-  echo ""
-else
-  mkdir res
-fi
-
-cd "`dirname $0`"
-
 if [ -z "$KEEP_NAMES" ]; then
   export RUSTFLAGS='-C link-arg=-s'
 else
@@ -176,19 +168,19 @@ export GAS_150_TGAS=150000000000000
 
 
 
-#### --------------------------------------------
-#### Upgrade a v2 DAO
-#### --------------------------------------------
-V3_CODE_HASH=$(eval "tail -1 v3_code_hash_result.txt | sed 's/^.//;s/.$//'")
-echo "Upgrade V3 CODE HASH: $V3_CODE_HASH"
-# some sample payouts
-near call $DAO_ACCOUNT_ID add_proposal '{"proposal": { "description": "Upgrade to v3", "kind": { "UpgradeSelf": { "hash": "'$V3_CODE_HASH'" } } } }' --accountId $NEAR_ACCT --amount 1
-# approve some, leave some
-near call $DAO_ACCOUNT_ID act_proposal '{"id": 3, "action" :"VoteApprove"}' --accountId $NEAR_ACCT  --gas $MAX_GAS
-# quick check all is good
-near view $DAO_ACCOUNT_ID get_proposal '{"id": 0}'
-near view $DAO_ACCOUNT_ID get_proposal '{"id": 3}'
-#### --------------------------------------------
+# #### --------------------------------------------
+# #### Upgrade a v2 DAO
+# #### --------------------------------------------
+# V3_CODE_HASH=$(eval "tail -1 v3_code_hash_result.txt | sed 's/^.//;s/.$//'")
+# echo "Upgrade V3 CODE HASH: $V3_CODE_HASH"
+# # some sample payouts
+# near call $DAO_ACCOUNT_ID add_proposal '{"proposal": { "description": "Upgrade to v3", "kind": { "UpgradeSelf": { "hash": "'$V3_CODE_HASH'" } } } }' --accountId $NEAR_ACCT --amount 1
+# # approve some, leave some
+# near call $DAO_ACCOUNT_ID act_proposal '{"id": 3, "action" :"VoteApprove"}' --accountId $NEAR_ACCT  --gas $MAX_GAS
+# # quick check all is good
+# near view $DAO_ACCOUNT_ID get_proposal '{"id": 0}'
+# near view $DAO_ACCOUNT_ID get_proposal '{"id": 3}'
+# #### --------------------------------------------
 
 
 
