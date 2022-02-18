@@ -61,14 +61,6 @@ pub enum ProposalKind {
     ChangeConfig { config: Config },
     /// Change the full policy.
     ChangePolicy { policy: VersionedPolicy },
-    /// Add new role to the policy. If the role already exists, update it. This is short cut to updating the whole policy.
-    ChangePolicyAddOrUpdateRole { role: RolePermission },
-    /// Remove role from the policy. This is short cut to updating the whole policy.
-    ChangePolicyRemoveRole { role: String },
-    /// Update the default vote policy from the policy. This is short cut to updating the whole policy.
-    ChangePolicyUpdateDefaultVotePolicy { vote_policy: VotePolicy },
-    /// Update the parameters from the policy. This is short cut to updating the whole policy.
-    ChangePolicyUpdateParameters { parameters: PolicyParameters },
     /// Add member to given role in the policy. This is short cut to updating the whole policy.
     AddMemberToRole { member_id: AccountId, role: String },
     /// Remove member to given role in the policy. This is short cut to updating the whole policy.
@@ -111,6 +103,14 @@ pub enum ProposalKind {
     Vote,
     /// Change information about factory and auto update.
     FactoryInfoUpdate { factory_info: FactoryInfo },
+    /// Add new role to the policy. If the role already exists, update it. This is short cut to updating the whole policy.
+    ChangePolicyAddOrUpdateRole { role: RolePermission },
+    /// Remove role from the policy. This is short cut to updating the whole policy.
+    ChangePolicyRemoveRole { role: String },
+    /// Update the default vote policy from the policy. This is short cut to updating the whole policy.
+    ChangePolicyUpdateDefaultVotePolicy { vote_policy: VotePolicy },
+    /// Update the parameters from the policy. This is short cut to updating the whole policy.
+    ChangePolicyUpdateParameters { parameters: PolicyParameters },
 }
 
 impl ProposalKind {
@@ -119,12 +119,6 @@ impl ProposalKind {
         match self {
             ProposalKind::ChangeConfig { .. } => "config",
             ProposalKind::ChangePolicy { .. } => "policy",
-            ProposalKind::ChangePolicyAddOrUpdateRole { .. } => "policy_add_or_update_role",
-            ProposalKind::ChangePolicyRemoveRole { .. } => "policy_remove_role",
-            ProposalKind::ChangePolicyUpdateDefaultVotePolicy { .. } => {
-                "policy_update_default_vote_policy"
-            }
-            ProposalKind::ChangePolicyUpdateParameters { .. } => "policy_update_parameters",
             ProposalKind::AddMemberToRole { .. } => "add_member_to_role",
             ProposalKind::RemoveMemberFromRole { .. } => "remove_member_from_role",
             ProposalKind::FunctionCall { .. } => "call",
@@ -136,6 +130,12 @@ impl ProposalKind {
             ProposalKind::BountyDone { .. } => "bounty_done",
             ProposalKind::Vote => "vote",
             ProposalKind::FactoryInfoUpdate { .. } => "factory_info_update",
+            ProposalKind::ChangePolicyAddOrUpdateRole { .. } => "policy_add_or_update_role",
+            ProposalKind::ChangePolicyRemoveRole { .. } => "policy_remove_role",
+            ProposalKind::ChangePolicyUpdateDefaultVotePolicy { .. } => {
+                "policy_update_default_vote_policy"
+            }
+            ProposalKind::ChangePolicyUpdateParameters { .. } => "policy_update_parameters",
         }
     }
 }
@@ -312,30 +312,6 @@ impl Contract {
                 self.policy.set(policy);
                 PromiseOrValue::Value(())
             }
-            ProposalKind::ChangePolicyAddOrUpdateRole { role } => {
-                let mut new_policy = policy.clone();
-                new_policy.add_or_update_role(role);
-                self.policy.set(&VersionedPolicy::Current(new_policy));
-                PromiseOrValue::Value(())
-            }
-            ProposalKind::ChangePolicyRemoveRole { role } => {
-                let mut new_policy = policy.clone();
-                new_policy.remove_role(role);
-                self.policy.set(&VersionedPolicy::Current(new_policy));
-                PromiseOrValue::Value(())
-            }
-            ProposalKind::ChangePolicyUpdateDefaultVotePolicy { vote_policy } => {
-                let mut new_policy = policy.clone();
-                new_policy.update_default_vote_policy(vote_policy);
-                self.policy.set(&VersionedPolicy::Current(new_policy));
-                PromiseOrValue::Value(())
-            }
-            ProposalKind::ChangePolicyUpdateParameters { parameters } => {
-                let mut new_policy = policy.clone();
-                new_policy.update_parameters(parameters);
-                self.policy.set(&VersionedPolicy::Current(new_policy));
-                PromiseOrValue::Value(())
-            }
             ProposalKind::AddMemberToRole { member_id, role } => {
                 let mut new_policy = policy.clone();
                 new_policy.add_member_to_role(role, &member_id.clone().into());
@@ -403,6 +379,30 @@ impl Contract {
             ProposalKind::Vote => PromiseOrValue::Value(()),
             ProposalKind::FactoryInfoUpdate { factory_info } => {
                 internal_set_factory_info(factory_info);
+                PromiseOrValue::Value(())
+            }
+            ProposalKind::ChangePolicyAddOrUpdateRole { role } => {
+                let mut new_policy = policy.clone();
+                new_policy.add_or_update_role(role);
+                self.policy.set(&VersionedPolicy::Current(new_policy));
+                PromiseOrValue::Value(())
+            }
+            ProposalKind::ChangePolicyRemoveRole { role } => {
+                let mut new_policy = policy.clone();
+                new_policy.remove_role(role);
+                self.policy.set(&VersionedPolicy::Current(new_policy));
+                PromiseOrValue::Value(())
+            }
+            ProposalKind::ChangePolicyUpdateDefaultVotePolicy { vote_policy } => {
+                let mut new_policy = policy.clone();
+                new_policy.update_default_vote_policy(vote_policy);
+                self.policy.set(&VersionedPolicy::Current(new_policy));
+                PromiseOrValue::Value(())
+            }
+            ProposalKind::ChangePolicyUpdateParameters { parameters } => {
+                let mut new_policy = policy.clone();
+                new_policy.update_parameters(parameters);
+                self.policy.set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
         };
