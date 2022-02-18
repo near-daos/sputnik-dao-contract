@@ -27,6 +27,8 @@ pub struct Bounty {
     /// Description of the bounty.
     pub description: String,
     /// Token the bounty will be paid out.
+    /// Can be "" for $NEAR or a valid account id.
+    #[serde(with = "serde_with::rust::string_empty_as_none")]
     pub token: Option<AccountId>,
     /// Amount to be paid out.
     pub amount: U128,
