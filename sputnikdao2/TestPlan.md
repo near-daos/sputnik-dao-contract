@@ -1,10 +1,52 @@
-# SputnikDao v2
+# Sputnik Test Planning
+
+The following is coverage checklists & notes about context tests needed to check the security of the Sputnik DAO contracts. These tests are aimed at 100% of the latest version, and best coverage of older versions.
 
 TC: TODO:
-- Eval all the supported vs plan
 - add context cases
-- add coverage on factory
 - add factory context cases
+
+# Sputnik Factory
+
+## Init & Default
+### new
+- [ ] TODO: 
+
+## DAOs
+### Creation
+- [ ] TODO: 
+### Upgrades
+- [ ] TODO: 
+
+## Ownership
+### Changing Owner
+- [ ] TODO: 
+### Adding Code Version
+- [ ] TODO: 
+### Adding Code Metadata
+- [ ] TODO: 
+### Removing Code Version
+- [ ] TODO: 
+
+## views
+### get_dao_list
+- [ ] TODO: 
+### get_number_daos
+- [ ] TODO: 
+### get_daos
+- [ ] TODO: 
+### get_owner
+- [ ] TODO: 
+### get_default_code_hash
+- [ ] TODO: 
+### get_default_version
+- [ ] TODO: 
+### get_code
+- [ ] TODO: 
+### get_contracts_metadata
+- [ ] TODO: 
+
+# Sputnik DAO
 
 ## Dao Policy Configurations
 
@@ -96,7 +138,7 @@ Removes given amount from given account's delegations.
 ## lib
 
 _NOTE: This covers v2 functionality for upgrades only_
-_NOTE: Missing migrate, new_
+_TODO: Missing migrate, new_
 
 ### store_blob
 Stores attached data into blob store and returns the hash of it.
@@ -114,7 +156,7 @@ Removes blob from contract storage and pays back to the original storer.
 
 ## Policy
 
-_NOTE: Policy is missing a lot of coverage:_
+_TODO: Policy is missing a lot of coverage:_
 
 ### TokenWeight
 Happy path for token-weighted policy
@@ -131,19 +173,19 @@ Happy path for token-weighted policy
 
 ### add_proposal
 Adds proposal to this DAO.
-- [ ] Check that the method fails in case of insufficient deposit 
-- [ ] Check that different kinds of `proposal` are validated correctly
-- [ ] Check that only those with a permission can add the proposal
-- [ ] Check that the proposal is added to the list of proposals
+- [x] Check that the method fails in case of insufficient deposit 
+- [x] Check that different kinds of `proposal` are validated correctly
+- [x] Check that only those with a permission can add the proposal
+- [x] Check that the proposal is added to the list of proposals
 ### act_proposal
 Act on given proposal by id, if permissions allow.
-- [ ] Check that only those with a permission can act on the the proposal
-- [ ] Check that the method works correctly on any possible `action`
-- [ ] If the number of votes in the group has changed (new members has been added) the proposal can lose it's approved state. In this case new proposal needs to be made, this one should expire
+- [??] Check that only those with a permission can act on the the proposal
+- [x] Check that the method works correctly on any possible `action`
+- [x] If the number of votes in the group has changed (new members has been added) the proposal can lose it's approved state. In this case new proposal needs to be made, this one should expire
 ### on_proposal_callback
 Receiving callback after the proposal has been finalized.
-- [ ] If successful, should return bond money to the proposal originator
-- [ ] If the proposal execution failed (funds didn't transfer or function call failure), should move the proposal to the "Failed" state
+- [??] If successful, should return bond money to the proposal originator
+- [??] If the proposal execution failed (funds didn't transfer or function call failure), should move the proposal to the "Failed" state
 
 _NOTE: Appears views are currently just helper methods and dont have test coverage_
 

@@ -32,7 +32,10 @@ V1 is archived in a different repo. :)
     "act_proposal",
     "bounty_claim",
     "bounty_done",
-    "bounty_giveup"
+    "bounty_giveup",
+    "register_delegation",
+    "delegate",
+    "undelegate"
   ],
 }
 ```
@@ -70,7 +73,10 @@ V1 is archived in a different repo. :)
     "act_proposal",
     "bounty_claim",
     "bounty_done",
-    "bounty_giveup"
+    "bounty_giveup",
+    "register_delegation",
+    "delegate",
+    "undelegate"
   ],
 }
 ```
