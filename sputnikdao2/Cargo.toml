@@ -12,6 +12,7 @@ crate-type = ["cdylib", "rlib"]
 near-sdk = {version = "4.0.0-pre.4", features = ["unstable"]}
 near-contract-standards = "4.0.0-pre.4"
 hex = "0.4.2"
+custom-utils = { path = "../custom-utils" }
 
 [dependencies.serde_with]
 version = "1.4.0"

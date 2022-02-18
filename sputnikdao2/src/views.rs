@@ -1,6 +1,6 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 
-use std::cmp::min;
+use custom_utils::min_max::get_max_u64;
 
 use crate::*;
 
@@ -87,7 +87,7 @@ impl Contract {
 
     /// Get proposals in paginated view.
     pub fn get_proposals(&self, from_index: u64, limit: u64) -> Vec<ProposalOutput> {
-        (from_index..min(self.last_proposal_id, from_index + limit))
+        (from_index..get_max_u64(self.last_proposal_id, from_index + limit))
             .filter_map(|id| {
                 self.proposals.get(&id).map(|proposal| ProposalOutput {
                     id,
@@ -122,7 +122,7 @@ impl Contract {
 
     /// Get `limit` of bounties from given index.
     pub fn get_bounties(&self, from_index: u64, limit: u64) -> Vec<BountyOutput> {
-        (from_index..std::cmp::min(from_index + limit, self.last_bounty_id))
+        (from_index..get_max_u64(from_index + limit, self.last_bounty_id))
             .filter_map(|id| {
                 self.bounties.get(&id).map(|bounty| BountyOutput {
                     id,

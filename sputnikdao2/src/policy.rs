@@ -1,10 +1,9 @@
-use std::cmp::min;
-use std::collections::{HashMap, HashSet};
-
+use custom_utils::min_max::{get_max_u128, get_min_u128};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, AccountId, Balance};
+use std::collections::{HashMap, HashSet};
 
 use crate::proposals::{PolicyParameters, Proposal, ProposalKind, ProposalStatus, Vote};
 use crate::types::Action;
@@ -94,8 +93,8 @@ impl WeightOrRatio {
     /// Convert weight or ratio to specific weight given total weight.
     pub fn to_weight(&self, total_weight: Balance) -> Balance {
         match self {
-            WeightOrRatio::Weight(weight) => min(weight.0, total_weight),
-            WeightOrRatio::Ratio(num, denom) => min(
+            WeightOrRatio::Weight(weight) => get_min_u128(weight.0, total_weight),
+            WeightOrRatio::Ratio(num, denom) => get_min_u128(
                 (*num as u128 * total_weight) / *denom as u128 + 1,
                 total_weight,
             ),
@@ -416,7 +415,7 @@ impl Policy {
                 }
                 RoleKind::Member(_) => total_supply,
             };
-            let threshold = std::cmp::max(
+            let threshold = get_max_u128(
                 vote_policy.quorum.0,
                 vote_policy.threshold.to_weight(total_weight),
             );

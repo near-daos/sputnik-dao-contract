@@ -10,3 +10,4 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 near-sdk = { version = "4.0.0-pre.4", features = ["unstable"]  }
+custom-utils = { path = "../custom-utils" }

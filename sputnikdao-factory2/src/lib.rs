@@ -1,5 +1,6 @@
 mod factory_manager;
 
+use custom_utils::min_max::get_min_u64;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{UnorderedMap, UnorderedSet};
 use near_sdk::json_types::{Base58CryptoHash, Base64VecU8, U128};
@@ -150,7 +151,7 @@ impl SputnikDAOFactory {
     /// Get daos in paginated view.
     pub fn get_daos(&self, from_index: u64, limit: u64) -> Vec<AccountId> {
         let elements = self.daos.as_vector();
-        (from_index..std::cmp::min(from_index + limit, elements.len()))
+        (from_index..get_min_u64(from_index + limit, elements.len()))
             .filter_map(|index| elements.get(index))
             .collect()
     }

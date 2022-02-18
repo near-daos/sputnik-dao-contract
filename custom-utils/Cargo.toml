@@ -1,0 +1,9 @@
+[package]
+name = "custom-utils"
+version = "1.0.0"
+authors = ["Nemanja Ninkovic <nemanja.ninkovic@sqa-consulting.com>"]
+edition = "2018"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
