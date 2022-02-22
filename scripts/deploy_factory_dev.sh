@@ -14,19 +14,12 @@
 #### --------------------------------------------
 set -e
 
-if [ -z "$KEEP_NAMES" ]; then
-  export RUSTFLAGS='-C link-arg=-s'
-else
-  export RUSTFLAGS=''
-fi
-
 # TODO: Change to the official approved commit:
 COMMIT_V3=596f27a649c5df3310e945a37a41a957492c0322
 # git checkout $COMMIT_V3
 
 # build the things
-cargo build --all --target wasm32-unknown-unknown --release
-cp ../target/wasm32-unknown-unknown/release/*.wasm ../res/
+./build.sh
 
 export NEAR_ENV=testnet
 export FACTORY=testnet
@@ -38,9 +31,9 @@ else
   export NEAR_ACCT=$NEAR_ACCT
 fi
 
-export FACTORY_ACCOUNT_ID=factory2.$NEAR_ACCT
+export FACTORY_ACCOUNT_ID=factory3.$NEAR_ACCT
 # export DAO_ACCOUNT_ID=croncat.sputnikv2.$FACTORY
-export DAO_ACCOUNT_ID=sputnikdao-dev-1644971179.factory2.sputnikpm.testnet
+export DAO_ACCOUNT_ID=sputnikdao-dev-v2-1645228499.factory3.sputnikpm.testnet
 export MAX_GAS=300000000000000
 export GAS_100_TGAS=100000000000000
 export GAS_150_TGAS=150000000000000
@@ -107,7 +100,7 @@ export GAS_150_TGAS=150000000000000
 # #### Upgrade the factory
 # #### NOTE: Make sure you've built on the right commit!
 # #### --------------------------------------------
-# near deploy --wasmFile ../sputnikdao-factory2/res/sputnikdao_factory2.wasm --accountId $FACTORY_ACCOUNT_ID --force
+# near deploy --wasmFile sputnikdao-factory2/res/sputnikdao_factory2.wasm --accountId $FACTORY_ACCOUNT_ID --force
 # #### --------------------------------------------
 
 
@@ -145,7 +138,7 @@ export GAS_150_TGAS=150000000000000
 # #### Get DAO v3 code data & store it in factory
 # #### --------------------------------------------
 # # Store the code data
-# V3_BYTES='cat ../sputnikdao2/res/sputnikdao2.wasm | base64'
+# V3_BYTES='cat sputnikdao2/res/sputnikdao2.wasm | base64'
 # near call $FACTORY_ACCOUNT_ID store $(eval "$V3_BYTES") --base64 --accountId $FACTORY_ACCOUNT_ID --gas $GAS_100_TGAS --amount 10 > v3_code_hash_result.txt
 
 # # Update the factory metadata
@@ -157,14 +150,15 @@ export GAS_150_TGAS=150000000000000
 
 
 
-# #### --------------------------------------------
-# #### Sanity check the new metadata & DAO
-# #### --------------------------------------------
-# # near view $FACTORY_ACCOUNT_ID get_contracts_metadata
-# # Check a v2 DAO
-# # near view $DEMO_DAO_ACCOUNT get_proposal '{"id": 0}'
+#### --------------------------------------------
+#### Sanity check the new metadata & DAO
+#### --------------------------------------------
+# near view $FACTORY_ACCOUNT_ID get_contracts_metadata
+# Check a v2 DAO
+# near view $DEMO_DAO_ACCOUNT get_proposal '{"id": 0}'
 # near view $DAO_ACCOUNT_ID get_proposal '{"id": 0}'
-# #### --------------------------------------------
+near view $DAO_ACCOUNT_ID get_proposal '{"id": 2}'
+#### --------------------------------------------
 
 
 
@@ -216,6 +210,12 @@ export GAS_150_TGAS=150000000000000
 # near view $FACTORY_ACCOUNT_ID get_dao_list
 # #### --------------------------------------------
 
-# TODO: cleanup local files!
+# #### --------------------------------------------
+# cleanup local files!
+# #### --------------------------------------------
+rm sputnikdao2_original.wasm
+rm sputnikdao_factory2_original.wasm
+rm v2_code_hash_result.txt
+rm v3_code_hash_result.txt
 
 echo "Dev Factory Deploy & Test Complete"
