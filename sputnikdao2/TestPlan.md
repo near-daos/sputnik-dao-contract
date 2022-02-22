@@ -10,41 +10,79 @@ TC: TODO:
 
 ## Init & Default
 ### new
-- [ ] TODO: 
+- [ ] Can instantiate a new factory with default struct, including DAOs set.
+- [ ] Stores the latest compiled version of Sputnik DAO contract in storage
+- [ ] Creates metadata for the latest compiled version of Sputnik DAO
+- [ ] Does not allow re-init
+- [ ] Does not allow anyone but owner to call "new"
 
 ## DAOs
 ### Creation
-- [ ] TODO: 
+- [ ] Allows any account to call create method
+- [ ] Created DAO becomes a sub-account of the factory. Example for new DAO: "awesome.sputnik.near"
+- [ ] Creates a new DAO & instantiates with the correct default Sputnik DAO contract from storage - see metadata
+- [ ] Returns the payment amount, if the creation failed for any reason
+- [ ] DAO Balance is equal to payment amount
+- [ ] DAO exists in the list of DAOs upon successful creation
+- [ ] Fails if the DAO name exists
+- [ ] Fails if the DAO name is not a valid account ID
 ### Upgrades
-- [ ] TODO: 
+- [ ] DAO Can update to a specific code_hash version of Sputnik DAO Code
+- [ ] Fails if DAO is not within the list of supported DAOs
+- [ ] Fails if DAO tries a code_hash that doesnt exist
+- [ ] Fails if predecessor is not the DAO getting upgraded (DAO proposal must trigger upgrade)
 
 ## Ownership
 ### Changing Owner
-- [ ] TODO: 
+- [ ] Can get current owner
+- [ ] Fails if trying to set owner from non-owner account
+- [ ] Owner can be a DAO account
+- [ ] Owner gets successfully updated
 ### Adding Code Version
-- [ ] TODO: 
+- [ ] Can store code as blob in factory
+- [ ] Can set a default code_hash
+- [ ] Fails if not owner of factory
+- [ ] Fails if no code is attached when storing a code blob
+- [ ] Fails if code blob is too small to be a legit contract
+- [ ] Fails if attached payment doesnt support the storage cost
 ### Adding Code Metadata
-- [ ] TODO: 
+- [ ] Can add metadata for an existing set of Sputnik DAO Code (code_hash is available only upon storage of contract inside factory)
+- [ ] Can set the code_hash as default
+- [ ] Metadata version and other params meet types & spec standards
+- [ ] Fails to add code metadata if code_hash doesn't exist
+- [ ] Can remove code metadata if called by owner
+- [ ] Fails to remove code metadata if metadata by code_hash doesn't exist
 ### Removing Code Version
-- [ ] TODO: 
+- [ ] Can delete a code blob by code_hash
+- [ ] Can delete any/all associated code metadata for the same code_hash
+- [ ] Confirm storage is empty after deletion success
+- [ ] Fails if non-owner attempting to delete code blob
+- [ ] Fails if no code blob exists
 
 ## views
 ### get_dao_list
-- [ ] TODO: 
+- [ ] Returns empty array for new factory
+- [ ] Returns full list of DAOs
+- [ ] NOTE: This method will fail when list gets too long for gas to return on RPC
 ### get_number_daos
-- [ ] TODO: 
+- [ ] Returns an integer representing the total amount of DAOs known to factory
 ### get_daos
-- [ ] TODO: 
+- [ ] (Needs Impl) Returns default list of DAOs with a max length of 100 & offset of 0.
+- [ ] Returns a list of DAOs matching the specified `from_index` and `limit`.
+- [ ] Capable of returning non-zero indexed list, so pagination can be verified
 ### get_owner
-- [ ] TODO: 
+- [ ] Returns a string representing the account that owns the factory
+- [ ] Fails if storage is corrupted or no owner
 ### get_default_code_hash
-- [ ] TODO: 
+- [ ] Returns the default code_hash for a new DAO
+- [ ] Returns the default code_hash that has been updated after new code blob in factory
 ### get_default_version
-- [ ] TODO: 
+- [ ] Returns the default metadata version for a new DAO, this will be a simplified semver. Example: [2,0] for V 2.0
 ### get_code
-- [ ] TODO: 
+- [ ] Returns an entire code blob based on given code_hash
+- [ ] Returns no value if code_hash doesn't exist
 ### get_contracts_metadata
-- [ ] TODO: 
+- [ ] Returns the supported list of all factory code_hash + metadata, indicating the supported versions available for DAOs to upgrade
 
 # Sputnik DAO
 
