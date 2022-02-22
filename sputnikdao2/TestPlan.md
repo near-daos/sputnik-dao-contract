@@ -2,10 +2,6 @@
 
 The following is coverage checklists & notes about context tests needed to check the security of the Sputnik DAO contracts. These tests are aimed at 100% of the latest version, and best coverage of older versions.
 
-TC: TODO:
-- add context cases
-- add factory context cases
-
 # Sputnik Factory
 
 ## Init & Default
@@ -87,6 +83,7 @@ TC: TODO:
 # Sputnik DAO
 
 ## Dao Policy Configurations
+These tests are purely for checking support of certain policy configurations, no simulations.
 
 ### Default
 - [ ] TODO: 
@@ -97,22 +94,29 @@ TC: TODO:
 ### Role Weighted
 - [ ] TODO: 
 
-### Groups Weighted
+### Token Weighted
 - [ ] TODO: 
 
-### Token Weighted
+### Groups Weighted
 - [ ] TODO: 
 
 ### Groups Varying Policy
 - [ ] TODO: 
 
+
 ## Staking Token
-
 ### None
-- [ ] TODO: 
-
+- [ ] Confirming other policies means non token-staking works fine
 ### New Staking Contract
-- [ ] TODO: 
+- [ ] Can deploy a new staking contract, configured to the right DAO owner, token & stake period
+- [ ] DAO Can propose and accept the staking contract proposal
+- [ ] Users can pre-pay storage & register to delegate tokens
+- [ ] Users can deposit tokens using FT transfers
+- [ ] Users can delegate to themselves within the staking contract
+- [ ] Users can delegate to a different user within the staking contract
+- [ ] Can check the amounts held within the staking contract
+- [ ] Users can undelegate tokens from a delegation
+- [ ] Users can withdraw any available tokens that aren't delegated in the staking contract
 
 
 ## bounties
@@ -176,7 +180,6 @@ Removes given amount from given account's delegations.
 ## lib
 
 _NOTE: This covers v2 functionality for upgrades only_
-_TODO: Missing migrate, new_
 
 ### store_blob
 Stores attached data into blob store and returns the hash of it.
@@ -195,6 +198,7 @@ Removes blob from contract storage and pays back to the original storer.
 ## Policy
 
 _TODO: Policy is missing a lot of coverage:_
+
 
 ### TokenWeight
 Happy path for token-weighted policy
