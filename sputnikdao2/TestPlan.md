@@ -85,23 +85,371 @@ The following is coverage checklists & notes about context tests needed to check
 ## Dao Policy Configurations
 These tests are purely for checking support of certain policy configurations, no simulations.
 
+You can check a DAO's policy by doing: 
+
+```bash
+near view DAO_NAME.sputnik-dao.near get_policy
+```
+
 ### Default
+**Goal:**
+Confirm the default policy acts as it should.
+
+**TESTS:**
 - [ ] TODO: 
+
+**Default Config:**
+
+```json
+{
+  "roles": [
+    {
+      "name": "all",
+      "kind": "Everyone",
+      "permissions": [
+        "*:AddProposal"
+      ],
+      "vote_policy": {}
+    },
+    {
+      "name": "council",
+      "kind": {
+        "Group": [
+          "user_1.testnet"
+        ]
+      },
+      "permissions": [
+        "*:Finalize",
+        "*:AddProposal",
+        "*:VoteApprove",
+        "*:VoteReject",
+        "*:VoteRemove"
+      ],
+      "vote_policy": {}
+    }
+  ],
+  "default_vote_policy": {
+    "weight_kind": "RoleWeight",
+    "quorum": "0",
+    "threshold": [ 1, 2 ]
+  },
+  "proposal_bond": "1000000000000000000000000",
+  "proposal_period": "604800000000000",
+  "bounty_bond": "1000000000000000000000000",
+  "bounty_forgiveness_period": "86400000000000"
+}
+```
 
 ### Threshold
+**Goal:**
+Each 
+
+**TESTS:**
 - [ ] TODO: 
+
+**Threshold Config:**
+
+```json
+{
+  "roles": [
+    {
+      "name": "all",
+      "kind": "Everyone",
+      "permissions": [
+        "*:AddProposal"
+      ],
+      "vote_policy": {}
+    },
+    {
+      "name": "council",
+      "kind": {
+        "Group": [
+          "user_1.testnet",
+          "user_2.testnet",
+          "user_3.testnet",
+          "user_4.testnet",
+          "user_5.testnet"
+        ]
+      },
+      "permissions": [
+        "*:Finalize",
+        "*:AddProposal",
+        "*:VoteApprove",
+        "*:VoteReject",
+        "*:VoteRemove"
+      ],
+      "vote_policy": {
+        "Group":{
+          "weight_kind": "RoleWeight",
+          "quorum": "0",
+          "threshold": [ 1, 5 ]
+        }
+      }
+    }
+  ],
+  "default_vote_policy": {
+    "weight_kind": "RoleWeight",
+    "quorum": "0",
+    "threshold": [ 1, 2 ]
+  },
+  "proposal_bond": "1000000000000000000000000",
+  "proposal_period": "604800000000000",
+  "bounty_bond": "1000000000000000000000000",
+  "bounty_forgiveness_period": "86400000000000"
+}
+```
 
 ### Role Weighted
+**Goal:**
+Each 
+
+**TESTS:**
 - [ ] TODO: 
+
+**Threshold Config:**
+
+```json
+{
+  "roles": [
+    {
+      "name": "all",
+      "kind": "Everyone",
+      "permissions": [
+        "*:AddProposal"
+      ],
+      "vote_policy": {}
+    },
+    {
+      "name": "council",
+      "kind": {
+        "Group": [
+          "user_1.testnet",
+          "user_2.testnet",
+          "user_3.testnet",
+          "user_4.testnet",
+          "user_5.testnet"
+        ]
+      },
+      "permissions": [
+        "*:Finalize",
+        "*:AddProposal",
+        "*:VoteApprove",
+        "*:VoteReject",
+        "*:VoteRemove"
+      ],
+      "vote_policy": {
+        "Group":{
+          "weight_kind": "RoleWeight",
+          "quorum": "0",
+          "threshold": [ 1, 5 ]
+        }
+      }
+    }
+  ],
+  "default_vote_policy": {
+    "weight_kind": "RoleWeight",
+    "quorum": "0",
+    "threshold": [ 1, 2 ]
+  },
+  "proposal_bond": "1000000000000000000000000",
+  "proposal_period": "604800000000000",
+  "bounty_bond": "1000000000000000000000000",
+  "bounty_forgiveness_period": "86400000000000"
+}
+```
 
 ### Token Weighted
+**Goal:**
+Each 
+
+**TESTS:**
 - [ ] TODO: 
+
+**Threshold Config:**
+
+```json
+{
+  "roles": [
+    {
+      "name": "all",
+      "kind": "Everyone",
+      "permissions": [
+        "*:AddProposal"
+      ],
+      "vote_policy": {}
+    },
+    {
+      "name": "council",
+      "kind": {
+        "Group": [
+          "user_1.testnet",
+          "user_2.testnet",
+          "user_3.testnet",
+          "user_4.testnet",
+          "user_5.testnet"
+        ]
+      },
+      "permissions": [
+        "*:Finalize",
+        "*:AddProposal",
+        "*:VoteApprove",
+        "*:VoteReject",
+        "*:VoteRemove"
+      ],
+      "vote_policy": {
+        "Group":{
+          "weight_kind": "RoleWeight",
+          "quorum": "0",
+          "threshold": [ 1, 5 ]
+        }
+      }
+    }
+  ],
+  "default_vote_policy": {
+    "weight_kind": "RoleWeight",
+    "quorum": "0",
+    "threshold": [ 1, 2 ]
+  },
+  "proposal_bond": "1000000000000000000000000",
+  "proposal_period": "604800000000000",
+  "bounty_bond": "1000000000000000000000000",
+  "bounty_forgiveness_period": "86400000000000"
+}
+```
 
 ### Groups Weighted
+**Goal:**
+Each 
+
+**TESTS:**
 - [ ] TODO: 
 
+**Threshold Config:**
+
+```json
+{
+  "roles": [
+    {
+      "name": "all",
+      "kind": "Everyone",
+      "permissions": [
+        "*:AddProposal"
+      ],
+      "vote_policy": {}
+    },
+    {
+      "name": "council",
+      "kind": {
+        "Group": [
+          "user_1.testnet",
+          "user_2.testnet",
+          "user_3.testnet",
+          "user_4.testnet",
+          "user_5.testnet"
+        ]
+      },
+      "permissions": [
+        "*:Finalize",
+        "*:AddProposal",
+        "*:VoteApprove",
+        "*:VoteReject",
+        "*:VoteRemove"
+      ],
+      "vote_policy": {
+        "Group":{
+          "weight_kind": "RoleWeight",
+          "quorum": "0",
+          "threshold": [ 1, 5 ]
+        }
+      }
+    }
+  ],
+  "default_vote_policy": {
+    "weight_kind": "RoleWeight",
+    "quorum": "0",
+    "threshold": [ 1, 2 ]
+  },
+  "proposal_bond": "1000000000000000000000000",
+  "proposal_period": "604800000000000",
+  "bounty_bond": "1000000000000000000000000",
+  "bounty_forgiveness_period": "86400000000000"
+}
+```
+
 ### Groups Varying Policy
+**Goal:**
+Each group council can have different threshold criteria for consensus. Confirm that a group can be assessed based on their individual definitions versus the default policy config.
+
+**TESTS:**
 - [ ] TODO: 
+
+**Varying Policy Config:**
+
+```json
+{
+  "roles": [
+    {
+      "name": "council",
+      "kind": {
+        "Group": [
+          "user_1.testnet",
+          "user_2.testnet",
+          "user_3.testnet",
+          "user_4.testnet",
+          "user_5.testnet"
+        ]
+      },
+      "permissions": [
+        "*:Finalize",
+        "*:AddProposal",
+        "*:VoteApprove",
+        "*:VoteReject",
+        "*:VoteRemove"
+      ],
+      "vote_policy": {
+        "Group":{
+          "weight_kind": "RoleWeight",
+          "quorum": "0",
+          "threshold": [ 1, 5 ]
+        }
+      }
+    },
+    {
+      "name": "admins",
+      "kind": {
+        "Group": [
+          "admin_1.testnet",
+          "admin_2.testnet",
+          "admin_3.testnet"
+        ]
+      },
+      "permissions": [
+        "*:Finalize",
+        "*:AddProposal",
+        "*:VoteApprove",
+        "*:VoteReject",
+        "*:VoteRemove"
+      ],
+      "vote_policy": {
+        "Group":{
+          "weight_kind": "RoleWeight",
+          "quorum": "60",
+          "threshold": []
+        }
+      }
+    }
+  ],
+  "default_vote_policy": {
+    "weight_kind": "RoleWeight",
+    "quorum": "0",
+    "threshold": [ 1, 2 ]
+  },
+  "proposal_bond": "1000000000000000000000000",
+  "proposal_period": "604800000000000",
+  "bounty_bond": "1000000000000000000000000",
+  "bounty_forgiveness_period": "86400000000000"
+}
+```
 
 
 ## Staking Token
