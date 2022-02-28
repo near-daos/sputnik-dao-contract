@@ -125,7 +125,7 @@ pub fn add_transfer_proposal(
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
-                token_id,
+                token_id: format_new_token(token_id),
                 receiver_id,
                 amount: U128(amount),
                 msg,
@@ -161,4 +161,11 @@ pub fn vote(users: Vec<&UserAccount>, dao: &Contract, proposal_id: u64) {
         )
         .assert_success();
     }
+}
+
+pub fn format_new_token(new_token: Option<AccountId>) -> String {
+    if new_token.is_none() {
+        return String::new();
+    }
+    new_token.unwrap().to_string()
 }
