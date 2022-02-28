@@ -143,7 +143,7 @@ pub fn add_bounty_proposal(root: &UserAccount, dao: &Contract) -> ExecutionResul
             kind: ProposalKind::AddBounty {
                 bounty: Bounty {
                     description: "test bounty".to_string(),
-                    token: None,
+                    token: String::new(),
                     amount: U128(to_yocto("10")),
                     times: 3,
                     max_deadline: U64(env::block_timestamp() + 10_000_000_000),
