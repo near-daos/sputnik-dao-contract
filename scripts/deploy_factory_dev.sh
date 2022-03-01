@@ -150,15 +150,15 @@ export GAS_150_TGAS=150000000000000
 
 
 
-#### --------------------------------------------
-#### Sanity check the new metadata & DAO
-#### --------------------------------------------
+# #### --------------------------------------------
+# #### Sanity check the new metadata & DAO
+# #### --------------------------------------------
 # near view $FACTORY_ACCOUNT_ID get_contracts_metadata
 # Check a v2 DAO
 # near view $DEMO_DAO_ACCOUNT get_proposal '{"id": 0}'
 # near view $DAO_ACCOUNT_ID get_proposal '{"id": 0}'
-near view $DAO_ACCOUNT_ID get_proposal '{"id": 2}'
-#### --------------------------------------------
+# near view $DAO_ACCOUNT_ID get_proposal '{"id": 2}'
+# #### --------------------------------------------
 
 
 
@@ -210,12 +210,12 @@ near view $DAO_ACCOUNT_ID get_proposal '{"id": 2}'
 # near view $FACTORY_ACCOUNT_ID get_dao_list
 # #### --------------------------------------------
 
-# #### --------------------------------------------
-# cleanup local files!
-# #### --------------------------------------------
-rm sputnikdao2_original.wasm
-rm sputnikdao_factory2_original.wasm
-rm v2_code_hash_result.txt
-rm v3_code_hash_result.txt
+# # #### --------------------------------------------
+# # cleanup local files!
+# # #### --------------------------------------------
+# rm sputnikdao2_original.wasm
+# rm sputnikdao_factory2_original.wasm
+# rm v2_code_hash_result.txt
+# rm v3_code_hash_result.txt
 
 echo "Dev Factory Deploy & Test Complete"
