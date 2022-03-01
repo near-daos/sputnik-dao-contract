@@ -1,7 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::Base64VecU8;
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{Balance, Gas};
+use near_sdk::{AccountId, Balance, Gas};
 
 /// Account ID used for $NEAR.
 pub const BASE_TOKEN: &str = "";
@@ -63,4 +63,11 @@ impl Action {
     pub fn to_policy_label(&self) -> String {
         format!("{:?}", self)
     }
+}
+
+pub fn convert_old_to_new_token(old_account_id: &OldAccountId) -> Option<AccountId> {
+    if old_account_id == BASE_TOKEN {
+        return None;
+    }
+    Some(AccountId::new_unchecked(old_account_id.clone()))
 }

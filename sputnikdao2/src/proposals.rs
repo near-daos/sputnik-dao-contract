@@ -6,7 +6,10 @@ use near_sdk::json_types::{Base64VecU8, U128, U64};
 use near_sdk::{log, AccountId, Balance, Gas, PromiseOrValue};
 
 use crate::policy::UserInfo;
-use crate::types::{Action, Config, OldAccountId, BASE_TOKEN, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR};
+use crate::types::{
+    convert_old_to_new_token, Action, Config, OldAccountId, BASE_TOKEN, GAS_FOR_FT_TRANSFER,
+    ONE_YOCTO_NEAR,
+};
 use crate::upgrade::{upgrade_remote, upgrade_using_factory};
 use crate::*;
 
@@ -356,7 +359,7 @@ impl Contract {
                 amount,
                 msg,
             } => self.internal_payout(
-                &format_old_token(token_id),
+                &convert_old_to_new_token(token_id),
                 &receiver_id,
                 amount.0,
                 proposal.description.clone(),
@@ -639,11 +642,4 @@ impl Contract {
             .insert(&proposal_id, &VersionedProposal::Default(proposal.into()));
         result
     }
-}
-
-pub fn format_old_token(old_token: &String) -> Option<AccountId> {
-    if old_token == BASE_TOKEN {
-        return None;
-    }
-    Some(AccountId::new_unchecked(old_token.clone()))
 }
