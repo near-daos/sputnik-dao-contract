@@ -31,60 +31,60 @@ else
   export NEAR_ACCT=$NEAR_ACCT
 fi
 
-export FACTORY_ACCOUNT_ID=factory3.$NEAR_ACCT
+export FACTORY_ACCOUNT_ID=factory14.$NEAR_ACCT
 # export DAO_ACCOUNT_ID=croncat.sputnikv2.$FACTORY
-export DAO_ACCOUNT_ID=sputnikdao-dev-v2-1645228499.factory3.sputnikpm.testnet
+# export DAO_ACCOUNT_ID=sputnikdao-dev-v2-1645228499.factory3.sputnikpm.testnet
 export MAX_GAS=300000000000000
 export GAS_100_TGAS=100000000000000
 export GAS_150_TGAS=150000000000000
 
-# #### --------------------------------------------
-# #### Account & Data management for setup
-# #### --------------------------------------------
+#### --------------------------------------------
+#### Account & Data management for setup
+#### --------------------------------------------
 # near call $FACTORY_ACCOUNT_ID delete_contract '{"code_hash":"Cn8QJe3SJk36b9NZky4SQuKtu9L2ktYYTCBdy2qKJ8Bq"}' --accountId $FACTORY_ACCOUNT_ID --gas $GAS_100_TGAS
 # near call $FACTORY_ACCOUNT_ID delete_contract '{"code_hash":"8RMeZ5cXDap6TENxaJKtigRYf3n139iHmTRe8ZUNey6N"}' --accountId $FACTORY_ACCOUNT_ID --gas $GAS_100_TGAS
 # near call $FACTORY_ACCOUNT_ID delete_contract '{"code_hash":"ZGdM2TFdQpcXrxPxvq25514EViyi9xBSboetDiB3Uiq"}' --accountId $FACTORY_ACCOUNT_ID --gas $GAS_100_TGAS
 # near call $FACTORY_ACCOUNT_ID delete_contract '{"code_hash":"6SQymHtmezR3u9zAtLBQdb8RWCXxwxnigqSH2mRTxecB"}' --accountId $FACTORY_ACCOUNT_ID --gas $GAS_100_TGAS
 # near delete $FACTORY_ACCOUNT_ID $NEAR_ACCT
-# near create-account $FACTORY_ACCOUNT_ID --masterAccount $NEAR_ACCT --initialBalance 40
-# #### --------------------------------------------
+near create-account $FACTORY_ACCOUNT_ID --masterAccount $NEAR_ACCT --initialBalance 40
+#### --------------------------------------------
 
 
 
-# #### --------------------------------------------
-# #### Grab the factory v2 code data
-# #### --------------------------------------------
-# http --json post https://rpc.testnet.near.org jsonrpc=2.0 id=dontcare method=query \
-# params:='{"request_type":"view_code","finality":"final","account_id":"'sputnikv2.$FACTORY'"}' \
-# | jq -r .result.code_base64 \
-# | base64 --decode > sputnikdao_factory2_original.wasm
+#### --------------------------------------------
+#### Grab the factory v2 code data
+#### --------------------------------------------
+http --json post https://rpc.testnet.near.org jsonrpc=2.0 id=dontcare method=query \
+params:='{"request_type":"view_code","finality":"final","account_id":"'sputnikv2.$FACTORY'"}' \
+| jq -r .result.code_base64 \
+| base64 --decode > sputnikdao_factory2_original.wasm
 
-# # Deploy the previous version to allow accurate testing
-# near deploy --wasmFile sputnikdao_factory2_original.wasm --accountId $FACTORY_ACCOUNT_ID --initFunction new --initArgs '{}' --initGas $MAX_GAS
-# #### --------------------------------------------
+# Deploy the previous version to allow accurate testing
+near deploy --wasmFile sputnikdao_factory2_original.wasm --accountId $FACTORY_ACCOUNT_ID --initFunction new --initArgs '{}' --initGas $MAX_GAS
+#### --------------------------------------------
 
 
 
-# #### --------------------------------------------
-# #### Deploy a v2 DAO & Some proposals
-# #### --------------------------------------------
-# COUNCIL='["'$NEAR_ACCT'"]'
-# TIMESTAMP=$(date +"%s")
-# DAO_NAME=sputnikdao-dev-v2-$TIMESTAMP
-# DAO_ARGS=`echo '{"config": {"name": "'$DAO_NAME'", "purpose": "Sputnik Dev v2 DAO '$TIMESTAMP'", "metadata":""}, "policy": '$COUNCIL'}' | base64`
-# near call $FACTORY_ACCOUNT_ID create "{\"name\": \"$DAO_NAME\", \"args\": \"$DAO_ARGS\"}" --accountId $FACTORY_ACCOUNT_ID --gas $GAS_150_TGAS --amount 10
-# DEMO_DAO_ACCOUNT=$DAO_NAME.$FACTORY_ACCOUNT_ID
+#### --------------------------------------------
+#### Deploy a v2 DAO & Some proposals
+#### --------------------------------------------
+COUNCIL='["'$NEAR_ACCT'"]'
+TIMESTAMP=$(date +"%s")
+DAO_NAME=sputnikdao-dev-v2-$TIMESTAMP
+DAO_ARGS=`echo '{"config": {"name": "'$DAO_NAME'", "purpose": "Sputnik Dev v2 DAO '$TIMESTAMP'", "metadata":""}, "policy": '$COUNCIL'}' | base64`
+near call $FACTORY_ACCOUNT_ID create "{\"name\": \"$DAO_NAME\", \"args\": \"$DAO_ARGS\"}" --accountId $FACTORY_ACCOUNT_ID --gas $GAS_150_TGAS --amount 10
+DEMO_DAO_ACCOUNT=$DAO_NAME.$FACTORY_ACCOUNT_ID
 
-# # some sample payouts
+# some sample payouts
+near call $DEMO_DAO_ACCOUNT add_proposal '{"proposal": { "description": "Sample payment", "kind": { "Transfer": { "token_id": "", "receiver_id": "'$NEAR_ACCT'", "amount": "1337000000000000000000000" } } } }' --accountId $NEAR_ACCT --amount 1
 # near call $DEMO_DAO_ACCOUNT add_proposal '{"proposal": { "description": "Sample payment", "kind": { "Transfer": { "token_id": "", "receiver_id": "'$NEAR_ACCT'", "amount": "1000000000000000000000000" } } } }' --accountId $NEAR_ACCT --amount 1
 # near call $DEMO_DAO_ACCOUNT add_proposal '{"proposal": { "description": "Sample payment", "kind": { "Transfer": { "token_id": "", "receiver_id": "'$NEAR_ACCT'", "amount": "1000000000000000000000000" } } } }' --accountId $NEAR_ACCT --amount 1
-# near call $DEMO_DAO_ACCOUNT add_proposal '{"proposal": { "description": "Sample payment", "kind": { "Transfer": { "token_id": "", "receiver_id": "'$NEAR_ACCT'", "amount": "1000000000000000000000000" } } } }' --accountId $NEAR_ACCT --amount 1
-# # approve some, leave some
-# near call $DEMO_DAO_ACCOUNT act_proposal '{"id": 0, "action" :"VoteApprove"}' --accountId $NEAR_ACCT  --gas $MAX_GAS
+# approve some, leave some
+near call $DEMO_DAO_ACCOUNT act_proposal '{"id": 0, "action" :"VoteApprove"}' --accountId $NEAR_ACCT  --gas $MAX_GAS
 # near call $DEMO_DAO_ACCOUNT act_proposal '{"id": 1, "action" :"VoteApprove"}' --accountId $NEAR_ACCT  --gas $MAX_GAS
-# # quick check all is good
-# near view $DEMO_DAO_ACCOUNT get_proposal '{"id": 0}'
-# #### --------------------------------------------
+# quick check all is good
+near view $DEMO_DAO_ACCOUNT get_proposal '{"id": 0}'
+#### --------------------------------------------
 
 
 
