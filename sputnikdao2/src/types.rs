@@ -3,9 +3,12 @@ use near_sdk::json_types::Base64VecU8;
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{AccountId, Balance, Gas};
 
-/// Account ID used for $NEAR.
+/// Account ID used for $NEAR in near-sdk v3.
+/// Need to keep it around for backward compatibility.
 pub const OLD_BASE_TOKEN: &str = "";
 
+/// Account ID that represents a token in near-sdk v3.
+/// Need to keep it around for backward compatibility.
 pub type OldAccountId = String;
 
 /// 1 yN to prevent access key fraud.
