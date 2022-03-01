@@ -155,6 +155,7 @@ export async function proposeBounty(alice: NearAccount, dao: NearAccount, token:
 export async function proposeBountyWithNear(alice: NearAccount, dao: NearAccount) {
     const bounty = {
         description: 'test_bounties_with_near_token',
+        token: '',
         amount: '19000000000000000000000000',
         times: 3,
         max_deadline: DEADLINE

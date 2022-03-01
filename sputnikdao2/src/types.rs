@@ -3,6 +3,11 @@ use near_sdk::json_types::Base64VecU8;
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{Balance, Gas};
 
+/// Account ID used for $NEAR.
+pub const BASE_TOKEN: &str = "";
+
+pub type OldAccountId = String;
+
 /// 1 yN to prevent access key fraud.
 pub const ONE_YOCTO_NEAR: Balance = 1;
 

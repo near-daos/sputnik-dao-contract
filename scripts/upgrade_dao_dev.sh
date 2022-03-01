@@ -27,7 +27,7 @@ else
 fi
 
 # export FACTORY_ACCOUNT_ID=sputnikv2.$FACTORY
-export FACTORY_ACCOUNT_ID=factory9.$NEAR_ACCT
+export FACTORY_ACCOUNT_ID=factory10.$NEAR_ACCT
 # export DAO_ACCOUNT_ID=croncat.sputnikv2.$FACTORY
 # export DAO_ACCOUNT_ID=sputnikdao-dev-v2-1645228499.factory3.sputnikpm.testnet
 export MAX_GAS=300000000000000
@@ -167,9 +167,7 @@ near view $UPGRDADEME_ACCOUNT get_proposal '{"id": 0}'
 # #### --------------------------------------------
 # cleanup local files!
 # #### --------------------------------------------
-rm sputnikdao2_original.wasm
 rm sputnikdao_factory2_original.wasm
-rm v2_code_hash_result.txt
 rm v3_code_hash_result.txt
 
 echo "Dev: Go to https://explorer.testnet.near.org/accounts/$UPGRDADEME_ACCOUNT and check the code_hash matches $CODE_HASH"
