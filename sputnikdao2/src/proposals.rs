@@ -7,7 +7,7 @@ use near_sdk::{log, AccountId, Balance, Gas, PromiseOrValue};
 
 use crate::policy::UserInfo;
 use crate::types::{
-    convert_old_to_new_token, Action, Config, OldAccountId, BASE_TOKEN, GAS_FOR_FT_TRANSFER,
+    convert_old_to_new_token, Action, Config, OldAccountId, GAS_FOR_FT_TRANSFER, OLD_BASE_TOKEN,
     ONE_YOCTO_NEAR,
 };
 use crate::upgrade::{upgrade_remote, upgrade_using_factory};
@@ -500,7 +500,7 @@ impl Contract {
             },
             ProposalKind::Transfer { token_id, msg, .. } => {
                 assert!(
-                    !(token_id == BASE_TOKEN) || msg.is_none(),
+                    !(token_id == OLD_BASE_TOKEN) || msg.is_none(),
                     "ERR_BASE_TOKEN_NO_MSG"
                 );
             }

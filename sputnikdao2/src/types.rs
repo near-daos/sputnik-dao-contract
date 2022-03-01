@@ -4,7 +4,7 @@ use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{AccountId, Balance, Gas};
 
 /// Account ID used for $NEAR.
-pub const BASE_TOKEN: &str = "";
+pub const OLD_BASE_TOKEN: &str = "";
 
 pub type OldAccountId = String;
 
@@ -66,7 +66,7 @@ impl Action {
 }
 
 pub fn convert_old_to_new_token(old_account_id: &OldAccountId) -> Option<AccountId> {
-    if old_account_id == BASE_TOKEN {
+    if old_account_id == OLD_BASE_TOKEN {
         return None;
     }
     Some(AccountId::new_unchecked(old_account_id.clone()))
