@@ -9,8 +9,8 @@ use near_sdk_sim::{
 use near_sdk::json_types::U128;
 use sputnik_staking::ContractContract as StakingContract;
 use sputnikdao2::{
-    Action, Bounty, Config, ContractContract as DAOContract, ProposalInput, ProposalKind,
-    VersionedPolicy,
+    Action, Bounty, Config, ContractContract as DAOContract, OldAccountId, ProposalInput,
+    ProposalKind, VersionedPolicy, OLD_BASE_TOKEN,
 };
 use sputnikdao_factory2::SputnikDAOFactoryContract as FactoryContract;
 use test_token::ContractContract as TestTokenContract;
@@ -125,7 +125,7 @@ pub fn add_transfer_proposal(
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
-                token_id: format_new_token(token_id),
+                token_id: convert_new_to_old_token(token_id),
                 receiver_id,
                 amount: U128(amount),
                 msg,
@@ -143,7 +143,7 @@ pub fn add_bounty_proposal(root: &UserAccount, dao: &Contract) -> ExecutionResul
             kind: ProposalKind::AddBounty {
                 bounty: Bounty {
                     description: "test bounty".to_string(),
-                    token: String::new(),
+                    token: String::from(OLD_BASE_TOKEN),
                     amount: U128(to_yocto("10")),
                     times: 3,
                     max_deadline: U64(env::block_timestamp() + 10_000_000_000),
@@ -163,9 +163,9 @@ pub fn vote(users: Vec<&UserAccount>, dao: &Contract, proposal_id: u64) {
     }
 }
 
-pub fn format_new_token(new_token: Option<AccountId>) -> String {
-    if new_token.is_none() {
-        return String::new();
+pub fn convert_new_to_old_token(new_account_id: Option<AccountId>) -> OldAccountId {
+    if new_account_id.is_none() {
+        return String::from(OLD_BASE_TOKEN);
     }
-    new_token.unwrap().to_string()
+    new_account_id.unwrap().to_string()
 }
