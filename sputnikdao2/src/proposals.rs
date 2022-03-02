@@ -175,9 +175,9 @@ pub struct Proposal {
     /// Current status of the proposal.
     pub status: ProposalStatus,
     /// Count of votes per role per decision: yes / no / spam.
-    pub vote_counts: UnorderedMap<String, [Balance; 3]>,
+    pub vote_counts: LookupMap<String, [Balance; 3]>,
     /// Map of who voted and how.
-    pub votes: UnorderedMap<AccountId, Vote>,
+    pub votes: LookupMap<AccountId, Vote>,
     /// Submission time (for voting period).
     pub submission_time: U64,
 }
@@ -240,8 +240,8 @@ impl From<ProposalInput> for Proposal {
             description: input.description,
             kind: input.kind,
             status: ProposalStatus::InProgress,
-            vote_counts: UnorderedMap::new(b"s".to_vec()),
-            votes: UnorderedMap::new(b"s".to_vec()),
+            vote_counts: LookupMap::new(b"s".to_vec()),
+            votes: LookupMap::new(b"s".to_vec()),
             submission_time: U64::from(env::block_timestamp()),
         }
     }
@@ -486,6 +486,7 @@ impl Contract {
         // 0. validate bond attached.
         // TODO: consider bond in the token of this DAO.
         let policy = self.get_policy();
+        
         assert!(
             env::attached_deposit() >= policy.proposal_bond.0,
             "ERR_MIN_BOND"

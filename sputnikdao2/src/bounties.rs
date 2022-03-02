@@ -247,7 +247,12 @@ mod tests {
             Config::test_config(),
             VersionedPolicy::Default(policy),
         );
+
+        
+
         add_bounty(&mut context, &mut contract, 2);
+
+
 
         // assert_eq!(contract.get_last_bounty_id(), 1);
         // assert_eq!(contract.get_bounty(0).bounty.times, 2);
@@ -304,7 +309,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "ERR_BOUNTY_ALL_CLAIMED")]
     fn test_bounty_claim_not_allowed() {
-        let mut policy = UnorderedSet::<AccountId>::new(b"s".to_vec());
+        let mut policy = UnorderedSet::<AccountId>::new(StorageKeys::Proposals);
         
         let mut context = VMContextBuilder::new();        
         policy.insert(&accounts(0));

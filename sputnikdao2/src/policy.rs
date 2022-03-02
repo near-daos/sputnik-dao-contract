@@ -10,6 +10,7 @@ use near_sdk::{env, AccountId, Balance};
 use crate::proposals::{PolicyParameters, Proposal, ProposalKind, ProposalStatus, Vote};
 use crate::types::Action;
 
+use crate::*;
 
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
@@ -35,9 +36,9 @@ impl RoleKind {
     }
 
     /// Returns the number of people in the this role or None if not supported role kind.
-    pub fn get_role_size(&self) -> Option<usize> {
+    pub fn get_role_size(&self) -> Option<u64> {
         match self {
-            RoleKind::Group(accounts) => Some(accounts.len() as usize),
+            RoleKind::Group(accounts) => Some(accounts.len()),
             _ => None,
         }
     }
@@ -186,7 +187,7 @@ fn default_policy(council: UnorderedSet<AccountId>) -> Policy {
                 name: "all".to_string(),
                 kind: RoleKind::Everyone,
                 permissions: vec!["*:AddProposal".to_string()].into_iter().collect(),
-                vote_policy: UnorderedMap::new(b"s".to_vec()),
+                vote_policy: UnorderedMap::new(StorageKeys::Policy),
             },
             RolePermission {
                 name: "council".to_string(),
@@ -201,7 +202,7 @@ fn default_policy(council: UnorderedSet<AccountId>) -> Policy {
                 ]
                 .into_iter()
                 .collect(),
-                vote_policy: UnorderedMap::new(b"s".to_vec()),
+                vote_policy: UnorderedMap::new(StorageKeys::Policy),
             },
         ],
         default_vote_policy: VotePolicy::default(),
@@ -317,13 +318,13 @@ impl Policy {
     }
     /// Returns set of roles that this user is member of permissions for given user across all the roles it's member of.
     fn get_user_roles(&self, user: UserInfo) -> UnorderedMap<String, Vec<String>> {
-        let mut roles:UnorderedMap<String, Vec<String> > = UnorderedMap::new(b"s".to_vec());
+        let mut empty:UnorderedMap<String, Vec<String> > = UnorderedMap::new(b"s".to_vec());
         for role in self.roles.iter() {
             if role.kind.match_user(&user) {
-                roles.insert(&role.name.to_string(),&role.permissions.to_vec());
+                empty.insert(&role.name.to_string(),&role.permissions.to_vec());
             }
         }
-        roles
+        empty
     }
 
     /// Can given user execute given action on this proposal.
@@ -343,8 +344,8 @@ impl Policy {
                     "{}:{}",
                     proposal_kind.to_policy_label(),
                     action.to_policy_label()
-                )) || permissions
-                    .contains(&format!("{}:*", proposal_kind.to_policy_label()))
+                ))
+                || permissions.contains(&format!("{}:*", proposal_kind.to_policy_label()))
                     || permissions.contains(&format!("*:{}", action.to_policy_label()))
                     || permissions.contains(&"*:*".to_string());
                 allowed = allowed || allowed_role;
@@ -514,7 +515,7 @@ mod tests {
         ]
         .into_iter()
         .collect();
-        let vote_policy: UnorderedMap<String, VotePolicy> = UnorderedMap::new(b"s".to_vec());
+        let vote_policy: UnorderedMap<String, VotePolicy> = UnorderedMap::new(StorageKeys::Policy);
 
         let council_role = policy.internal_get_role(&String::from("council"));
         assert!(council_role.is_some());
@@ -525,7 +526,7 @@ mod tests {
         assert_eq!(permissions, council_role.permissions);
         assert_eq!(vote_policy, council_role.vote_policy);
 
-        let mut group= UnorderedSet::<AccountId>::new(b"s".to_vec());
+        let mut group= UnorderedSet::<AccountId>::new(StorageKeys::Policy);
         group.insert(&accounts(2));
         group.insert(&accounts(3));
         let kind: RoleKind = RoleKind::Group(group);

@@ -1,5 +1,5 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LazyOption, LookupMap};
+use near_sdk::collections::{LazyOption, LookupMap, UnorderedMap};
 use near_sdk::json_types::{Base58CryptoHash, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
@@ -227,41 +227,41 @@ mod tests {
 
         let id = create_proposal(&mut context, &mut contract);
 
-        // contract.act_proposal(id, Action::VoteApprove, None);
-        // assert_eq!(
-        //     contract.get_proposal(id).proposal.status,
-        //     ProposalStatus::Approved
-        // );
+        contract.act_proposal(id, Action::VoteApprove, None);
+        assert_eq!(
+            contract.get_proposal(id).proposal.status,
+            ProposalStatus::Approved
+        );
 
-        // let id = create_proposal(&mut context, &mut contract);
-        // // proposal expired, finalize.
-        // testing_env!(context
-        //     .block_timestamp(1_000_000_000 * 24 * 60 * 60 * 8)
-        //     .build());
-        // contract.act_proposal(id, Action::Finalize, None);
-        // assert_eq!(
-        //     contract.get_proposal(id).proposal.status,
-        //     ProposalStatus::Expired
-        // );
+        let id = create_proposal(&mut context, &mut contract);
+        // proposal expired, finalize.
+        testing_env!(context
+            .block_timestamp(1_000_000_000 * 24 * 60 * 60 * 8)
+            .build());
+        contract.act_proposal(id, Action::Finalize, None);
+        assert_eq!(
+            contract.get_proposal(id).proposal.status,
+            ProposalStatus::Expired
+        );
 
-        // // non council adding proposal per default policy.
-        // testing_env!(context
-        //     .predecessor_account_id(accounts(2))
-        //     .attached_deposit(to_yocto("1"))
-        //     .build());
-        // let _id = contract.add_proposal(ProposalInput {
-        //     description: "test".to_string(),
-        //     kind: ProposalKind::AddMemberToRole {
-        //         member_id: accounts(2).into(),
-        //         role: "council".to_string(),
-        //     },
-        // });
+        // non council adding proposal per default policy.
+        testing_env!(context
+            .predecessor_account_id(accounts(2))
+            .attached_deposit(to_yocto("1"))
+            .build());
+        let _id = contract.add_proposal(ProposalInput {
+            description: "test".to_string(),
+            kind: ProposalKind::AddMemberToRole {
+                member_id: accounts(2).into(),
+                role: "council".to_string(),
+            },
+        });
     }
 
     #[test]
     #[should_panic(expected = "ERR_PERMISSION_DENIED")]
     fn test_remove_proposal_denied() {
-        let mut council= UnorderedSet::<AccountId>::new(b"s".to_vec());
+        let mut council= UnorderedSet::<AccountId>::new(StorageKeys::Proposals);
         council.insert(&accounts(1));
         let mut context = VMContextBuilder::new();
         testing_env!(context.predecessor_account_id(accounts(1)).build());
