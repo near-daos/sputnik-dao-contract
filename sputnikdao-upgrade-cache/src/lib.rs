@@ -2,7 +2,6 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{Base58CryptoHash};
 use near_sdk::{env, sys, near_bindgen, Balance, CryptoHash, PanicOnDefault, Gas};
 
-const NO_DEPOSIT: Balance = 0;
 const CODE_STORAGE_COST: Balance = 6_000_000_000_000_000_000_000_000; // 6 NEAR
 
 /// Leftover gas after creating promise and calling update.
@@ -17,6 +16,11 @@ pub struct SputnikDAOUpgradeCache {}
 
 #[near_bindgen]
 impl SputnikDAOUpgradeCache {
+    #[init]
+    pub fn new() -> Self {
+        Self {}
+    }
+
     /// Forces update on the calling contract.
     /// Only intended for sputnik v2 DAO's created by sputnik factory
     #[payable]
@@ -47,12 +51,14 @@ impl SputnikDAOUpgradeCache {
                 method_name.as_ptr() as _,
                 DAO_CONTRACT_INITIAL_CODE.len() as _,
                 DAO_CONTRACT_INITIAL_CODE.as_ptr() as _,
-                &NO_DEPOSIT as *const u128 as _,
+                &env::attached_deposit() as *const u128 as _,
                 (env::prepaid_gas() - env::used_gas() - GAS_UPDATE_LEFTOVER).0,
             );
             sys::promise_return(promise_id);
         }
     }
+
+    // TODO: Add FN to remove blob
 
     /// Return the stored code to check compatibility
     pub fn get_code(&self) -> &[u8] {

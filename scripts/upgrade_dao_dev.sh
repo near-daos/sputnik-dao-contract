@@ -124,14 +124,36 @@ near view $FACTORY_ACCOUNT_ID get_contracts_metadata
 # propose function call on UpgradeDAO to store_blob on Upgradeable DAO
 V3_BYTES='cat sputnikdao2/res/sputnikdao2.wasm | base64'
 
+# Does not work, as the store_blob 
+# near call $UPGRADEDAO_ACCOUNT add_proposal '{
+#   "proposal": {
+#     "description": "Store v3 DAO code on '$UPGRDADEME_ACCOUNT'",
+#     "kind": {
+#       "UpgradeRemote": {
+#         "receiver_id": "'$UPGRDADEME_ACCOUNT'",
+#         "method_name": "store_blob",
+#         "hash": "'$V3_CODE_HASH'"
+#       }
+#     }
+#   }
+# }' --accountId $NEAR_ACCT --amount $BOND_AMOUNT
+
+# TODO: Add this DAO as a member
+
 near call $UPGRADEDAO_ACCOUNT add_proposal '{
   "proposal": {
     "description": "Store v3 DAO code on '$UPGRDADEME_ACCOUNT'",
     "kind": {
-      "UpgradeRemote": {
+      "FunctionCall": {
         "receiver_id": "'$UPGRDADEME_ACCOUNT'",
-        "method_name": "store_blob",
-        "hash": "'$V3_CODE_HASH'"
+        "actions": [
+          {
+            "method_name": "add_proposal",
+            "args": "'$FIXED_SUB_ARGS'",
+            "deposit": "1000000000000000000000000",
+            "gas": "30000000000000"
+          }
+        ]
       }
     }
   }
