@@ -1,0 +1,12 @@
+[package]
+name = "sputnikdao-upgrade-cache"
+version = "0.1.0"
+authors = ["Trevor Clarke <tjtc@pm.me>"]
+edition = "2018"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = { version = "4.0.0-pre.7", features = ["unstable"]  }

@@ -4,6 +4,7 @@ members = [
   "sputnik-staking",
   "sputnikdao2",
   "sputnikdao-factory2",
+  "sputnikdao-upgrade-cache",
   "test-token"
 ]
 
