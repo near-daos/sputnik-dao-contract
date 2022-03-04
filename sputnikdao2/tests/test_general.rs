@@ -202,8 +202,8 @@ fn test_create_dao_and_use_token() {
     let staking = setup_staking(&root);
 
     assert!(view!(dao.get_staking_contract())
-        .unwrap_json::<Option<AccountId>>()
-        .is_none());
+        .unwrap_json::<String>()
+        .is_empty());
     add_member_proposal(&root, &dao, user2.account_id.clone()).assert_success();
     assert_eq!(view!(dao.get_last_proposal_id()).unwrap_json::<u64>(), 1);
     // Voting by user who is not member should fail.
@@ -241,8 +241,7 @@ fn test_create_dao_and_use_token() {
     .assert_success();
     vote(vec![&user3, &user2], &dao, 2);
     assert!(!view!(dao.get_staking_contract())
-        .unwrap_json::<AccountId>()
-        .as_str()
+        .unwrap_json::<String>()
         .is_empty());
     assert_eq!(
         view!(dao.get_proposal(2)).unwrap_json::<Proposal>().status,

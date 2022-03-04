@@ -3,6 +3,7 @@ use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, near_bindgen, AccountId, Promise, PromiseOrValue};
 
+use crate::types::{convert_old_to_new_token, OldAccountId};
 use crate::*;
 
 /// Information recorded about claim of the bounty by given user.
@@ -27,7 +28,8 @@ pub struct Bounty {
     /// Description of the bounty.
     pub description: String,
     /// Token the bounty will be paid out.
-    pub token: Option<AccountId>,
+    /// Can be "" for $NEAR or a valid account id.
+    pub token: OldAccountId,
     /// Amount to be paid out.
     pub amount: U128,
     /// How many times this bounty can be done.
@@ -73,7 +75,7 @@ impl Contract {
         self.internal_remove_claim(id, receiver_id);
         if success {
             self.internal_payout(
-                &bounty.token,
+                &convert_old_to_new_token(&bounty.token),
                 receiver_id,
                 bounty.amount.0,
                 format!("Bounty {} payout", id),
@@ -223,7 +225,7 @@ mod tests {
             kind: ProposalKind::AddBounty {
                 bounty: Bounty {
                     description: "test bounty".to_string(),
-                    token: None,
+                    token: String::from(OLD_BASE_TOKEN),
                     amount: U128(to_yocto("10")),
                     times,
                     max_deadline: U64::from(1_000),

@@ -6,7 +6,10 @@ use near_sdk::json_types::{Base64VecU8, U128, U64};
 use near_sdk::{log, AccountId, Balance, Gas, PromiseOrValue};
 
 use crate::policy::UserInfo;
-use crate::types::{Action, Config, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR};
+use crate::types::{
+    convert_old_to_new_token, Action, Config, OldAccountId, GAS_FOR_FT_TRANSFER, OLD_BASE_TOKEN,
+    ONE_YOCTO_NEAR,
+};
 use crate::upgrade::{upgrade_remote, upgrade_using_factory};
 use crate::*;
 
@@ -84,8 +87,7 @@ pub enum ProposalKind {
     /// For `ft_transfer` and `ft_transfer_call` `memo` is the `description` of the proposal.
     Transfer {
         /// Can be "" for $NEAR or a valid account id.
-        #[serde(with = "serde_with::rust::string_empty_as_none")]
-        token_id: Option<AccountId>,
+        token_id: OldAccountId,
         receiver_id: AccountId,
         amount: U128,
         msg: Option<String>,
@@ -357,7 +359,7 @@ impl Contract {
                 amount,
                 msg,
             } => self.internal_payout(
-                &token_id,
+                &convert_old_to_new_token(token_id),
                 &receiver_id,
                 amount.0,
                 proposal.description.clone(),
@@ -498,7 +500,7 @@ impl Contract {
             },
             ProposalKind::Transfer { token_id, msg, .. } => {
                 assert!(
-                    !(token_id.is_none()) || msg.is_none(),
+                    !(token_id == OLD_BASE_TOKEN) || msg.is_none(),
                     "ERR_BASE_TOKEN_NO_MSG"
                 );
             }

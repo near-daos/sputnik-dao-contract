@@ -75,7 +75,7 @@ workspace.test('View method get_policy', async (test, { root }) => {
 });
 
 workspace.test('View method get_staking_contract', async (test, { alice, root, dao }) => {
-    test.is(await dao.view('get_staking_contract'), null);
+    test.is(await dao.view('get_staking_contract'), '');
 
     //To set the staking_id
     const testToken = await initTestToken(root);
