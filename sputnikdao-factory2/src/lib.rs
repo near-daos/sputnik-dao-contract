@@ -5,7 +5,7 @@ use near_sdk::collections::{UnorderedMap, UnorderedSet};
 use near_sdk::json_types::{Base58CryptoHash, Base64VecU8, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::serde_json::{self, json};
-use near_sdk::{env, near_bindgen, AccountId, CryptoHash, PanicOnDefault, Promise};
+use near_sdk::{env, sys, near_bindgen, AccountId, Balance, CryptoHash, Gas, PanicOnDefault, Promise};
 
 use factory_manager::FactoryManager;
 
@@ -20,6 +20,12 @@ const CODE_METADATA_KEY: &[u8; 8] = b"METADATA";
 const DAO_CONTRACT_INITIAL_CODE: &[u8] = include_bytes!("../../sputnikdao2/res/sputnikdao2.wasm");
 const DAO_CONTRACT_INITIAL_VERSION: Version = [3, 0];
 const DAO_CONTRACT_NO_DATA: &str = "no data";
+
+// Gas & Costs for blob storage
+const CODE_STORAGE_COST: Balance = 6_000_000_000_000_000_000_000_000; // 6 NEAR
+const GAS_STORE_CONTRACT_LEFTOVER: Gas = Gas(20_000_000_000_000);
+const ON_REMOVE_CONTRACT_GAS: Gas = Gas(10_000_000_000_000);
+const NO_DEPOSIT: Balance = 0;
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
@@ -136,6 +142,109 @@ impl SputnikDAOFactory {
         );
         self.factory_manager
             .update_contract(account_id, code_hash, "update");
+    }
+
+    /// Allows a DAO to store the official factory version as a blob, funded by the DAO wanting to upgrade
+    /// Required to successfully upgrade a DAO via proposals (proposal to store blob, proposal to upgrade from local blob)
+    /// Only intended for sputnik v2 DAO's created by sputnik factory
+    /// Payment is needed to cover storage costs for code blob size, paid by the DAO and returned upon blob removal
+    /// See docs for usage reference
+    #[payable]
+    pub fn store_contract_self(&mut self) {
+        let account_id = env::predecessor_account_id().as_bytes().to_vec();
+        let method_name = &"store_blob";
+
+        // Lock down contract upgrades to this factory:
+        let dao_id = env::predecessor_account_id().to_string();
+        let idx = dao_id.find('.').expect("INTERNAL_FAIL");
+        // ex: sputnik-dao.near
+        let factory_id = &dao_id[idx + 1..];
+
+        assert_eq!(factory_id, env::current_account_id().as_str(), "Wrong factory");
+
+        // Confirm payment before proceeding
+        assert!(
+            CODE_STORAGE_COST <= env::attached_deposit(),
+            "Must at least deposit {} to store",
+            CODE_STORAGE_COST
+        );
+
+        unsafe {
+            // Create a promise toward given account.
+            let promise_id =
+                sys::promise_batch_create(account_id.len() as _, account_id.as_ptr() as _);
+            sys::promise_batch_action_function_call(
+                promise_id,
+                method_name.len() as _,
+                method_name.as_ptr() as _,
+                DAO_CONTRACT_INITIAL_CODE.len() as _,
+                DAO_CONTRACT_INITIAL_CODE.as_ptr() as _,
+                &env::attached_deposit() as *const u128 as _,
+                (env::prepaid_gas() - env::used_gas() - GAS_STORE_CONTRACT_LEFTOVER).0,
+            );
+            sys::promise_return(promise_id);
+        }
+    }
+
+    /// Allows a DAO to remove the blob stored in its DAO storage, and reclaim the storage cost
+    /// See docs for usage reference
+    pub fn remove_contract_self(&mut self) {
+        let account_id = env::predecessor_account_id().as_bytes().to_vec();
+        let factory_id = env::current_account_id().as_bytes().to_vec();
+        let method_name = &"remove_blob";
+        let callback_method = &"on_remove_contract_self";
+        let callback_args = serde_json::to_vec(&json!({
+                "account_id": &account_id,
+                "factory_account_balance": U128::from(env::account_balance())
+            }))
+            .expect("Failed to serialize");
+
+        unsafe {
+            // Create a promise toward given account.
+            let promise_id =
+                sys::promise_batch_create(account_id.len() as _, account_id.as_ptr() as _);
+            sys::promise_batch_action_function_call(
+                promise_id,
+                method_name.len() as _,
+                method_name.as_ptr() as _,
+                u64::MAX as _,
+                0,
+                &NO_DEPOSIT as *const u128 as _,
+                (env::prepaid_gas() - env::used_gas() - GAS_STORE_CONTRACT_LEFTOVER).0,
+            );
+            // attach callback to the factory.
+            let _ = sys::promise_then(
+                promise_id,
+                factory_id.len() as _,
+                factory_id.as_ptr() as _,
+                callback_method.len() as _,
+                callback_method.as_ptr() as _,
+                callback_args.len() as _,
+                callback_args.as_ptr() as _,
+                &NO_DEPOSIT as *const u128 as _,
+                ON_REMOVE_CONTRACT_GAS.0,
+            );
+            sys::promise_return(promise_id);
+        }
+    }
+
+    /// TODO: Check re-entrancy issues with this!
+    /// Upon blob remove, compute the balance (if any) that got paid to the factory,
+    /// since it was the "owner" of the blob stored on the DAO.
+    /// Send this balance back to the DAO, since it was the original funder
+    #[private]
+    pub fn on_remove_contract_self(
+        &mut self,
+        account_id: AccountId,
+        factory_account_balance: U128,
+    ) -> bool {
+        if near_sdk::is_promise_success() {
+            let reimburse_amount = env::account_balance().saturating_sub(factory_account_balance.0);
+            Promise::new(account_id).transfer(reimburse_amount);
+            true
+        } else {
+            false
+        }
     }
 
     pub fn get_dao_list(&self) -> Vec<AccountId> {
