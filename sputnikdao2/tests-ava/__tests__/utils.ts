@@ -46,14 +46,19 @@ export const workspaceWithoutInit = Workspace.init(async ({ root }) => {
 });
 
 export const workspaceWithFactory = Workspace.init(async ({ root }) => {
+    const { alice, dao } = await initWorkspace(root);
     const factory = await root.createAndDeploy(
         'factory',
         '../../sputnikdao-factory2/res/sputnikdao_factory2.wasm',
         {
+            // method: 'new',
+            // args: {},
             initialBalance: toYocto('500'),
         }
     );
-    return { factory };
+    // instantiate with correct owner
+    await factory.call(factory.accountId, 'new', {}, { gas: tGas(50) });
+    return { alice, dao, factory };
 });
 
 export async function initTestToken(root: NearAccount) {
