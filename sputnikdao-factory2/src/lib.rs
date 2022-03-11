@@ -22,7 +22,6 @@ const DAO_CONTRACT_INITIAL_VERSION: Version = [3, 0];
 const DAO_CONTRACT_NO_DATA: &str = "no data";
 
 // Gas & Costs for blob storage
-const CODE_STORAGE_COST: Balance = 6_000_000_000_000_000_000_000_000; // 6 NEAR
 const GAS_STORE_CONTRACT_LEFTOVER: Gas = Gas(20_000_000_000_000);
 const ON_REMOVE_CONTRACT_GAS: Gas = Gas(10_000_000_000_000);
 const NO_DEPOSIT: Balance = 0;
@@ -169,12 +168,20 @@ impl SputnikDAOFactory {
 
         let dao_contract_code = env::storage_read(&hash).expect("CODE_HASH_NONEXIST");
 
+        // Compute and use the correct amount needed for storage
+        let blob_len = dao_contract_code.len();
+        let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
+
         // Confirm payment before proceeding
         assert!(
-            CODE_STORAGE_COST <= env::attached_deposit(),
+            storage_cost <= env::attached_deposit(),
             "Must at least deposit {} to store",
-            CODE_STORAGE_COST
+            storage_cost
         );
+
+        // refund the extra cost
+        let extra_attached_deposit = env::attached_deposit() - storage_cost;
+        Promise::new(account_id.clone()).transfer(extra_attached_deposit);
 
         // Create a promise toward given account.
         let promise_id = env::promise_batch_create(&account_id);
@@ -182,7 +189,7 @@ impl SputnikDAOFactory {
             promise_id,
             method_name,
             &dao_contract_code,
-            env::attached_deposit(),
+            storage_cost,
             env::prepaid_gas() - env::used_gas() - GAS_STORE_CONTRACT_LEFTOVER,
         );
         env::promise_return(promise_id);
@@ -197,7 +204,7 @@ impl SputnikDAOFactory {
         // NOTE: Not verifing the hash, in case factory removes a hash before DAO does
         let method_args = &json!({ "hash": &code_hash }).to_string().into_bytes();
         let callback_method = "on_remove_contract_self";
-        let callback_args = &json!({ "account_id": &account_id }).to_string().into_bytes();
+        let callback_args = &json!({ "account_id": &account_id, "code_hash": &code_hash }).to_string().into_bytes();
 
         // Create a promise toward given account.
         let promise_id = env::promise_batch_create(&account_id);
@@ -206,7 +213,7 @@ impl SputnikDAOFactory {
             method_name,
             method_args,
             NO_DEPOSIT,
-            env::prepaid_gas() - env::used_gas() - GAS_STORE_CONTRACT_LEFTOVER,
+            GAS_STORE_CONTRACT_LEFTOVER,
         );
         // attach callback to the factory.
         let _ = env::promise_then(
@@ -224,9 +231,14 @@ impl SputnikDAOFactory {
     /// since it was the "owner" of the blob stored on the DAO.
     /// Send this balance back to the DAO, since it was the original funder
     #[private]
-    pub fn on_remove_contract_self(&mut self, account_id: AccountId) -> bool {
+    pub fn on_remove_contract_self(&mut self, account_id: AccountId, code_hash: Base58CryptoHash) -> bool {
         if near_sdk::is_promise_success() {
-            Promise::new(account_id).transfer(CODE_STORAGE_COST);
+            // Compute the actual storage cost for an accurate refund
+            let hash: CryptoHash = code_hash.into();
+            let dao_contract_code = env::storage_read(&hash).expect("CODE_HASH_NONEXIST");
+            let blob_len = dao_contract_code.len();
+            let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
+            Promise::new(account_id).transfer(storage_cost);
             true
         } else {
             false
