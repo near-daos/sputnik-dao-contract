@@ -18,3 +18,7 @@ To run only one test:
 
     npm run test -- -m "root sets*" # matches tests with titles starting with "root sets"
     yarn test -m "root sets*"       # same thing using yarn instead of npm, see https://yarnpkg.com/
+
+If debugging:
+
+    NEAR_WORKSPACES_DEBUG=true npm run test "**/upgrade*"

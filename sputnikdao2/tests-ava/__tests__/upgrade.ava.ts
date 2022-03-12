@@ -19,10 +19,38 @@ workspaceWithFactory.test('basic', async (test, { alice, root, factory, dao }) =
 workspaceWithFactory.test('Store DAO upgrade code in DAO via factory', async (test, { alice, root, factory, dao }) => {
 		const six_near = toYocto('6');
 		const default_code_hash = await factory.view('get_default_code_hash');
+		// const dao = await factory.makeSubAccount('upgradedao');
+		// console.log('default_code_hash', default_code_hash);
+
+		const config = {
+        name: 'upgradedao',
+        purpose: 'to test',
+        metadata: ''
+    };
+    const policy = [root.accountId];
+    const params = {
+        config,
+        policy
+    };
+
+    await root.call(
+        factory,
+        'create', {
+            name: 'upgradedao',
+            args: Buffer.from(JSON.stringify(params)).toString('base64')
+        }, {
+            attachedDeposit: toYocto('10'),
+            gas: tGas(300),
+        }
+    );
+
+		test.deepEqual(await factory.view('get_dao_list', {}), ['upgradedao.factory.test.near']);
 		
 		// 1. add proposal for store_contract_self(get it approved)
 		// --------------------------------------------------------------------
 		test.is(await dao.view('get_last_proposal_id'), 0);
+		const args = Buffer.from(`{ "code_hash": "${default_code_hash}" }`, 'binary').toString('base64');
+		
 		const proposal = {
 				proposal: {
 						description: 'Store DAO upgrade contract code blob',
@@ -32,14 +60,14 @@ workspaceWithFactory.test('Store DAO upgrade code in DAO via factory', async (te
 										actions: [
 												{
 														method_name: 'store_contract_self',
-														args: Buffer.from(`{ "code_hash": "${default_code_hash}" }`, 'binary').toString('base64'),
+														args: args,
 														deposit: six_near,
 														gas: tGas(220)
 												}
 										]
 								}
 						}
-				},
+				}
 		};
 
 		//Checks that the same proposal doesn't fail 
@@ -55,7 +83,7 @@ workspaceWithFactory.test('Store DAO upgrade code in DAO via factory', async (te
 		test.truthy(new_proposal.kind.FunctionCall)
 		test.is(new_proposal.kind.FunctionCall.receiver_id, `${factory.accountId}`)
 
-    await root.call(dao, 'act_proposal', { id: 0, action: 'VoteApprove' })
+		await root.call(dao, 'act_proposal', { id: 0, action: 'VoteApprove' }, { gas: tGas(300) })
 		let passed_proposal_0: any = await dao.view('get_proposal', { id: 0 })
 		test.log(passed_proposal_0);
 		test.is(passed_proposal_0.status, 'Approved')
@@ -83,7 +111,7 @@ workspaceWithFactory.test('Store DAO upgrade code in DAO via factory', async (te
 		test.is(new_proposal_1.status, 'InProgress')
 		test.truthy(new_proposal_1.kind.UpgradeSelf)
 
-    await root.call(dao, 'act_proposal', { id: 1, action: 'VoteApprove' })
+    await root.call(dao, 'act_proposal', { id: 1, action: 'VoteApprove' }, { gas: tGas(300) })
 		let passed_proposal_1: any = await dao.view('get_proposal', { id: 0 })
 		test.log(passed_proposal_1);
 		test.is(passed_proposal_1.status, 'Approved')
@@ -108,6 +136,7 @@ workspaceWithFactory.test('Store DAO upgrade code in DAO via factory', async (te
 						}
 				},
 		};
+		console.log('proposalRemoveContractBlob', JSON.stringify(proposalRemoveContractBlob));
 
 		//Checks that the same proposal doesn't fail 
 		await root.call(dao, 'add_proposal', proposalRemoveContractBlob, { attachedDeposit: toYocto('1'), gas: tGas(300) })
@@ -122,7 +151,7 @@ workspaceWithFactory.test('Store DAO upgrade code in DAO via factory', async (te
 		test.truthy(new_proposal_2.kind.FunctionCall)
 		test.is(new_proposal_2.kind.FunctionCall.receiver_id, `${factory.accountId}`)
 
-    await root.call(dao, 'act_proposal', { id: 2, action: 'VoteApprove' })
+    await root.call(dao, 'act_proposal', { id: 2, action: 'VoteApprove' }, { gas: tGas(300) })
 		let passed_proposal_2: any = await dao.view('get_proposal', { id: 0 })
 		test.log(passed_proposal_2);
 		test.is(passed_proposal_2.status, 'Approved')
