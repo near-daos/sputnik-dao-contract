@@ -21,4 +21,4 @@ To run only one test:
 
 If debugging:
 
-    NEAR_WORKSPACES_DEBUG=true npm run test "**/upgrade*"
+    NEAR_WORKSPACES_DEBUG=true npm run test
