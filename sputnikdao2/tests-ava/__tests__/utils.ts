@@ -36,7 +36,6 @@ export const workspaceWithoutInit = Workspace.init(async ({ root }) => {
 });
 
 export const workspaceWithFactory = Workspace.init(async ({ root }) => {
-    const { alice, dao } = await initWorkspace(root);
     const factory = await root.createAndDeploy(
         'factory',
         '../../sputnikdao-factory2/res/sputnikdao_factory2.wasm',
@@ -45,7 +44,7 @@ export const workspaceWithFactory = Workspace.init(async ({ root }) => {
         }
     );
     await factory.call(factory.accountId, 'new', {}, { gas: tGas(300) });
-    return { alice, dao, factory };
+    return { factory };
 });
 
 export async function initTestToken(root: NearAccount) {
