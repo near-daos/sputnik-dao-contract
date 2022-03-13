@@ -80,7 +80,6 @@ workspaceWithFactory.test(
             },
         };
 
-        //Checks that the same proposal doesn't fail
         await root
             .createTransaction('upgradedao.factory.test.near')
             .functionCall('add_proposal', proposal, {
@@ -214,7 +213,6 @@ workspaceWithFactory.test(
         //     JSON.stringify(proposalRemoveContractBlob)
         // );
 
-        //Checks that the same proposal doesn't fail
         await root
             .createTransaction('upgradedao.factory.test.near')
             .functionCall('add_proposal', proposalRemoveContractBlob, {
