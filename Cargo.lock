@@ -2785,13 +2785,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sputnikdao-upgrade-cache"
-version = "0.1.0"
-dependencies = [
- "near-sdk",
-]
-
-[[package]]
 name = "sputnikdao2"
 version = "2.0.0"
 dependencies = [
