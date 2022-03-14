@@ -74,7 +74,7 @@ impl Action {
 /// over a String), with the restriction that the token must be between 2 and 64 chars.
 /// Sputnik had to adapt since "" was not allowed anymore and we chose to represent the token as a
 /// Option<AccountId> with the convention that None represents the $NEAR token.
-/// This function is required to help with the transition and keep the backward compatibility. 
+/// This function is required to help with the transition and keep the backward compatibility.
 pub fn convert_old_to_new_token(old_account_id: &OldAccountId) -> Option<AccountId> {
     if old_account_id == OLD_BASE_TOKEN {
         return None;
