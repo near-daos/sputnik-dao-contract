@@ -1,7 +1,15 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::Base64VecU8;
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{Balance, Gas};
+use near_sdk::{AccountId, Balance, Gas};
+
+/// Account ID used for $NEAR in near-sdk v3.
+/// Need to keep it around for backward compatibility.
+pub const OLD_BASE_TOKEN: &str = "";
+
+/// Account ID that represents a token in near-sdk v3.
+/// Need to keep it around for backward compatibility.
+pub type OldAccountId = String;
 
 /// 1 yN to prevent access key fraud.
 pub const ONE_YOCTO_NEAR: Balance = 1;
@@ -58,4 +66,18 @@ impl Action {
     pub fn to_policy_label(&self) -> String {
         format!("{:?}", self)
     }
+}
+
+/// In near-sdk v3, the token was represented by a String, with no other restrictions.
+/// That being said, Sputnik used "" (empty String) as a convention to represent the $NEAR token.
+/// In near-sdk v4, the token representation was replaced by AccountId (which is in fact a wrapper
+/// over a String), with the restriction that the token must be between 2 and 64 chars.
+/// Sputnik had to adapt since "" was not allowed anymore and we chose to represent the token as a
+/// Option<AccountId> with the convention that None represents the $NEAR token.
+/// This function is required to help with the transition and keep the backward compatibility.
+pub fn convert_old_to_new_token(old_account_id: &OldAccountId) -> Option<AccountId> {
+    if old_account_id == OLD_BASE_TOKEN {
+        return None;
+    }
+    Some(AccountId::new_unchecked(old_account_id.clone()))
 }

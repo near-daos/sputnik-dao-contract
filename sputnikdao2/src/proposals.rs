@@ -6,7 +6,10 @@ use near_sdk::json_types::{Base64VecU8, U128, U64};
 use near_sdk::{log, AccountId, Balance, Gas, PromiseOrValue};
 
 use crate::policy::UserInfo;
-use crate::types::{Action, Config, GAS_FOR_FT_TRANSFER, ONE_YOCTO_NEAR};
+use crate::types::{
+    convert_old_to_new_token, Action, Config, OldAccountId, GAS_FOR_FT_TRANSFER, OLD_BASE_TOKEN,
+    ONE_YOCTO_NEAR,
+};
 use crate::upgrade::{upgrade_remote, upgrade_using_factory};
 use crate::*;
 
@@ -61,14 +64,6 @@ pub enum ProposalKind {
     ChangeConfig { config: Config },
     /// Change the full policy.
     ChangePolicy { policy: VersionedPolicy },
-    /// Add new role to the policy. If the role already exists, update it. This is short cut to updating the whole policy.
-    ChangePolicyAddOrUpdateRole { role: RolePermission },
-    /// Remove role from the policy. This is short cut to updating the whole policy.
-    ChangePolicyRemoveRole { role: String },
-    /// Update the default vote policy from the policy. This is short cut to updating the whole policy.
-    ChangePolicyUpdateDefaultVotePolicy { vote_policy: VotePolicy },
-    /// Update the parameters from the policy. This is short cut to updating the whole policy.
-    ChangePolicyUpdateParameters { parameters: PolicyParameters },
     /// Add member to given role in the policy. This is short cut to updating the whole policy.
     AddMemberToRole { member_id: AccountId, role: String },
     /// Remove member to given role in the policy. This is short cut to updating the whole policy.
@@ -92,8 +87,7 @@ pub enum ProposalKind {
     /// For `ft_transfer` and `ft_transfer_call` `memo` is the `description` of the proposal.
     Transfer {
         /// Can be "" for $NEAR or a valid account id.
-        #[serde(with = "serde_with::rust::string_empty_as_none")]
-        token_id: Option<AccountId>,
+        token_id: OldAccountId,
         receiver_id: AccountId,
         amount: U128,
         msg: Option<String>,
@@ -111,6 +105,14 @@ pub enum ProposalKind {
     Vote,
     /// Change information about factory and auto update.
     FactoryInfoUpdate { factory_info: FactoryInfo },
+    /// Add new role to the policy. If the role already exists, update it. This is short cut to updating the whole policy.
+    ChangePolicyAddOrUpdateRole { role: RolePermission },
+    /// Remove role from the policy. This is short cut to updating the whole policy.
+    ChangePolicyRemoveRole { role: String },
+    /// Update the default vote policy from the policy. This is short cut to updating the whole policy.
+    ChangePolicyUpdateDefaultVotePolicy { vote_policy: VotePolicy },
+    /// Update the parameters from the policy. This is short cut to updating the whole policy.
+    ChangePolicyUpdateParameters { parameters: PolicyParameters },
 }
 
 impl ProposalKind {
@@ -119,12 +121,6 @@ impl ProposalKind {
         match self {
             ProposalKind::ChangeConfig { .. } => "config",
             ProposalKind::ChangePolicy { .. } => "policy",
-            ProposalKind::ChangePolicyAddOrUpdateRole { .. } => "policy_add_or_update_role",
-            ProposalKind::ChangePolicyRemoveRole { .. } => "policy_remove_role",
-            ProposalKind::ChangePolicyUpdateDefaultVotePolicy { .. } => {
-                "policy_update_default_vote_policy"
-            }
-            ProposalKind::ChangePolicyUpdateParameters { .. } => "policy_update_parameters",
             ProposalKind::AddMemberToRole { .. } => "add_member_to_role",
             ProposalKind::RemoveMemberFromRole { .. } => "remove_member_from_role",
             ProposalKind::FunctionCall { .. } => "call",
@@ -136,6 +132,12 @@ impl ProposalKind {
             ProposalKind::BountyDone { .. } => "bounty_done",
             ProposalKind::Vote => "vote",
             ProposalKind::FactoryInfoUpdate { .. } => "factory_info_update",
+            ProposalKind::ChangePolicyAddOrUpdateRole { .. } => "policy_add_or_update_role",
+            ProposalKind::ChangePolicyRemoveRole { .. } => "policy_remove_role",
+            ProposalKind::ChangePolicyUpdateDefaultVotePolicy { .. } => {
+                "policy_update_default_vote_policy"
+            }
+            ProposalKind::ChangePolicyUpdateParameters { .. } => "policy_update_parameters",
         }
     }
 }
@@ -312,30 +314,6 @@ impl Contract {
                 self.policy.set(policy);
                 PromiseOrValue::Value(())
             }
-            ProposalKind::ChangePolicyAddOrUpdateRole { role } => {
-                let mut new_policy = policy.clone();
-                new_policy.add_or_update_role(role);
-                self.policy.set(&VersionedPolicy::Current(new_policy));
-                PromiseOrValue::Value(())
-            }
-            ProposalKind::ChangePolicyRemoveRole { role } => {
-                let mut new_policy = policy.clone();
-                new_policy.remove_role(role);
-                self.policy.set(&VersionedPolicy::Current(new_policy));
-                PromiseOrValue::Value(())
-            }
-            ProposalKind::ChangePolicyUpdateDefaultVotePolicy { vote_policy } => {
-                let mut new_policy = policy.clone();
-                new_policy.update_default_vote_policy(vote_policy);
-                self.policy.set(&VersionedPolicy::Current(new_policy));
-                PromiseOrValue::Value(())
-            }
-            ProposalKind::ChangePolicyUpdateParameters { parameters } => {
-                let mut new_policy = policy.clone();
-                new_policy.update_parameters(parameters);
-                self.policy.set(&VersionedPolicy::Current(new_policy));
-                PromiseOrValue::Value(())
-            }
             ProposalKind::AddMemberToRole { member_id, role } => {
                 let mut new_policy = policy.clone();
                 new_policy.add_member_to_role(role, &member_id.clone().into());
@@ -381,7 +359,7 @@ impl Contract {
                 amount,
                 msg,
             } => self.internal_payout(
-                &token_id,
+                &convert_old_to_new_token(token_id),
                 &receiver_id,
                 amount.0,
                 proposal.description.clone(),
@@ -403,6 +381,30 @@ impl Contract {
             ProposalKind::Vote => PromiseOrValue::Value(()),
             ProposalKind::FactoryInfoUpdate { factory_info } => {
                 internal_set_factory_info(factory_info);
+                PromiseOrValue::Value(())
+            }
+            ProposalKind::ChangePolicyAddOrUpdateRole { role } => {
+                let mut new_policy = policy.clone();
+                new_policy.add_or_update_role(role);
+                self.policy.set(&VersionedPolicy::Current(new_policy));
+                PromiseOrValue::Value(())
+            }
+            ProposalKind::ChangePolicyRemoveRole { role } => {
+                let mut new_policy = policy.clone();
+                new_policy.remove_role(role);
+                self.policy.set(&VersionedPolicy::Current(new_policy));
+                PromiseOrValue::Value(())
+            }
+            ProposalKind::ChangePolicyUpdateDefaultVotePolicy { vote_policy } => {
+                let mut new_policy = policy.clone();
+                new_policy.update_default_vote_policy(vote_policy);
+                self.policy.set(&VersionedPolicy::Current(new_policy));
+                PromiseOrValue::Value(())
+            }
+            ProposalKind::ChangePolicyUpdateParameters { parameters } => {
+                let mut new_policy = policy.clone();
+                new_policy.update_parameters(parameters);
+                self.policy.set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
         };
@@ -498,7 +500,7 @@ impl Contract {
             },
             ProposalKind::Transfer { token_id, msg, .. } => {
                 assert!(
-                    !(token_id.is_none()) || msg.is_none(),
+                    !(token_id == OLD_BASE_TOKEN) || msg.is_none(),
                     "ERR_BASE_TOKEN_NO_MSG"
                 );
             }

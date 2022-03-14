@@ -259,10 +259,6 @@ near view $SPUTNIK_ID get_policy
 ```rs
 ProposalKind::ChangeConfig { .. },
 ProposalKind::ChangePolicy { .. },
-ProposalKind::ChangePolicyAddOrUpdateRole { .. },
-ProposalKind::ChangePolicyRemoveRole { .. },
-ProposalKind::ChangePolicyUpdateDefaultVotePolicy { .. },
-ProposalKind::ChangePolicyUpdateParameters { .. },
 ProposalKind::AddMemberToRole { .. },
 ProposalKind::RemoveMemberFromRole { .. },
 ProposalKind::FunctionCall { .. },
@@ -274,14 +270,14 @@ ProposalKind::AddBounty { .. },
 ProposalKind::BountyDone { .. },
 ProposalKind::Vote,
 ProposalKind::FactoryInfoUpdate { .. },
+ProposalKind::ChangePolicyAddOrUpdateRole { .. },
+ProposalKind::ChangePolicyRemoveRole { .. },
+ProposalKind::ChangePolicyUpdateDefaultVotePolicy { .. },
+ProposalKind::ChangePolicyUpdateParameters { .. },
 ```
 
 - **ChangeConfig** - used to change the configuration of the DAO
 - **ChangePolicy** - used to change the full policy of the DAO
-- **ChangePolicyAddOrUpdateRole** - used to add a new role to the policy of the DAO. If the role already exists, update it.
-- **ChangePolicyRemoveRole** - used to remove a role from the policy of the DAO.
-- **ChangePolicyUpdateDefaultVotePolicy** - used to update the default vote policy from the policy of the DAO.
-- **ChangePolicyUpdateParameters** - used to update the parameters from the policy of the DAO. Parameters include: proposal bond, proposal period, bounty bond, bounty forgiveness period.
 - **AddMemberToRole** - used to add a member to a role in the DAO
 - **RemoveMemberFromRole** - used to remove a member from a role in the DAO
 - **FunctionCall** - used to a call a function on any valid account on the network including the DAO itself, any other DAO, or any other contract. This is a useful mechanism for extending the capabilities of the DAO without modifying or complicating the DAO contract code.  One can imagine a family of contracts built specifically to serve the DAO as agents, proxies, oracles and banks, for example.
@@ -293,6 +289,10 @@ ProposalKind::FactoryInfoUpdate { .. },
 - **BountyDone** - used to mark the completion of an available bounty
 - **Vote** - used to create polls. Vote proposal doesn't have any action.
 - **FactoryInfoUpdate** - used for changing permissions of the factory that created the DAO. By default, the factory has permission to upgrade the DAO, but this can be modified by using `FactoryInfoUpdate`.
+- **ChangePolicyAddOrUpdateRole** - used to add a new role to the policy of the DAO. If the role already exists, update it.
+- **ChangePolicyRemoveRole** - used to remove a role from the policy of the DAO.
+- **ChangePolicyUpdateDefaultVotePolicy** - used to update the default vote policy from the policy of the DAO.
+- **ChangePolicyUpdateParameters** - used to update the parameters from the policy of the DAO. Parameters include: proposal bond, proposal period, bounty bond, bounty forgiveness period.
 
 ---
 
