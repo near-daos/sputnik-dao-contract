@@ -50,7 +50,7 @@ workspace.test('Bounty claim', async (test, { alice, root, dao }) => {
 
     //The method could panic if the bounty with given id doesn't exist
     let errorString1 = await captureError(
-        async () => await claimBounty(alice, dao, proposalId)
+        async () => await claimBounty(alice, dao, proposalId),
     );
     test.regex(errorString1, /ERR_NO_BOUNTY/);
 
@@ -70,8 +70,8 @@ workspace.test('Bounty claim', async (test, { alice, root, dao }) => {
                 },
                 {
                     attachedDeposit: new BN(BOND).addn(1),
-                }
-            )
+                },
+            ),
     );
     test.regex(errorString2_1, /ERR_BOUNTY_WRONG_BOND/);
     //If we attach less than needed:
@@ -86,8 +86,8 @@ workspace.test('Bounty claim', async (test, { alice, root, dao }) => {
                 },
                 {
                     attachedDeposit: new BN(BOND).subn(1),
-                }
-            )
+                },
+            ),
     );
     test.regex(errorString2_2, /ERR_BOUNTY_WRONG_BOND/);
 
@@ -103,8 +103,8 @@ workspace.test('Bounty claim', async (test, { alice, root, dao }) => {
                 },
                 {
                     attachedDeposit: BOND,
-                }
-            )
+                },
+            ),
     );
     test.regex(errorString3, /ERR_BOUNTY_WRONG_DEADLINE/);
 
@@ -113,7 +113,7 @@ workspace.test('Bounty claim', async (test, { alice, root, dao }) => {
     //Should increase number of claims
     test.is(
         await dao.view('get_bounty_number_of_claims', { id: proposalId }),
-        1
+        1,
     );
 
     //Should add this claim to the list of claims, done by this account
@@ -127,7 +127,7 @@ workspace.test('Bounty claim', async (test, { alice, root, dao }) => {
     await claimBounty(alice, dao, proposalId);
     test.is(
         await dao.view('get_bounty_number_of_claims', { id: proposalId }),
-        2
+        2,
     );
 
     let bounty2: any = await dao.view('get_bounty_claims', {
@@ -140,7 +140,7 @@ workspace.test('Bounty claim', async (test, { alice, root, dao }) => {
     await claimBounty(alice, dao, proposalId);
     test.is(
         await dao.view('get_bounty_number_of_claims', { id: proposalId }),
-        3
+        3,
     );
 
     //Should panic if all bounties are claimed
@@ -155,8 +155,8 @@ workspace.test('Bounty claim', async (test, { alice, root, dao }) => {
                 },
                 {
                     attachedDeposit: BOND,
-                }
-            )
+                },
+            ),
     );
     test.regex(errorString4, /ERR_BOUNTY_ALL_CLAIMED/);
 });
@@ -172,7 +172,7 @@ workspace.test(
         const bob = await root.createAccount('bob');
         //Should panic if the caller is not in the list of claimers
         let errorString1 = await captureError(
-            async () => await doneBounty(alice, bob, dao, proposalId)
+            async () => await doneBounty(alice, bob, dao, proposalId),
         );
         test.regex(errorString1, /ERR_NO_BOUNTY_CLAIMS/);
 
@@ -181,13 +181,13 @@ workspace.test(
         //Should panic if the list of claims for the caller of the method
         //doesn't contain the claim with given ID
         let errorString2 = await captureError(
-            async () => await doneBounty(alice, alice, dao, proposalId + 10)
+            async () => await doneBounty(alice, alice, dao, proposalId + 10),
         );
         test.regex(errorString2, /ERR_NO_BOUNTY_CLAIM/);
 
         //`bounty_done` can only be called by the claimer
         let errorString3 = await captureError(
-            async () => await doneBounty(alice, bob, dao, proposalId)
+            async () => await doneBounty(alice, bob, dao, proposalId),
         );
         test.regex(errorString3, /ERR_BOUNTY_DONE_MUST_BE_SELF/);
 
@@ -215,10 +215,10 @@ workspace.test(
 
         //Should panic if the bounty claim is completed
         let errorString4 = await captureError(
-            async () => await doneBounty(alice, alice, dao, proposalId)
+            async () => await doneBounty(alice, alice, dao, proposalId),
         );
         test.regex(errorString4, /ERR_NO_BOUNTY_CLAIMS/);
-    }
+    },
 );
 
 workspace.test('Bounty giveup', async (test, { alice, root, dao }) => {
@@ -230,14 +230,14 @@ workspace.test('Bounty giveup', async (test, { alice, root, dao }) => {
     //Should panic if the caller is not in the list of claimers
     const bob = await root.createAccount('bob');
     let errorString = await captureError(
-        async () => await giveupBounty(bob, dao, proposalId)
+        async () => await giveupBounty(bob, dao, proposalId),
     );
     test.regex(errorString, /ERR_NO_BOUNTY_CLAIMS/);
 
     //Should panic if the list of claims for the caller of the method
     //doesn't contain the claim with given ID
     errorString = await captureError(
-        async () => await giveupBounty(alice, dao, proposalId + 10)
+        async () => await giveupBounty(alice, dao, proposalId + 10),
     );
     test.regex(errorString, /ERR_NO_BOUNTY_CLAIM/);
 
@@ -247,9 +247,9 @@ workspace.test('Bounty giveup', async (test, { alice, root, dao }) => {
     const balance2: NEAR = (await alice.balance()).total;
     test.is(
         Number(balance2.add(result.gas_burnt).toHuman().slice(0, -1)).toFixed(
-            1
+            1,
         ),
-        Number(balance1.add(ONE_NEAR).toHuman().slice(0, -1)).toFixed(1)
+        Number(balance1.add(ONE_NEAR).toHuman().slice(0, -1)).toFixed(1),
     );
     test.not(balance2, balance1);
 
@@ -257,7 +257,7 @@ workspace.test('Bounty giveup', async (test, { alice, root, dao }) => {
     //claim should be removed from the list of claims, done by this account
     test.deepEqual(
         await dao.view('get_bounty_claims', { account_id: alice }),
-        []
+        [],
     );
 });
 
@@ -272,7 +272,7 @@ workspace.test('Bounty ft done', async (test, { alice, root, dao }) => {
         },
         {
             gas: tGas(50),
-        }
+        },
     );
     await alice.call(
         testToken,
@@ -283,7 +283,7 @@ workspace.test('Bounty ft done', async (test, { alice, root, dao }) => {
         },
         {
             attachedDeposit: toYocto('90'),
-        }
+        },
     );
     const bounty = {
         description: 'test_bounties',
@@ -307,7 +307,7 @@ workspace.test('Bounty ft done', async (test, { alice, root, dao }) => {
         },
         {
             attachedDeposit: toYocto('1'),
-        }
+        },
     );
     await voteApprove(root, dao, proposalId);
     let { status } = await dao.view('get_proposal', { id: proposalId });
@@ -324,7 +324,7 @@ workspace.test('Bounty ft done', async (test, { alice, root, dao }) => {
         },
         {
             attachedDeposit: toYocto('1'),
-        }
+        },
     );
 
     await voteApprove(root, dao, proposalId + 1);
@@ -348,7 +348,7 @@ workspace.test(
         const balanceAfter: NEAR = (await alice.balance()).total;
         test.is(await dao.view('get_bounty_number_of_claims', { id: 0 }), 0);
         test.assert(balanceBefore.lt(balanceAfter));
-    }
+    },
 );
 
 workspace.test(
@@ -366,7 +366,7 @@ workspace.test(
             },
             {
                 gas: tGas(50),
-            }
+            },
         );
         await alice.call(
             testTokenFail,
@@ -377,7 +377,7 @@ workspace.test(
             },
             {
                 attachedDeposit: toYocto('90'),
-            }
+            },
         );
         await voteOnBounty(root, dao, proposalIdFail);
         await claimBounty(alice, dao, proposalIdFail);
@@ -388,7 +388,7 @@ workspace.test(
             id: proposalIdFail + 1,
         });
         test.is(status, 'Failed');
-    }
+    },
 );
 
 workspace.test(
@@ -405,7 +405,7 @@ workspace.test(
             },
             {
                 gas: tGas(50),
-            }
+            },
         );
         await alice.call(
             testToken,
@@ -416,7 +416,7 @@ workspace.test(
             },
             {
                 attachedDeposit: toYocto('90'),
-            }
+            },
         );
         const bounty = {
             description: 'test_bounties',
@@ -440,7 +440,7 @@ workspace.test(
             },
             {
                 attachedDeposit: toYocto('1'),
-            }
+            },
         );
         await voteOnBounty(root, dao, proposalId);
         await claimBounty(alice, dao, proposalId);
@@ -459,5 +459,5 @@ workspace.test(
         const balanceAfter: NEAR = (await alice.balance()).total;
         test.is(await dao.view('get_bounty_number_of_claims', { id: 0 }), 0);
         test.assert(balanceBefore.lt(balanceAfter));
-    }
+    },
 );

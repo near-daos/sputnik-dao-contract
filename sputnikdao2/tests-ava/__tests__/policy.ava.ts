@@ -63,7 +63,7 @@ workspace.test(
             },
             {
                 attachedDeposit: toYocto('1'),
-            }
+            },
         );
         await root.call(dao, 'act_proposal', {
             id: proposalId,
@@ -93,7 +93,7 @@ workspace.test(
             },
             {
                 attachedDeposit: toYocto('1'),
-            }
+            },
         );
         await alice.call(dao, 'act_proposal', {
             id: proposalId,
@@ -104,7 +104,7 @@ workspace.test(
             action: 'VoteApprove',
         });
         test.deepEqual(await dao.view('get_config'), new_config);
-    }
+    },
 );
 
 workspace.test('Policy self-lock', async (test, { alice, root, dao }) => {
@@ -151,7 +151,7 @@ workspace.test('Policy self-lock', async (test, { alice, root, dao }) => {
         },
         {
             attachedDeposit: toYocto('1'),
-        }
+        },
     );
     await alice.call(dao, 'act_proposal', {
         id: proposalId,

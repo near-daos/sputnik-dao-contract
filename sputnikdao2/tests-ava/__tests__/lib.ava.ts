@@ -54,7 +54,7 @@ workspaceWithFactory.test(
             {
                 attachedDeposit: toYocto('10'),
                 gas: tGas(300),
-            }
+            },
         );
 
         test.deepEqual(await factory.view('get_dao_list', {}), [
@@ -78,7 +78,7 @@ workspaceWithFactory.test(
                 },
                 {
                     attachedDeposit: toYocto('1'),
-                }
+                },
             )
             .signAndSend();
         const proposalId = result.parseResult<number>();
@@ -94,10 +94,10 @@ workspaceWithFactory.test(
                 },
                 {
                     gas: tGas(300),
-                }
+                },
             )
             .signAndSend();
-    }
+    },
 );
 
 workspaceWithoutInit.test(
@@ -113,7 +113,7 @@ workspaceWithoutInit.test(
                     attachedDeposit: toYocto('200'),
                     gas: tGas(300),
                 })
-                .signAndSend()
+                .signAndSend(),
         );
         test.regex(err, /ERR_CONTRACT_IS_NOT_INITIALIZED/);
 
@@ -128,7 +128,7 @@ workspaceWithoutInit.test(
                     attachedDeposit: toYocto('1'),
                     gas: tGas(300),
                 })
-                .signAndSend()
+                .signAndSend(),
         );
         test.regex(err, /ERR_NOT_ENOUGH_DEPOSIT/);
 
@@ -148,10 +148,10 @@ workspaceWithoutInit.test(
                     attachedDeposit: toYocto('200'),
                     gas: tGas(300),
                 })
-                .signAndSend()
+                .signAndSend(),
         );
         test.regex(err, /ERR_ALREADY_EXISTS/);
-    }
+    },
 );
 
 workspace.test('Remove blob', async (test, { root, dao, alice }) => {
@@ -169,7 +169,7 @@ workspace.test('Remove blob', async (test, { root, dao, alice }) => {
     let err = await captureError(async () =>
         root.call(dao, 'remove_blob', {
             hash: 'HLBiX51txizmQzZJMrHMCq4u7iEEqNbaJppZ84yW7628', // some_random hash
-        })
+        }),
     );
     test.regex(err, /ERR_NO_BLOB/);
 
@@ -177,7 +177,7 @@ workspace.test('Remove blob', async (test, { root, dao, alice }) => {
     err = await captureError(async () =>
         alice.call(dao, 'remove_blob', {
             hash: hash,
-        })
+        }),
     );
     test.regex(err, /ERR_INVALID_CALLER/);
 
@@ -207,7 +207,7 @@ workspace.test(
         const balanceAfter: NEAR = (await alice.balance()).total;
         test.is(await dao.view('get_bounty_number_of_claims', { id: 0 }), 0);
         test.assert(balanceBefore.lt(balanceAfter));
-    }
+    },
 );
 
 workspace.test(
@@ -225,7 +225,7 @@ workspace.test(
             },
             {
                 gas: tGas(50),
-            }
+            },
         );
         await alice.call(
             testTokenFail,
@@ -236,7 +236,7 @@ workspace.test(
             },
             {
                 attachedDeposit: toYocto('90'),
-            }
+            },
         );
         await voteOnBounty(root, dao, proposalIdFail);
         await claimBounty(alice, dao, proposalIdFail);
@@ -247,7 +247,7 @@ workspace.test(
             id: proposalIdFail + 1,
         });
         test.is(status, 'Failed');
-    }
+    },
 );
 
 workspace.test(
@@ -264,7 +264,7 @@ workspace.test(
             },
             {
                 gas: tGas(50),
-            }
+            },
         );
         await alice.call(
             testToken,
@@ -275,7 +275,7 @@ workspace.test(
             },
             {
                 attachedDeposit: toYocto('90'),
-            }
+            },
         );
         const bounty = {
             description: 'test_bounties',
@@ -299,7 +299,7 @@ workspace.test(
             },
             {
                 attachedDeposit: toYocto('1'),
-            }
+            },
         );
         await voteOnBounty(root, dao, proposalId);
         await claimBounty(alice, dao, proposalId);
@@ -318,7 +318,7 @@ workspace.test(
         const balanceAfter: NEAR = (await alice.balance()).total;
         test.is(await dao.view('get_bounty_number_of_claims', { id: 0 }), 0);
         test.assert(balanceBefore.lt(balanceAfter));
-    }
+    },
 );
 
 workspace.test('Callback transfer', async (test, { alice, root, dao }) => {
@@ -339,7 +339,7 @@ workspace.test('Callback transfer', async (test, { alice, root, dao }) => {
                 },
             },
         },
-        { attachedDeposit: toYocto('1') }
+        { attachedDeposit: toYocto('1') },
     );
     let user1Balance = (await user1.balance()).total;
     await voteApprove(root, dao, transferId);
@@ -363,7 +363,7 @@ workspace.test('Callback transfer', async (test, { alice, root, dao }) => {
                 },
             },
         },
-        { attachedDeposit: toYocto('1') }
+        { attachedDeposit: toYocto('1') },
     );
     user1Balance = (await user1.balance()).total;
     await voteApprove(root, dao, transferId);
@@ -387,7 +387,7 @@ workspace.test('Callback function call', async (test, { alice, root, dao }) => {
                             {
                                 method_name: 'fail',
                                 args: Buffer.from('bad args').toString(
-                                    'base64'
+                                    'base64',
                                 ),
                                 deposit: toYocto('1'),
                                 gas: tGas(10),
@@ -397,7 +397,7 @@ workspace.test('Callback function call', async (test, { alice, root, dao }) => {
                 },
             },
         },
-        { attachedDeposit: toYocto('1') }
+        { attachedDeposit: toYocto('1') },
     );
     await root.call(
         dao,
@@ -408,7 +408,7 @@ workspace.test('Callback function call', async (test, { alice, root, dao }) => {
         },
         {
             gas: tGas(200),
-        }
+        },
     );
     let { status } = await dao.view('get_proposal', { id: transferId });
     test.is(status, 'Failed');
@@ -428,7 +428,7 @@ workspace.test('Callback function call', async (test, { alice, root, dao }) => {
                                 args: Buffer.from(
                                     '{"account_id": "' +
                                         alice.accountId +
-                                        '", "amount": "10"}'
+                                        '", "amount": "10"}',
                                 ).toString('base64'),
                                 deposit: '0',
                                 gas: tGas(10),
@@ -438,7 +438,7 @@ workspace.test('Callback function call', async (test, { alice, root, dao }) => {
                                 args: Buffer.from(
                                     '{"account_id": "' +
                                         alice.accountId +
-                                        '", "amount": "10"}'
+                                        '", "amount": "10"}',
                                 ).toString('base64'),
                                 deposit: '0',
                                 gas: tGas(10),
@@ -448,7 +448,7 @@ workspace.test('Callback function call', async (test, { alice, root, dao }) => {
                 },
             },
         },
-        { attachedDeposit: toYocto('1') }
+        { attachedDeposit: toYocto('1') },
     );
     await root.call(
         dao,
@@ -459,7 +459,7 @@ workspace.test('Callback function call', async (test, { alice, root, dao }) => {
         },
         {
             gas: tGas(200),
-        }
+        },
     );
     ({ status } = await dao.view('get_proposal', { id: transferId }));
     test.is(status, 'Approved');

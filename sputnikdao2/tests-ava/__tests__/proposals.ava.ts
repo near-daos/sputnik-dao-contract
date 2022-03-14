@@ -49,8 +49,8 @@ workspace.test(
                             },
                         },
                     },
-                    { attachedDeposit: new BN(toYocto('1')).subn(1) }
-                )
+                    { attachedDeposit: new BN(toYocto('1')).subn(1) },
+                ),
         );
 
         test.log(err.toString());
@@ -73,7 +73,7 @@ workspace.test(
                     },
                 },
             },
-            { attachedDeposit: toYocto('1') }
+            { attachedDeposit: toYocto('1') },
         );
         test.is(await dao.view('get_last_proposal_id'), 1);
 
@@ -92,7 +92,7 @@ workspace.test(
             purpose: 'testing',
             metadata: '',
         });
-    }
+    },
 );
 
 workspace.test(
@@ -142,7 +142,7 @@ workspace.test(
                     },
                 },
             },
-            { attachedDeposit: toYocto('1') }
+            { attachedDeposit: toYocto('1') },
         );
         await voteApprove(root, dao, id);
 
@@ -162,17 +162,17 @@ workspace.test(
                             },
                         },
                     },
-                    { attachedDeposit: toYocto('1') }
-                )
+                    { attachedDeposit: toYocto('1') },
+                ),
         );
         test.regex(errorString, /ERR_PERMISSION_DENIED/);
-    }
+    },
 );
 
 workspace.test('Proposal ChangePolicy', async (test, { alice, root, dao }) => {
     test.deepEqual(
         await dao.view('get_proposals', { from_index: 0, limit: 10 }),
-        []
+        [],
     );
 
     //Check that we can't change policy to a policy unless it's VersionedPolicy::Current
@@ -192,8 +192,8 @@ workspace.test('Proposal ChangePolicy', async (test, { alice, root, dao }) => {
                         },
                     },
                 },
-                { attachedDeposit: toYocto('1') }
-            )
+                { attachedDeposit: toYocto('1') },
+            ),
     );
     test.regex(errorString, /ERR_INVALID_POLICY/);
 
@@ -238,7 +238,7 @@ workspace.test('Proposal ChangePolicy', async (test, { alice, root, dao }) => {
                 },
             },
         },
-        { attachedDeposit: toYocto('1') }
+        { attachedDeposit: toYocto('1') },
     );
 
     //Number of proposals = 1
@@ -271,12 +271,12 @@ workspace.test('Proposal ChangePolicy', async (test, { alice, root, dao }) => {
     test.deepEqual(
         (await dao.view('get_proposals', { from_index: 0, limit: 10 }))[0]
             .vote_counts,
-        { council: [1, 0, 0] }
+        { council: [1, 0, 0] },
     );
     test.is(
         (await dao.view('get_proposals', { from_index: 0, limit: 10 }))[0]
             .status,
-        'Approved'
+        'Approved',
     );
 
     //Check that the policy is changed
@@ -305,8 +305,8 @@ workspace.test('Proposal Transfer', async (test, { alice, root, dao }) => {
                 },
                 {
                     attachedDeposit: toYocto('1'),
-                }
-            )
+                },
+            ),
     );
     test.regex(errorString, /ERR_BASE_TOKEN_NO_MSG/);
 
@@ -325,7 +325,7 @@ workspace.test('Proposal Transfer', async (test, { alice, root, dao }) => {
                 },
             },
         },
-        { attachedDeposit: toYocto('1') }
+        { attachedDeposit: toYocto('1') },
     );
     const initBalance: NEAR = (await alice.balance()).total;
     await voteApprove(root, dao, transferId);
@@ -343,10 +343,10 @@ workspace.test(
         test.is(await dao.view('get_staking_contract'), staking.accountId);
 
         let errorString = await captureError(
-            async () => await setStakingId(root, dao, staking)
+            async () => await setStakingId(root, dao, staking),
         );
         test.regex(errorString, /ERR_STAKING_CONTRACT_CANT_CHANGE/);
-    }
+    },
 );
 
 workspace.test(
@@ -371,13 +371,13 @@ workspace.test(
                     },
                 },
             },
-            { attachedDeposit: toYocto('1') }
+            { attachedDeposit: toYocto('1') },
         );
 
         //Check that voting is not allowed for non councils
         //Here alice tries to vote for her proposal but she is not a council and has no permission to vote.
         const err = await captureError(
-            async () => await voteApprove(alice, dao, id)
+            async () => await voteApprove(alice, dao, id),
         );
         test.log(err);
         test.true(err.includes('ERR_PERMISSION_DENIED'));
@@ -396,7 +396,7 @@ workspace.test(
 
         // proposal approved so now the config is equal to what alice did propose
         test.deepEqual(await dao.view('get_config'), config);
-    }
+    },
 );
 
 // If the number of votes in the group has changed (new members has been added)
@@ -420,7 +420,7 @@ workspace.test(
                     },
                 },
             },
-            { attachedDeposit: toYocto('1') }
+            { attachedDeposit: toYocto('1') },
         );
 
         const addMemberToRoleId: number = await root.call(
@@ -437,13 +437,13 @@ workspace.test(
                     },
                 },
             },
-            { attachedDeposit: toYocto('1') }
+            { attachedDeposit: toYocto('1') },
         );
         await voteApprove(root, dao, addMemberToRoleId);
         await voteApprove(root, dao, transferId);
         const { status } = await dao.view('get_proposal', { id: transferId });
         test.is(status, 'InProgress');
-    }
+    },
 );
 
 workspaceWithoutInit.test(
@@ -502,7 +502,7 @@ workspaceWithoutInit.test(
                     },
                 },
             },
-            { attachedDeposit: toYocto('1') }
+            { attachedDeposit: toYocto('1') },
         );
 
         // Remove proposal works
@@ -511,7 +511,7 @@ workspaceWithoutInit.test(
             action: 'RemoveProposal',
         });
         let err = await captureError(async () =>
-            dao.view('get_proposal', { id: proposalId })
+            dao.view('get_proposal', { id: proposalId }),
         );
         test.regex(err, /ERR_NO_PROPOSAL/);
 
@@ -519,7 +519,7 @@ workspaceWithoutInit.test(
             alice.call(dao, 'act_proposal', {
                 id: proposalId,
                 action: 'VoteApprove',
-            })
+            }),
         );
         test.regex(err, /ERR_NO_PROPOSAL/);
 
@@ -536,14 +536,14 @@ workspaceWithoutInit.test(
                     },
                 },
             },
-            { attachedDeposit: toYocto('1') }
+            { attachedDeposit: toYocto('1') },
         );
 
         err = await captureError(async () =>
             alice.call(dao, 'act_proposal', {
                 id: proposalId,
                 action: 'AddProposal',
-            })
+            }),
         );
         test.regex(err, /ERR_WRONG_ACTION/);
 
@@ -577,10 +577,10 @@ workspaceWithoutInit.test(
             alice.call(dao, 'act_proposal', {
                 id: proposalId,
                 action: 'Finalize',
-            })
+            }),
         );
         test.regex(err, /ERR_PROPOSAL_NOT_EXPIRED_OR_FAILED/);
-    }
+    },
 );
 
 workspace.test('Proposal transfer ft', async (test, { alice, root, dao }) => {
@@ -594,7 +594,7 @@ workspace.test('Proposal transfer ft', async (test, { alice, root, dao }) => {
         },
         {
             gas: tGas(50),
-        }
+        },
     );
     await alice.call(
         testToken,
@@ -605,7 +605,7 @@ workspace.test('Proposal transfer ft', async (test, { alice, root, dao }) => {
         },
         {
             attachedDeposit: toYocto('90'),
-        }
+        },
     );
     const transferId: number = await alice.call(
         dao,
@@ -624,7 +624,7 @@ workspace.test('Proposal transfer ft', async (test, { alice, root, dao }) => {
         },
         {
             attachedDeposit: toYocto('1'),
-        }
+        },
     );
     await voteApprove(root, dao, transferId);
     const { status } = await dao.view('get_proposal', { id: transferId });
@@ -649,7 +649,7 @@ workspace.test('Callback transfer', async (test, { alice, root, dao }) => {
                 },
             },
         },
-        { attachedDeposit: toYocto('1') }
+        { attachedDeposit: toYocto('1') },
     );
     let user1Balance = (await user1.balance()).total;
     await voteApprove(root, dao, transferId);
@@ -673,7 +673,7 @@ workspace.test('Callback transfer', async (test, { alice, root, dao }) => {
                 },
             },
         },
-        { attachedDeposit: toYocto('1') }
+        { attachedDeposit: toYocto('1') },
     );
     user1Balance = (await user1.balance()).total;
     await voteApprove(root, dao, transferId);
@@ -697,7 +697,7 @@ workspace.test('Callback function call', async (test, { alice, root, dao }) => {
                             {
                                 method_name: 'fail',
                                 args: Buffer.from('bad args').toString(
-                                    'base64'
+                                    'base64',
                                 ),
                                 deposit: toYocto('1'),
                                 gas: tGas(10),
@@ -707,7 +707,7 @@ workspace.test('Callback function call', async (test, { alice, root, dao }) => {
                 },
             },
         },
-        { attachedDeposit: toYocto('1') }
+        { attachedDeposit: toYocto('1') },
     );
     await root.call(
         dao,
@@ -718,7 +718,7 @@ workspace.test('Callback function call', async (test, { alice, root, dao }) => {
         },
         {
             gas: tGas(200),
-        }
+        },
     );
     let { status } = await dao.view('get_proposal', { id: transferId });
     test.is(status, 'Failed');
@@ -738,7 +738,7 @@ workspace.test('Callback function call', async (test, { alice, root, dao }) => {
                                 args: Buffer.from(
                                     '{"account_id": "' +
                                         alice.accountId +
-                                        '", "amount": "10"}'
+                                        '", "amount": "10"}',
                                 ).toString('base64'),
                                 deposit: '0',
                                 gas: tGas(10),
@@ -748,7 +748,7 @@ workspace.test('Callback function call', async (test, { alice, root, dao }) => {
                                 args: Buffer.from(
                                     '{"account_id": "' +
                                         alice.accountId +
-                                        '", "amount": "10"}'
+                                        '", "amount": "10"}',
                                 ).toString('base64'),
                                 deposit: '0',
                                 gas: tGas(10),
@@ -758,7 +758,7 @@ workspace.test('Callback function call', async (test, { alice, root, dao }) => {
                 },
             },
         },
-        { attachedDeposit: toYocto('1') }
+        { attachedDeposit: toYocto('1') },
     );
     await root.call(
         dao,
@@ -769,7 +769,7 @@ workspace.test('Callback function call', async (test, { alice, root, dao }) => {
         },
         {
             gas: tGas(200),
-        }
+        },
     );
     ({ status } = await dao.view('get_proposal', { id: transferId }));
     test.is(status, 'Approved');

@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "format": "prettier --write \"__tests__/*.{js,jsx,ts,tsx}\" --tab-width=4 --single-quote",
+    "format": "prettier --write \"__tests__/*.{js,jsx,ts,tsx}\" --tab-width=4 --single-quote --trailing-comma all",
     "test": "near-workspaces-ava",
     "test:testnet": "near-workspaces-ava --config ./ava.testnet.config.cjs"
   },

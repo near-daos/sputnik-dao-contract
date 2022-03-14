@@ -41,7 +41,7 @@ export const workspaceWithFactory = Workspace.init(async ({ root }) => {
         '../../sputnikdao-factory2/res/sputnikdao_factory2.wasm',
         {
             initialBalance: toYocto('500'),
-        }
+        },
     );
     await factory.call(factory.accountId, 'new', {}, { gas: tGas(300) });
     return { factory };
@@ -54,7 +54,7 @@ export async function initTestToken(root: NearAccount) {
         {
             method: 'new',
             initialBalance: toYocto('200'),
-        }
+        },
     );
     return testToken;
 }
@@ -62,7 +62,7 @@ export async function initTestToken(root: NearAccount) {
 export async function initStaking(
     root: NearAccount,
     dao: NearAccount,
-    testToken: NearAccount
+    testToken: NearAccount,
 ) {
     const staking = await root.createAndDeploy(
         'staking',
@@ -75,7 +75,7 @@ export async function initStaking(
                 unstake_period: '100000000000',
             },
             initialBalance: toYocto('100'),
-        }
+        },
     );
     return staking;
 }
@@ -83,7 +83,7 @@ export async function initStaking(
 export async function setStakingId(
     root: NearAccount,
     dao: NearAccount,
-    staking: NearAccount
+    staking: NearAccount,
 ) {
     // Setting staking id
     const proposalId = await root.call(
@@ -97,7 +97,7 @@ export async function setStakingId(
         },
         {
             attachedDeposit: toYocto('1'),
-        }
+        },
     );
     await root.call(dao, 'act_proposal', {
         id: proposalId,
@@ -111,13 +111,13 @@ export async function registerAndDelegate(
     dao: NearAccount,
     staking: NearAccount,
     account: NearAccount,
-    amount: BN
+    amount: BN,
 ) {
     await staking.call(
         dao,
         'register_delegation',
         { account_id: account },
-        { attachedDeposit: regCost }
+        { attachedDeposit: regCost },
     );
     const res: string[3] = await staking.call(dao, 'delegate', {
         account_id: account,
@@ -132,7 +132,7 @@ export const BOND = toYocto('1');
 export async function proposeBounty(
     alice: NearAccount,
     dao: NearAccount,
-    token: NearAccount
+    token: NearAccount,
 ) {
     const bounty = {
         description: 'test_bounties',
@@ -156,14 +156,14 @@ export async function proposeBounty(
         },
         {
             attachedDeposit: toYocto('1'),
-        }
+        },
     );
     return proposalId;
 }
 
 export async function proposeBountyWithNear(
     alice: NearAccount,
-    dao: NearAccount
+    dao: NearAccount,
 ) {
     const bounty = {
         description: 'test_bounties_with_near_token',
@@ -187,7 +187,7 @@ export async function proposeBountyWithNear(
         },
         {
             attachedDeposit: toYocto('1'),
-        }
+        },
     );
     return proposalId;
 }
@@ -195,7 +195,7 @@ export async function proposeBountyWithNear(
 export async function voteOnBounty(
     root: NearAccount,
     dao: NearAccount,
-    proposalId: number
+    proposalId: number,
 ) {
     await root.call(
         dao,
@@ -206,14 +206,14 @@ export async function voteOnBounty(
         },
         {
             gas: tGas(50),
-        }
+        },
     );
 }
 
 export async function claimBounty(
     alice: NearAccount,
     dao: NearAccount,
-    proposalId: number
+    proposalId: number,
 ) {
     await alice.call(
         dao,
@@ -224,7 +224,7 @@ export async function claimBounty(
         },
         {
             attachedDeposit: BOND,
-        }
+        },
     );
 }
 
@@ -232,7 +232,7 @@ export async function doneBounty(
     alice: NearAccount,
     bob: NearAccount,
     dao: NearAccount,
-    proposalId: number
+    proposalId: number,
 ) {
     await alice.call(
         dao,
@@ -244,14 +244,14 @@ export async function doneBounty(
         },
         {
             attachedDeposit: toYocto('1'),
-        }
+        },
     );
 }
 
 export async function giveupBounty(
     alice: NearAccount,
     dao: NearAccount,
-    proposalId: number
+    proposalId: number,
 ) {
     return await alice.call_raw(dao, 'bounty_giveup', { id: proposalId });
 }
@@ -259,7 +259,7 @@ export async function giveupBounty(
 export async function voteApprove(
     root: NearAccount,
     dao: NearAccount,
-    proposalId: number
+    proposalId: number,
 ) {
     await root.call(
         dao,
@@ -270,6 +270,6 @@ export async function voteApprove(
         },
         {
             gas: tGas(100),
-        }
+        },
     );
 }

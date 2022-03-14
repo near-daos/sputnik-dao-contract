@@ -106,12 +106,12 @@ workspace.test(
         await setStakingId(root, dao, staking);
 
         test.is(await dao.view('get_staking_contract'), staking.accountId);
-    }
+    },
 );
 
 workspace.test('View has_blob', async (test, { alice, root, dao }) => {
     const DAO_WASM_BYTES: Uint8Array = fs.readFileSync(
-        '../res/sputnikdao2.wasm'
+        '../res/sputnikdao2.wasm',
     );
     const result = await root
         .createTransaction(dao)
@@ -132,7 +132,7 @@ workspace.test(
     'View get_locked_storage_amount',
     async (test, { alice, root, dao }) => {
         const beforeProposal = new BN(
-            await dao.view('get_locked_storage_amount')
+            await dao.view('get_locked_storage_amount'),
         );
         test.log('Locked amount: ' + beforeProposal);
         await root.call(
@@ -146,13 +146,13 @@ workspace.test(
             },
             {
                 attachedDeposit: toYocto('1'),
-            }
+            },
         );
         const afterProposal = new BN(
-            await dao.view('get_locked_storage_amount')
+            await dao.view('get_locked_storage_amount'),
         );
         test.assert(beforeProposal.lt(afterProposal));
-    }
+    },
 );
 
 workspace.test(
@@ -171,11 +171,11 @@ workspace.test(
             },
             {
                 attachedDeposit: toYocto('1'),
-            }
+            },
         );
         const afterProposal = new BN(await dao.view('get_available_amount'));
         test.assert(beforeProposal.gt(afterProposal));
-    }
+    },
 );
 
 workspace.test(
@@ -192,33 +192,33 @@ workspace.test(
             dao,
             staking,
             alice,
-            randomAmount
+            randomAmount,
         );
         result = await registerAndDelegate(
             dao,
             staking,
             bob,
-            randomAmount.muln(2)
+            randomAmount.muln(2),
         );
 
         //Test delegation_balance_of
         test.deepEqual(
             new BN(
-                await dao.view('delegation_balance_of', { account_id: alice })
+                await dao.view('delegation_balance_of', { account_id: alice }),
             ),
-            randomAmount
+            randomAmount,
         );
         test.deepEqual(
             new BN(
-                await dao.view('delegation_balance_of', { account_id: bob })
+                await dao.view('delegation_balance_of', { account_id: bob }),
             ),
-            randomAmount.muln(2)
+            randomAmount.muln(2),
         );
 
         //Test delegation_total_supply
         test.deepEqual(
             new BN(await dao.view('delegation_total_supply')),
-            randomAmount.muln(3)
+            randomAmount.muln(3),
         );
 
         //Test delegation_balance_ratio
@@ -227,9 +227,9 @@ workspace.test(
             [
                 await dao.view('delegation_balance_of', { account_id: alice }),
                 await dao.view('delegation_total_supply'),
-            ]
+            ],
         );
-    }
+    },
 );
 
 workspace.test(
@@ -241,7 +241,7 @@ workspace.test(
         //Test get_proposals
         test.deepEqual(
             await dao.view('get_proposals', { from_index: 0, limit: 100 }),
-            []
+            [],
         );
 
         const config = {
@@ -262,7 +262,7 @@ workspace.test(
                     },
                 },
             },
-            { attachedDeposit: toYocto('1') }
+            { attachedDeposit: toYocto('1') },
         );
 
         const realProposalAlice = {
@@ -283,7 +283,7 @@ workspace.test(
         test.is(proposalAlice.status, realProposalAlice.status);
         test.deepEqual(
             proposalAlice.vote_counts,
-            realProposalAlice.vote_counts
+            realProposalAlice.vote_counts,
         );
         test.deepEqual(proposalAlice.votes, realProposalAlice.votes);
         test.deepEqual(proposalAlice.kind, realProposalAlice.kind);
@@ -305,10 +305,10 @@ workspace.test(
 
         //Should panic if the proposal with the given id doesn't exist
         const errorString = await captureError(
-            async () => await dao.view('get_proposal', { id: 10 })
+            async () => await dao.view('get_proposal', { id: 10 }),
         );
         test.regex(errorString, /ERR_NO_PROPOSAL/);
-    }
+    },
 );
 
 workspace.test(
@@ -319,7 +319,7 @@ workspace.test(
         //Test get_bounties
         test.deepEqual(
             await dao.view('get_bounties', { from_index: 0, limit: 100 }),
-            []
+            [],
         );
 
         const testToken = await initTestToken(root);
@@ -339,7 +339,7 @@ workspace.test(
         //Test get_bounties
         test.deepEqual(
             await dao.view('get_bounties', { from_index: 0, limit: 100 }),
-            [bounty]
+            [bounty],
         );
         //Test get_bounty
         test.deepEqual(await dao.view('get_bounty', { id: 0 }), bounty);
@@ -363,8 +363,8 @@ workspace.test(
 
         //Should panic if the bounty with the given id doesn't exist
         const errorString = await captureError(
-            async () => await dao.view('get_bounty', { id: 10 })
+            async () => await dao.view('get_bounty', { id: 10 }),
         );
         test.regex(errorString, /ERR_NO_BOUNTY/);
-    }
+    },
 );

@@ -26,7 +26,7 @@ workspace.test('Register delegation', async (test, { root, dao, alice }) => {
 
     // Check that delegation appears in `delegations` LookupMap.
     let bal: BN = new BN(
-        await dao.view('delegation_balance_of', { account_id: alice })
+        await dao.view('delegation_balance_of', { account_id: alice }),
     );
     test.deepEqual(bal, new BN(1));
     const total: BN = new BN(await dao.view('delegation_total_supply'));
@@ -45,8 +45,8 @@ workspace.test(
                 dao,
                 'register_delegation',
                 { account_id: alice },
-                { attachedDeposit: regCost }
-            )
+                { attachedDeposit: regCost },
+            ),
         );
         test.regex(errorString, /ERR_NO_STAKING/);
 
@@ -57,8 +57,8 @@ workspace.test(
                 dao,
                 'register_delegation',
                 { account_id: alice },
-                { attachedDeposit: regCost }
-            )
+                { attachedDeposit: regCost },
+            ),
         );
         test.regex(errorString, /ERR_INVALID_CALLER/);
 
@@ -68,18 +68,18 @@ workspace.test(
                 dao,
                 'register_delegation',
                 { account_id: alice },
-                { attachedDeposit: regCost.add(new BN(1)) }
-            )
+                { attachedDeposit: regCost.add(new BN(1)) },
+            ),
         );
         await captureError(async () =>
             root.call(
                 dao,
                 'register_delegation',
                 { account_id: alice },
-                { attachedDeposit: regCost.sub(new BN(1)) }
-            )
+                { attachedDeposit: regCost.sub(new BN(1)) },
+            ),
         );
-    }
+    },
 );
 
 workspace.test('Delegation', async (test, { root, dao, alice }) => {
@@ -94,24 +94,24 @@ workspace.test('Delegation', async (test, { root, dao, alice }) => {
     let result = await registerAndDelegate(dao, staking, alice, randomAmount);
     test.deepEqual(
         [new BN(result[0]), new BN(result[1]), new BN(result[2])],
-        [new BN('0'), randomAmount, randomAmount]
+        [new BN('0'), randomAmount, randomAmount],
     );
     result = await registerAndDelegate(dao, staking, bob, randomAmount.muln(2));
     test.deepEqual(
         [new BN(result[0]), new BN(result[1]), new BN(result[2])],
-        [new BN('0'), randomAmount.muln(2), randomAmount.muln(3)]
+        [new BN('0'), randomAmount.muln(2), randomAmount.muln(3)],
     );
     test.deepEqual(
         new BN(await dao.view('delegation_balance_of', { account_id: alice })),
-        randomAmount
+        randomAmount,
     );
     test.deepEqual(
         new BN(await dao.view('delegation_balance_of', { account_id: bob })),
-        randomAmount.muln(2)
+        randomAmount.muln(2),
     );
     test.deepEqual(
         new BN(await dao.view('delegation_total_supply')),
-        randomAmount.muln(3)
+        randomAmount.muln(3),
     );
 });
 
@@ -125,7 +125,7 @@ workspace.test('Delegation fail', async (test, { root, dao, alice }) => {
         staking.call(dao, 'delegate', {
             account_id: alice,
             amount: randomAmount,
-        })
+        }),
     );
     test.regex(errorString, /ERR_NO_STAKING/);
 
@@ -137,7 +137,7 @@ workspace.test('Delegation fail', async (test, { root, dao, alice }) => {
         root.call(dao, 'delegate', {
             account_id: alice,
             amount: randomAmount,
-        })
+        }),
     );
     test.regex(errorString, /ERR_INVALID_CALLER/);
 
@@ -146,7 +146,7 @@ workspace.test('Delegation fail', async (test, { root, dao, alice }) => {
         staking.call(dao, 'delegate', {
             account_id: 'not-registered-account.bob',
             amount: randomAmount,
-        })
+        }),
     );
     test.regex(errorString, /ERR_NOT_REGISTERED/);
 });
@@ -168,7 +168,7 @@ workspace.test('Undelegate', async (test, { root, dao, alice }) => {
     });
     test.deepEqual(
         [new BN(result[0]), new BN(result[1]), new BN(result[2])],
-        [randomAmount, randomAmount.divn(2), randomAmount.divn(2)]
+        [randomAmount, randomAmount.divn(2), randomAmount.divn(2)],
     );
 });
 
@@ -182,7 +182,7 @@ workspace.test('Undelegate fail', async (test, { root, dao, alice }) => {
         staking.call(dao, 'undelegate', {
             account_id: alice,
             amount: randomAmount,
-        })
+        }),
     );
     test.regex(errorString, /ERR_NO_STAKING/);
 
@@ -194,7 +194,7 @@ workspace.test('Undelegate fail', async (test, { root, dao, alice }) => {
         root.call(dao, 'undelegate', {
             account_id: alice,
             amount: randomAmount,
-        })
+        }),
     );
     test.regex(errorString, /ERR_INVALID_CALLER/);
 
@@ -204,7 +204,7 @@ workspace.test('Undelegate fail', async (test, { root, dao, alice }) => {
         staking.call(dao, 'undelegate', {
             account_id: alice,
             amount: randomAmount.addn(1).toString(),
-        })
+        }),
     );
     test.regex(errorString, /ERR_INVALID_STAKING_CONTRACT/);
 });
