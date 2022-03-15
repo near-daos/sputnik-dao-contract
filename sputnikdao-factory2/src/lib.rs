@@ -170,7 +170,11 @@ impl SputnikDAOFactory {
         // ex: sputnik-dao.near
         let factory_id = &dao_id[idx + 1..];
 
-        assert_eq!(factory_id, env::current_account_id().as_str(), "Wrong factory");
+        assert_eq!(
+            factory_id,
+            env::current_account_id().as_str(),
+            "Wrong factory"
+        );
 
         let dao_contract_code = env::storage_read(&hash).expect("CODE_HASH_NONEXIST");
 
@@ -210,7 +214,9 @@ impl SputnikDAOFactory {
         // NOTE: Not verifing the hash, in case factory removes a hash before DAO does
         let method_args = &json!({ "hash": &code_hash }).to_string().into_bytes();
         let callback_method = "on_remove_contract_self";
-        let callback_args = &json!({ "account_id": &account_id, "code_hash": &code_hash }).to_string().into_bytes();
+        let callback_args = &json!({ "account_id": &account_id, "code_hash": &code_hash })
+            .to_string()
+            .into_bytes();
 
         // Create a promise toward given account.
         let promise_id = env::promise_batch_create(&account_id);
@@ -237,7 +243,11 @@ impl SputnikDAOFactory {
     /// since it was the "owner" of the blob stored on the DAO.
     /// Send this balance back to the DAO, since it was the original funder
     #[private]
-    pub fn on_remove_contract_self(&mut self, account_id: AccountId, code_hash: Base58CryptoHash) -> bool {
+    pub fn on_remove_contract_self(
+        &mut self,
+        account_id: AccountId,
+        code_hash: Base58CryptoHash,
+    ) -> bool {
         if near_sdk::is_promise_success() {
             // Compute the actual storage cost for an accurate refund
             let hash: CryptoHash = code_hash.into();

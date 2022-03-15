@@ -37,7 +37,7 @@ workspaceWithFactory.test(
             {
                 attachedDeposit: toYocto('20'),
                 gas: tGas(300),
-            }
+            },
         );
 
         test.deepEqual(await factory.view('get_dao_list', {}), [
@@ -58,7 +58,7 @@ workspaceWithFactory.test(
 
         const args = Buffer.from(
             `{ "code_hash": "${default_code_hash}" }`,
-            'binary'
+            'binary',
         ).toString('base64');
 
         const proposal = {
@@ -104,14 +104,14 @@ workspaceWithFactory.test(
         test.log(new_proposal);
         test.is(
             new_proposal.description,
-            'Store DAO upgrade contract code blob'
+            'Store DAO upgrade contract code blob',
         );
         test.is(new_proposal.proposer, 'test.near');
         test.is(new_proposal.status, 'InProgress');
         test.truthy(new_proposal.kind.FunctionCall);
         test.is(
             new_proposal.kind.FunctionCall.receiver_id,
-            `${factory.accountId}`
+            `${factory.accountId}`,
         );
 
         await root
@@ -119,7 +119,7 @@ workspaceWithFactory.test(
             .functionCall(
                 'act_proposal',
                 { id: 0, action: 'VoteApprove' },
-                { gas: tGas(300) }
+                { gas: tGas(300) },
             )
             .signAndSend();
 
@@ -160,7 +160,7 @@ workspaceWithFactory.test(
         test.log(new_proposal_1);
         test.is(
             new_proposal_1.description,
-            'Upgrade DAO contract using local code blob'
+            'Upgrade DAO contract using local code blob',
         );
         test.is(new_proposal_1.proposer, 'test.near');
         test.is(new_proposal_1.status, 'InProgress');
@@ -171,7 +171,7 @@ workspaceWithFactory.test(
             .functionCall(
                 'act_proposal',
                 { id: 1, action: 'VoteApprove' },
-                { gas: tGas(300) }
+                { gas: tGas(300) },
             )
             .signAndSend();
 
@@ -198,7 +198,7 @@ workspaceWithFactory.test(
                                 method_name: 'remove_contract_self',
                                 args: Buffer.from(
                                     `{ "code_hash": "${default_code_hash}" }`,
-                                    'binary'
+                                    'binary',
                                 ).toString('base64'),
                                 deposit: '0',
                                 gas: tGas(220),
@@ -230,14 +230,14 @@ workspaceWithFactory.test(
         test.log(new_proposal_2);
         test.is(
             new_proposal_2.description,
-            'Remove DAO upgrade contract local code blob via factory'
+            'Remove DAO upgrade contract local code blob via factory',
         );
         test.is(new_proposal_2.proposer, 'test.near');
         test.is(new_proposal_2.status, 'InProgress');
         test.truthy(new_proposal_2.kind.FunctionCall);
         test.is(
             new_proposal_2.kind.FunctionCall.receiver_id,
-            `${factory.accountId}`
+            `${factory.accountId}`,
         );
 
         await root
@@ -245,7 +245,7 @@ workspaceWithFactory.test(
             .functionCall(
                 'act_proposal',
                 { id: 2, action: 'VoteApprove' },
-                { gas: tGas(300) }
+                { gas: tGas(300) },
             )
             .signAndSend();
 
@@ -261,5 +261,5 @@ workspaceWithFactory.test(
         // 4. Confirm DAO contract code_hash and returned balance
         // --------------------------------------------------------------------
         // TODO: Check if balance increased by 6 NEAR for refund
-    }
+    },
 );
