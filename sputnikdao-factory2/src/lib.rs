@@ -434,14 +434,16 @@ mod tests {
         );
     }
 
-    fn test_basics() {
+    #[test]
+    fn test_ownership() {
         let mut context = VMContextBuilder::new();
         testing_env!(context
             .current_account_id(accounts(0))
             .predecessor_account_id(accounts(0))
             .build());
-        let mut factory = SputnikDAOFactory::new();
+        let factory = SputnikDAOFactory::new();
 
+        //can get current owner
         assert_eq!(factory.get_owner(), current_account_id());
     }
 }
