@@ -394,6 +394,7 @@ pub extern "C" fn store() {
 
 #[cfg(test)]
 mod tests {
+    use near_sdk::env::current_account_id;
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::{testing_env, PromiseResult};
 
@@ -431,5 +432,16 @@ mod tests {
             factory.get_daos(0, 100),
             vec![format!("test.{}", accounts(0)).parse().unwrap()]
         );
+    }
+
+    fn test_basics() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(accounts(0))
+            .predecessor_account_id(accounts(0))
+            .build());
+        let mut factory = SputnikDAOFactory::new();
+
+        assert_eq!(factory.get_owner(), current_account_id());
     }
 }
