@@ -2,6 +2,8 @@ name: Build
 on:
   # (you may add filters for when running the workflow)
   push:
+    branches:
+      - main
   pull_request:
 env:
   # better visualization
