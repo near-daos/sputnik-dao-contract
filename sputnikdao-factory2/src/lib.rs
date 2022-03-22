@@ -394,7 +394,6 @@ pub extern "C" fn store() {
 
 #[cfg(test)]
 mod tests {
-    use near_sdk::env::current_account_id;
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::{testing_env, PromiseResult};
 
@@ -435,7 +434,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ownership() {
+    fn test_factory_can_get_current_owner() {
         let mut context = VMContextBuilder::new();
         testing_env!(context
             .current_account_id(accounts(0))
@@ -443,7 +442,6 @@ mod tests {
             .build());
         let factory = SputnikDAOFactory::new();
 
-        //can get current owner
-        assert_eq!(factory.get_owner(), current_account_id());
+        assert_eq!(factory.get_owner(), env::current_account_id());
     }
 }
