@@ -20,7 +20,11 @@ jobs:
         env:
           IS_GITHUB_ACTION: true
         run: cargo +stable build --workspace --target wasm32-unknown-unknown --release
-      - name: Run tests
+      - name: Run Cargo tests
         env:
           IS_GITHUB_ACTION: true
-        run: cargo test --workspace -- --nocapture && cd sputnikdao2 && sh test.sh
+        run: cargo test --workspace -- --nocapture
+      - name: Run Ava tests
+        env:
+          IS_GITHUB_ACTION: true
+        run: cd sputnikdao2 && sh test.sh
