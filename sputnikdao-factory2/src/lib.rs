@@ -394,6 +394,7 @@ pub extern "C" fn store() {
 
 #[cfg(test)]
 mod tests {
+    use near_sdk::test_utils::test_env::alice;
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::{testing_env, PromiseResult};
 
@@ -439,9 +440,15 @@ mod tests {
         testing_env!(context
             .current_account_id(accounts(0))
             .predecessor_account_id(accounts(0))
+            .attached_deposit(10)
             .build());
-        let factory = SputnikDAOFactory::new();
+        let mut factory = SputnikDAOFactory::new();
 
-        assert_eq!(factory.get_owner(), env::current_account_id());
+        factory.create(alice(), "{}".as_bytes().to_vec().into());
+
+        assert_eq!(
+            factory.get_owner().to_string(),
+            alice().to_string().strip_suffix(".near").unwrap()
+        );
     }
 }
