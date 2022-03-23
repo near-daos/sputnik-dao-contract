@@ -434,9 +434,9 @@ mod tests {
         );
     }
 
-    //              #################################
-    //              #    Factory ownership tests    #
-    //              #################################
+    //              #################################              //
+    //              #    Factory ownership tests    #              //
+    //              #################################              //
 
     #[test]
     fn test_factory_can_get_current_owner() {
@@ -471,8 +471,10 @@ mod tests {
         factory.set_owner(bob());
     }
 
-    #[test]
-    fn test_owner_can_be_a_dao_account() {}
+    // #[test]
+    // fn test_owner_can_be_a_dao_account() {
+    //     // To be implemented.
+    // }
 
     #[test]
     fn test_owner_gets_succesfully_updated() {
