@@ -1,0 +1,155 @@
+name: Build
+on:
+  # (you may add filters for when running the workflow)
+  push:
+    branches:
+      - main
+  pull_request:
+env:
+  # better visualization
+  CARGO_TERM_COLOR: always
+jobs:
+  # the first job is used to acquire some tag-naming information
+  #
+  # this snippet was based on:
+  # https://raw.githubusercontent.com/BurntSushi/ripgrep/master/.github/workflows/release.yml
+  # in case a tag was set, a binary release will be made
+  create-release-on-tags:
+    name: Create a new release on tags
+    runs-on: ubuntu-latest
+    # env:
+      # Set to force version number, e.g., when no tag exists.
+      # RG_VERSION: TEST-0.0.0
+    outputs:
+      rg_version: ${{ env.RG_VERSION }}
+    steps:
+      - name: Get the release version from the tag
+        shell: bash
+        if: env.RG_VERSION == ''
+        run: |
+          # Apparently, this is the right way to get a tag name. Really?
+          #
+          # See: https://github.community/t5/GitHub-Actions/How-to-get-just-the-tag-name/m-p/32167/highlight/true#M1027
+          echo "RG_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          echo "version is: ${{ env.RG_VERSION }}"
+
+  # this second job builds and tests the contracts
+  # if it's a tag release, it also creates their release file
+  build:
+    # in case this is a binary release, we make sure to wait
+    # for any requirement to be ready
+    needs: ['create-release-on-tags']
+    runs-on: ubuntu-latest
+    steps:
+      # rust compiler for running tests
+      - uses: actions/checkout@v2
+      - name: Install latest stable (for linux-gnu)
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: x86_64-unknown-linux-gnu
+          components: rustfmt, clippy
+      # rust compiler for creating binaries
+      - name: Install latest stable (for wasm)
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
+          components: rustfmt, clippy
+      # caching (cargo registry)
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ubuntu-latest-stable-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
+      # caching (cargo index)
+      - name: Cache cargo index
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: ubuntu-latest-stable-cargo-index-${{ hashFiles('**/Cargo.toml') }}
+      # caching (cargo wasm artifacts)
+      - name: Cache cargo wasm build (including docs)
+        uses: actions/cache@v1
+        with:
+          path: target/wasm32-unknown-unknown
+          key: ubuntu-latest-stable-cargo-release-target-${{ hashFiles('**/Cargo.toml') }}
+      # caching (cargo testing artifacts)
+      - name: Cache cargo linux-gnu build (for testing)
+        uses: actions/cache@v1
+        with:
+          path: target/x86_64-unknown-linux-gnu
+          key: ubuntu-latest-stable-cargo-release-target-${{ hashFiles('**/Cargo.toml') }}
+      # downloads/installs any extra requirements
+      #
+      # binaryen, which is used to reduce the contract's size.
+      # based on:
+      # https://github.com/rustwasm/walrus/blob/9d6c9de432d6a97478dc76ebdf18aed51584c3af/.github/workflows/main.yml#L56
+      - name: Install binaryen
+        run: |
+          set -e
+          curl -L https://github.com/WebAssembly/binaryen/releases/download/version_105/binaryen-version_105-x86_64-linux.tar.gz | tar xzf -
+          echo "`pwd`/binaryen-version_105/bin" >> $GITHUB_PATH
+      # triggers all build.rs steps
+      - name: Trigger build.rs steps
+        run: |
+          find . \
+            -maxdepth 2 \
+            -name build.rs  \
+            -prune \
+            -exec touch -c {} \;
+      # Builds the wasm binaries
+      - name: Build wasm binaries
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target wasm32-unknown-unknown
+      # Copies the wasm binaries to res/ and strips them 
+      # (reducing their's sizes)
+      - name: Wasm copy and strip
+        run: |
+          find target/wasm32-unknown-unknown/release \
+            -maxdepth 1 \
+            -name \*.wasm \
+            -prune \
+            -exec cp {} res \;
+          for f in res/*.wasm
+          do
+            wasm-opt -Oz -o "$f" "$f"
+          done
+      - name: Show the wasm files and their sizes
+        run: |
+          ls -lah res/*.wasm | awk '{print $5 " " $9}'
+      # run the tests (which depend on the binaries from res/)
+      - name: Run native tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          # the jobs is optional, to reduce RAM usage
+          # the --nocapture prints the tests' stdout
+          args: --target=x86_64-unknown-linux-gnu --jobs=2 -- --nocapture
+      # for tagged runs, create an archive releaseruns
+      #
+      # based on:
+      # https://raw.githubusercontent.com/BurntSushi/ripgrep/master/.github/workflows/release.yml
+      - name: Build archive
+        if: startsWith(github.ref, 'refs/tags')
+        shell: bash
+        run: |
+          staging="contracts-${{ needs.create-release-on-tags.outputs.rg_version }}"
+          mkdir -p "$staging/info"
+          # copy all markdown files
+          find . -name \*.md -not -path "./target/*" -prune -not -path "./$staging/*" -prune -exec cp --parents {} "$staging/info/" \;
+          # copy all wasm files
+          cp res/*.wasm "$staging/"
+          # save the tag name and git sha to the VERSION file
+          echo ${{ needs.create-release-on-tags.outputs.rg_version }} >> "$staging/info/VERSION"
+          git rev-parse HEAD >> "$staging/info/VERSION"
+          tar czf "$staging.tar.gz" "$staging"
+          echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
+      - name: Upload release archive
+        if: startsWith(github.ref, 'refs/tags')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{ env.ASSET }}
