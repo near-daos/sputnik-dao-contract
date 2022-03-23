@@ -394,7 +394,7 @@ pub extern "C" fn store() {
 
 #[cfg(test)]
 mod tests {
-    use near_sdk::test_utils::test_env::alice;
+    use near_sdk::test_utils::test_env::{alice, bob};
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::{testing_env, PromiseResult};
 
@@ -442,6 +442,27 @@ mod tests {
     fn test_factory_can_get_current_owner() {
         let mut context = VMContextBuilder::new();
         testing_env!(context
+            .current_account_id(alice())
+            .predecessor_account_id(alice())
+            .attached_deposit(10)
+            .build());
+        let mut factory = SputnikDAOFactory::new();
+
+        factory.create(alice(), "{}".as_bytes().to_vec().into());
+
+        assert_eq!(factory.get_owner(), alice());
+    }
+
+    #[test]
+    fn test_factory_fails_setting_owner_from_not_owner_account() {}
+
+    #[test]
+    fn test_owner_can_be_a_dao_account() {}
+
+    #[test]
+    fn test_owner_gets_succesfully_updated() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
             .current_account_id(accounts(0))
             .predecessor_account_id(accounts(0))
             .attached_deposit(10)
@@ -450,9 +471,10 @@ mod tests {
 
         factory.create(alice(), "{}".as_bytes().to_vec().into());
 
-        assert_eq!(
-            factory.get_owner().to_string(),
-            alice().to_string().strip_suffix(".near").unwrap()
-        );
+        assert_ne!(factory.get_owner(), bob());
+
+        factory.set_owner(bob());
+
+        assert_eq!(factory.get_owner(), bob())
     }
 }
