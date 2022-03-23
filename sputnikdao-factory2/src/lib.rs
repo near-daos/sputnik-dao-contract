@@ -480,8 +480,8 @@ mod tests {
     fn test_owner_gets_succesfully_updated() {
         let mut context = VMContextBuilder::new();
         testing_env!(context
-            .current_account_id(accounts(0))
-            .predecessor_account_id(accounts(0))
+            .current_account_id(alice())
+            .predecessor_account_id(alice())
             .attached_deposit(10)
             .build());
         let mut factory = SputnikDAOFactory::new();
