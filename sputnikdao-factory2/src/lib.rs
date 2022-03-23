@@ -394,7 +394,7 @@ pub extern "C" fn store() {
 
 #[cfg(test)]
 mod tests {
-    use near_sdk::test_utils::test_env::{alice, bob};
+    use near_sdk::test_utils::test_env::{alice, bob, carol};
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::{testing_env, PromiseResult};
 
@@ -454,7 +454,22 @@ mod tests {
     }
 
     #[test]
-    fn test_factory_fails_setting_owner_from_not_owner_account() {}
+    #[should_panic]
+    fn test_factory_fails_setting_owner_from_not_owner_account() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(alice())
+            .predecessor_account_id(carol())
+            .attached_deposit(10)
+            .build());
+        let mut factory = SputnikDAOFactory::new();
+
+        factory.create(alice(), "{}".as_bytes().to_vec().into());
+
+        assert_eq!(factory.get_owner(), alice());
+
+        factory.set_owner(bob());
+    }
 
     #[test]
     fn test_owner_can_be_a_dao_account() {}
