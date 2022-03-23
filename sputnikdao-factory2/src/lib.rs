@@ -434,6 +434,10 @@ mod tests {
         );
     }
 
+    //              #################################
+    //              #    Factory ownership tests    #
+    //              #################################
+
     #[test]
     fn test_factory_can_get_current_owner() {
         let mut context = VMContextBuilder::new();
