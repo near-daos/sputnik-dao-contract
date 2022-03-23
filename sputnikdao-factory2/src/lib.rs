@@ -466,8 +466,6 @@ mod tests {
 
         factory.create(alice(), "{}".as_bytes().to_vec().into());
 
-        assert_eq!(factory.get_owner(), alice());
-
         factory.set_owner(bob());
     }
 
