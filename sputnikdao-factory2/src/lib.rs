@@ -24,6 +24,7 @@ const DAO_CONTRACT_NO_DATA: &str = "no data";
 // Gas & Costs for blob storage
 const GAS_STORE_CONTRACT_LEFTOVER: Gas = Gas(20_000_000_000_000);
 const ON_REMOVE_CONTRACT_GAS: Gas = Gas(10_000_000_000_000);
+const CREATE_COST: Balance = 5_000_000_000_000_000_000_000_000;
 const NO_DEPOSIT: Balance = 0;
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -98,6 +99,8 @@ impl SputnikDAOFactory {
 
     #[payable]
     pub fn create(&mut self, name: AccountId, args: Base64VecU8) {
+        assert!(env::attached_deposit() >= CREATE_COST, "ERR_CREATE_COST");
+
         let account_id: AccountId = format!("{}.{}", name, env::current_account_id())
             .parse()
             .unwrap();
@@ -397,6 +400,8 @@ mod tests {
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::{testing_env, PromiseResult};
 
+    use near_sdk_sim::to_yocto;
+
     use super::*;
 
     #[test]
@@ -408,7 +413,7 @@ mod tests {
             .build());
         let mut factory = SputnikDAOFactory::new();
 
-        testing_env!(context.attached_deposit(10).build());
+        testing_env!(context.attached_deposit(to_yocto("10")).build());
         factory.create("test".parse().unwrap(), "{}".as_bytes().to_vec().into());
 
         testing_env!(
@@ -420,7 +425,7 @@ mod tests {
         );
         factory.on_create(
             format!("test.{}", accounts(0)).parse().unwrap(),
-            U128(10),
+            U128(to_yocto("10")),
             accounts(0),
         );
         assert_eq!(
