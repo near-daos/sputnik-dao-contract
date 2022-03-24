@@ -12,10 +12,8 @@ const UPDATE_GAS_LEFTOVER: Gas = Gas(5_000_000_000_000);
 const FACTORY_UPDATE_GAS_LEFTOVER: Gas = Gas(15_000_000_000_000);
 const NO_DEPOSIT: Balance = 0;
 
-/// Gas for upgrading this contract on promise creation + deploying new contract.
-pub const GAS_FOR_UPGRADE_SELF_DEPLOY: Gas = Gas(30_000_000_000_000);
-
-pub const GAS_FOR_UPGRADE_REMOTE_DEPLOY: Gas = Gas(10_000_000_000_000);
+pub const GAS_FOR_UPGRADE_SELF_DEPLOY: Gas = Gas(15_000_000_000_000);
+pub const GAS_FOR_UPGRADE_REMOTE_DEPLOY: Gas = Gas(15_000_000_000_000);
 
 /// Info about factory that deployed this contract and if auto-update is allowed.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -122,7 +120,6 @@ pub(crate) fn upgrade_using_factory(code_hash: Base58CryptoHash) {
 pub(crate) fn upgrade_self(hash: &[u8]) {
     let current_id = env::current_account_id();
     let method_name = "migrate".as_bytes().to_vec();
-    let attached_gas = env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_SELF_DEPLOY;
     unsafe {
         // Load input (wasm code) into register 0.
         sys::storage_read(hash.len() as _, hash.as_ptr() as _, 0);
@@ -141,7 +138,7 @@ pub(crate) fn upgrade_self(hash: &[u8]) {
             0 as _,
             0 as _,
             0 as _,
-            attached_gas.0,
+            (env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_SELF_DEPLOY).0,
         );
     }
 }
@@ -154,7 +151,6 @@ pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &
             receiver_id.as_bytes().len() as _,
             receiver_id.as_bytes().as_ptr() as _,
         );
-        let attached_gas = env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_REMOTE_DEPLOY;
         sys::promise_batch_action_function_call(
             promise_id,
             method_name.len() as _,
@@ -162,7 +158,7 @@ pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &
             u64::MAX as _,
             0 as _,
             0 as _,
-            attached_gas.0,
+            (env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_REMOTE_DEPLOY).0,
         );
     }
 }
