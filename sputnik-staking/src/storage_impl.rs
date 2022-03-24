@@ -31,10 +31,15 @@ impl StorageManagement for Contract {
                 env::panic_str("ERR_DEPOSIT_LESS_THAN_MIN_STORAGE");
             }
 
-            self.internal_register_user(&account_id, min_balance);
-            let refund = deposit_amount - min_balance;
-            if refund > 0 {
-                Promise::new(env::predecessor_account_id()).transfer(refund);
+            let registration_only = registration_only.unwrap_or(false);
+            if registration_only {
+                self.internal_register_user(&account_id, min_balance);
+                let refund = deposit_amount - min_balance;
+                if refund > 0 {
+                    Promise::new(env::predecessor_account_id()).transfer(refund);
+                }
+            } else {
+                self.internal_register_user(&account_id, deposit_amount);
             }
         }
         self.storage_balance_of(account_id.try_into().unwrap())
