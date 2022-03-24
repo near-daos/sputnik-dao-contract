@@ -13,7 +13,7 @@ const CREATE_CALL_GAS: Gas = Gas(50_000_000_000_000);
 const ON_CREATE_CALL_GAS: Gas = Gas(10_000_000_000_000);
 
 /// Leftover gas after creating promise and calling update.
-const GAS_UPDATE_LEFTOVER: Gas = Gas(20_000_000_000_000);
+const GAS_UPDATE_LEFTOVER: Gas = Gas(5_000_000_000_000);
 
 const NO_DEPOSIT: Balance = 0;
 
