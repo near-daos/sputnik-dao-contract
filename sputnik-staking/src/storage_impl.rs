@@ -10,7 +10,6 @@ use crate::*;
 /// Implements users storage management for the pool.
 #[near_bindgen]
 impl StorageManagement for Contract {
-    #[allow(unused_variables)]
     #[payable]
     fn storage_deposit(
         &mut self,
