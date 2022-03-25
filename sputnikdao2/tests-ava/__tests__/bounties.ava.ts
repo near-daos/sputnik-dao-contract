@@ -23,6 +23,7 @@ import {
     claimBounty,
     doneBounty,
     giveupBounty,
+    giveupBountyRaw,
     voteApprove,
 } from './utils';
 
@@ -243,7 +244,7 @@ workspace.test('Bounty giveup', async (test, { alice, root, dao }) => {
 
     //If within forgiveness period, `bounty_bond` should be returned ???
     const balance1: NEAR = (await alice.balance()).total;
-    const result = await giveupBounty(alice, dao, proposalId);
+    const result = await giveupBountyRaw(alice, dao, proposalId);
     const balance2: NEAR = (await alice.balance()).total;
     test.is(
         Number(balance2.add(result.gas_burnt).toHuman().slice(0, -1)).toFixed(

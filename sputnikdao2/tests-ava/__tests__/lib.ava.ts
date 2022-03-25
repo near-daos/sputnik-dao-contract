@@ -62,41 +62,36 @@ workspaceWithFactory.test(
         ]);
         const hash = await factory.view('get_default_code_hash', {});
 
-        const result = await root
-            .createTransaction('testdao.factory.test.near')
-            .functionCall(
-                'add_proposal',
-                {
-                    proposal: {
-                        description: 'proposal to test',
-                        kind: {
-                            UpgradeSelf: {
-                                hash: hash,
-                            },
+        const proposalId: number = await root.call(
+            'testdao.factory.test.near',
+            'add_proposal',
+            {
+                proposal: {
+                    description: 'proposal to test',
+                    kind: {
+                        UpgradeSelf: {
+                            hash: hash,
                         },
                     },
                 },
-                {
-                    attachedDeposit: toYocto('1'),
-                },
-            )
-            .signAndSend();
-        const proposalId = result.parseResult<number>();
+            },
+            {
+                attachedDeposit: toYocto('1'),
+            },
+        );
         test.is(proposalId, 0);
 
-        await root
-            .createTransaction('testdao.factory.test.near')
-            .functionCall(
-                'act_proposal',
-                {
-                    id: proposalId,
-                    action: 'VoteApprove',
-                },
-                {
-                    gas: tGas(300),
-                },
-            )
-            .signAndSend();
+        await root.call(
+            'testdao.factory.test.near',
+            'act_proposal',
+            {
+                id: proposalId,
+                action: 'VoteApprove',
+            },
+            {
+                gas: tGas(300),
+            },
+        );
     },
 );
 
@@ -107,13 +102,10 @@ workspaceWithoutInit.test(
 
         // NOT INITIALIZED
         let err = await captureError(async () =>
-            root
-                .createTransaction(dao)
-                .functionCall('store_blob', DAO_WASM_BYTES, {
-                    attachedDeposit: toYocto('200'),
-                    gas: tGas(300),
-                })
-                .signAndSend(),
+            root.call(dao, 'store_blob', DAO_WASM_BYTES, {
+                attachedDeposit: toYocto('200'),
+                gas: tGas(300),
+            }),
         );
         test.regex(err, /ERR_CONTRACT_IS_NOT_INITIALIZED/);
 
@@ -122,48 +114,34 @@ workspaceWithoutInit.test(
 
         // not enough deposit
         err = await captureError(async () =>
-            root
-                .createTransaction(dao)
-                .functionCall('store_blob', DAO_WASM_BYTES, {
-                    attachedDeposit: toYocto('1'),
-                    gas: tGas(300),
-                })
-                .signAndSend(),
+            root.call(dao, 'store_blob', DAO_WASM_BYTES, {
+                attachedDeposit: toYocto('1'),
+                gas: tGas(300),
+            }),
         );
         test.regex(err, /ERR_NOT_ENOUGH_DEPOSIT/);
 
-        await root
-            .createTransaction(dao)
-            .functionCall('store_blob', DAO_WASM_BYTES, {
-                attachedDeposit: toYocto('200'),
-                gas: tGas(300),
-            })
-            .signAndSend();
+        await root.call(dao, 'store_blob', DAO_WASM_BYTES, {
+            attachedDeposit: toYocto('200'),
+            gas: tGas(300),
+        });
 
         // Already exists
         err = await captureError(async () =>
-            root
-                .createTransaction(dao)
-                .functionCall('store_blob', DAO_WASM_BYTES, {
-                    attachedDeposit: toYocto('200'),
-                    gas: tGas(300),
-                })
-                .signAndSend(),
+            root.call(dao, 'store_blob', DAO_WASM_BYTES, {
+                attachedDeposit: toYocto('200'),
+                gas: tGas(300),
+            }),
         );
         test.regex(err, /ERR_ALREADY_EXISTS/);
     },
 );
 
 workspace.test('Remove blob', async (test, { root, dao, alice }) => {
-    const result = await root
-        .createTransaction(dao)
-        .functionCall('store_blob', DAO_WASM_BYTES, {
-            attachedDeposit: toYocto('200'),
-            gas: tGas(300),
-        })
-        .signAndSend();
-
-    const hash = result.parseResult<String>();
+    const hash: String = await root.call(dao, 'store_blob', DAO_WASM_BYTES, {
+        attachedDeposit: toYocto('200'),
+        gas: tGas(300),
+    });
 
     // fails if hash is wrong
     let err = await captureError(async () =>
