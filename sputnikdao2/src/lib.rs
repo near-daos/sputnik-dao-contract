@@ -149,7 +149,7 @@ pub extern "C" fn store_blob() {
     let mut contract: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
     let input = env::input().expect("ERR_NO_INPUT");
     let sha256_hash = env::sha256(&input);
-    assert!(env::storage_has_key(&sha256_hash), "ERR_ALREADY_EXISTS");
+    assert!(!env::storage_has_key(&sha256_hash), "ERR_ALREADY_EXISTS");
 
     let blob_len = input.len();
     let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
