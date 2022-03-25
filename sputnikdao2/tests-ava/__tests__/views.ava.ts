@@ -113,14 +113,11 @@ workspace.test('View has_blob', async (test, { alice, root, dao }) => {
     const DAO_WASM_BYTES: Uint8Array = fs.readFileSync(
         '../res/sputnikdao2.wasm',
     );
-    const result = await root
-        .createTransaction(dao)
-        .functionCall('store_blob', DAO_WASM_BYTES, {
-            attachedDeposit: toYocto('200'),
-            gas: tGas(300),
-        })
-        .signAndSend();
-    const hash = result.parseResult<String>();
+    const hash: String = await root.call(dao, 'store_blob', DAO_WASM_BYTES, {
+        attachedDeposit: toYocto('200'),
+        gas: tGas(300),
+    });
+
     test.true(await dao.view('has_blob', { hash: hash }));
     await root.call(dao, 'remove_blob', {
         hash: hash,
