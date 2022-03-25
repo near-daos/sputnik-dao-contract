@@ -64,27 +64,21 @@ impl FactoryManager {
         method_name: &str,
     ) {
         let code_hash: CryptoHash = code_hash.into();
-        let account_id = account_id.as_bytes().to_vec();
-        unsafe {
-            // Check that such contract exists.
-            assert!(env::storage_has_key(&code_hash), "Contract doesn't exist");
-            // Load the hash from storage.
-            sys::storage_read(code_hash.len() as _, code_hash.as_ptr() as _, 0);
-            // Create a promise toward given account.
-            let promise_id =
-                sys::promise_batch_create(account_id.len() as _, account_id.as_ptr() as _);
-            // Call `update` method, which should also handle migrations.
-            sys::promise_batch_action_function_call(
-                promise_id,
-                method_name.len() as _,
-                method_name.as_ptr() as _,
-                u64::MAX as _,
-                0,
-                &NO_DEPOSIT as *const u128 as _,
-                (env::prepaid_gas() - env::used_gas() - GAS_UPDATE_LEFTOVER).0,
-            );
-            sys::promise_return(promise_id);
-        }
+        // Check that such contract exists.
+        assert!(env::storage_has_key(&code_hash), "Contract doesn't exist");
+        // Load the hash from storage.
+        let code = env::storage_read(&code_hash).expect("ERR_NO_HASH");
+        // Create a promise toward given account.
+        let promise_id = env::promise_batch_create(&account_id);
+        // Call `update` method, which should also handle migrations.
+        env::promise_batch_action_function_call(
+            promise_id,
+            method_name,
+            &code,
+            NO_DEPOSIT,
+            env::prepaid_gas() - env::used_gas() - GAS_UPDATE_LEFTOVER,
+        );
+        env::promise_return(promise_id);
     }
 
     /// Create given contract with args and callback factory.
