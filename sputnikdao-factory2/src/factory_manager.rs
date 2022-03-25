@@ -25,28 +25,17 @@ pub struct FactoryManager {}
 impl FactoryManager {
     /// Store contract from input.
     pub fn store_contract(&self) {
-        unsafe {
-            // Load input into register 0.
-            sys::input(0);
-            // Compute sha256 hash of register 0 and store in register 1.
-            sys::sha256(u64::MAX as _, 0 as _, 1);
-            // Check if such blob is already stored.
-            assert_eq!(
-                sys::storage_has_key(u64::MAX as _, 1 as _),
-                0,
-                "ERR_ALREADY_EXISTS"
-            );
-            // Store key-value pair. The key is represented by register 1 and the value by register 0.
-            sys::storage_write(u64::MAX as _, 1 as _, u64::MAX as _, 0 as _, 2);
-            // Load register 1 into blob_hash.
-            let blob_hash = [0u8; 32];
-            sys::read_register(1, blob_hash.as_ptr() as _);
-            // Return from function value of register 1.
-            let blob_hash_str = serde_json::to_string(&Base58CryptoHash::from(blob_hash))
-                .unwrap()
-                .into_bytes();
-            sys::value_return(blob_hash_str.len() as _, blob_hash_str.as_ptr() as _);
-        }
+        let input = env::input().expect("ERR_NO_INPUT");
+        let sha256_hash = env::sha256(&input);
+        assert!(!env::storage_has_key(&sha256_hash), "ERR_ALREADY_EXISTS");
+        env::storage_write(&sha256_hash, &input);
+
+        let mut blob_hash = [0u8; 32];
+        blob_hash.copy_from_slice(&sha256_hash);
+        let blob_hash_str = serde_json::to_string(&Base58CryptoHash::from(blob_hash))
+            .unwrap()
+            .into_bytes();
+        env::value_return(&blob_hash_str);
     }
 
     /// Delete code from the contract.
