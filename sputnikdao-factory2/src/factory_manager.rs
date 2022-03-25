@@ -4,7 +4,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::Base58CryptoHash;
 use near_sdk::serde_json;
-use near_sdk::{env, sys, AccountId, Balance, CryptoHash, Gas};
+use near_sdk::{env, AccountId, Balance, CryptoHash, Gas};
 
 /// Gas spent on the call & account creation.
 const CREATE_CALL_GAS: Gas = Gas(75_000_000_000_000);
@@ -93,49 +93,36 @@ impl FactoryManager {
     ) {
         let code_hash: CryptoHash = code_hash.into();
         let attached_deposit = env::attached_deposit();
-        let factory_account_id = env::current_account_id().as_bytes().to_vec();
-        let account_id = account_id.as_bytes().to_vec();
-        unsafe {
-            // Check that such contract exists.
-            assert_eq!(
-                sys::storage_has_key(code_hash.len() as _, code_hash.as_ptr() as _),
-                1,
-                "Contract doesn't exist"
-            );
-            // Load input (wasm code) into register 0.
-            sys::storage_read(code_hash.len() as _, code_hash.as_ptr() as _, 0);
-            // schedule a Promise tx to account_id
-            let promise_id =
-                sys::promise_batch_create(account_id.len() as _, account_id.as_ptr() as _);
-            // create account first.
-            sys::promise_batch_action_create_account(promise_id);
-            // transfer attached deposit.
-            sys::promise_batch_action_transfer(promise_id, &attached_deposit as *const u128 as _);
-            // deploy contract (code is taken from register 0).
-            sys::promise_batch_action_deploy_contract(promise_id, u64::MAX as _, 0);
-            // call `new` with given arguments.
-            sys::promise_batch_action_function_call(
-                promise_id,
-                new_method.len() as _,
-                new_method.as_ptr() as _,
-                args.len() as _,
-                args.as_ptr() as _,
-                &NO_DEPOSIT as *const u128 as _,
-                CREATE_CALL_GAS.0,
-            );
-            // attach callback to the factory.
-            let _ = sys::promise_then(
-                promise_id,
-                factory_account_id.len() as _,
-                factory_account_id.as_ptr() as _,
-                callback_method.len() as _,
-                callback_method.as_ptr() as _,
-                callback_args.len() as _,
-                callback_args.as_ptr() as _,
-                &NO_DEPOSIT as *const u128 as _,
-                ON_CREATE_CALL_GAS.0,
-            );
-            sys::promise_return(promise_id);
-        }
+        let factory_account_id = env::current_account_id();
+        // Check that such contract exists.
+        assert!(env::storage_has_key(&code_hash), "Contract doesn't exist");
+        // Load input (wasm code).
+        let code = env::storage_read(&code_hash).expect("ERR_NO_HASH");
+        // Schedule a Promise tx to account_id
+        let promise_id = env::promise_batch_create(&account_id);
+        // Create account first.
+        env::promise_batch_action_create_account(promise_id);
+        // Transfer attached deposit.
+        env::promise_batch_action_transfer(promise_id, attached_deposit);
+        // Deploy contract.
+        env::promise_batch_action_deploy_contract(promise_id, &code);
+        // call `new` with given arguments.
+        env::promise_batch_action_function_call(
+            promise_id,
+            new_method,
+            args,
+            NO_DEPOSIT,
+            CREATE_CALL_GAS,
+        );
+        // attach callback to the factory.
+        let _ = env::promise_then(
+            promise_id,
+            factory_account_id,
+            callback_method,
+            callback_args,
+            NO_DEPOSIT,
+            ON_CREATE_CALL_GAS,
+        );
+        env::promise_return(promise_id);
     }
 }
