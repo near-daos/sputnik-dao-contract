@@ -3,7 +3,7 @@ use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::json_types::{Base58CryptoHash, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    env, ext_contract, near_bindgen, sys, AccountId, Balance, BorshStorageKey, CryptoHash,
+    env, ext_contract, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash,
     PanicOnDefault, Promise, PromiseResult,
 };
 
