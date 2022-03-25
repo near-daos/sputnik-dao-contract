@@ -49,11 +49,12 @@ workspaceWithFactory.test(
         const six_near = toYocto('6');
         const default_code_hash = await factory.view('get_default_code_hash');
 
-        let result = await root
-            .createTransaction('upgradedao.factory.test.near')
-            .functionCall('get_last_proposal_id', {}, { gas: tGas(300) })
-            .signAndSend();
-        let proposalId = result.parseResult<number>();
+        let proposalId: number = await root.call(
+            'upgradedao.factory.test.near',
+            'get_last_proposal_id',
+            {},
+            { gas: tGas(300) },
+        );
         test.is(proposalId, 0);
 
         const args = Buffer.from(
@@ -80,26 +81,30 @@ workspaceWithFactory.test(
             },
         };
 
-        await root
-            .createTransaction('upgradedao.factory.test.near')
-            .functionCall('add_proposal', proposal, {
+        await root.call(
+            'upgradedao.factory.test.near',
+            'add_proposal',
+            proposal,
+            {
                 attachedDeposit: toYocto('1'),
                 gas: tGas(300),
-            })
-            .signAndSend();
+            },
+        );
 
-        result = await root
-            .createTransaction('upgradedao.factory.test.near')
-            .functionCall('get_last_proposal_id', {}, { gas: tGas(300) })
-            .signAndSend();
-        proposalId = result.parseResult<number>();
+        proposalId = await root.call(
+            'upgradedao.factory.test.near',
+            'get_last_proposal_id',
+            {},
+            { gas: tGas(300) },
+        );
         test.is(proposalId, 1);
 
-        result = await root
-            .createTransaction('upgradedao.factory.test.near')
-            .functionCall('get_proposal', { id: 0 }, { gas: tGas(300) })
-            .signAndSend();
-        let new_proposal = result.parseResult<any>();
+        let new_proposal: any = await root.call(
+            'upgradedao.factory.test.near',
+            'get_proposal',
+            { id: 0 },
+            { gas: tGas(300) },
+        );
 
         test.log(new_proposal);
         test.is(
@@ -114,20 +119,19 @@ workspaceWithFactory.test(
             `${factory.accountId}`,
         );
 
-        await root
-            .createTransaction('upgradedao.factory.test.near')
-            .functionCall(
-                'act_proposal',
-                { id: 0, action: 'VoteApprove' },
-                { gas: tGas(300) },
-            )
-            .signAndSend();
+        await root.call(
+            'upgradedao.factory.test.near',
+            'act_proposal',
+            { id: 0, action: 'VoteApprove' },
+            { gas: tGas(300) },
+        );
 
-        result = await root
-            .createTransaction('upgradedao.factory.test.near')
-            .functionCall('get_proposal', { id: 0 }, { gas: tGas(300) })
-            .signAndSend();
-        let passed_proposal_0 = result.parseResult<any>();
+        let passed_proposal_0: any = await root.call(
+            'upgradedao.factory.test.near',
+            'get_proposal',
+            { id: 0 },
+            { gas: tGas(300) },
+        );
         test.log(passed_proposal_0);
         test.is(passed_proposal_0.status, 'Approved');
 
@@ -143,19 +147,22 @@ workspaceWithFactory.test(
                 },
             },
         };
-        await root
-            .createTransaction('upgradedao.factory.test.near')
-            .functionCall('add_proposal', proposalUpgradeSelf, {
+        await root.call(
+            'upgradedao.factory.test.near',
+            'add_proposal',
+            proposalUpgradeSelf,
+            {
                 attachedDeposit: toYocto('1'),
                 gas: tGas(300),
-            })
-            .signAndSend();
+            },
+        );
 
-        result = await root
-            .createTransaction('upgradedao.factory.test.near')
-            .functionCall('get_proposal', { id: 1 }, { gas: tGas(300) })
-            .signAndSend();
-        let new_proposal_1 = result.parseResult<any>();
+        let new_proposal_1: any = await root.call(
+            'upgradedao.factory.test.near',
+            'get_proposal',
+            { id: 1 },
+            { gas: tGas(300) },
+        );
 
         test.log(new_proposal_1);
         test.is(
@@ -166,20 +173,19 @@ workspaceWithFactory.test(
         test.is(new_proposal_1.status, 'InProgress');
         test.truthy(new_proposal_1.kind.UpgradeSelf);
 
-        await root
-            .createTransaction('upgradedao.factory.test.near')
-            .functionCall(
-                'act_proposal',
-                { id: 1, action: 'VoteApprove' },
-                { gas: tGas(300) },
-            )
-            .signAndSend();
+        await root.call(
+            'upgradedao.factory.test.near',
+            'act_proposal',
+            { id: 1, action: 'VoteApprove' },
+            { gas: tGas(300) },
+        );
 
-        result = await root
-            .createTransaction('upgradedao.factory.test.near')
-            .functionCall('get_proposal', { id: 1 }, { gas: tGas(300) })
-            .signAndSend();
-        let passed_proposal_1 = result.parseResult<any>();
+        let passed_proposal_1: any = await root.call(
+            'upgradedao.factory.test.near',
+            'get_proposal',
+            { id: 1 },
+            { gas: tGas(300) },
+        );
 
         test.log(passed_proposal_1);
         test.is(passed_proposal_1.status, 'Approved');
@@ -213,19 +219,22 @@ workspaceWithFactory.test(
         //     JSON.stringify(proposalRemoveContractBlob)
         // );
 
-        await root
-            .createTransaction('upgradedao.factory.test.near')
-            .functionCall('add_proposal', proposalRemoveContractBlob, {
+        await root.call(
+            'upgradedao.factory.test.near',
+            'add_proposal',
+            proposalRemoveContractBlob,
+            {
                 attachedDeposit: toYocto('1'),
                 gas: tGas(300),
-            })
-            .signAndSend();
+            },
+        );
 
-        result = await root
-            .createTransaction('upgradedao.factory.test.near')
-            .functionCall('get_proposal', { id: 2 }, { gas: tGas(300) })
-            .signAndSend();
-        let new_proposal_2 = result.parseResult<any>();
+        let new_proposal_2: any = await root.call(
+            'upgradedao.factory.test.near',
+            'get_proposal',
+            { id: 2 },
+            { gas: tGas(300) },
+        );
 
         test.log(new_proposal_2);
         test.is(
@@ -240,20 +249,19 @@ workspaceWithFactory.test(
             `${factory.accountId}`,
         );
 
-        await root
-            .createTransaction('upgradedao.factory.test.near')
-            .functionCall(
-                'act_proposal',
-                { id: 2, action: 'VoteApprove' },
-                { gas: tGas(300) },
-            )
-            .signAndSend();
+        await root.call(
+            'upgradedao.factory.test.near',
+            'act_proposal',
+            { id: 2, action: 'VoteApprove' },
+            { gas: tGas(300) },
+        );
 
-        result = await root
-            .createTransaction('upgradedao.factory.test.near')
-            .functionCall('get_proposal', { id: 2 }, { gas: tGas(300) })
-            .signAndSend();
-        let passed_proposal_2 = result.parseResult<any>();
+        let passed_proposal_2: any = await root.call(
+            'upgradedao.factory.test.near',
+            'get_proposal',
+            { id: 2 },
+            { gas: tGas(300) },
+        );
 
         test.log(passed_proposal_2);
         test.is(passed_proposal_2.status, 'Approved');
