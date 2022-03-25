@@ -144,22 +144,14 @@ pub(crate) fn upgrade_self(hash: &[u8]) {
 }
 
 pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &[u8]) {
-    unsafe {
-        // Load input into register 0.
-        sys::storage_read(hash.len() as _, hash.as_ptr() as _, 0);
-        let promise_id = sys::promise_batch_create(
-            receiver_id.as_bytes().len() as _,
-            receiver_id.as_bytes().as_ptr() as _,
-        );
-        let attached_gas = env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_REMOTE_DEPLOY;
-        sys::promise_batch_action_function_call(
-            promise_id,
-            method_name.len() as _,
-            method_name.as_ptr() as _,
-            u64::MAX as _,
-            0 as _,
-            0 as _,
-            attached_gas.0,
-        );
-    }
+    let input = env::storage_read(hash).expect("ERR_NO_HASH");
+    let promise_id = env::promise_batch_create(receiver_id);
+    let attached_gas = env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_REMOTE_DEPLOY;
+    env::promise_batch_action_function_call(
+        promise_id,
+        method_name,
+        &input,
+        NO_DEPOSIT,
+        attached_gas,
+    );
 }
