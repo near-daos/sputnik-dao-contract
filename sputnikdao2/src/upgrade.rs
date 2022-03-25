@@ -7,7 +7,6 @@ use crate::*;
 
 const FACTORY_KEY: &[u8; 7] = b"FACTORY";
 const ERR_MUST_BE_SELF_OR_FACTORY: &str = "ERR_MUST_BE_SELF_OR_FACTORY";
-const SELF_MIGRATE_METHOD_NAME: &[u8; 7] = b"migrate";
 const UPDATE_GAS_LEFTOVER: Gas = Gas(5_000_000_000_000);
 const FACTORY_UPDATE_GAS_LEFTOVER: Gas = Gas(15_000_000_000_000);
 const NO_DEPOSIT: Balance = 0;
@@ -61,6 +60,7 @@ pub(crate) fn internal_set_factory_info(factory_info: &FactoryInfo) {
 #[no_mangle]
 pub fn update() {
     env::setup_panic_hook();
+
     let factory_info = internal_get_factory_info();
     let current_id = env::current_account_id();
     assert!(
@@ -70,34 +70,31 @@ pub fn update() {
         "{}",
         ERR_MUST_BE_SELF_OR_FACTORY
     );
+
     let is_callback = env::predecessor_account_id() == current_id;
-    unsafe {
-        // Load code into register 0 result from the input argument if factory call or from promise if callback.
-        if is_callback {
-            sys::promise_result(0, 0);
-        } else {
-            sys::input(0);
-        }
-        // Update current contract with code from register 0.
-        let promise_id = sys::promise_batch_create(
-            current_id.as_bytes().len() as _,
-            current_id.as_bytes().as_ptr() as _,
-        );
-        // Deploy the contract code.
-        sys::promise_batch_action_deploy_contract(promise_id, u64::MAX as _, 0);
-        // Call promise to migrate the state.
-        // Batched together to fail upgrade if migration fails.
-        sys::promise_batch_action_function_call(
-            promise_id,
-            SELF_MIGRATE_METHOD_NAME.len() as _,
-            SELF_MIGRATE_METHOD_NAME.as_ptr() as _,
-            0,
-            0,
-            &NO_DEPOSIT as *const u128 as _,
-            (env::prepaid_gas() - env::used_gas() - UPDATE_GAS_LEFTOVER).0,
-        );
-        sys::promise_return(promise_id);
-    }
+    let input;
+    if is_callback {
+        input = match env::promise_result(0) {
+            PromiseResult::Successful(data) => data,
+            _ => env::panic_str("ERR_NO_RESULT"),
+        };
+    } else {
+        input = env::input().expect("ERR_NO_INPUT");
+    };
+
+    let promise_id = env::promise_batch_create(&current_id);
+    // Deploy the contract code.
+    env::promise_batch_action_deploy_contract(promise_id, &input);
+    // Call promise to migrate the state.
+    // Batched together to fail upgrade if migration fails.
+    env::promise_batch_action_function_call(
+        promise_id,
+        "migrate",
+        &[],
+        NO_DEPOSIT,
+        env::prepaid_gas() - env::used_gas() - UPDATE_GAS_LEFTOVER,
+    );
+    env::promise_return(promise_id);
 }
 
 pub(crate) fn upgrade_using_factory(code_hash: Base58CryptoHash) {
