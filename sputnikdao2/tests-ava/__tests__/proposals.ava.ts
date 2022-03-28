@@ -36,7 +36,7 @@ workspace.test(
         //Try adding a proposal with 0.999... near
         let err = await captureError(
             async () =>
-                await alice.call_raw(
+                await alice.call(
                     dao,
                     'add_proposal',
                     {

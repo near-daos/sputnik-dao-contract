@@ -253,6 +253,14 @@ export async function giveupBounty(
     dao: NearAccount,
     proposalId: number,
 ) {
+    return await alice.call(dao, 'bounty_giveup', { id: proposalId });
+}
+
+export async function giveupBountyRaw(
+    alice: NearAccount,
+    dao: NearAccount,
+    proposalId: number,
+) {
     return await alice.call_raw(dao, 'bounty_giveup', { id: proposalId });
 }
 
