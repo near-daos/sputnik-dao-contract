@@ -469,10 +469,20 @@ mod tests {
         factory.set_owner(bob());
     }
 
-    // #[test]
-    // fn test_owner_can_be_a_dao_account() {
-    //     // To be implemented.
-    // }
+    #[test]
+    fn test_owner_can_be_a_dao_account() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(accounts(0))
+            .predecessor_account_id(accounts(0))
+            .attached_deposit(20)
+            .build());
+        let mut factory = SputnikDAOFactory::new();
+
+        factory.create(alice(), "{}".as_bytes().to_vec().into());
+
+        factory.create(alice(), "{}".as_bytes().to_vec().into());
+    }
 
     #[test]
     fn test_owner_gets_succesfully_updated() {
