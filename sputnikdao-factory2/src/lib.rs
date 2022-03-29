@@ -460,9 +460,7 @@ mod tests {
             .predecessor_account_id(carol())
             .attached_deposit(10)
             .build());
-        let mut factory = SputnikDAOFactory::new();
-
-        factory.create(alice(), "{}".as_bytes().to_vec().into());
+        let factory = SputnikDAOFactory::new();
 
         factory.set_owner(bob());
     }
