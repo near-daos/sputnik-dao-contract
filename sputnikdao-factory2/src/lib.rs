@@ -484,13 +484,11 @@ mod tests {
     fn test_owner_gets_succesfully_updated() {
         let mut context = VMContextBuilder::new();
         testing_env!(context
-            .current_account_id(alice())
-            .predecessor_account_id(alice())
+            .current_account_id(accounts(0))
+            .predecessor_account_id(accounts(0))
             .attached_deposit(10)
             .build());
-        let mut factory = SputnikDAOFactory::new();
-
-        factory.create(alice(), "{}".as_bytes().to_vec().into());
+        let factory = SputnikDAOFactory::new();
 
         assert_ne!(factory.get_owner(), bob());
 
