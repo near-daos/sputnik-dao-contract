@@ -446,9 +446,7 @@ mod tests {
             .predecessor_account_id(alice())
             .attached_deposit(10)
             .build());
-        let mut factory = SputnikDAOFactory::new();
-
-        factory.create(alice(), "{}".as_bytes().to_vec().into());
+        let factory = SputnikDAOFactory::new();
 
         assert_eq!(factory.get_owner(), alice());
     }
