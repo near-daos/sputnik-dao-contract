@@ -24,7 +24,6 @@ const DAO_CONTRACT_NO_DATA: &str = "no data";
 // Gas & Costs for blob storage
 const GAS_STORE_CONTRACT_LEFTOVER: Gas = Gas(20_000_000_000_000);
 const ON_REMOVE_CONTRACT_GAS: Gas = Gas(10_000_000_000_000);
-const CREATE_COST: Balance = 5_000_000_000_000_000_000_000_000;
 const NO_DEPOSIT: Balance = 0;
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -99,8 +98,6 @@ impl SputnikDAOFactory {
 
     #[payable]
     pub fn create(&mut self, name: AccountId, args: Base64VecU8) {
-        assert!(env::attached_deposit() >= CREATE_COST, "ERR_CREATE_COST");
-
         let account_id: AccountId = format!("{}.{}", name, env::current_account_id())
             .parse()
             .unwrap();
