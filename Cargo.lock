@@ -711,6 +711,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "custom-utils"
+version = "1.0.0"
+
+[[package]]
 name = "darling"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2781,6 +2785,7 @@ dependencies = [
 name = "sputnikdao-factory2"
 version = "0.2.0"
 dependencies = [
+ "custom-utils",
  "near-sdk",
 ]
 
@@ -2788,6 +2793,7 @@ dependencies = [
 name = "sputnikdao2"
 version = "2.0.0"
 dependencies = [
+ "custom-utils",
  "hex",
  "near-contract-standards",
  "near-sdk",
