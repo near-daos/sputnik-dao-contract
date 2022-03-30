@@ -16,32 +16,30 @@ impl StorageManagement for Contract {
         account_id: Option<AccountId>,
         registration_only: Option<bool>,
     ) -> StorageBalance {
-        let amount = env::attached_deposit();
-        let account_id = account_id
-            .map(|a| a.into())
-            .unwrap_or_else(|| env::predecessor_account_id());
-        let registration_only = registration_only.unwrap_or(false);
-        let min_balance = User::min_storage() as Balance * env::storage_byte_cost();
-        let already_registered = self.users.contains_key(&account_id);
-        if amount < min_balance && !already_registered {
-            env::panic_str("ERR_DEPOSIT_LESS_THAN_MIN_STORAGE");
-        }
-        if registration_only {
-            // Registration only setups the account but doesn't leave space for tokens.
-            if already_registered {
-                log!("ERR_ACC_REGISTERED");
-                if amount > 0 {
-                    Promise::new(env::predecessor_account_id()).transfer(amount);
-                }
-            } else {
+        let deposit_amount = env::attached_deposit();
+        let account_id = account_id.unwrap_or_else(env::predecessor_account_id);
+
+        if self.users.contains_key(&account_id) {
+            log!("ERR_ACC_REGISTERED");
+            if deposit_amount > 0 {
+                Promise::new(env::predecessor_account_id()).transfer(deposit_amount);
+            }
+        } else {
+            let min_balance = User::min_storage() as Balance * env::storage_byte_cost();
+            if deposit_amount < min_balance {
+                env::panic_str("ERR_DEPOSIT_LESS_THAN_MIN_STORAGE");
+            }
+
+            let registration_only = registration_only.unwrap_or(false);
+            if registration_only {
                 self.internal_register_user(&account_id, min_balance);
-                let refund = amount - min_balance;
+                let refund = deposit_amount - min_balance;
                 if refund > 0 {
                     Promise::new(env::predecessor_account_id()).transfer(refund);
                 }
+            } else {
+                self.internal_register_user(&account_id, deposit_amount);
             }
-        } else {
-            self.internal_register_user(&account_id, amount);
         }
         self.storage_balance_of(account_id.try_into().unwrap())
             .unwrap()
