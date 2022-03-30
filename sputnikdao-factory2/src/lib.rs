@@ -469,13 +469,15 @@ mod tests {
     fn test_owner_can_be_a_dao_account() {
         let mut context = VMContextBuilder::new();
         testing_env!(context
-            .current_account_id(alice())
-            .predecessor_account_id(alice())
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
             .attached_deposit(20)
             .build());
         let mut factory = SputnikDAOFactory::new();
 
-        factory.create(alice(), "{}".as_bytes().to_vec().into());
+        factory.create(bob(), "{}".as_bytes().to_vec().into());
+
+        factory.set_owner(alice());
 
         assert_eq!(factory.get_owner(), alice())
     }
