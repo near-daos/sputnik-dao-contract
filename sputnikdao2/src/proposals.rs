@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::convert::TryInto;
+use std::usize;
 
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
@@ -12,6 +14,9 @@ use crate::types::{
 };
 use crate::upgrade::{upgrade_remote, upgrade_using_factory};
 use crate::*;
+
+/// Max number of receivers for Proposal of kind TransferBatch, otherwise the 'Exceeded the prepaid gas' error occurs.
+pub const TRANSFER_BATCH_MAX_RECEIVERS_COUNT: u8 = 15;
 
 /// Status of a proposal.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -55,6 +60,15 @@ pub struct PolicyParameters {
     pub bounty_forgiveness_period: Option<U64>,
 }
 
+/// Function call arguments.
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
+#[serde(crate = "near_sdk::serde")]
+pub struct TransferAmount {
+    pub account_id: AccountId,
+    pub amount: U128,
+}
+
 /// Kinds of proposals, doing different action.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
@@ -92,6 +106,13 @@ pub enum ProposalKind {
         amount: U128,
         msg: Option<String>,
     },
+    /// Runs the same Transfer Proposal logic, but for the given list of receivers.
+    TransferBatch { 
+        #[serde(with = "serde_with::rust::string_empty_as_none")]
+        token_id: Option<AccountId>,
+        receivers: Vec<TransferAmount>,
+        msg: Option<String>,
+    },
     /// Sets staking contract. Can only be proposed if staking contract is not set yet.
     SetStakingContract { staking_id: AccountId },
     /// Add new bounty.
@@ -127,6 +148,7 @@ impl ProposalKind {
             ProposalKind::UpgradeSelf { .. } => "upgrade_self",
             ProposalKind::UpgradeRemote { .. } => "upgrade_remote",
             ProposalKind::Transfer { .. } => "transfer",
+            ProposalKind::TransferBatch { .. } => "transfer_batch",
             ProposalKind::SetStakingContract { .. } => "set_vote_token",
             ProposalKind::AddBounty { .. } => "add_bounty",
             ProposalKind::BountyDone { .. } => "bounty_done",
@@ -305,6 +327,8 @@ impl Contract {
         proposal: &Proposal,
         proposal_id: u64,
     ) -> PromiseOrValue<()> {
+        let mut num_callbacks: Option<u64> = None;
+
         let result = match &proposal.kind {
             ProposalKind::ChangeConfig { config } => {
                 self.config.set(config);
@@ -365,6 +389,39 @@ impl Contract {
                 proposal.description.clone(),
                 msg.clone(),
             ),
+            ProposalKind::TransferBatch {
+                token_id,
+                receivers,
+                msg,
+            } => {
+                let mut promise: Option<Promise> = None;
+
+                num_callbacks = Some(receivers.len().try_into().unwrap());
+                
+                for receiver in receivers {
+                    let payout_promise = self.internal_payout(
+                        &token_id,
+                        &receiver.account_id,
+                        receiver.amount.0,
+                        proposal.description.clone(),
+                        msg.clone(),
+                    );
+
+                    promise = match payout_promise {
+                        PromiseOrValue::Promise(payout_promise) => {
+                            Some(
+                                match promise {
+                                    Some(promise) => promise.and(payout_promise),
+                                    _ => payout_promise,
+                                }
+                            )
+                        },
+                        _ => continue,
+                    };
+                }
+                
+                PromiseOrValue::Promise(promise.unwrap())
+            }
             ProposalKind::SetStakingContract { staking_id } => {
                 assert!(self.staking_id.is_none(), "ERR_INVALID_STAKING_CHANGE");
                 self.staking_id = Some(staking_id.clone().into());
@@ -412,6 +469,7 @@ impl Contract {
             PromiseOrValue::Promise(promise) => promise
                 .then(ext_self::on_proposal_callback(
                     proposal_id,
+                    num_callbacks,
                     env::current_account_id(),
                     0,
                     GAS_FOR_FT_TRANSFER,
@@ -503,6 +561,23 @@ impl Contract {
                     !(token_id == OLD_BASE_TOKEN) || msg.is_none(),
                     "ERR_BASE_TOKEN_NO_MSG"
                 );
+            }
+            ProposalKind::TransferBatch {
+                token_id,
+                receivers,
+                msg
+            } => {
+                assert!(
+                    !(token_id.is_none()) || msg.is_none(),
+                    "ERR_BASE_TOKEN_NO_MSG"
+                );
+
+                assert!(
+                    receivers.len() <= usize::from(TRANSFER_BATCH_MAX_RECEIVERS_COUNT),
+                    "ERR_TRANSFER_BATCH_MAX_{}_RECEIVERS_COUNT_EXCEEDED:{}",
+                    TRANSFER_BATCH_MAX_RECEIVERS_COUNT,
+                    receivers.len()
+                )
             }
             ProposalKind::SetStakingContract { .. } => assert!(
                 self.staking_id.is_none(),
@@ -622,7 +697,11 @@ impl Contract {
     /// If the proposal execution failed (funds didn't transfer or function call failure),
     /// move proposal to "Failed" state.
     #[private]
-    pub fn on_proposal_callback(&mut self, proposal_id: u64) -> PromiseOrValue<()> {
+    pub fn on_proposal_callback(
+        &mut self,
+        proposal_id: u64,
+        num_callbacks: Option<u64>
+    ) -> PromiseOrValue<()> {
         let mut proposal: Proposal = self
             .proposals
             .get(&proposal_id)
@@ -630,7 +709,7 @@ impl Contract {
             .into();
         assert_eq!(
             env::promise_results_count(),
-            1,
+            num_callbacks.unwrap_or(1),
             "ERR_UNEXPECTED_CALLBACK_PROMISES"
         );
         let result = match env::promise_result(0) {
