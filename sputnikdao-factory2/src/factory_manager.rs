@@ -98,7 +98,15 @@ impl FactoryManager {
         assert!(env::storage_has_key(&code_hash), "Contract doesn't exist");
         // Load input (wasm code).
         let code = env::storage_read(&code_hash).expect("ERR_NO_HASH");
-        // Schedule a Promise tx to account_id
+        // Compute storage cost.
+        let code_len = code.len();
+        let storage_cost = ((code_len + 32) as Balance) * env::storage_byte_cost();
+        assert!(
+            attached_deposit >= storage_cost,
+            "ERR_NOT_ENOUGH_DEPOSIT:{}",
+            storage_cost
+        );
+        // Schedule a Promise tx to account_id.
         let promise_id = env::promise_batch_create(&account_id);
         // Create account first.
         env::promise_batch_action_create_account(promise_id);
