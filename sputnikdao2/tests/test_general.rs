@@ -39,7 +39,35 @@ fn test_large_policy() {
         purpose: "to test".to_string(),
         metadata: Base64VecU8(vec![]),
     };
-    let policy = default_policy(vec![root.account_id()]);
+    let mut policy = default_policy(vec![root.account_id()]);
+    const NO_OF_COUNCILS: u32 = 10;
+    const USERS_PER_COUNCIL: u32 = 100;
+    for council_no in 0..NO_OF_COUNCILS {
+        let mut council = vec![];
+        let user_id_start = council_no * USERS_PER_COUNCIL;
+        let user_id_end = user_id_start + USERS_PER_COUNCIL;
+        for user_id in user_id_start..user_id_end {
+            council.push(user(user_id));
+        }
+
+        let role = RolePermission {
+            name: format!("council{}", council_no),
+            kind: RoleKind::Group(council.into_iter().collect()),
+            // All actions except RemoveProposal are allowed by council.
+            permissions: vec![
+                "*:AddProposal".to_string(),
+                "*:VoteApprove".to_string(),
+                "*:VoteReject".to_string(),
+                "*:VoteRemove".to_string(),
+                "*:Finalize".to_string(),
+            ]
+            .into_iter()
+            .collect(),
+            vote_policy: HashMap::default(),
+        };
+        policy.add_or_update_role(&role);
+    }
+
     let params = json!({ "config": config, "policy": policy })
         .to_string()
         .into_bytes();
