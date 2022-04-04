@@ -53,7 +53,6 @@ fn test_large_policy() {
         let role = RolePermission {
             name: format!("council{}", council_no),
             kind: RoleKind::Group(council.into_iter().collect()),
-            // All actions except RemoveProposal are allowed by council.
             permissions: vec![
                 "*:AddProposal".to_string(),
                 "*:VoteApprove".to_string(),
