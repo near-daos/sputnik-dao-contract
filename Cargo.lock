@@ -2782,6 +2782,7 @@ name = "sputnikdao-factory2"
 version = "0.2.0"
 dependencies = [
  "near-sdk",
+ "near-sdk-sim",
 ]
 
 [[package]]
