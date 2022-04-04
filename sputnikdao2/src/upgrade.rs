@@ -7,7 +7,6 @@ use crate::*;
 
 const FACTORY_KEY: &[u8; 7] = b"FACTORY";
 const ERR_MUST_BE_SELF_OR_FACTORY: &str = "ERR_MUST_BE_SELF_OR_FACTORY";
-const SELF_MIGRATE_METHOD_NAME: &[u8; 7] = b"migrate";
 const UPDATE_GAS_LEFTOVER: Gas = Gas(10_000_000_000_000);
 const FACTORY_UPDATE_GAS_LEFTOVER: Gas = Gas(15_000_000_000_000);
 const NO_DEPOSIT: Balance = 0;
