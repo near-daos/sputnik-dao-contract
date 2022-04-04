@@ -4,7 +4,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::Base58CryptoHash;
 use near_sdk::serde_json;
-use near_sdk::{env, sys, AccountId, Balance, CryptoHash, Gas};
+use near_sdk::{env, AccountId, Balance, CryptoHash, Gas};
 
 /// Gas spent on the call & account creation.
 const CREATE_CALL_GAS: Gas = Gas(10_000_000_000_000);
@@ -25,28 +25,17 @@ pub struct FactoryManager {}
 impl FactoryManager {
     /// Store contract from input.
     pub fn store_contract(&self) {
-        unsafe {
-            // Load input into register 0.
-            sys::input(0);
-            // Compute sha256 hash of register 0 and store in register 1.
-            sys::sha256(u64::MAX as _, 0 as _, 1);
-            // Check if such blob is already stored.
-            assert_eq!(
-                sys::storage_has_key(u64::MAX as _, 1 as _),
-                0,
-                "ERR_ALREADY_EXISTS"
-            );
-            // Store key-value pair. The key is represented by register 1 and the value by register 0.
-            sys::storage_write(u64::MAX as _, 1 as _, u64::MAX as _, 0 as _, 2);
-            // Load register 1 into blob_hash.
-            let blob_hash = [0u8; 32];
-            sys::read_register(1, blob_hash.as_ptr() as _);
-            // Return from function value of register 1.
-            let blob_hash_str = serde_json::to_string(&Base58CryptoHash::from(blob_hash))
-                .unwrap()
-                .into_bytes();
-            sys::value_return(blob_hash_str.len() as _, blob_hash_str.as_ptr() as _);
-        }
+        let input = env::input().expect("ERR_NO_INPUT");
+        let sha256_hash = env::sha256(&input);
+        assert!(!env::storage_has_key(&sha256_hash), "ERR_ALREADY_EXISTS");
+        env::storage_write(&sha256_hash, &input);
+
+        let mut blob_hash = [0u8; 32];
+        blob_hash.copy_from_slice(&sha256_hash);
+        let blob_hash_str = serde_json::to_string(&Base58CryptoHash::from(blob_hash))
+            .unwrap()
+            .into_bytes();
+        env::value_return(&blob_hash_str);
     }
 
     /// Delete code from the contract.
@@ -58,14 +47,12 @@ impl FactoryManager {
     /// Get code for given hash.
     pub fn get_code(&self, code_hash: Base58CryptoHash) {
         let code_hash: CryptoHash = code_hash.into();
-        unsafe {
-            // Check that such contract exists.
-            assert!(env::storage_has_key(&code_hash), "Contract doesn't exist");
-            // Load the hash from storage.
-            sys::storage_read(code_hash.len() as _, code_hash.as_ptr() as _, 0);
-            // Return as value.
-            sys::value_return(u64::MAX as _, 0 as _);
-        }
+        // Check that such contract exists.
+        assert!(env::storage_has_key(&code_hash), "Contract doesn't exist");
+        // Load the hash from storage.
+        let code = env::storage_read(&code_hash).unwrap();
+        // Return as value.
+        env::value_return(&code);
     }
 
     /// Forces update on the given contract.
@@ -77,27 +64,21 @@ impl FactoryManager {
         method_name: &str,
     ) {
         let code_hash: CryptoHash = code_hash.into();
-        let account_id = account_id.as_bytes().to_vec();
-        unsafe {
-            // Check that such contract exists.
-            assert!(env::storage_has_key(&code_hash), "Contract doesn't exist");
-            // Load the hash from storage.
-            sys::storage_read(code_hash.len() as _, code_hash.as_ptr() as _, 0);
-            // Create a promise toward given account.
-            let promise_id =
-                sys::promise_batch_create(account_id.len() as _, account_id.as_ptr() as _);
-            // Call `update` method, which should also handle migrations.
-            sys::promise_batch_action_function_call(
-                promise_id,
-                method_name.len() as _,
-                method_name.as_ptr() as _,
-                u64::MAX as _,
-                0,
-                &NO_DEPOSIT as *const u128 as _,
-                (env::prepaid_gas() - env::used_gas() - GAS_UPDATE_LEFTOVER).0,
-            );
-            sys::promise_return(promise_id);
-        }
+        // Check that such contract exists.
+        assert!(env::storage_has_key(&code_hash), "Contract doesn't exist");
+        // Load the hash from storage.
+        let code = env::storage_read(&code_hash).expect("ERR_NO_HASH");
+        // Create a promise toward given account.
+        let promise_id = env::promise_batch_create(&account_id);
+        // Call `update` method, which should also handle migrations.
+        env::promise_batch_action_function_call(
+            promise_id,
+            method_name,
+            &code,
+            NO_DEPOSIT,
+            env::prepaid_gas() - env::used_gas() - GAS_UPDATE_LEFTOVER,
+        );
+        env::promise_return(promise_id);
     }
 
     /// Create given contract with args and callback factory.
@@ -112,49 +93,44 @@ impl FactoryManager {
     ) {
         let code_hash: CryptoHash = code_hash.into();
         let attached_deposit = env::attached_deposit();
-        let factory_account_id = env::current_account_id().as_bytes().to_vec();
-        let account_id = account_id.as_bytes().to_vec();
-        unsafe {
-            // Check that such contract exists.
-            assert_eq!(
-                sys::storage_has_key(code_hash.len() as _, code_hash.as_ptr() as _),
-                1,
-                "Contract doesn't exist"
-            );
-            // Load input (wasm code) into register 0.
-            sys::storage_read(code_hash.len() as _, code_hash.as_ptr() as _, 0);
-            // schedule a Promise tx to account_id
-            let promise_id =
-                sys::promise_batch_create(account_id.len() as _, account_id.as_ptr() as _);
-            // create account first.
-            sys::promise_batch_action_create_account(promise_id);
-            // transfer attached deposit.
-            sys::promise_batch_action_transfer(promise_id, &attached_deposit as *const u128 as _);
-            // deploy contract (code is taken from register 0).
-            sys::promise_batch_action_deploy_contract(promise_id, u64::MAX as _, 0);
-            // call `new` with given arguments.
-            sys::promise_batch_action_function_call(
-                promise_id,
-                new_method.len() as _,
-                new_method.as_ptr() as _,
-                args.len() as _,
-                args.as_ptr() as _,
-                &NO_DEPOSIT as *const u128 as _,
-                CREATE_CALL_GAS.0,
-            );
-            // attach callback to the factory.
-            let _ = sys::promise_then(
-                promise_id,
-                factory_account_id.len() as _,
-                factory_account_id.as_ptr() as _,
-                callback_method.len() as _,
-                callback_method.as_ptr() as _,
-                callback_args.len() as _,
-                callback_args.as_ptr() as _,
-                &NO_DEPOSIT as *const u128 as _,
-                ON_CREATE_CALL_GAS.0,
-            );
-            sys::promise_return(promise_id);
-        }
+        let factory_account_id = env::current_account_id();
+        // Check that such contract exists.
+        assert!(env::storage_has_key(&code_hash), "Contract doesn't exist");
+        // Load input (wasm code).
+        let code = env::storage_read(&code_hash).expect("ERR_NO_HASH");
+        // Compute storage cost.
+        let code_len = code.len();
+        let storage_cost = ((code_len + 32) as Balance) * env::storage_byte_cost();
+        assert!(
+            attached_deposit >= storage_cost,
+            "ERR_NOT_ENOUGH_DEPOSIT:{}",
+            storage_cost
+        );
+        // Schedule a Promise tx to account_id.
+        let promise_id = env::promise_batch_create(&account_id);
+        // Create account first.
+        env::promise_batch_action_create_account(promise_id);
+        // Transfer attached deposit.
+        env::promise_batch_action_transfer(promise_id, attached_deposit);
+        // Deploy contract.
+        env::promise_batch_action_deploy_contract(promise_id, &code);
+        // call `new` with given arguments.
+        env::promise_batch_action_function_call(
+            promise_id,
+            new_method,
+            args,
+            NO_DEPOSIT,
+            CREATE_CALL_GAS,
+        );
+        // attach callback to the factory.
+        let _ = env::promise_then(
+            promise_id,
+            factory_account_id,
+            callback_method,
+            callback_args,
+            NO_DEPOSIT,
+            ON_CREATE_CALL_GAS,
+        );
+        env::promise_return(promise_id);
     }
 }

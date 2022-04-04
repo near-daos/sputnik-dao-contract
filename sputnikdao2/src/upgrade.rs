@@ -59,6 +59,7 @@ pub(crate) fn internal_set_factory_info(factory_info: &FactoryInfo) {
 #[no_mangle]
 pub fn update() {
     env::setup_panic_hook();
+
     let factory_info = internal_get_factory_info();
     let current_id = env::current_account_id();
     assert!(
@@ -68,34 +69,31 @@ pub fn update() {
         "{}",
         ERR_MUST_BE_SELF_OR_FACTORY
     );
+
     let is_callback = env::predecessor_account_id() == current_id;
-    unsafe {
-        // Load code into register 0 result from the input argument if factory call or from promise if callback.
-        if is_callback {
-            sys::promise_result(0, 0);
-        } else {
-            sys::input(0);
-        }
-        // Update current contract with code from register 0.
-        let promise_id = sys::promise_batch_create(
-            current_id.as_bytes().len() as _,
-            current_id.as_bytes().as_ptr() as _,
-        );
-        // Deploy the contract code.
-        sys::promise_batch_action_deploy_contract(promise_id, u64::MAX as _, 0);
-        // Call promise to migrate the state.
-        // Batched together to fail upgrade if migration fails.
-        sys::promise_batch_action_function_call(
-            promise_id,
-            SELF_MIGRATE_METHOD_NAME.len() as _,
-            SELF_MIGRATE_METHOD_NAME.as_ptr() as _,
-            0,
-            0,
-            &NO_DEPOSIT as *const u128 as _,
-            (env::prepaid_gas() - env::used_gas() - UPDATE_GAS_LEFTOVER).0,
-        );
-        sys::promise_return(promise_id);
-    }
+    let input;
+    if is_callback {
+        input = match env::promise_result(0) {
+            PromiseResult::Successful(data) => data,
+            _ => env::panic_str("ERR_NO_RESULT"),
+        };
+    } else {
+        input = env::input().expect("ERR_NO_INPUT");
+    };
+
+    let promise_id = env::promise_batch_create(&current_id);
+    // Deploy the contract code.
+    env::promise_batch_action_deploy_contract(promise_id, &input);
+    // Call promise to migrate the state.
+    // Batched together to fail upgrade if migration fails.
+    env::promise_batch_action_function_call(
+        promise_id,
+        "migrate",
+        &[],
+        NO_DEPOSIT,
+        env::prepaid_gas() - env::used_gas() - UPDATE_GAS_LEFTOVER,
+    );
+    env::promise_return(promise_id);
 }
 
 pub(crate) fn upgrade_using_factory(code_hash: Base58CryptoHash) {
@@ -116,49 +114,28 @@ pub(crate) fn upgrade_using_factory(code_hash: Base58CryptoHash) {
 }
 
 #[allow(dead_code)]
-/// Self upgrade, optimizes gas by not loading into memory the code.
 pub(crate) fn upgrade_self(hash: &[u8]) {
     let current_id = env::current_account_id();
-    let method_name = "migrate".as_bytes().to_vec();
-    unsafe {
-        // Load input (wasm code) into register 0.
-        sys::storage_read(hash.len() as _, hash.as_ptr() as _, 0);
-        // schedule a Promise tx to this same contract
-        let promise_id = sys::promise_batch_create(
-            current_id.as_bytes().len() as _,
-            current_id.as_bytes().as_ptr() as _,
-        );
-        // 1st item in the Tx: "deploy contract" (code is taken from register 0)
-        sys::promise_batch_action_deploy_contract(promise_id, u64::MAX as _, 0);
-        // 2nd item in the Tx: call this_contract.migrate() with remaining gas
-        sys::promise_batch_action_function_call(
-            promise_id,
-            method_name.len() as _,
-            method_name.as_ptr() as _,
-            0 as _,
-            0 as _,
-            0 as _,
-            (env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_SELF_DEPLOY).0,
-        );
-    }
+    let input = env::storage_read(hash).expect("ERR_NO_HASH");
+    let promise_id = env::promise_batch_create(&current_id);
+    env::promise_batch_action_deploy_contract(promise_id, &input);
+    env::promise_batch_action_function_call(
+        promise_id,
+        "migrate",
+        &[],
+        NO_DEPOSIT,
+        env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_SELF_DEPLOY,
+    );
 }
 
 pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &[u8]) {
-    unsafe {
-        // Load input into register 0.
-        sys::storage_read(hash.len() as _, hash.as_ptr() as _, 0);
-        let promise_id = sys::promise_batch_create(
-            receiver_id.as_bytes().len() as _,
-            receiver_id.as_bytes().as_ptr() as _,
-        );
-        sys::promise_batch_action_function_call(
-            promise_id,
-            method_name.len() as _,
-            method_name.as_ptr() as _,
-            u64::MAX as _,
-            0 as _,
-            0 as _,
-            (env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_REMOTE_DEPLOY).0,
-        );
-    }
+    let input = env::storage_read(hash).expect("ERR_NO_HASH");
+    let promise_id = env::promise_batch_create(receiver_id);
+    env::promise_batch_action_function_call(
+        promise_id,
+        method_name,
+        &input,
+        NO_DEPOSIT,
+        env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_REMOTE_DEPLOY,
+    );
 }
