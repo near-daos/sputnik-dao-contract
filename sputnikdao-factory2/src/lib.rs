@@ -398,7 +398,23 @@ mod tests {
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::{testing_env, PromiseResult};
 
+    use near_sdk_sim::to_yocto;
+
     use super::*;
+
+    #[test]
+    #[should_panic(expected = "ERR_NOT_ENOUGH_DEPOSIT")]
+    fn test_create_error() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(accounts(0))
+            .predecessor_account_id(accounts(0))
+            .build());
+        let mut factory = SputnikDAOFactory::new();
+
+        testing_env!(context.attached_deposit(to_yocto("5")).build());
+        factory.create("test".parse().unwrap(), "{}".as_bytes().to_vec().into());
+    }
 
     #[test]
     fn test_basics() {
@@ -409,7 +425,7 @@ mod tests {
             .build());
         let mut factory = SputnikDAOFactory::new();
 
-        testing_env!(context.attached_deposit(10).build());
+        testing_env!(context.attached_deposit(to_yocto("6")).build());
         factory.create("test".parse().unwrap(), "{}".as_bytes().to_vec().into());
 
         testing_env!(
@@ -421,7 +437,7 @@ mod tests {
         );
         factory.on_create(
             format!("test.{}", accounts(0)).parse().unwrap(),
-            U128(10),
+            U128(to_yocto("6")),
             accounts(0),
         );
         assert_eq!(
