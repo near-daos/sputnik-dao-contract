@@ -471,15 +471,18 @@ mod tests {
         testing_env!(context
             .current_account_id(bob())
             .predecessor_account_id(bob())
-            .attached_deposit(20)
+            .attached_deposit(10)
             .build());
         let mut factory = SputnikDAOFactory::new();
 
         factory.create(bob(), "{}".as_bytes().to_vec().into());
 
-        factory.set_owner(alice());
+        factory.set_owner(AccountId::new_unchecked("bob.sputnik-dao.near".to_string()));
 
-        assert_eq!(factory.get_owner(), alice())
+        assert_eq!(
+            factory.get_owner(),
+            AccountId::new_unchecked("bob.sputnik-dao.near".to_string())
+        )
     }
 
     #[test]
