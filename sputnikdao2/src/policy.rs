@@ -176,7 +176,7 @@ pub enum VersionedPolicy {
 ///     - non token weighted voting, requires 1/2 of the group to vote
 ///     - proposal & bounty bond is 1N
 ///     - proposal & bounty forgiveness period is 1 day
-fn default_policy(council: Vec<AccountId>) -> Policy {
+pub fn default_policy(council: Vec<AccountId>) -> Policy {
     Policy {
         roles: vec![
             RolePermission {

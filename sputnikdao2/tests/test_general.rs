@@ -1,20 +1,65 @@
 use std::collections::HashMap;
 
 use near_sdk::json_types::U128;
+use near_sdk::serde_json::json;
 use near_sdk::{env, AccountId};
-use near_sdk_sim::{call, to_yocto, view};
+use near_sdk_sim::{call, init_simulator, to_yocto, view};
 
 use crate::utils::*;
 use sputnik_staking::User;
 use sputnikdao2::{
-    Action, BountyClaim, BountyOutput, Policy, Proposal, ProposalInput, ProposalKind,
-    ProposalOutput, ProposalStatus, RoleKind, RolePermission, VersionedPolicy, VotePolicy,
+    default_policy, Action, BountyClaim, BountyOutput, Config, Policy, Proposal, ProposalInput,
+    ProposalKind, ProposalOutput, ProposalStatus, RoleKind, RolePermission, VersionedPolicy,
+    VotePolicy,
 };
 
 mod utils;
 
 fn user(id: u32) -> AccountId {
     format!("user{}", id).parse().unwrap()
+}
+
+#[test]
+fn test_large_policy() {
+    let root = init_simulator(None);
+    let factory = setup_factory(&root);
+    factory
+        .user_account
+        .call(
+            factory.user_account.account_id.clone(),
+            "new",
+            &[],
+            near_sdk_sim::DEFAULT_GAS,
+            0,
+        )
+        .assert_success();
+
+    let config = Config {
+        name: "testdao".to_string(),
+        purpose: "to test".to_string(),
+        metadata: Base64VecU8(vec![]),
+    };
+    let policy = default_policy(vec![root.account_id()]);
+    let params = json!({ "config": config, "policy": policy })
+        .to_string()
+        .into_bytes();
+
+    call!(
+        root,
+        factory.create(
+            AccountId::new_unchecked("testdao".to_string()),
+            Base64VecU8(params)
+        ),
+        deposit = to_yocto("10")
+    )
+    .assert_success();
+
+    let dao_account_id = AccountId::new_unchecked("testdao.factory".to_string());
+    let dao_list = factory
+        .user_account
+        .view(factory.user_account.account_id.clone(), "get_dao_list", &[])
+        .unwrap_json::<Vec<AccountId>>();
+    assert_eq!(dao_list, vec![dao_account_id.clone()]);
 }
 
 #[test]
