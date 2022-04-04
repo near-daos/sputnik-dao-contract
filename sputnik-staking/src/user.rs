@@ -184,6 +184,7 @@ impl Contract {
         delegate_id: AccountId,
         amount: Balance,
     ) {
+        assert!(sender_id != delegate_id, "ERR_SELF_DELEGATE");
         let mut sender = self.internal_get_user(&sender_id);
         sender.delegate(delegate_id.clone(), amount);
         self.save_user(&sender_id, sender);
