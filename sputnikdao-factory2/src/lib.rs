@@ -460,7 +460,7 @@ mod tests {
         testing_env!(context
             .current_account_id(alice())
             .predecessor_account_id(alice())
-            .attached_deposit(10)
+            .attached_deposit(to_yocto("5"))
             .build());
         let factory = SputnikDAOFactory::new();
 
@@ -474,7 +474,7 @@ mod tests {
         testing_env!(context
             .current_account_id(alice())
             .predecessor_account_id(carol())
-            .attached_deposit(10)
+            .attached_deposit(to_yocto("5"))
             .build());
         let factory = SputnikDAOFactory::new();
 
@@ -487,7 +487,7 @@ mod tests {
         testing_env!(context
             .current_account_id(bob())
             .predecessor_account_id(bob())
-            .attached_deposit(10)
+            .attached_deposit(to_yocto("6"))
             .build());
         let mut factory = SputnikDAOFactory::new();
 
@@ -507,7 +507,7 @@ mod tests {
         testing_env!(context
             .current_account_id(accounts(0))
             .predecessor_account_id(accounts(0))
-            .attached_deposit(10)
+            .attached_deposit(to_yocto("5"))
             .build());
         let factory = SputnikDAOFactory::new();
 
