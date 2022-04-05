@@ -7,14 +7,12 @@ use crate::*;
 
 const FACTORY_KEY: &[u8; 7] = b"FACTORY";
 const ERR_MUST_BE_SELF_OR_FACTORY: &str = "ERR_MUST_BE_SELF_OR_FACTORY";
-const UPDATE_GAS_LEFTOVER: Gas = Gas(5_000_000_000_000);
+const UPDATE_GAS_LEFTOVER: Gas = Gas(10_000_000_000_000);
 const FACTORY_UPDATE_GAS_LEFTOVER: Gas = Gas(15_000_000_000_000);
 const NO_DEPOSIT: Balance = 0;
 
-/// Gas for upgrading this contract on promise creation + deploying new contract.
-pub const GAS_FOR_UPGRADE_SELF_DEPLOY: Gas = Gas(30_000_000_000_000);
-
-pub const GAS_FOR_UPGRADE_REMOTE_DEPLOY: Gas = Gas(10_000_000_000_000);
+pub const GAS_FOR_UPGRADE_SELF_DEPLOY: Gas = Gas(15_000_000_000_000);
+pub const GAS_FOR_UPGRADE_REMOTE_DEPLOY: Gas = Gas(15_000_000_000_000);
 
 /// Info about factory that deployed this contract and if auto-update is allowed.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -117,22 +115,26 @@ pub(crate) fn upgrade_using_factory(code_hash: Base58CryptoHash) {
 #[allow(dead_code)]
 pub(crate) fn upgrade_self(hash: &[u8]) {
     let current_id = env::current_account_id();
-    let attached_gas = env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_SELF_DEPLOY;
     let input = env::storage_read(hash).expect("ERR_NO_HASH");
     let promise_id = env::promise_batch_create(&current_id);
     env::promise_batch_action_deploy_contract(promise_id, &input);
-    env::promise_batch_action_function_call(promise_id, "migrate", &[], NO_DEPOSIT, attached_gas);
+    env::promise_batch_action_function_call(
+        promise_id,
+        "migrate",
+        &[],
+        NO_DEPOSIT,
+        env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_SELF_DEPLOY,
+    );
 }
 
 pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &[u8]) {
     let input = env::storage_read(hash).expect("ERR_NO_HASH");
     let promise_id = env::promise_batch_create(receiver_id);
-    let attached_gas = env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_REMOTE_DEPLOY;
     env::promise_batch_action_function_call(
         promise_id,
         method_name,
         &input,
         NO_DEPOSIT,
-        attached_gas,
+        env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_REMOTE_DEPLOY,
     );
 }

@@ -7,13 +7,13 @@ use near_sdk::serde_json;
 use near_sdk::{env, AccountId, Balance, CryptoHash, Gas};
 
 /// Gas spent on the call & account creation.
-const CREATE_CALL_GAS: Gas = Gas(75_000_000_000_000);
+const CREATE_CALL_GAS: Gas = Gas(40_000_000_000_000);
 
 /// Gas allocated on the callback.
 const ON_CREATE_CALL_GAS: Gas = Gas(10_000_000_000_000);
 
 /// Leftover gas after creating promise and calling update.
-const GAS_UPDATE_LEFTOVER: Gas = Gas(20_000_000_000_000);
+const GAS_UPDATE_LEFTOVER: Gas = Gas(10_000_000_000_000);
 
 const NO_DEPOSIT: Balance = 0;
 

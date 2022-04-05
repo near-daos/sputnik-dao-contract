@@ -1,20 +1,92 @@
 use std::collections::HashMap;
 
 use near_sdk::json_types::U128;
+use near_sdk::serde_json::json;
 use near_sdk::{env, AccountId};
-use near_sdk_sim::{call, to_yocto, view};
+use near_sdk_sim::{call, init_simulator, to_yocto, view};
 
 use crate::utils::*;
 use sputnik_staking::User;
 use sputnikdao2::{
-    Action, BountyClaim, BountyOutput, Policy, Proposal, ProposalInput, ProposalKind,
-    ProposalOutput, ProposalStatus, RoleKind, RolePermission, VersionedPolicy, VotePolicy,
+    default_policy, Action, BountyClaim, BountyOutput, Config, Policy, Proposal, ProposalInput,
+    ProposalKind, ProposalOutput, ProposalStatus, RoleKind, RolePermission, VersionedPolicy,
+    VotePolicy,
 };
 
 mod utils;
 
 fn user(id: u32) -> AccountId {
     format!("user{}", id).parse().unwrap()
+}
+
+#[test]
+fn test_large_policy() {
+    let root = init_simulator(None);
+    let factory = setup_factory(&root);
+    factory
+        .user_account
+        .call(
+            factory.user_account.account_id.clone(),
+            "new",
+            &[],
+            near_sdk_sim::DEFAULT_GAS,
+            0,
+        )
+        .assert_success();
+
+    let config = Config {
+        name: "testdao".to_string(),
+        purpose: "to test".to_string(),
+        metadata: Base64VecU8(vec![]),
+    };
+    let mut policy = default_policy(vec![root.account_id()]);
+    const NO_OF_COUNCILS: u32 = 10;
+    const USERS_PER_COUNCIL: u32 = 100;
+    for council_no in 0..NO_OF_COUNCILS {
+        let mut council = vec![];
+        let user_id_start = council_no * USERS_PER_COUNCIL;
+        let user_id_end = user_id_start + USERS_PER_COUNCIL;
+        for user_id in user_id_start..user_id_end {
+            council.push(user(user_id));
+        }
+
+        let role = RolePermission {
+            name: format!("council{}", council_no),
+            kind: RoleKind::Group(council.into_iter().collect()),
+            permissions: vec![
+                "*:AddProposal".to_string(),
+                "*:VoteApprove".to_string(),
+                "*:VoteReject".to_string(),
+                "*:VoteRemove".to_string(),
+                "*:Finalize".to_string(),
+            ]
+            .into_iter()
+            .collect(),
+            vote_policy: HashMap::default(),
+        };
+        policy.add_or_update_role(&role);
+    }
+
+    let params = json!({ "config": config, "policy": policy })
+        .to_string()
+        .into_bytes();
+
+    call!(
+        root,
+        factory.create(
+            AccountId::new_unchecked("testdao".to_string()),
+            Base64VecU8(params)
+        ),
+        deposit = to_yocto("10")
+    )
+    .assert_success();
+
+    let dao_account_id = AccountId::new_unchecked("testdao.factory".to_string());
+    let dao_list = factory
+        .user_account
+        .view(factory.user_account.account_id.clone(), "get_dao_list", &[])
+        .unwrap_json::<Vec<AccountId>>();
+    assert_eq!(dao_list, vec![dao_account_id.clone()]);
 }
 
 #[test]
