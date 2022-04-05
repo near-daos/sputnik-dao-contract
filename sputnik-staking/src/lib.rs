@@ -184,27 +184,54 @@ mod tests {
 
     #[test]
     fn test_basics() {
-        let period = 1000;
+        const UNSTAKE_PERIOD: u64 = 1000;
+        let contract_owner: AccountId = accounts(0);
+        let voting_token: AccountId = accounts(1);
+        let delegate_from_user: AccountId = accounts(2);
+        let delegate_to_user: AccountId = accounts(3);
+
         let mut context = VMContextBuilder::new();
 
-        testing_env!(context.predecessor_account_id(accounts(0)).build());
-        let mut contract = Contract::new(accounts(0), accounts(1), U64(period));
+        testing_env!(context
+            .predecessor_account_id(contract_owner.clone())
+            .build());
+        let mut contract = Contract::new(contract_owner, voting_token.clone(), U64(UNSTAKE_PERIOD));
+
         testing_env!(context.attached_deposit(to_yocto("1")).build());
-        contract.storage_deposit(Some(accounts(2)), None);
-        testing_env!(context.predecessor_account_id(accounts(1)).build());
-        contract.ft_on_transfer(accounts(2), U128(to_yocto("100")), "".to_string());
+        contract.storage_deposit(Some(delegate_from_user.clone()), None);
+
+        testing_env!(context.predecessor_account_id(voting_token.clone()).build());
+        contract.ft_on_transfer(
+            delegate_from_user.clone(),
+            U128(to_yocto("100")),
+            "".to_string(),
+        );
         assert_eq!(contract.ft_total_supply().0, to_yocto("100"));
-        assert_eq!(contract.ft_balance_of(accounts(2)).0, to_yocto("100"));
-        testing_env!(context.predecessor_account_id(accounts(2)).build());
+        assert_eq!(
+            contract.ft_balance_of(delegate_from_user.clone()).0,
+            to_yocto("100")
+        );
+
+        testing_env!(context
+            .predecessor_account_id(delegate_from_user.clone())
+            .build());
         contract.withdraw(U128(to_yocto("50")));
         assert_eq!(contract.ft_total_supply().0, to_yocto("50"));
-        assert_eq!(contract.ft_balance_of(accounts(2)).0, to_yocto("50"));
-        contract.delegate(accounts(3), U128(to_yocto("10")));
-        let user = contract.get_user(accounts(2));
+        assert_eq!(
+            contract.ft_balance_of(delegate_from_user.clone()).0,
+            to_yocto("50")
+        );
+
+        testing_env!(context.attached_deposit(to_yocto("1")).build());
+        contract.storage_deposit(Some(delegate_to_user.clone()), None);
+
+        contract.delegate(delegate_to_user.clone(), U128(to_yocto("10")));
+        let user = contract.get_user(delegate_from_user.clone());
         assert_eq!(user.delegated_amount(), to_yocto("10"));
-        contract.undelegate(accounts(3), U128(to_yocto("10")));
-        let user = contract.get_user(accounts(2));
+
+        contract.undelegate(delegate_to_user, U128(to_yocto("10")));
+        let user = contract.get_user(delegate_from_user);
         assert_eq!(user.delegated_amount(), 0);
-        assert_eq!(user.next_action_timestamp, U64(period));
+        assert_eq!(user.next_action_timestamp, U64(UNSTAKE_PERIOD));
     }
 }

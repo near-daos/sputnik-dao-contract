@@ -185,6 +185,7 @@ impl Contract {
         amount: Balance,
     ) {
         let mut sender = self.internal_get_user(&sender_id);
+        assert!(self.users.contains_key(&delegate_id), "ERR_NOT_REGISTERED");
         sender.delegate(delegate_id.clone(), amount);
         self.save_user(&sender_id, sender);
     }
