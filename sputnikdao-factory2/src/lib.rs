@@ -562,6 +562,7 @@ mod tests {
             .predecessor_account_id(bob())
             .attached_deposit(to_yocto("6"))
             .build());
+
         let factory = SputnikDAOFactory::new();
 
         assert_eq!(factory.get_owner().to_string(), "bob.near");
