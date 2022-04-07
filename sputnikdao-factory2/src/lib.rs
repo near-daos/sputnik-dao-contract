@@ -440,6 +440,7 @@ mod tests {
             U128(to_yocto("6")),
             accounts(0),
         );
+
         assert_eq!(
             factory.get_dao_list(),
             vec![format!("test.{}", accounts(0)).parse().unwrap()]
@@ -522,8 +523,39 @@ mod tests {
     //              #    Factory View Function tests    #          //
     //              #################################              //
 
+    // get_dao_list tests
     #[test]
-    fn test_get_owner() {
+    fn test_returns_empty_array_for_new_factory() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let factory = SputnikDAOFactory::new();
+
+        assert_eq!(factory.get_dao_list(), Vec::new());
+    }
+
+    #[test]
+    fn test_returns_full_list_of_dAOs() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let mut factory = SputnikDAOFactory::new();
+
+        factory.daos.insert(&bob());
+        factory.daos.insert(&alice());
+
+        assert!(factory.get_dao_list() != Vec::new());
+    }
+
+    //get_owner tests
+    #[test]
+    fn test_returns_a_string_representing_the_account_that_owns_the_factory() {
         let mut context = VMContextBuilder::new();
         testing_env!(context
             .current_account_id(bob())
@@ -537,7 +569,7 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn test_get_owner_fails() {
+    fn test_fails_if_storage_is_corrupted_or_no_owner() {
         let mut context = VMContextBuilder::new();
         testing_env!(context
             .current_account_id(bob())
