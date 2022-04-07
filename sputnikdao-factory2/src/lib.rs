@@ -517,4 +517,35 @@ mod tests {
 
         assert_eq!(factory.get_owner(), bob())
     }
+
+    //              #################################              //
+    //              #    Factory View Function tests    #          //
+    //              #################################              //
+
+    #[test]
+    fn test_get_owner() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let factory = SputnikDAOFactory::new();
+
+        assert_eq!(factory.get_owner().to_string(), "bob.near");
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_get_owner_fails() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let factory = SputnikDAOFactory::new();
+
+        assert_eq!(factory.get_owner().to_string(), "");
+    }
 }
