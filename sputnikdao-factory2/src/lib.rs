@@ -519,9 +519,9 @@ mod tests {
         assert_eq!(factory.get_owner(), bob())
     }
 
-    //              #################################              //
-    //              #    Factory View Function tests    #          //
-    //              #################################              //
+    //              ##################################              //
+    //              #  Factory View Function Tests   #              //
+    //              ##################################              //
 
     // get_dao_list tests
     #[test]
