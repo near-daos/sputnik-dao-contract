@@ -538,7 +538,7 @@ mod tests {
     }
 
     #[test]
-    fn test_returns_full_list_of_dAOs() {
+    fn test_returns_full_list_of_daos() {
         let mut context = VMContextBuilder::new();
         testing_env!(context
             .current_account_id(bob())
@@ -553,6 +553,43 @@ mod tests {
         assert!(factory.get_dao_list() != Vec::new());
     }
 
+    //get_number_daos test
+    #[test]
+    fn test_returns_integer_of_daos() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let mut factory = SputnikDAOFactory::new();
+
+        factory.daos.insert(&bob());
+        factory.daos.insert(&alice());
+
+        assert_eq!(factory.get_number_daos(), 2);
+    }
+
+    //get_daos test
+    #[test]
+    fn test_returns_a_list_of_daos() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let mut factory = SputnikDAOFactory::new();
+        factory.daos.insert(&bob());
+        factory.daos.insert(&alice());
+
+        let mut list_of_daos = Vec::new();
+        list_of_daos.push(bob());
+        list_of_daos.push(alice());
+
+        assert_eq!(factory.get_daos(0, 2), list_of_daos);
+    }
+
     //get_owner tests
     #[test]
     fn test_returns_a_string_representing_the_account_that_owns_the_factory() {
@@ -565,7 +602,7 @@ mod tests {
 
         let factory = SputnikDAOFactory::new();
 
-        assert_eq!(factory.get_owner().to_string(), "bob.near");
+        assert_eq!(factory.get_owner(), bob());
     }
 
     #[test]
@@ -580,5 +617,20 @@ mod tests {
         let factory = SputnikDAOFactory::new();
 
         assert_eq!(factory.get_owner().to_string(), "");
+    }
+
+    // get_default_version test
+    #[test]
+    fn test_returns_the_default_metadata_version() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let mut factory = SputnikDAOFactory::new();
+        factory.create(bob(), "{}".as_bytes().to_vec().into());
+
+        assert_eq!(factory.get_default_version(), [3, 0]);
     }
 }
