@@ -387,6 +387,7 @@ mod tests {
             U128(to_yocto("6")),
             accounts(0),
         );
+
         assert_eq!(
             factory.get_dao_list(),
             vec![format!("test.{}", accounts(0)).parse().unwrap()]
@@ -454,9 +455,9 @@ mod tests {
         assert_eq!(factory.get_owner(), bob())
     }
 
-    //              #################################              //
-    //              #    Factory View Function tests    #          //
-    //              #################################              //
+    //              ##################################              //
+    //              #  Factory View Function Tests   #              //
+    //              ##################################              //
 
     // get_dao_list tests
     #[test]
