@@ -8,7 +8,7 @@ use near_sdk::serde_json::{self, json};
 use near_sdk::{env, near_bindgen, AccountId, Balance, CryptoHash, Gas, PanicOnDefault, Promise};
 type Version = [u8; 2];
 // The keys used for writing data to storage via `env::storage_write`.
-const DEFAULT_CODE_HASH_KEY: &[u8; 4] = b"EEEE";
+const DEFAULT_CODE_HASH_KEY: &[u8; 4] = b"CODE";
 const FACTORY_OWNER_KEY: &[u8; 5] = b"OWNER";
 const CODE_METADATA_KEY: &[u8; 8] = b"METADATA";
 // The values used when writing initial data to the storage.
