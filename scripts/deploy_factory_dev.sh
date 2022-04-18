@@ -68,7 +68,7 @@ near deploy --wasmFile sputnikdao_factory2_original.wasm --accountId $FACTORY_AC
 COUNCIL='["'$NEAR_ACCT'"]'
 TIMESTAMP=$(date +"%s")
 DAO_NAME=sputnikdao-dev-v2-$TIMESTAMP
-DAO_ARGS=`echo '{"config": {"name": "'$DAO_NAME'", "purpose": "Sputnik Dev v2 DAO '$TIMESTAMP'", "metadata":""}, "policy": '$COUNCIL'}' | base64`
+DAO_ARGS=`echo '{"config": {"name": "'$DAO_NAME'", "purpose": "Sputnik Dev v2 DAO '$TIMESTAMP'", "metadata":""}, "policy": '$COUNCIL'}' | base64 -w 0`
 near call $FACTORY_ACCOUNT_ID create "{\"name\": \"$DAO_NAME\", \"args\": \"$DAO_ARGS\"}" --accountId $FACTORY_ACCOUNT_ID --gas $GAS_150_TGAS --amount 10
 DEMO_DAO_ACCOUNT=$DAO_NAME.$FACTORY_ACCOUNT_ID
 
@@ -111,7 +111,7 @@ params:='{"request_type":"view_code","finality":"final","account_id":"'$DAO_ACCO
 | base64 --decode > sputnikdao2_original.wasm
 
 # Store the code data
-V2_BYTES='cat sputnikdao2_original.wasm | base64'
+V2_BYTES='cat sputnikdao2_original.wasm | base64 -w 0'
 near call $FACTORY_ACCOUNT_ID store $(eval "$V2_BYTES") --base64 --accountId $FACTORY_ACCOUNT_ID --gas $GAS_100_TGAS --amount 10 > v2_code_hash_result.txt
 
 # Update the factory metadata
@@ -135,7 +135,7 @@ near view $FACTORY_ACCOUNT_ID get_contracts_metadata
 #### Get DAO v3 code data & store it in factory
 #### --------------------------------------------
 # Store the code data
-V3_BYTES='cat sputnikdao2/res/sputnikdao2.wasm | base64'
+V3_BYTES='cat sputnikdao2/res/sputnikdao2.wasm | base64 -w 0'
 near call $FACTORY_ACCOUNT_ID store $(eval "$V3_BYTES") --base64 --accountId $FACTORY_ACCOUNT_ID --gas $GAS_100_TGAS --amount 10 > v3_code_hash_result.txt
 
 # Update the factory metadata
@@ -181,7 +181,7 @@ near view $DAO_ACCOUNT_ID get_proposal '{"id": 3}'
 COUNCIL='["'$NEAR_ACCT'"]'
 TIMESTAMP=$(date +"%s")
 DAO_NAME=sputnikdao-dev-v3-$TIMESTAMP
-DAO_ARGS=`echo '{"config": {"name": "'$DAO_NAME'", "purpose": "Sputnik Dev v3 DAO '$TIMESTAMP'", "metadata":""}, "policy": '$COUNCIL'}' | base64`
+DAO_ARGS=`echo '{"config": {"name": "'$DAO_NAME'", "purpose": "Sputnik Dev v3 DAO '$TIMESTAMP'", "metadata":""}, "policy": '$COUNCIL'}' | base64 -w 0`
 near call $FACTORY_ACCOUNT_ID create "{\"name\": \"$DAO_NAME\", \"args\": \"$DAO_ARGS\"}" --accountId $FACTORY_ACCOUNT_ID --gas $GAS_150_TGAS --amount 10
 DEMO_DAO_ACCOUNT=$DAO_NAME.$FACTORY_ACCOUNT_ID
 
