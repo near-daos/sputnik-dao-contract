@@ -542,6 +542,47 @@ mod tests {
         let factory = SputnikDAOFactory::new();
         assert_eq!(factory.get_owner().to_string(), "");
     }
+    // get_default_code_hash tests
+    #[test]
+    fn test_returns_the_default_code_hash_for_a_new_dao() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let mut factory = SputnikDAOFactory::new();
+        factory.create(bob(), "{}".as_bytes().to_vec().into());
+        let hash = [
+            9, 47, 14, 126, 93, 206, 56, 168, 143, 142, 82, 99, 62, 169, 170, 85, 9, 87, 50, 25,
+            233, 191, 251, 21, 172, 100, 42, 69, 56, 190, 91, 168,
+        ];
+        assert_eq!(
+            factory.get_default_code_hash(),
+            Base58CryptoHash::from(hash)
+        );
+    }
+    #[test]
+    fn test_returns_the_default_code_hash_that_has_been_updated_after_new_code_blob_in_factory() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let mut factory = SputnikDAOFactory::new();
+        factory.create(bob(), "{}".as_bytes().to_vec().into());
+        let code_hash = [
+            9, 47, 14, 126, 93, 206, 56, 168, 143, 142, 82, 99, 62, 169, 170, 85, 9, 87, 50, 25,
+            233, 191, 251, 21, 172, 100, 42, 69, 56, 190, 91, 200,
+        ];
+        let code_hash: CryptoHash = code_hash.into();
+        env::storage_write(DEFAULT_CODE_HASH_KEY, &code_hash);
+        assert_eq!(
+            factory.get_default_code_hash(),
+            Base58CryptoHash::from(code_hash)
+        );
+    }
     // get_default_version test
     #[test]
     fn test_returns_the_default_metadata_version() {
