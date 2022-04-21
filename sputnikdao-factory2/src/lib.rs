@@ -609,8 +609,8 @@ mod tests {
             .attached_deposit(to_yocto("6"))
             .build());
         let factory = SputnikDAOFactory::new();
-        let hash = factory.get_default_code_hash();
-        let code_hash: CryptoHash = hash.into();
+
+        let code_hash: CryptoHash = factory.get_default_code_hash().into();
 
         let code = env::storage_read(&code_hash).unwrap();
 
