@@ -471,6 +471,7 @@ mod tests {
         let factory = SputnikDAOFactory::new();
         assert_eq!(factory.get_dao_list(), []);
     }
+
     #[test]
     fn test_returns_full_list_of_daos() {
         let mut context = VMContextBuilder::new();
@@ -530,6 +531,7 @@ mod tests {
         let factory = SputnikDAOFactory::new();
         assert_eq!(factory.get_owner(), bob());
     }
+
     #[test]
     #[should_panic]
     fn test_fails_if_storage_is_corrupted_or_no_owner() {
@@ -562,6 +564,7 @@ mod tests {
             Base58CryptoHash::from(hash)
         );
     }
+
     #[test]
     fn test_returns_the_default_code_hash_that_has_been_updated_after_new_code_blob_in_factory() {
         let mut context = VMContextBuilder::new();
@@ -596,6 +599,7 @@ mod tests {
         factory.create(bob(), "{}".as_bytes().to_vec().into());
         assert_eq!(factory.get_default_version(), DAO_CONTRACT_INITIAL_VERSION);
     }
+
     #[test]
     fn test_returns_an_entire_code_blob_based_on_given_code_hash() {
         let mut context = VMContextBuilder::new();
@@ -610,9 +614,11 @@ mod tests {
 
         let code = env::storage_read(&code_hash).unwrap();
 
-        assert_ne!(code, [0u8; 32])
+        assert_ne!(code, [0u8; 0])
     }
+
     #[test]
+    #[allow(unused_variables)]
     fn test_returns_no_value_if_code_doesnt_exist() {
         let mut context = VMContextBuilder::new();
         testing_env!(context
@@ -620,6 +626,7 @@ mod tests {
             .predecessor_account_id(bob())
             .attached_deposit(to_yocto("6"))
             .build());
+
         let factory = SputnikDAOFactory::new();
 
         let code = env::storage_read(&[0u8; 32]).unwrap_or_default();
