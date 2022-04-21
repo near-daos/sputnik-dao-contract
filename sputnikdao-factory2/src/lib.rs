@@ -596,4 +596,34 @@ mod tests {
         factory.create(bob(), "{}".as_bytes().to_vec().into());
         assert_eq!(factory.get_default_version(), DAO_CONTRACT_INITIAL_VERSION);
     }
+    #[test]
+    fn test_returns_an_entire_code_blob_based_on_given_code_hash() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let factory = SputnikDAOFactory::new();
+        let hash = factory.get_default_code_hash();
+        let code_hash: CryptoHash = hash.into();
+
+        let code = env::storage_read(&code_hash).unwrap();
+
+        assert_ne!(code, [0u8; 32])
+    }
+    #[test]
+    fn test_returns_no_value_if_code_doesnt_exist() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let factory = SputnikDAOFactory::new();
+
+        let code = env::storage_read(&[0u8; 32]).unwrap_or_default();
+
+        assert_eq!(code, [0u8; 0])
+    }
 }
