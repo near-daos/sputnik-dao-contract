@@ -110,13 +110,9 @@ impl Contract {
     /// This is NOOP implementation. KEEP IT if you haven't changed contract state.
     /// If you have changed state, you need to implement migration from old state (keep the old struct with different name to deserialize it first).
     /// After migrate goes live on MainNet, return this implementation for next updates.
+    #[private]
     #[init(ignore_state)]
     pub fn migrate() -> Self {
-        assert_eq!(
-            env::predecessor_account_id(),
-            env::current_account_id(),
-            "ERR_NOT_ALLOWED"
-        );
         let this: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
         this
     }
