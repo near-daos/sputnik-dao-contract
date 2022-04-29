@@ -394,10 +394,27 @@ pub extern "C" fn store() {
 
 #[cfg(test)]
 mod tests {
+    use near_sdk::test_utils::test_env::{alice, bob, carol};
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::{testing_env, PromiseResult};
 
+    use near_sdk_sim::to_yocto;
+
     use super::*;
+
+    #[test]
+    #[should_panic(expected = "ERR_NOT_ENOUGH_DEPOSIT")]
+    fn test_create_error() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(accounts(0))
+            .predecessor_account_id(accounts(0))
+            .build());
+        let mut factory = SputnikDAOFactory::new();
+
+        testing_env!(context.attached_deposit(to_yocto("5")).build());
+        factory.create("test".parse().unwrap(), "{}".as_bytes().to_vec().into());
+    }
 
     #[test]
     fn test_basics() {
@@ -408,7 +425,7 @@ mod tests {
             .build());
         let mut factory = SputnikDAOFactory::new();
 
-        testing_env!(context.attached_deposit(10).build());
+        testing_env!(context.attached_deposit(to_yocto("6")).build());
         factory.create("test".parse().unwrap(), "{}".as_bytes().to_vec().into());
 
         testing_env!(
@@ -420,7 +437,7 @@ mod tests {
         );
         factory.on_create(
             format!("test.{}", accounts(0)).parse().unwrap(),
-            U128(10),
+            U128(to_yocto("6")),
             accounts(0),
         );
         assert_eq!(
@@ -431,5 +448,73 @@ mod tests {
             factory.get_daos(0, 100),
             vec![format!("test.{}", accounts(0)).parse().unwrap()]
         );
+    }
+
+    //              #################################              //
+    //              #    Factory ownership tests    #              //
+    //              #################################              //
+
+    #[test]
+    fn test_factory_can_get_current_owner() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(alice())
+            .predecessor_account_id(alice())
+            .attached_deposit(to_yocto("5"))
+            .build());
+        let factory = SputnikDAOFactory::new();
+
+        assert_eq!(factory.get_owner(), alice());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_factory_fails_setting_owner_from_not_owner_account() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(alice())
+            .predecessor_account_id(carol())
+            .attached_deposit(to_yocto("5"))
+            .build());
+        let factory = SputnikDAOFactory::new();
+
+        factory.set_owner(bob());
+    }
+
+    #[test]
+    fn test_owner_can_be_a_dao_account() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let mut factory = SputnikDAOFactory::new();
+
+        factory.create(bob(), "{}".as_bytes().to_vec().into());
+
+        factory.set_owner(AccountId::new_unchecked("bob.sputnik-dao.near".to_string()));
+
+        assert_eq!(
+            factory.get_owner(),
+            AccountId::new_unchecked("bob.sputnik-dao.near".to_string())
+        )
+    }
+
+    #[test]
+    fn test_owner_gets_succesfully_updated() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(accounts(0))
+            .predecessor_account_id(accounts(0))
+            .attached_deposit(to_yocto("5"))
+            .build());
+        let factory = SputnikDAOFactory::new();
+
+        assert_ne!(factory.get_owner(), bob());
+
+        factory.set_owner(bob());
+
+        assert_eq!(factory.get_owner(), bob())
     }
 }

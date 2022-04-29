@@ -3,12 +3,14 @@ use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::json_types::{Base58CryptoHash, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    env, ext_contract, near_bindgen, sys, AccountId, Balance, BorshStorageKey, CryptoHash,
+    env, ext_contract, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash,
     PanicOnDefault, Promise, PromiseResult,
 };
 
 pub use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
-pub use crate::policy::{Policy, RoleKind, RolePermission, VersionedPolicy, VotePolicy};
+pub use crate::policy::{
+    default_policy, Policy, RoleKind, RolePermission, VersionedPolicy, VotePolicy,
+};
 use crate::proposals::VersionedProposal;
 pub use crate::proposals::{Proposal, ProposalInput, ProposalKind, ProposalStatus};
 pub use crate::types::{Action, Config, OldAccountId, OLD_BASE_TOKEN};
@@ -108,13 +110,9 @@ impl Contract {
     /// This is NOOP implementation. KEEP IT if you haven't changed contract state.
     /// If you have changed state, you need to implement migration from old state (keep the old struct with different name to deserialize it first).
     /// After migrate goes live on MainNet, return this implementation for next updates.
+    #[private]
     #[init(ignore_state)]
     pub fn migrate() -> Self {
-        assert_eq!(
-            env::predecessor_account_id(),
-            env::current_account_id(),
-            "ERR_NOT_ALLOWED"
-        );
         let this: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
         this
     }
@@ -147,39 +145,29 @@ impl Contract {
 pub extern "C" fn store_blob() {
     env::setup_panic_hook();
     let mut contract: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
-    unsafe {
-        // Load input into register 0.
-        sys::input(0);
-        // Compute sha256 hash of register 0 and store in 1.
-        sys::sha256(u64::MAX as _, 0 as _, 1);
-        // Check if such blob already stored.
-        assert_eq!(
-            sys::storage_has_key(u64::MAX as _, 1 as _),
-            0,
-            "ERR_ALREADY_EXISTS"
-        );
-        // Get length of the input argument and check that enough $NEAR has been attached.
-        let blob_len = sys::register_len(0);
-        let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
-        assert!(
-            env::attached_deposit() >= storage_cost,
-            "ERR_NOT_ENOUGH_DEPOSIT:{}",
-            storage_cost
-        );
-        // Store value of register 0 into key = register 1.
-        sys::storage_write(u64::MAX as _, 1 as _, u64::MAX as _, 0 as _, 2);
-        // Load register 1 into blob_hash and save into LookupMap.
-        let blob_hash = [0u8; 32];
-        sys::read_register(1, blob_hash.as_ptr() as _);
-        contract
-            .blobs
-            .insert(&blob_hash, &env::predecessor_account_id());
-        // Return from function value of register 1.
-        let blob_hash_str = near_sdk::serde_json::to_string(&Base58CryptoHash::from(blob_hash))
-            .unwrap()
-            .into_bytes();
-        sys::value_return(blob_hash_str.len() as _, blob_hash_str.as_ptr() as _);
-    }
+    let input = env::input().expect("ERR_NO_INPUT");
+    let sha256_hash = env::sha256(&input);
+    assert!(!env::storage_has_key(&sha256_hash), "ERR_ALREADY_EXISTS");
+
+    let blob_len = input.len();
+    let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
+    assert!(
+        env::attached_deposit() >= storage_cost,
+        "ERR_NOT_ENOUGH_DEPOSIT:{}",
+        storage_cost
+    );
+
+    env::storage_write(&sha256_hash, &input);
+    let mut blob_hash = [0u8; 32];
+    blob_hash.copy_from_slice(&sha256_hash);
+    contract
+        .blobs
+        .insert(&blob_hash, &env::predecessor_account_id());
+    let blob_hash_str = near_sdk::serde_json::to_string(&Base58CryptoHash::from(blob_hash))
+        .unwrap()
+        .into_bytes();
+
+    env::value_return(&blob_hash_str);
     env::state_write(&contract);
 }
 
