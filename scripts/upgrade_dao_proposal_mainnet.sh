@@ -1,11 +1,6 @@
 #!/bin/bash
 set -e
 
-# TODO: Change to the official approved commit:
-# COMMIT_V3=596f27a649c5df3310e945a37a41a957492c0322
-COMMIT_V3=TBD_SEE_COMMIT_ONCE_LIVE
-# git checkout $COMMIT_V3
-
 # build the things
 ./build.sh
 
@@ -26,7 +21,7 @@ export GAS_150_TGAS=150000000000000
 export GAS_220_TGAS=220000000000000
 BOND_AMOUNT=1
 BYTE_STORAGE_COST=6000000000000000000000000
-COMMIT_V3=596f27a649c5df3310e945a37a41a957492c0322
+COMMIT_V3=640495ba572345ca356376989738fbd5462e1ff8
 V3_CODE_HASH=783vth3Fg8MBBGGFmRqrytQCWBpYzUcmHoCq4Mo8QqF5
 
 # IMPORTANT!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -48,7 +43,7 @@ near view $FACTORY_ACCOUNT_ID get_contracts_metadata
 #### --------------------------------------------
 # 783vth3Fg8MBBGGFmRqrytQCWBpYzUcmHoCq4Mo8QqF5
 
-UPGRADE_PROPOSAL_ARGS=`echo '{"code_hash":"ZLrXNdaMhivEkpMbad4SHkZZ2cgY2WMyStuq5hGiJHf"}' | base64`
+UPGRADE_PROPOSAL_ARGS=`echo '{"code_hash":"783vth3Fg8MBBGGFmRqrytQCWBpYzUcmHoCq4Mo8QqF5"}' | base64`
 # propose UpgradeSelf using the code_hash from store_blob
 near call $DAO_ACCOUNT_ID add_proposal '{
   "proposal": {
@@ -69,9 +64,9 @@ near call $DAO_ACCOUNT_ID add_proposal '{
   }
 }' --accountId $NEAR_ACCT --amount $BOND_AMOUNT --gas $MAX_GAS
 # approve
-near call $DAO_ACCOUNT_ID act_proposal '{"id": 0, "action" :"VoteApprove"}' --accountId $NEAR_ACCT  --gas $MAX_GAS
+near call $DAO_ACCOUNT_ID act_proposal '{"id": 1, "action" :"VoteApprove"}' --accountId $NEAR_ACCT  --gas $MAX_GAS
 # quick check all is good
-near view $DAO_ACCOUNT_ID get_proposal '{"id": 0}'
+near view $DAO_ACCOUNT_ID get_proposal '{"id": 1}'
 #### --------------------------------------------
 
 
@@ -83,9 +78,9 @@ echo "Upgrade V3 CODE HASH: $V3_CODE_HASH"
 # some sample payouts
 near call $DAO_ACCOUNT_ID add_proposal '{"proposal": { "description": "Upgrade to v3", "kind": { "UpgradeSelf": { "hash": "'$V3_CODE_HASH'" } } } }' --accountId $NEAR_ACCT --amount 1
 # approve some, leave some
-near call $DAO_ACCOUNT_ID act_proposal '{"id": 1, "action" :"VoteApprove"}' --accountId $NEAR_ACCT  --gas $MAX_GAS
+near call $DAO_ACCOUNT_ID act_proposal '{"id": 2, "action" :"VoteApprove"}' --accountId $NEAR_ACCT  --gas $MAX_GAS
 # quick check all is good
-near view $DAO_ACCOUNT_ID get_proposal '{"id": 1}'
+near view $DAO_ACCOUNT_ID get_proposal '{"id": 2}'
 #### --------------------------------------------
 
 #### --------------------------------------------
@@ -93,7 +88,7 @@ near view $DAO_ACCOUNT_ID get_proposal '{"id": 1}'
 #### --------------------------------------------
 # 783vth3Fg8MBBGGFmRqrytQCWBpYzUcmHoCq4Mo8QqF5
 
-REMOVE_PROPOSAL_ARGS=`echo '{"code_hash":"ZLrXNdaMhivEkpMbad4SHkZZ2cgY2WMyStuq5hGiJHf"}' | base64`
+REMOVE_PROPOSAL_ARGS=`echo '{"code_hash":"783vth3Fg8MBBGGFmRqrytQCWBpYzUcmHoCq4Mo8QqF5"}' | base64`
 # propose UpgradeSelf using the code_hash from store_blob
 near call $DAO_ACCOUNT_ID add_proposal '{
   "proposal": {
@@ -114,11 +109,9 @@ near call $DAO_ACCOUNT_ID add_proposal '{
   }
 }' --accountId $NEAR_ACCT --amount $BOND_AMOUNT --gas $MAX_GAS
 # approve
-near call $DAO_ACCOUNT_ID act_proposal '{"id": 2, "action" :"VoteApprove"}' --accountId $NEAR_ACCT  --gas $MAX_GAS
+near call $DAO_ACCOUNT_ID act_proposal '{"id": 3, "action" :"VoteApprove"}' --accountId $NEAR_ACCT  --gas $MAX_GAS
 # quick check all is good
-near view $DAO_ACCOUNT_ID get_proposal '{"id": 2}'
+near view $DAO_ACCOUNT_ID get_proposal '{"id": 3}'
 #### --------------------------------------------
-
-near call $DAO_ACCOUNT_ID del --accountId $NEAR_ACCT  --gas $MAX_GAS
 
 echo "Mainnet DAO Upgrade Complete"

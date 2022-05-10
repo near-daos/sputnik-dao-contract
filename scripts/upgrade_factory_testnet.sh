@@ -1,11 +1,6 @@
 #!/bin/bash
 set -e
 
-# TODO: Change to the official approved commit:
-# COMMIT_V3=596f27a649c5df3310e945a37a41a957492c0322
-COMMIT_V3=TBD_SEE_COMMIT_ONCE_LIVE
-# git checkout $COMMIT_V3
-
 # build the things
 ./build.sh
 
@@ -27,10 +22,20 @@ BOND_AMOUNT=1
 BYTE_STORAGE_COST=6000000000000000000000000
 COMMIT_V2=c2cf1553b070d04eed8f659571440b27d398c588
 V2_CODE_HASH=8RMeZ5cXDap6TENxaJKtigRYf3n139iHmTRe8ZUNey6N
-COMMIT_V2A=TBD
-V2A_CODE_HASH=TBD
-COMMIT_V3=TBD
-V3_CODE_HASH=TBD
+COMMIT_V2A=UNOFFICIAL_SCRIPT_DATA
+V2A_CODE_HASH=8LN56HLNjvwtiNb6pRVNSTMtPgJYqGjAgkVSHRiK5Wfv
+COMMIT_V3=640495ba572345ca356376989738fbd5462e1ff8
+V3_CODE_HASH=783vth3Fg8MBBGGFmRqrytQCWBpYzUcmHoCq4Mo8QqF5
+
+
+#### --------------------------------------------
+#### Grab the DAO v2 code data & store it in factory
+#### --------------------------------------------
+http --json post https://rpc.testnet.near.org jsonrpc=2.0 id=dontcare method=query \
+params:='{"request_type":"view_code","finality":"final","account_id":"'$DAO_ACCOUNT_ID'"}' \
+| jq -r .result.code_base64 \
+| base64 --decode > sputnikdao2_original.wasm
+#### --------------------------------------------
 
 
 #### --------------------------------------------
@@ -45,11 +50,6 @@ near deploy --wasmFile sputnikdao-factory2/res/sputnikdao_factory2.wasm --accoun
 #### --------------------------------------------
 #### Grab the DAO v2 code data & store it in factory
 #### --------------------------------------------
-http --json post https://rpc.testnet.near.org jsonrpc=2.0 id=dontcare method=query \
-params:='{"request_type":"view_code","finality":"final","account_id":"'$DAO_ACCOUNT_ID'"}' \
-| jq -r .result.code_base64 \
-| base64 --decode > sputnikdao2_original.wasm
-
 # Store the code data
 V2_BYTES='cat sputnikdao2_original.wasm | base64'
 near call $FACTORY_ACCOUNT_ID store $(eval "$V2_BYTES") --base64 --accountId $FACTORY_ACCOUNT_ID --gas $MAX_GAS --amount 10 > v2_code_hash_result.txt
@@ -75,7 +75,7 @@ near call $FACTORY_ACCOUNT_ID store $(eval "$V2A_BYTES") --base64 --accountId $F
 # Get the response code hash!
 V2A_CODE_HASH=$(eval "tail -1 v2a_code_hash_result.txt | sed 's/^.//;s/.$//'")
 echo "V2A CODE HASH: $V2A_CODE_HASH"
-near call $FACTORY_ACCOUNT_ID store_contract_metadata '{"code_hash": "'$V2A_CODE_HASH'", "metadata": {"version": [2,1], "commit_id": "'$COMMIT_V2A'"}, "set_default": true}' --accountId $FACTORY_ACCOUNT_ID
+near call $FACTORY_ACCOUNT_ID store_contract_metadata '{"code_hash": "'$V2A_CODE_HASH'", "metadata": {"version": [2,1], "commit_id": "'$COMMIT_V2A'"}, "set_default": false}' --accountId $FACTORY_ACCOUNT_ID
 #### --------------------------------------------
 
 
@@ -112,4 +112,4 @@ rm v2_code_hash_result.txt
 rm v2a_code_hash_result.txt
 rm v3_code_hash_result.txt
 
-echo "TESTNET: Factory Deploy Complete"
+echo "TESTNET: Factory Upgrade Complete"

@@ -16,6 +16,9 @@ fi
 export FACTORY_ACCOUNT_ID=sputnik-dao.$FACTORY
 export MAX_GAS=300000000000000
 
+# Create a backup of signer key just so we can be paranoid and careful
+cp ~/.near-credentials/$NEAR_ENV/$NEAR_ACCT.json ~/.near-credentials/$NEAR_ENV/$NEAR_ACCT-backup.json 
+
 # Loop All accounts and deploy v2 gas fixes
 # NOTE: If this fails, the full access key could be wrong.
 # NOTE: If this fails, the account might not have enough funds for new code storage.
@@ -25,10 +28,16 @@ do
   DAO_ACCOUNT_ID="${accounts[e]}.${FACTORY_ACCOUNT_ID}"
   echo "Upgrading: ${DAO_ACCOUNT_ID}"
 
+  # Copy the signing key temporarily so near-cli can get tricked into the right signer
+  cp ~/.near-credentials/$NEAR_ENV/$NEAR_ACCT.json ~/.near-credentials/$NEAR_ENV/$DAO_ACCOUNT_ID.json 
+
   # FOR DEPLOYING v2 with the gas fix
-  # near deploy --wasmFile sputnikdao2-gasfix/res/sputnikdao2_gasfix.wasm --accountId $DAO_ACCOUNT_ID --initGas $MAX_GAS --force
+  near deploy --wasmFile sputnikdao2-gasfix/res/sputnikdao2_gasfix.wasm --accountId $DAO_ACCOUNT_ID --initGas $MAX_GAS --force
   # # FOR DEPLOYING v3 directly (SHOULD BE AVOIDED IF POSSIBLE!)
   # near deploy --wasmFile sputnikdao2/res/sputnikdao2.wasm --accountId $FACTORY_ACCOUNT_ID --initGas $MAX_GAS --force
 
   echo "Deployed ${DAO_ACCOUNT_ID}: Go to https://explorer.near.org/accounts/${DAO_ACCOUNT_ID} and check the code_hash"
+
+  # Remove the dao account fake signer key
+  rm ~/.near-credentials/$NEAR_ENV/$DAO_ACCOUNT_ID.json 
 done
