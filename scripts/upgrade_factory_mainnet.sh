@@ -68,7 +68,7 @@ near call $FACTORY_ACCOUNT_ID store_contract_metadata '{"code_hash": "'$V2_CODE_
 #### NOTE: This doesnt really fix the upgrade path post neard 1.26.0 - those v2 DAOs will be stuck
 #### --------------------------------------------
 # Store the code data
-V2A_BYTES='cat sputnikdao2-gasfix/res/sputnikdao2-gasfix.wasm | base64'
+V2A_BYTES='cat sputnikdao2-gasfix/res/sputnikdao2_gasfix.wasm | base64'
 near call $FACTORY_ACCOUNT_ID store $(eval "$V2A_BYTES") --base64 --accountId $FACTORY_ACCOUNT_ID --gas $MAX_GAS --amount 10 > v2a_code_hash_result.txt
 
 # Update the factory metadata
