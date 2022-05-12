@@ -9,10 +9,6 @@
 #### --------------------------------------------
 set -e
 
-# # TODO: Change to the official approved commit:
-# COMMIT_V3=596f27a649c5df3310e945a37a41a957492c0322
-# # git checkout $COMMIT_V3
-
 # build the things
 ./build.sh
 
@@ -20,23 +16,24 @@ export NEAR_ENV=testnet
 export FACTORY=testnet
 
 if [ -z ${NEAR_ACCT+x} ]; then
-  # export NEAR_ACCT=sputnikv2.$FACTORY
-  export NEAR_ACCT=sputnikpm.$FACTORY
+  export NEAR_ACCT=sputnikv2.$FACTORY
 else
   export NEAR_ACCT=$NEAR_ACCT
 fi
 
-# export FACTORY_ACCOUNT_ID=sputnikv2.$FACTORY
-export FACTORY_ACCOUNT_ID=factory_1.$NEAR_ACCT
-# export DAO_ACCOUNT_ID=croncat.sputnikv2.$FACTORY
+export FACTORY_ACCOUNT_ID=sputnikv2.$FACTORY
 export MAX_GAS=300000000000000
 export GAS_100_TGAS=100000000000000
 export GAS_150_TGAS=150000000000000
 export GAS_220_TGAS=220000000000000
 BOND_AMOUNT=1
 BYTE_STORAGE_COST=6000000000000000000000000
-COMMIT_V3=596f27a649c5df3310e945a37a41a957492c0322
-V3_CODE_HASH=FRc1X7yrgGEnjVEauMMuPTQJmzDdp3ZDfxjomkrLexzq
+COMMIT_V2=c2cf1553b070d04eed8f659571440b27d398c588
+V2_CODE_HASH=8RMeZ5cXDap6TENxaJKtigRYf3n139iHmTRe8ZUNey6N
+COMMIT_V2A=UNOFFICIAL_SCRIPT_DATA
+V2A_CODE_HASH=8LN56HLNjvwtiNb6pRVNSTMtPgJYqGjAgkVSHRiK5Wfv
+COMMIT_V3=640495ba572345ca356376989738fbd5462e1ff8
+V3_CODE_HASH=783vth3Fg8MBBGGFmRqrytQCWBpYzUcmHoCq4Mo8QqF5
 
 
 # #### --------------------------------------------
@@ -137,9 +134,9 @@ near view $FACTORY_ACCOUNT_ID get_contracts_metadata
 #### --------------------------------------------
 #### Upgradeable DAO Proposal
 #### --------------------------------------------
-# FRc1X7yrgGEnjVEauMMuPTQJmzDdp3ZDfxjomkrLexzq
+# 783vth3Fg8MBBGGFmRqrytQCWBpYzUcmHoCq4Mo8QqF5
 
-UPGRADE_PROPOSAL_ARGS=`echo '{"code_hash":"FRc1X7yrgGEnjVEauMMuPTQJmzDdp3ZDfxjomkrLexzq"}' | base64`
+UPGRADE_PROPOSAL_ARGS=`echo '{"code_hash":"783vth3Fg8MBBGGFmRqrytQCWBpYzUcmHoCq4Mo8QqF5"}' | base64`
 # propose UpgradeSelf using the code_hash from store_blob
 near call $UPGRDADEME_ACCOUNT add_proposal '{
   "proposal": {
@@ -169,7 +166,7 @@ near view $UPGRDADEME_ACCOUNT get_proposal '{"id": 0}'
 #### --------------------------------------------
 #### Upgradeable DAO Proposal
 #### --------------------------------------------
-V3_CODE_HASH=FRc1X7yrgGEnjVEauMMuPTQJmzDdp3ZDfxjomkrLexzq
+V3_CODE_HASH=783vth3Fg8MBBGGFmRqrytQCWBpYzUcmHoCq4Mo8QqF5
 # propose UpgradeSelf using the code_hash from store_blob
 near call $UPGRDADEME_ACCOUNT add_proposal '{
   "proposal": {
@@ -192,9 +189,9 @@ near view $UPGRDADEME_ACCOUNT get_proposal '{"id": 1}'
 #### --------------------------------------------
 #### Remove cached blob DAO Proposal
 #### --------------------------------------------
-# FRc1X7yrgGEnjVEauMMuPTQJmzDdp3ZDfxjomkrLexzq
+# 783vth3Fg8MBBGGFmRqrytQCWBpYzUcmHoCq4Mo8QqF5
 
-REMOVE_PROPOSAL_ARGS=`echo '{"code_hash":"FRc1X7yrgGEnjVEauMMuPTQJmzDdp3ZDfxjomkrLexzq"}' | base64`
+REMOVE_PROPOSAL_ARGS=`echo '{"code_hash":"783vth3Fg8MBBGGFmRqrytQCWBpYzUcmHoCq4Mo8QqF5"}' | base64`
 # propose UpgradeSelf using the code_hash from store_blob
 near call $UPGRDADEME_ACCOUNT add_proposal '{
   "proposal": {

@@ -15,16 +15,12 @@ export NEAR_ENV=testnet
 export FACTORY=testnet
 
 if [ -z ${NEAR_ACCT+x} ]; then
-  # export NEAR_ACCT=sputnikv2.$FACTORY
-  export NEAR_ACCT=sputnikpm.$FACTORY
+  export NEAR_ACCT=sputnikv2.$FACTORY
 else
   export NEAR_ACCT=$NEAR_ACCT
 fi
 
-# export FACTORY_ACCOUNT_ID=sputnikv2.$FACTORY
-export FACTORY_ACCOUNT_ID=factory13.$NEAR_ACCT
-# export DAO_ACCOUNT_ID=croncat.sputnikv2.$FACTORY
-# export DAO_ACCOUNT_ID=sputnikdao-dev-v2-1645228499.factory3.sputnikpm.testnet
+export FACTORY_ACCOUNT_ID=sputnikv2.$FACTORY
 export MAX_GAS=300000000000000
 export GAS_100_TGAS=100000000000000
 export GAS_150_TGAS=150000000000000
