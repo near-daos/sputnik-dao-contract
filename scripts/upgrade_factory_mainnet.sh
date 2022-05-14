@@ -2,7 +2,7 @@
 set -e
 
 # build the things
-./build.sh
+# ./build.sh
 
 export NEAR_ENV=mainnet
 export FACTORY=near
@@ -13,7 +13,7 @@ else
   export NEAR_ACCT=$NEAR_ACCT
 fi
 
-export FACTORY_ACCOUNT_ID=sputnik-dao.$NEAR_ACCT
+export FACTORY_ACCOUNT_ID=$NEAR_ACCT
 export DAO_ACCOUNT_ID=genesis.$FACTORY_ACCOUNT_ID
 export MAX_GAS=300000000000000
 export GAS_100_TGAS=100000000000000
