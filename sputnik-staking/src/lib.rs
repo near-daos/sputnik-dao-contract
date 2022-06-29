@@ -229,7 +229,11 @@ mod tests {
         let user = contract.get_user(delegate_from_user.clone());
         assert_eq!(user.delegated_amount(), to_yocto("10"));
 
-        contract.undelegate(delegate_to_user, U128(to_yocto("10")));
+        contract.delegate(delegate_to_user.clone(), U128(to_yocto("10")));
+        let user = contract.get_user(delegate_from_user.clone());
+        assert_eq!(user.delegated_amount(), to_yocto("20"));
+
+        contract.undelegate(delegate_to_user, U128(to_yocto("20")));
         let user = contract.get_user(delegate_from_user);
         assert_eq!(user.delegated_amount(), 0);
         assert_eq!(user.next_action_timestamp, U64(UNSTAKE_PERIOD));

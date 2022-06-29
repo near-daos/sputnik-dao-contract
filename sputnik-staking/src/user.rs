@@ -76,7 +76,25 @@ impl User {
             "ERR_NOT_ENOUGH_TIME_PASSED"
         );
         self.storage_used += delegate_id.as_bytes().len() as StorageUsage + U128_LEN;
-        self.delegated_amounts.push((delegate_id, U128(amount)));
+
+        let pos = self
+            .delegated_amounts
+            .iter()
+            .enumerate()
+            .position(|(_, (account_id, _))| account_id == &delegate_id);
+
+        match pos {
+            Some(position) => {
+                let delegation = self.delegated_amounts[position].clone();
+
+                let _ = std::mem::replace(
+                    &mut self.delegated_amounts[position],
+                    (delegate_id, U128((delegation.1).0 + amount)),
+                );
+            }
+            None => self.delegated_amounts.push((delegate_id, U128(amount))),
+        };
+
         self.assert_storage();
     }
 
