@@ -180,6 +180,21 @@ impl Contract {
         );
     }
 
+    pub fn internal_update_user_storage(&mut self, account_id: &AccountId, near_amount: Balance) {
+        let user = self.internal_get_user(&account_id);
+
+        self.users.insert(
+            account_id,
+            &VersionedUser::Default(user::User {
+                storage_used: user.storage_used,
+                near_amount: U128(user.near_amount.0 + near_amount),
+                vote_amount: user.vote_amount,
+                next_action_timestamp: user.next_action_timestamp,
+                delegated_amounts: user.delegated_amounts,
+            }),
+        );
+    }
+
     /// Deposit voting token.
     pub fn internal_deposit(&mut self, sender_id: &AccountId, amount: Balance) {
         let mut sender = self.internal_get_user(&sender_id);
