@@ -75,7 +75,6 @@ impl User {
             env::block_timestamp() >= self.next_action_timestamp.0,
             "ERR_NOT_ENOUGH_TIME_PASSED"
         );
-        self.storage_used += delegate_id.as_bytes().len() as StorageUsage + U128_LEN;
 
         let pos = self
             .delegated_amounts
@@ -92,7 +91,11 @@ impl User {
                     (delegate_id, U128((delegation.1).0 + amount)),
                 );
             }
-            None => self.delegated_amounts.push((delegate_id, U128(amount))),
+            None => {
+                self.storage_used += delegate_id.as_bytes().len() as StorageUsage + U128_LEN;
+
+                self.delegated_amounts.push((delegate_id, U128(amount)))
+            }
         };
 
         self.assert_storage();
