@@ -75,8 +75,29 @@ impl User {
             env::block_timestamp() >= self.next_action_timestamp.0,
             "ERR_NOT_ENOUGH_TIME_PASSED"
         );
-        self.storage_used += delegate_id.as_bytes().len() as StorageUsage + U128_LEN;
-        self.delegated_amounts.push((delegate_id, U128(amount)));
+
+        let pos = self
+            .delegated_amounts
+            .iter()
+            .enumerate()
+            .position(|(_, (account_id, _))| account_id == &delegate_id);
+
+        match pos {
+            Some(position) => {
+                let delegation = self.delegated_amounts[position].clone();
+
+                let _ = std::mem::replace(
+                    &mut self.delegated_amounts[position],
+                    (delegate_id, U128((delegation.1).0 + amount)),
+                );
+            }
+            None => {
+                self.storage_used += delegate_id.as_bytes().len() as StorageUsage + U128_LEN;
+
+                self.delegated_amounts.push((delegate_id, U128(amount)))
+            }
+        };
+
         self.assert_storage();
     }
 
@@ -156,6 +177,27 @@ impl Contract {
             self.owner_id.clone(),
             (U128_LEN as Balance) * env::storage_byte_cost(),
             GAS_FOR_REGISTER,
+        );
+    }
+
+    pub fn internal_update_user_storage(&mut self, account_id: &AccountId, amount: Balance) {
+        let User {
+            storage_used,
+            near_amount,
+            vote_amount,
+            next_action_timestamp,
+            delegated_amounts,
+        } = self.internal_get_user(&account_id);
+
+        self.users.insert(
+            account_id,
+            &VersionedUser::Default(User {
+                storage_used,
+                near_amount: U128(near_amount.0 + amount),
+                vote_amount,
+                next_action_timestamp,
+                delegated_amounts,
+            }),
         );
     }
 

@@ -199,6 +199,16 @@ mod tests {
 
         testing_env!(context.attached_deposit(to_yocto("1")).build());
         contract.storage_deposit(Some(delegate_from_user.clone()), None);
+        let user = contract.get_user(delegate_from_user.clone());
+        assert_eq!(user.near_amount, U128(to_yocto("1")));
+
+        contract.storage_deposit(Some(delegate_from_user.clone()), None);
+        let user = contract.get_user(delegate_from_user.clone());
+        assert_eq!(user.near_amount, U128(2 * to_yocto("1")));
+
+        contract.storage_deposit(Some(delegate_from_user.clone()), Some(true));
+        let user = contract.get_user(delegate_from_user.clone());
+        assert_eq!(user.near_amount, U128(2 * to_yocto("1")));
 
         testing_env!(context.predecessor_account_id(voting_token.clone()).build());
         contract.ft_on_transfer(
@@ -228,8 +238,14 @@ mod tests {
         contract.delegate(delegate_to_user.clone(), U128(to_yocto("10")));
         let user = contract.get_user(delegate_from_user.clone());
         assert_eq!(user.delegated_amount(), to_yocto("10"));
+        assert_eq!(user.near_amount, 165);
 
-        contract.undelegate(delegate_to_user, U128(to_yocto("10")));
+        contract.delegate(delegate_to_user.clone(), U128(to_yocto("10")));
+        let user = contract.get_user(delegate_from_user.clone());
+        assert_eq!(user.delegated_amount(), to_yocto("20"));
+        assert_eq!(user.near_amount, 165);
+
+        contract.undelegate(delegate_to_user, U128(to_yocto("20")));
         let user = contract.get_user(delegate_from_user);
         assert_eq!(user.delegated_amount(), 0);
         assert_eq!(user.next_action_timestamp, U64(UNSTAKE_PERIOD));
