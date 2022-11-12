@@ -4003,6 +4003,7 @@ dependencies = [
  "near-sdk-sim",
  "near-units",
  "serde_json",
+ "sputnikdao2",
  "tokio",
  "workspaces",
 ]

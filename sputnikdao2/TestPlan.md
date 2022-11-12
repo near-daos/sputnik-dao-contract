@@ -6,10 +6,10 @@ The following is coverage checklists & notes about context tests needed to check
 
 ## Init & Default
 ### new
-- [ ] Can instantiate a new factory with default struct, including DAOs set.
-- [ ] Stores the latest compiled version of Sputnik DAO contract in storage
-- [ ] Creates metadata for the latest compiled version of Sputnik DAO
-- [ ] Does not allow re-init
+- [x] Can instantiate a new factory with default struct, including DAOs set.
+- [x] Stores the latest compiled version of Sputnik DAO contract in storage
+- [x] Creates metadata for the latest compiled version of Sputnik DAO
+- [x] Does not allow re-init
 - [ ] Does not allow anyone but owner to call "new"
 
 ## DAOs
