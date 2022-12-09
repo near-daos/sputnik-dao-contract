@@ -2,20 +2,13 @@ use near_sdk::{json_types::Base64VecU8, AccountId};
 use near_units::parse_near;
 use serde_json::json;
 use sputnikdao2::{Config, VersionedPolicy};
-use workspaces::{Contract, DevNetwork, Worker};
 
 const FACTORY_WASM: &[u8] = include_bytes!("../res/sputnikdao_factory2.wasm");
 
-async fn init(_worker: &Worker<impl DevNetwork>) -> anyhow::Result<Contract> {
-    let worker = workspaces::sandbox().await?;
-    let contract = worker.dev_deploy(FACTORY_WASM).await?;
-
-    Ok(contract)
-}
 #[tokio::test]
 async fn init_and_default() -> anyhow::Result<()> {
     let worker = workspaces::sandbox().await?;
-    let contract = init(&worker).await?;
+    let contract = worker.dev_deploy(FACTORY_WASM).await?;
 
     let res_new = contract
         .call("new")
