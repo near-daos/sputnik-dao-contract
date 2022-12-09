@@ -60,7 +60,7 @@ async fn init_and_default() -> anyhow::Result<()> {
 
     assert!(res_store.is_success());
 
-    let res_metadata = contract.view("get_contracts_metadata", vec![]).await?;
+    let res_metadata = contract.view("get_contracts_metadata").await?;
 
     assert!(!res_metadata.result.is_empty());
 

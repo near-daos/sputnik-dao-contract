@@ -51,9 +51,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.57"
+version = "1.0.66"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08f9b8508dccb7687a1d6c4ce66b2b0ecef467c94667de27d8d7fe1f8d2a9cdc"
+checksum = "216261ddc8289130e551ddcd5ce8a064710c0d064a4d2895c67151c92b5443f6"
 
 [[package]]
 name = "arrayref"
@@ -2221,9 +2221,9 @@ dependencies = [
 
 [[package]]
 name = "near-jsonrpc-client"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "384356f354bdf85d0ece627c6af6f38febb5406a4ffb32c5d75429b1a1472e29"
+checksum = "d1335ffce1476da6516dcd22b26cece1a495fc725c0e8fec1879073752ac068d"
 dependencies = [
  "borsh 0.9.3",
  "lazy_static",
@@ -2616,9 +2616,9 @@ dependencies = [
 
 [[package]]
 name = "near-sandbox-utils"
-version = "0.6.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "201b7e0c5fcff633fb53e743b16c6aea4110e531764ccaa215ea1382db940b45"
+checksum = "a4b2da180a368a12da1949e9940af2457cbce83acb85743b8834b6c9b4111e9f"
 dependencies = [
  "anyhow",
  "async-process",
@@ -5180,9 +5180,9 @@ dependencies = [
 
 [[package]]
 name = "workspaces"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbc74416d48b2deb83004a0fff9d856e46a026c156da4acc4feca044a0a33755"
+checksum = "73b13d249618f197811e3673decc81459730cf5cc09ee7246dc4bede1e9333bc"
 dependencies = [
  "async-process",
  "async-trait",
