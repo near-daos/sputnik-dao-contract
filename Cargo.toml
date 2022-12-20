@@ -5,8 +5,6 @@ members = [
   "sputnikdao2",
   "sputnikdao-factory2",
   "test-token",
-]
-exclude = [
   "workspaces-rs-tests",
 ]
 
