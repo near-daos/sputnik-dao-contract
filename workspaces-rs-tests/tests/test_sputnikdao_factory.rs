@@ -6,14 +6,16 @@ use std::str::FromStr;
 use workspaces::types::{KeyType, SecretKey};
 use workspaces::AccountId;
 
+
+
 #[tokio::test]
-async fn init_and_default() -> anyhow::Result<()> {
+async fn test_factory() -> anyhow::Result<()> {
     // Create a sandbox environment.
     let worker = workspaces::sandbox().await?;
 
     // Deploy Spunik DAO factory contract in sandbox
     println!("Deploying Spunik DAO factory contract");
-    let wasm = std::fs::read("./res/sputnikdao_factory2.wasm")?;
+    let wasm = std::fs::read("../sputnikdao-factory2/res/sputnikdao_factory2.wasm")?;
     let dao_factory = worker
         .create_tla_and_deploy(
             AccountId::from_str("dao-factory.test.near")?,
