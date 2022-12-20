@@ -8,13 +8,12 @@ publish = false
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[dependencies]
-near-sdk = { version = "4.0.0-pre.4", features = ["unstable"]  }
-near-sdk-sim = "4.0.0-pre.4"
-workspaces = "0.7.0"
+[dev-dependencies]
 anyhow = "1.0"
-tokio = "1.23.0"
 near-primitives = "0.5.0"
+near-sdk = { version = "4.0.0-pre.4", features = ["unstable"]  }
 near-units = "0.2.0"
 serde_json = "1.0"
+tokio = { version = "1.14", features = ["full"] }
+workspaces = "0.7.0"
 sputnikdao2 = { path = "../sputnikdao2" }
