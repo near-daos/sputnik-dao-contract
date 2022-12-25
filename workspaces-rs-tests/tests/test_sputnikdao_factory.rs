@@ -1,41 +1,45 @@
 use near_sdk::json_types::{Base58CryptoHash, Base64VecU8};
-use near_sdk::AccountId as AccID;
-use near_units::parse_near;
+use near_units::{parse_gas, parse_near};
 use sputnikdao2::{Config, VersionedPolicy};
 use std::str::FromStr;
 use workspaces::types::{KeyType, SecretKey};
 use workspaces::AccountId;
 
-
-
 #[tokio::test]
 async fn test_factory() -> anyhow::Result<()> {
     // Create a sandbox environment.
     let worker = workspaces::sandbox().await?;
-
+    println!("SPUTNIK FACTORY TESTS:\n\n");
     // Deploy Spunik DAO factory contract in sandbox
-    println!("Deploying Spunik DAO factory contract");
+    println!("1. Can instantiate a new factory with default struct, \nincluding DAOs set:\n");
     let wasm = std::fs::read("../sputnikdao-factory2/res/sputnikdao_factory2.wasm")?;
     let dao_factory = worker
         .create_tla_and_deploy(
-            AccountId::from_str("dao-factory.test.near")?,
+            AccountId::from_str("sputnik-factory.test.near")?,
             SecretKey::from_random(KeyType::ED25519),
             &wasm,
         )
         .await?
-        .unwrap();
+        .into_result()?;
 
-    println!("Contract Id: {:?}", dao_factory.id());
+    println!(
+        "Creating an account to hold wasm file: Factory Contract Id: {:?}",
+        dao_factory.id().as_str()
+    );
 
     // Init daofactory contract
-    println!("Initializing daofactory contract");
+    println!("Instantiating new factory.");
     let init_daofactory = dao_factory
         .call("new")
-        .max_gas()
+        .gas(parse_gas!("42 Tgas") as u64)
         .transact()
         .await?
-        .borsh()?;
-    println!("Initialization complete. {:?}", init_daofactory);
+        .into_result()?;
+
+    println!(
+        "Instantiation completed. Outcome block hash: {:?}",
+        init_daofactory.outcome().block_hash
+    );
 
     // Define parameters of new dao:
 
@@ -55,28 +59,36 @@ async fn test_factory() -> anyhow::Result<()> {
     let create_new_dao = dao_factory
         .call("create")
         .args_json(serde_json::json!({
-            "name": "createdao",
+            "name": "awesome",
             "args":Base64VecU8(params),
         }))
         .deposit(parse_near!("6 N"))
-        .max_gas()
+        .gas(parse_gas!("150 Tgas") as u64)
         .transact()
         .await?
-        .borsh()?;
-    println!("DAO successfully created. {:?}", create_new_dao);
+        .into_result()?;
+    println!(
+        "DAO successfully created. Outcome block hash: {:?}",
+        create_new_dao.outcome().block_hash
+    );
 
     println!("Getting the factory owner...");
-    let get_owner = AccID::new_unchecked(dao_factory.view("get_owner").await?.json()?);
-    println!("Factory owner: {:?}", get_owner);
+    let get_owner: AccountId = dao_factory.view("get_owner").await?.json()?;
+    println!("Factory owner: {:?}", get_owner.as_str());
 
     println!("Getting default code hash...");
     let get_default_code_hash: Base58CryptoHash =
         dao_factory.view("get_default_code_hash").await?.json()?;
-    println!("Code Hash: {:?}", get_default_code_hash);
+    println!(
+        "Code Hash: {:?}",
+        serde_json::json!(get_default_code_hash).as_str().unwrap()
+    );
 
     println!("Getting daos list...");
     let get_dao_list: Vec<AccountId> = dao_factory.view("get_dao_list").await?.json()?;
-    println!("List of DAOs {:?}", get_dao_list);
+    for i in &get_dao_list {
+        println!("DAO List: {i}");
+    }
 
     println!("Getting code...");
     let get_code = dao_factory
@@ -84,7 +96,7 @@ async fn test_factory() -> anyhow::Result<()> {
         .args_json(serde_json::json!({ "code_hash": get_default_code_hash, }))
         .await?
         .result;
-    println!("Code lenght: {:?}", get_code.len());
+    println!("Code len: {:?}.", get_code.len());
 
     Ok(())
 }
