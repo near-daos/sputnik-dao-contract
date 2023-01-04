@@ -14,8 +14,6 @@ type Version = [u8; 2];
 // The keys used for writing data to storage via `env::storage_write`.
 const DEFAULT_CODE_HASH_KEY: &[u8; 4] = b"CODE";
 const FACTORY_OWNER_KEY: &[u8; 5] = b"OWNER";
-const DEFAULT_FACTORY_HASH_KEY: &[u8; 7] = b"FACTORY";
-const FACTORY_METADATA_KEY: &[u8; 7] = b"FACMETA";
 const CODE_METADATA_KEY: &[u8; 8] = b"METADATA";
 
 // The values used when writing initial data to the storage.
@@ -27,25 +25,13 @@ const DAO_CONTRACT_NO_DATA: &str = "no data";
 const GAS_STORE_CONTRACT_LEFTOVER: Gas = Gas(20_000_000_000_000);
 const ON_REMOVE_CONTRACT_GAS: Gas = Gas(10_000_000_000_000);
 const NO_DEPOSIT: Balance = 0;
+const UPDATE_GAS_LEFTOVER: Gas = Gas(10_000_000_000_000);
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct DaoContractMetadata {
     // version of the DAO contract code (e.g. [2, 0] -> 2.0, [3, 1] -> 3.1, [4, 0] -> 4.0)
-    pub version: Version,
-    // commit id of https://github.com/near-daos/sputnik-dao-contract
-    // representing a snapshot of the code that generated the wasm
-    pub commit_id: String,
-    // if available, url to the changelog to see the changes introduced in this version
-    pub changelog_url: Option<String>,
-}
-
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
-#[serde(crate = "near_sdk::serde")]
-pub struct DaoFactoryMetadata {
-    // version of the DAO factory code (e.g. [2, 0] -> 2.0, [3, 1] -> 3.1, [4, 0] -> 4.0)
     pub version: Version,
     // commit id of https://github.com/near-daos/sputnik-dao-contract
     // representing a snapshot of the code that generated the wasm
@@ -306,23 +292,9 @@ impl SputnikDAOFactory {
         slice_to_hash(&env::storage_read(DEFAULT_CODE_HASH_KEY).expect("Must have code hash"))
     }
 
-    pub fn get_default_factory_hash(&self) -> Base58CryptoHash {
-        slice_to_hash(&env::storage_read(DEFAULT_FACTORY_HASH_KEY).expect("Must have code hash"))
-    }
-
     pub fn get_default_version(&self) -> Version {
         let storage_metadata = env::storage_read(CODE_METADATA_KEY).expect("INTERNAL_FAIL");
         let deserialized_metadata: UnorderedMap<Base58CryptoHash, DaoContractMetadata> =
-            BorshDeserialize::try_from_slice(&storage_metadata).expect("INTERNAL_FAIL");
-        let default_metadata = deserialized_metadata
-            .get(&self.get_default_code_hash())
-            .expect("INTERNAL_FAIL");
-        default_metadata.version
-    }
-
-    pub fn get_default_factory_version(&self) -> Version {
-        let storage_metadata = env::storage_read(CODE_METADATA_KEY).expect("INTERNAL_FAIL");
-        let deserialized_metadata: UnorderedMap<Base58CryptoHash, DaoFactoryMetadata> =
             BorshDeserialize::try_from_slice(&storage_metadata).expect("INTERNAL_FAIL");
         let default_metadata = deserialized_metadata
             .get(&self.get_default_code_hash())
@@ -371,42 +343,6 @@ impl SputnikDAOFactory {
         }
     }
 
-    pub fn store_factory_metadata(
-        &self,
-        factory_hash: Base58CryptoHash,
-        metadata: DaoFactoryMetadata,
-        set_default: bool,
-    ) {
-        self.assert_owner();
-        let hash: CryptoHash = factory_hash.into();
-        assert!(
-            env::storage_has_key(&hash),
-            "Factory not found for the given factory hash. Please store the factory code first."
-        );
-
-        let storage_metadata = env::storage_read(FACTORY_METADATA_KEY);
-        if storage_metadata.is_none() {
-            let mut storage_metadata: UnorderedMap<Base58CryptoHash, DaoFactoryMetadata> =
-                UnorderedMap::new(b"m".to_vec());
-            storage_metadata.insert(&factory_hash, &metadata);
-            let serialized_metadata =
-                BorshSerialize::try_to_vec(&storage_metadata).expect("INTERNAL_FAIL");
-            env::storage_write(FACTORY_METADATA_KEY, &serialized_metadata);
-        } else {
-            let storage_metadata = storage_metadata.expect("INTERNAL_FAIL");
-            let mut deserialized_metadata: UnorderedMap<Base58CryptoHash, DaoFactoryMetadata> =
-                BorshDeserialize::try_from_slice(&storage_metadata).expect("INTERNAL_FAIL");
-            deserialized_metadata.insert(&factory_hash, &metadata);
-            let serialized_metadata =
-                BorshSerialize::try_to_vec(&deserialized_metadata).expect("INTERNAL_FAIL");
-            env::storage_write(FACTORY_METADATA_KEY, &serialized_metadata);
-        }
-
-        if set_default {
-            env::storage_write(DEFAULT_FACTORY_HASH_KEY, &hash);
-        }
-    }
-
     pub fn delete_contract_metadata(&self, code_hash: Base58CryptoHash) {
         self.assert_owner();
         let storage_metadata = env::storage_read(CODE_METADATA_KEY).expect("INTERNAL_FAIL");
@@ -418,17 +354,6 @@ impl SputnikDAOFactory {
         env::storage_write(CODE_METADATA_KEY, &serialized_metadata);
     }
 
-    pub fn delete_factory_metadata(&self, factory_hash: Base58CryptoHash) {
-        self.assert_owner();
-        let storage_metadata = env::storage_read(FACTORY_METADATA_KEY).expect("INTERNAL_FAIL");
-        let mut deserialized_metadata: UnorderedMap<Base58CryptoHash, DaoFactoryMetadata> =
-            BorshDeserialize::try_from_slice(&storage_metadata).expect("INTERNAL_FAIL");
-        deserialized_metadata.remove(&factory_hash);
-        let serialized_metadata =
-            BorshSerialize::try_to_vec(&deserialized_metadata).expect("INTERNAL_FAIL");
-        env::storage_write(FACTORY_METADATA_KEY, &serialized_metadata);
-    }
-
     pub fn get_contracts_metadata(&self) -> Vec<(Base58CryptoHash, DaoContractMetadata)> {
         let storage_metadata = env::storage_read(CODE_METADATA_KEY).expect("INTERNAL_FAIL");
         let deserialized_metadata: UnorderedMap<Base58CryptoHash, DaoContractMetadata> =
@@ -436,11 +361,19 @@ impl SputnikDAOFactory {
         return deserialized_metadata.to_vec();
     }
 
-    pub fn get_factories_metadata(&self) -> Vec<(Base58CryptoHash, DaoFactoryMetadata)> {
-        let storage_metadata = env::storage_read(FACTORY_METADATA_KEY).expect("INTERNAL_FAIL");
-        let deserialized_metadata: UnorderedMap<Base58CryptoHash, DaoFactoryMetadata> =
-            BorshDeserialize::try_from_slice(&storage_metadata).expect("INTERNAL_FAIL");
-        return deserialized_metadata.to_vec();
+    /// Should only be called by this contract on migration.
+    /// This is NOOP implementation. KEEP IT if you haven't changed contract state.
+    /// If you have changed state, you need to implement migration from old state (keep the old struct with different name to deserialize it first).
+    /// After migrate goes live on MainNet, return this implementation for next updates.
+    #[init(ignore_state)]
+    pub fn migrate() -> Self {
+        assert_eq!(
+            env::predecessor_account_id(),
+            env::current_account_id(),
+            "ERR_NOT_ALLOWED"
+        );
+        let this: SputnikDAOFactory = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
+        this
     }
 
     fn assert_owner(&self) {
@@ -492,6 +425,16 @@ pub extern "C" fn upgrade_factory() {
     
     // Deploy the contract code.
     env::promise_batch_action_deploy_contract(promise_id, &input);
+
+    // Call promise to migrate the state.
+    // Batched together to fail upgrade if migration fails.
+    env::promise_batch_action_function_call(
+        promise_id,
+        "migrate",
+        &[],
+        NO_DEPOSIT,
+        env::prepaid_gas() - env::used_gas() - UPDATE_GAS_LEFTOVER,
+    );
     
     env::promise_return(promise_id);
 }

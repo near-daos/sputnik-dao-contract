@@ -85,7 +85,7 @@ export FACTORYCODE='cat sputnikdao_factory2.wasm | base64'
 # - most likely need to use near-cli-rs due to wasm string size limit
 # Store blob in DAO
 echo '{ "proposal": { "description": "Store upgrade", "kind": { "FunctionCall": { "receiver_id": "'$GENDAO'", "actions": [ { "method_name": "store_blob", "args": "'$(eval $FACTORYCODE)'", "deposit": "'$BYTE_STORAGE_COST'", "gas": "'$GAS_150_TGAS'" } ]}}}}' | base64 | pbcopy
-# near call $GENDAO store $(eval "$FACTORYCODE") --base64 --accountId $FACTORY_ACCOUNT_ID --gas $GAS_100_TGAS --amount 10 > new_factory_hash.txt
+# near call add_proposal using near-cli-rs due to string size limit with above base64 args
 # Once proposal created on Genesis DAO that is owner of factory account now, vote on it so that it can act_proposal storing the new factory code and returning a hash
 # Vote on proposal
 near call $GENDAO act_proposal '{"id": 0, "action" :"VoteApprove"}' --accountId $CONTRACT_ID --gas $MAX_GAS
@@ -109,7 +109,7 @@ near call $GENDAO add_proposal '{
   }
 }' --accountId $CONTRACT_ID --amount $BOND_AMOUNT --gas $MAX_GAS
 # Vote on proposal
-near call $GENDAO act_proposal '{"id": 2, "action" :"VoteApprove"}' --accountId $CONTRACT_ID --gas $MAX_GAS
+near call $GENDAO act_proposal '{"id": 1, "action" :"VoteApprove"}' --accountId $CONTRACT_ID --gas $MAX_GAS
 
 # Factory should be pointing to new hash
 
