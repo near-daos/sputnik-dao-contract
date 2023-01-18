@@ -10,7 +10,7 @@ The following is coverage checklists & notes about context tests needed to check
 - [x] Stores the latest compiled version of Sputnik DAO contract in storage
 - [x] Creates metadata for the latest compiled version of Sputnik DAO
 - [x] Does not allow re-init
-- [ ] Does not allow anyone but owner to call "new"
+- [x] Does not allow anyone but owner to call "new"
 
 ## DAOs
 ### Creation
