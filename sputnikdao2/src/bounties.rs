@@ -175,12 +175,16 @@ impl Contract {
                 "ERR_BOUNTY_DONE_MUST_BE_SELF"
             );
             self.add_proposal(ProposalInput {
-                description,
-                kind: ProposalKind::BountyDone {
-                    bounty_id: id,
-                    receiver_id: sender_id.clone(),
+                    description,
+                    kind: ProposalKind::BountyDone {
+                        bounty_id: id,
+                        receiver_id: sender_id.clone(),
+                    }
                 },
-            });
+                None,
+                None,
+                None
+            );
             claims[claim_idx].completed = true;
             self.bounty_claimers.insert(&sender_id, &claims);
         }
@@ -221,17 +225,21 @@ mod tests {
     fn add_bounty(context: &mut VMContextBuilder, contract: &mut Contract, times: u32) -> u64 {
         testing_env!(context.attached_deposit(to_yocto("1")).build());
         let id = contract.add_proposal(ProposalInput {
-            description: "test".to_string(),
-            kind: ProposalKind::AddBounty {
-                bounty: Bounty {
-                    description: "test bounty".to_string(),
-                    token: String::from(OLD_BASE_TOKEN),
-                    amount: U128(to_yocto("10")),
-                    times,
-                    max_deadline: U64::from(1_000),
+                description: "test".to_string(),
+                kind: ProposalKind::AddBounty {
+                    bounty: Bounty {
+                        description: "test bounty".to_string(),
+                        token: String::from(OLD_BASE_TOKEN),
+                        amount: U128(to_yocto("10")),
+                        times,
+                        max_deadline: U64::from(1_000),
+                    },
                 },
             },
-        });
+            None,
+            None,
+            None
+        );
         assert_eq!(contract.get_last_bounty_id(), id);
         contract.act_proposal(id, Action::VoteApprove, None);
         id

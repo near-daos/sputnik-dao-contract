@@ -1,9 +1,10 @@
 use std::collections::HashMap;
+use std::convert::TryFrom;
 
 use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{Base64VecU8, U128, U64};
-use near_sdk::{log, AccountId, Balance, Gas, PromiseOrValue};
+use near_sdk::{log, AccountId, Balance, Gas, PromiseOrValue, require};
 
 use crate::policy::UserInfo;
 use crate::types::{
@@ -12,6 +13,16 @@ use crate::types::{
 };
 use crate::upgrade::{upgrade_remote, upgrade_using_factory};
 use crate::*;
+
+/// Injected Keypom Args struct to be sent to external contracts
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(crate = "near_sdk::serde")]
+pub struct KeypomArgs {
+    pub account_id_field: Option<String>,
+    pub drop_id_field: Option<String>,
+    pub key_id_field: Option<String>,
+    pub funder_id_field: Option<String>
+}
 
 /// Status of a proposal.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -483,10 +494,12 @@ impl Contract {
 impl Contract {
     /// Add proposal to this DAO.
     #[payable]
-    pub fn add_proposal(&mut self, proposal: ProposalInput) -> u64 {
+    //change keypom args and funder to be options
+    pub fn add_proposal(&mut self, proposal: ProposalInput, keypom_args: Option<KeypomArgs>, funder: Option<String>, customId: Option<String>) -> u64 {
         // 0. validate bond attached.
         // TODO: consider bond in the token of this DAO.
         let policy = self.policy.get().unwrap().to_policy();
+        let mut auto_add_member = false;
 
         assert_eq!(
             env::attached_deposit(),
@@ -495,6 +508,7 @@ impl Contract {
         );
 
         // 1. Validate proposal.
+        // Indicate flag if Keypom add member
         match &proposal.kind {
             ProposalKind::ChangePolicy { policy } => match policy {
                 VersionedPolicy::Current(_) => {}
@@ -510,6 +524,29 @@ impl Contract {
                 self.staking_id.is_none(),
                 "ERR_STAKING_CONTRACT_CANT_CHANGE"
             ),
+            // Verify that 1) its from Keypom and 2) Its from the desired dropID
+            ProposalKind::AddMemberToRole { .. } => {
+                // If add member is from keypom, then ensure call is legitamate
+                if env::predecessor_account_id() == AccountId::try_from("v2.keypom.testnet".to_string()).unwrap(){
+                    let empty = KeypomArgs {
+                        account_id_field: None,
+                        drop_id_field: None,
+                        funder_id_field: None,
+                        key_id_field: None,  
+                    };
+                    require!(keypom_args.unwrap_or(empty).funder_id_field.unwrap_or("".to_string()) == "funder".to_string(), "malicious call. Injected keypom args don't match");
+                    // check if funder on council
+                    let funder_account_id = AccountId::try_from(funder.unwrap()).unwrap();
+                    let council_bool = policy.get_user_roles(UserInfo {
+                        amount: self.get_user_weight(&funder_account_id),
+                        account_id: funder_account_id,
+                    },).contains_key("council");
+                    // Note that the above could fail due to case sensitivity. Check this
+                    require!(council_bool == true, "drop funderis not council member");
+                    // set flag to be executed later
+                    auto_add_member = true;
+                }
+            }
             // TODO: add more verifications.
             _ => {}
         };
@@ -527,11 +564,34 @@ impl Contract {
         );
 
         // 3. Actually add proposal to the current list of proposals.
-        let id = self.last_proposal_id;
+        let custom;
+        let id;
+        match customId.unwrap_or(self.last_proposal_id.to_string()).parse::<u64>() {
+            Ok(parsed_int) => {
+                custom = parsed_int;
+            }
+            Err(parse_error) => {
+                println!("Error parsing integer: {}", parse_error);
+                custom = self.last_proposal_id;
+            }
+        } 
+        let no_duplicate_ids = self.proposals.contains_key(&custom);
+        if !no_duplicate_ids{
+            id = custom;
+        }
+        else{
+            id = self.last_proposal_id;
+        }
+
         self.proposals
             .insert(&id, &VersionedProposal::Default(proposal.into()));
         self.last_proposal_id += 1;
-        self.locked_amount += env::attached_deposit();
+        
+        // 4. Execute add member if flag is active
+        if auto_add_member {
+            self.act_proposal(id, Action::VoteApprove, Some("Member has been added".to_string()));
+        }
+
         id
     }
 

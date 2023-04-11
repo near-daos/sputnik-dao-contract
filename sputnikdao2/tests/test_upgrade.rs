@@ -139,6 +139,9 @@ fn test_upgrade_other() {
                 hash,
             },
         },
+        None,
+        None,
+        None
     )
     .assert_success();
     call!(root, dao.act_proposal(0, Action::VoteApprove, None)).assert_success();

@@ -131,6 +131,9 @@ fn test_multi_council() {
                 policy: VersionedPolicy::Current(new_policy.clone()),
             },
         },
+        None,
+        None,
+        None
     )
     .assert_success();
     vote(vec![&root], &dao, 0);
@@ -309,6 +312,9 @@ fn test_create_dao_and_use_token() {
                 staking_id: "staking".parse().unwrap(),
             },
         },
+        None,
+        None,
+        None
     )
     .assert_success();
     vote(vec![&user3, &user2], &dao, 2);

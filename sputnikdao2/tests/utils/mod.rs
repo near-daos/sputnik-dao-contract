@@ -89,8 +89,11 @@ pub fn add_proposal(
     root: &UserAccount,
     dao: &Contract,
     proposal: ProposalInput,
+    keypom_args: Option<KeypomArgs>, 
+    funder: Option<String>, 
+    customId: Option<String>
 ) -> ExecutionResult {
-    call!(root, dao.add_proposal(proposal), deposit = to_yocto("1"))
+    call!(root, dao.add_proposal(proposal, None, None, None), deposit = to_yocto("1"))
 }
 
 pub fn add_member_proposal(
@@ -108,6 +111,9 @@ pub fn add_member_proposal(
                 role: "council".to_string(),
             },
         },
+        None,
+        None,
+        None
     )
 }
 
@@ -131,6 +137,9 @@ pub fn add_transfer_proposal(
                 msg,
             },
         },
+        None,
+        None,
+        None
     )
 }
 
@@ -150,6 +159,9 @@ pub fn add_bounty_proposal(root: &UserAccount, dao: &Contract) -> ExecutionResul
                 },
             },
         },
+        None,
+        None,
+        None
     )
 }
 

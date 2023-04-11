@@ -314,7 +314,7 @@ impl Policy {
     }
 
     /// Returns set of roles that this user is member of permissions for given user across all the roles it's member of.
-    fn get_user_roles(&self, user: UserInfo) -> HashMap<String, &HashSet<String>> {
+    pub fn get_user_roles(&self, user: UserInfo) -> HashMap<String, &HashSet<String>> {
         let mut roles = HashMap::default();
         for role in self.roles.iter() {
             if role.kind.match_user(&user) {
