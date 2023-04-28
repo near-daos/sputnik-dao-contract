@@ -12,7 +12,7 @@ const FACTORY_UPDATE_GAS_LEFTOVER: Gas = Gas(15_000_000_000_000);
 const NO_DEPOSIT: Balance = 0;
 
 pub const GAS_FOR_UPGRADE_SELF_DEPLOY: Gas = Gas(15_000_000_000_000);
-pub const GAS_FOR_UPGRADE_REMOTE_DEPLOY: Gas = Gas(15_000_000_000_000);
+pub const GAS_FOR_UPGRADE_REMOTE_DEPLOY: Gas = Gas(30_000_000_000_000);
 
 /// Info about factory that deployed this contract and if auto-update is allowed.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
