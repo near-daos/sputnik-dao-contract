@@ -25,6 +25,7 @@ const DAO_CONTRACT_NO_DATA: &str = "no data";
 const GAS_STORE_CONTRACT_LEFTOVER: Gas = Gas(20_000_000_000_000);
 const ON_REMOVE_CONTRACT_GAS: Gas = Gas(10_000_000_000_000);
 const NO_DEPOSIT: Balance = 0;
+const UPDATE_GAS_LEFTOVER: Gas = Gas(10_000_000_000_000);
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
@@ -360,6 +361,21 @@ impl SputnikDAOFactory {
         return deserialized_metadata.to_vec();
     }
 
+    /// Should only be called by this contract on migration.
+    /// This is NOOP implementation. KEEP IT if you haven't changed contract state.
+    /// If you have changed state, you need to implement migration from old state (keep the old struct with different name to deserialize it first).
+    /// After migrate goes live on MainNet, return this implementation for next updates.
+    #[init(ignore_state)]
+    pub fn migrate() -> Self {
+        assert_eq!(
+            env::predecessor_account_id(),
+            env::current_account_id(),
+            "ERR_NOT_ALLOWED"
+        );
+        let this: SputnikDAOFactory = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
+        this
+    }
+
     fn assert_owner(&self) {
         assert_eq!(
             self.get_owner(),
@@ -390,6 +406,37 @@ pub extern "C" fn store() {
         "Must at least deposit {} to store",
         storage_cost
     );
+}
+
+/// Store new contract. Non serialized argument is the contract.
+/// Returns base58 of the hash of the contract.
+#[no_mangle]
+pub extern "C" fn upgrade_factory() {
+    env::setup_panic_hook();
+    let contract: SputnikDAOFactory = env::state_read().expect("Contract is not initialized");
+    contract.assert_owner();
+
+    let current_id = env::current_account_id();
+    
+    let input = env::input().expect("ERR_NO_INPUT");
+
+    // Create a promise toward given account.
+    let promise_id = env::promise_batch_create(&current_id);
+    
+    // Deploy the contract code.
+    env::promise_batch_action_deploy_contract(promise_id, &input);
+
+    // Call promise to migrate the state.
+    // Batched together to fail upgrade if migration fails.
+    env::promise_batch_action_function_call(
+        promise_id,
+        "migrate",
+        &[],
+        NO_DEPOSIT,
+        env::prepaid_gas() - env::used_gas() - UPDATE_GAS_LEFTOVER,
+    );
+    
+    env::promise_return(promise_id);
 }
 
 #[cfg(test)]
