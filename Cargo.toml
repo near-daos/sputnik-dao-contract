@@ -4,7 +4,8 @@ members = [
   "sputnik-staking",
   "sputnikdao2",
   "sputnikdao-factory2",
-  "test-token"
+  "test-token",
+  "workspaces-rs-tests",
 ]
 
 [profile.release]
