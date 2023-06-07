@@ -16,9 +16,9 @@ set CONTRACT_ID "dev-1608694678554-8567049"
 near call $CONTRACT_ID new '{}' --accountId $CONTRACT_ID 
 
 # bash
-ARGS=`echo '{"purpose": "test", "council": ["testmewell.testnet", "illia"], "bond": "1000000000000000000000000", "vote_period": "1800000000000", "grace_period": "1800000000000"}' | base64`
+ARGS=`echo '{"config": {"name": "test", "purpose": "test", "metadata": ""}, "policy": ["'$CONTRACT_ID'"]}' | base64`
 # fish
-set ARGS (echo '{"purpose": "test", "council": ["testmewell.testnet", "illia"], "bond": "1000000000000000000000000", "vote_period": "1800000000000", "grace_period": "1800000000000"}' | base64)
+set ARGS (echo '{"config": {"name": "test", "purpose": "test", "metadata": ""}, "policy": ["'$CONTRACT_ID'"]}' | base64)
 
 # Create a new DAO with the given parameters.
 near call $CONTRACT_ID create "{\"name\": \"test\", \"public_key\": null, \"args\": \"$ARGS\"}"  --accountId $CONTRACT_ID --amount 30 --gas 100000000000000
