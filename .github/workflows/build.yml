@@ -3,8 +3,9 @@ on:
   # (you may add filters for when running the workflow)
   push:
     branches:
-      - main
+      - master
   pull_request:
+
 env:
   # better visualization
   CARGO_TERM_COLOR: always
@@ -18,8 +19,8 @@ jobs:
     name: Create a new release on tags
     runs-on: ubuntu-latest
     # env:
-      # Set to force version number, e.g., when no tag exists.
-      # RG_VERSION: TEST-0.0.0
+    # Set to force version number, e.g., when no tag exists.
+    # RG_VERSION: TEST-0.0.0
     outputs:
       rg_version: ${{ env.RG_VERSION }}
     steps:
@@ -38,7 +39,7 @@ jobs:
   build:
     # in case this is a binary release, we make sure to wait
     # for any requirement to be ready
-    needs: ['create-release-on-tags']
+    needs: ["create-release-on-tags"]
     runs-on: ubuntu-latest
     steps:
       # rust compiler for running tests
@@ -104,7 +105,7 @@ jobs:
         with:
           command: build
           args: --release --target wasm32-unknown-unknown
-      # Copies the wasm binaries to res/ and strips them 
+      # Copies the wasm binaries to res/ and strips them
       # (reducing their's sizes)
       - name: Wasm copy and strip
         run: |
