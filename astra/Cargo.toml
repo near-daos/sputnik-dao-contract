@@ -1,11 +1,12 @@
 [package]
 name = "astra"
 version = "0.1.0"
-authors = [
-        "Sputnik Devs <near-daos@protonmail.com>",
-        "NDC GWG (https://near.social/#/mob.near/widget/ProfilePage?accountId=govworkinggroup.near)"]
-edition = "2018"
 publish = false
+authors = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+
 
 [lib]
 crate-type = ["cdylib", "rlib"]

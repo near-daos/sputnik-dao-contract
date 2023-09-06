@@ -74,6 +74,39 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8da52d66c7071e2e3fa2a1e5c6d088fec47b593032b254f5e980de8ea54454d6"
 
 [[package]]
+name = "astra"
+version = "0.1.0"
+dependencies = [
+ "astra-factory",
+ "astra-staking",
+ "hex",
+ "near-contract-standards",
+ "near-sdk",
+ "near-sdk-sim",
+ "serde_with",
+ "test-token",
+]
+
+[[package]]
+name = "astra-factory"
+version = "0.1.0"
+dependencies = [
+ "near-sdk",
+ "near-sdk-sim",
+]
+
+[[package]]
+name = "astra-staking"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "near-contract-standards",
+ "near-sdk",
+ "near-sdk-sim",
+ "test-token",
+]
+
+[[package]]
 name = "async-mutex"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2764,39 +2797,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "sputnik-staking"
-version = "1.0.0"
-dependencies = [
- "hex",
- "near-contract-standards",
- "near-sdk",
- "near-sdk-sim",
- "test-token",
-]
-
-[[package]]
-name = "sputnikdao-factory2"
-version = "0.2.0"
-dependencies = [
- "near-sdk",
- "near-sdk-sim",
-]
-
-[[package]]
-name = "sputnikdao2"
-version = "2.0.0"
-dependencies = [
- "hex",
- "near-contract-standards",
- "near-sdk",
- "near-sdk-sim",
- "serde_with",
- "sputnik-staking",
- "sputnikdao-factory2",
- "test-token",
 ]
 
 [[package]]

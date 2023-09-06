@@ -6,6 +6,15 @@ members = [
   "test-token"
 ]
 
+[workspace.package]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/near-ndc/astra"
+authors = [
+    "Sputnik Devs <near-daos@protonmail.com>",
+    "NDC GWG (https://near.social/#/mob.near/widget/ProfilePage?accountId=govworkinggroup.near)",
+]
+
 [profile.release]
 codegen-units = 1
 # Tell `rustc` to optimize for small code size.
