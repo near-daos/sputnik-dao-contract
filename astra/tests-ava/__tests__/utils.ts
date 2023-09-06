@@ -8,7 +8,7 @@ async function initWorkspace(root: NearAccount) {
     const policy = [root.accountId];
 
     //for short let's call it just dao
-    const dao = await root.createAndDeploy('dao', '../res/sputnikdao2.wasm', {
+    const dao = await root.createAndDeploy('dao', '../res/astra.wasm', {
         method: 'new',
         args: { config, policy },
         initialBalance: toYocto('200'),
@@ -29,7 +29,7 @@ export const workspaceWithoutInit = Workspace.init(async ({ root }) => {
     const alice = await root.createAccount('alice');
 
     //for short let's call it just dao
-    const dao = await root.createAndDeploy('dao', '../res/sputnikdao2.wasm', {
+    const dao = await root.createAndDeploy('dao', '../res/astra.wasm', {
         initialBalance: toYocto('200'),
     });
     return { alice, dao };
@@ -38,7 +38,7 @@ export const workspaceWithoutInit = Workspace.init(async ({ root }) => {
 export const workspaceWithFactory = Workspace.init(async ({ root }) => {
     const factory = await root.createAndDeploy(
         'factory',
-        '../../sputnikdao-factory2/res/sputnikdao_factory2.wasm',
+        '../../sputnikdao-factory2/res/astra_factory.wasm',
         {
             initialBalance: toYocto('500'),
         },

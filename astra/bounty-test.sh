@@ -2,7 +2,7 @@
 set -e
 # Change these to your account ids
 ./build.sh
-export CONTRACT_ID=sputnikdao2.md4ire.testnet
+export CONTRACT_ID=astra.md4ire.testnet
 export CONTRACT_PARENT=md4ire.testnet
 
 # Redo account (if contract already exists)
@@ -12,7 +12,7 @@ set -e
 near create-account $CONTRACT_ID --masterAccount $CONTRACT_PARENT
 
 # Set up
-near deploy $CONTRACT_ID --wasmFile res/sputnikdao2.wasm
+near deploy $CONTRACT_ID --wasmFile res/astra.wasm
 export COUNCIL='["'$CONTRACT_ID'"]'
 near call $CONTRACT_ID new '{"config": {"name": "genesis2", "purpose": "test", "metadata": ""}, "policy": '$COUNCIL'}' --accountId $CONTRACT_ID
 

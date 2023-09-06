@@ -28,7 +28,7 @@ import {
 } from './utils';
 import * as fs from 'fs';
 
-const DAO_WASM_BYTES: Uint8Array = fs.readFileSync('../res/sputnikdao2.wasm');
+const DAO_WASM_BYTES: Uint8Array = fs.readFileSync('../res/astra.wasm');
 
 workspaceWithFactory.test(
     'Upgrade self using factory',

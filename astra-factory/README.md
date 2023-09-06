@@ -5,7 +5,7 @@
 ## TestNet
 
 ```
-near dev-deploy --wasmFile=res/sputnikdao_factory2.wasm
+near dev-deploy --wasmFile=res/astra_factory.wasm
 
 # bash
 CONTRACT_ID="dev-1608694678554-8567049"

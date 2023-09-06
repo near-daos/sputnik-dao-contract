@@ -2552,7 +2552,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sputnikdao2"
+name = "astra"
 version = "2.0.0"
 dependencies = [
  "hex",

@@ -17,7 +17,7 @@ const FACTORY_OWNER_KEY: &[u8; 5] = b"OWNER";
 const CODE_METADATA_KEY: &[u8; 8] = b"METADATA";
 
 // The values used when writing initial data to the storage.
-const DAO_CONTRACT_INITIAL_CODE: &[u8] = include_bytes!("../../sputnikdao2/res/sputnikdao2.wasm");
+const DAO_CONTRACT_INITIAL_CODE: &[u8] = include_bytes!("../../astra/res/sputnikdao2.wasm");
 const DAO_CONTRACT_INITIAL_VERSION: Version = [3, 0];
 const DAO_CONTRACT_NO_DATA: &str = "no data";
 

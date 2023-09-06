@@ -38,7 +38,7 @@ workspace.test('View method get_config', async (test, { root }) => {
     };
     const policy = [root.accountId];
 
-    const bob = await root.createAndDeploy('bob', '../res/sputnikdao2.wasm', {
+    const bob = await root.createAndDeploy('bob', '../res/astra.wasm', {
         method: 'new',
         args: { config, policy },
         initialBalance: toYocto('200'),
@@ -54,7 +54,7 @@ workspace.test('View method get_policy', async (test, { root }) => {
     };
     const versionedPolicy = [root.accountId];
 
-    const bob = await root.createAndDeploy('bob', '../res/sputnikdao2.wasm', {
+    const bob = await root.createAndDeploy('bob', '../res/astra.wasm', {
         method: 'new',
         args: { config, policy: versionedPolicy },
         initialBalance: toYocto('200'),
@@ -111,7 +111,7 @@ workspace.test(
 
 workspace.test('View has_blob', async (test, { alice, root, dao }) => {
     const DAO_WASM_BYTES: Uint8Array = fs.readFileSync(
-        '../res/sputnikdao2.wasm',
+        '../res/astra.wasm',
     );
     const hash: String = await root.call(dao, 'store_blob', DAO_WASM_BYTES, {
         attachedDeposit: toYocto('200'),
@@ -242,7 +242,7 @@ workspace.test(
         );
 
         const config = {
-            name: 'sputnikdao2',
+            name: 'astra',
             purpose: 'testing_view_methods',
             metadata: '',
         };

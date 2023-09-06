@@ -1,9 +1,13 @@
 [package]
-name = "sputnik-staking"
-version = "1.0.0"
-authors = ["Sputnik Devs <near-daos@protonmail.com>"]
-edition = "2018"
+name = "astra-staking"
+version = "0.1.0"
 publish = false
+authors = { workspace = true }
+edition = { workspace = true }
+repository = { workspace = true }
+license = { workspace = true }
+
+
 
 [lib]
 crate-type = ["cdylib", "rlib"]

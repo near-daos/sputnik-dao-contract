@@ -1,9 +1,8 @@
 [workspace]
-# include a member for each contract
 members = [
-  "sputnik-staking",
-  "sputnikdao2",
-  "sputnikdao-factory2",
+  "astra-staking",
+  "astra",
+  "astra-factory",
   "test-token"
 ]
 

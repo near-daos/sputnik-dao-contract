@@ -1,7 +1,9 @@
 [package]
-name = "sputnikdao2"
-version = "2.0.0"
-authors = ["Sputnik Devs <near-daos@protonmail.com>"]
+name = "astra"
+version = "0.1.0"
+authors = [
+        "Sputnik Devs <near-daos@protonmail.com>",
+        "NDC GWG (https://near.social/#/mob.near/widget/ProfilePage?accountId=govworkinggroup.near)"]
 edition = "2018"
 publish = false
 
@@ -19,5 +21,5 @@ version = "1.4.0"
 [dev-dependencies]
 near-sdk-sim = "4.0.0-pre.4"
 test-token = { path = "../test-token" }
-sputnik-staking = { path = "../sputnik-staking" }
-sputnikdao-factory2 = { path = "../sputnikdao-factory2" }
+astra-staking = { path = "../astra-staking" }
+astra-factory = { path = "../astra-factory" }

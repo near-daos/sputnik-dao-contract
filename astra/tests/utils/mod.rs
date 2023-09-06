@@ -8,16 +8,16 @@ use near_sdk_sim::{
 
 use near_sdk::json_types::U128;
 use sputnik_staking::ContractContract as StakingContract;
-use sputnikdao2::{
+use astra::{
     Action, Bounty, Config, ContractContract as DAOContract, OldAccountId, ProposalInput,
     ProposalKind, VersionedPolicy, OLD_BASE_TOKEN,
 };
-use sputnikdao_factory2::SputnikDAOFactoryContract as FactoryContract;
+use astra_factory::SputnikDAOFactoryContract as FactoryContract;
 use test_token::ContractContract as TestTokenContract;
 
 near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
-    FACTORY_WASM_BYTES => "../sputnikdao-factory2/res/sputnikdao_factory2.wasm",
-    DAO_WASM_BYTES => "res/sputnikdao2.wasm",
+    FACTORY_WASM_BYTES => "../sputnikdao-factory2/res/astra_factory.wasm",
+    DAO_WASM_BYTES => "res/astra.wasm",
     TEST_TOKEN_WASM_BYTES => "../test-token/res/test_token.wasm",
     STAKING_WASM_BYTES => "../sputnik-staking/res/sputnik_staking.wasm",
 }

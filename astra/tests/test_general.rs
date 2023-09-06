@@ -7,7 +7,7 @@ use near_sdk_sim::{call, init_simulator, to_yocto, view};
 
 use crate::utils::*;
 use sputnik_staking::User;
-use sputnikdao2::{
+use astra::{
     default_policy, Action, BountyClaim, BountyOutput, Config, Policy, Proposal, ProposalInput,
     ProposalKind, ProposalOutput, ProposalStatus, RoleKind, RolePermission, VersionedPolicy,
     VotePolicy,
