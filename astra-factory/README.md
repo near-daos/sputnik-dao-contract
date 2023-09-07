@@ -1,4 +1,4 @@
-# Sputnik Factory
+# Astra Factory
 
 # Deployment & Usage
 
@@ -35,7 +35,7 @@ near view $CONTRACT_ID get_dao_list
 
 V1 is archived in a different repo. :)
 
-### Sputnik Factory :: v3
+### Astra Factory :: v3
 ```
 {
   "viewMethods": [
@@ -62,7 +62,7 @@ V1 is archived in a different repo. :)
 }
 ```
 
-### Sputnik DAO :: v2
+### Astra DAO :: v2
 ```
 {
   "viewMethods": [

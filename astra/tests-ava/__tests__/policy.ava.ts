@@ -19,7 +19,7 @@ import {
 workspace.test(
     'Testing policy TokenWeight',
     async (test, { alice, root, dao }) => {
-        const config = { name: 'sputnik', purpose: 'testing', metadata: '' };
+        const config = { name: 'astra', purpose: 'testing', metadata: '' };
         const bob = await root.createAccount('bob');
         const period = new BN('1000000000')
             .muln(60)
@@ -108,7 +108,7 @@ workspace.test(
 );
 
 workspace.test('Policy self-lock', async (test, { alice, root, dao }) => {
-    const config = { name: 'sputnik', purpose: 'testing', metadata: '' };
+    const config = { name: 'astra', purpose: 'testing', metadata: '' };
     const period = new BN('1000000000')
         .muln(60)
         .muln(60)

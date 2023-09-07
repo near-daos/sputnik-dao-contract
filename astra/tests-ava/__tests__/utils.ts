@@ -4,7 +4,7 @@ async function initWorkspace(root: NearAccount) {
     const alice = await root.createAccount('alice');
     // console.log('alice\'s balance is: ' + (await alice.balance()).total) //100N
 
-    const config = { name: 'sputnik', purpose: 'testing', metadata: '' };
+    const config = { name: 'astra', purpose: 'testing', metadata: '' };
     const policy = [root.accountId];
 
     //for short let's call it just dao
@@ -66,7 +66,7 @@ export async function initStaking(
 ) {
     const staking = await root.createAndDeploy(
         'staking',
-        '../../astra-staking/res/sputnik_staking.wasm',
+        '../../astra-staking/res/astra_staking.wasm',
         {
             method: 'new',
             args: {

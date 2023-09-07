@@ -1,29 +1,29 @@
-# Sputnik Test Planning
+# Astra Test Planning
 
-The following is coverage checklists & notes about context tests needed to check the security of the Sputnik DAO contracts. These tests are aimed at 100% of the latest version, and best coverage of older versions.
+The following is coverage checklists & notes about context tests needed to check the security of the Astra DAO contracts. These tests are aimed at 100% of the latest version, and best coverage of older versions.
 
-# Sputnik Factory
+# Astra Factory
 
 ## Init & Default
 ### new
 - [ ] Can instantiate a new factory with default struct, including DAOs set.
-- [ ] Stores the latest compiled version of Sputnik DAO contract in storage
-- [ ] Creates metadata for the latest compiled version of Sputnik DAO
+- [ ] Stores the latest compiled version of Astra DAO contract in storage
+- [ ] Creates metadata for the latest compiled version of Astra DAO
 - [ ] Does not allow re-init
 - [ ] Does not allow anyone but owner to call "new"
 
 ## DAOs
 ### Creation
 - [ ] Allows any account to call create method
-- [ ] Created DAO becomes a sub-account of the factory. Example for new DAO: "awesome.sputnik.near"
-- [ ] Creates a new DAO & instantiates with the correct default Sputnik DAO contract from storage - see metadata
+- [ ] Created DAO becomes a sub-account of the factory. Example for new DAO: "awesome.astra.near"
+- [ ] Creates a new DAO & instantiates with the correct default Astra DAO contract from storage - see metadata
 - [ ] Returns the payment amount, if the creation failed for any reason
 - [ ] DAO Balance is equal to payment amount
 - [ ] DAO exists in the list of DAOs upon successful creation
 - [ ] Fails if the DAO name exists
 - [ ] Fails if the DAO name is not a valid account ID
 ### Upgrades
-- [ ] DAO Can update to a specific code_hash version of Sputnik DAO Code
+- [ ] DAO Can update to a specific code_hash version of Astra DAO Code
 - [ ] Fails if DAO is not within the list of supported DAOs
 - [ ] Fails if DAO tries a code_hash that doesnt exist
 - [ ] Fails if predecessor is not the DAO getting upgraded (DAO proposal must trigger upgrade)
@@ -42,7 +42,7 @@ The following is coverage checklists & notes about context tests needed to check
 - [ ] Fails if code blob is too small to be a legit contract
 - [ ] Fails if attached payment doesnt support the storage cost
 ### Adding Code Metadata
-- [ ] Can add metadata for an existing set of Sputnik DAO Code (code_hash is available only upon storage of contract inside factory)
+- [ ] Can add metadata for an existing set of Astra DAO Code (code_hash is available only upon storage of contract inside factory)
 - [ ] Can set the code_hash as default
 - [ ] Metadata version and other params meet types & spec standards
 - [ ] Fails to add code metadata if code_hash doesn't exist
@@ -80,7 +80,7 @@ The following is coverage checklists & notes about context tests needed to check
 ### get_contracts_metadata
 - [ ] Returns the supported list of all factory code_hash + metadata, indicating the supported versions available for DAOs to upgrade
 
-# Sputnik DAO
+# Astra DAO
 
 ## Dao Policy Configurations
 These tests are purely for checking support of certain policy configurations, no simulations.
@@ -88,7 +88,7 @@ These tests are purely for checking support of certain policy configurations, no
 You can check a DAO's policy by doing: 
 
 ```bash
-near view DAO_NAME.sputnik-dao.near get_policy
+near view DAO_NAME.astra-dao.near get_policy
 ```
 
 ### Default

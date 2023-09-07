@@ -32,7 +32,7 @@ workspace.test('View method version', async (test, { alice, root, dao }) => {
 
 workspace.test('View method get_config', async (test, { root }) => {
     const config = {
-        name: 'sputnikda2',
+        name: 'astra2',
         purpose: 'testing get_config',
         metadata: '',
     };
@@ -48,7 +48,7 @@ workspace.test('View method get_config', async (test, { root }) => {
 
 workspace.test('View method get_policy', async (test, { root }) => {
     const config = {
-        name: 'sputnikda2',
+        name: 'astra2',
         purpose: 'testing get_policy',
         metadata: '',
     };

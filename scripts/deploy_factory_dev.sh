@@ -25,15 +25,15 @@ export NEAR_ENV=testnet
 export FACTORY=testnet
 
 if [ -z ${NEAR_ACCT+x} ]; then
-  # export NEAR_ACCT=sputnikv2.$FACTORY
-  export NEAR_ACCT=sputnikpm.$FACTORY
+  # export NEAR_ACCT=astra.$FACTORY
+  export NEAR_ACCT=astrapm.$FACTORY
 else
   export NEAR_ACCT=$NEAR_ACCT
 fi
 
 export FACTORY_ACCOUNT_ID=factory_1.$NEAR_ACCT
-# export DAO_ACCOUNT_ID=croncat.sputnikv2.$FACTORY
-# export DAO_ACCOUNT_ID=sputnikdao-dev-v2-1645228499.factory3.sputnikpm.testnet
+# export DAO_ACCOUNT_ID=croncat.astra.$FACTORY
+# export DAO_ACCOUNT_ID=astradao-dev-v2-1645228499.factory3.astrapm.testnet
 export MAX_GAS=300000000000000
 export GAS_100_TGAS=100000000000000
 export GAS_150_TGAS=150000000000000
@@ -52,12 +52,12 @@ near create-account $FACTORY_ACCOUNT_ID --masterAccount $NEAR_ACCT --initialBala
 #### Grab the factory v2 code data
 #### --------------------------------------------
 http --json post https://rpc.testnet.near.org jsonrpc=2.0 id=dontcare method=query \
-params:='{"request_type":"view_code","finality":"final","account_id":"'sputnikv2.$FACTORY'"}' \
+params:='{"request_type":"view_code","finality":"final","account_id":"'astra.$FACTORY'"}' \
 | jq -r .result.code_base64 \
-| base64 --decode > sputnikdao_factory2_original.wasm
+| base64 --decode > astra_factory_original.wasm
 
 # Deploy the previous version to allow accurate testing
-near deploy --wasmFile sputnikdao_factory2_original.wasm --accountId $FACTORY_ACCOUNT_ID --initFunction new --initArgs '{}' --initGas $MAX_GAS
+near deploy --wasmFile astra_factory_original.wasm --accountId $FACTORY_ACCOUNT_ID --initFunction new --initArgs '{}' --initGas $MAX_GAS
 #### --------------------------------------------
 
 
@@ -67,8 +67,8 @@ near deploy --wasmFile sputnikdao_factory2_original.wasm --accountId $FACTORY_AC
 #### --------------------------------------------
 COUNCIL='["'$NEAR_ACCT'"]'
 TIMESTAMP=$(date +"%s")
-DAO_NAME=sputnikdao-dev-v2-$TIMESTAMP
-DAO_ARGS=`echo '{"config": {"name": "'$DAO_NAME'", "purpose": "Sputnik Dev v2 DAO '$TIMESTAMP'", "metadata":""}, "policy": '$COUNCIL'}' | base64`
+DAO_NAME=astradao-dev-v2-$TIMESTAMP
+DAO_ARGS=`echo '{"config": {"name": "'$DAO_NAME'", "purpose": "astra Dev v2 DAO '$TIMESTAMP'", "metadata":""}, "policy": '$COUNCIL'}' | base64`
 near call $FACTORY_ACCOUNT_ID create "{\"name\": \"$DAO_NAME\", \"args\": \"$DAO_ARGS\"}" --accountId $FACTORY_ACCOUNT_ID --gas $GAS_150_TGAS --amount 10
 DEMO_DAO_ACCOUNT=$DAO_NAME.$FACTORY_ACCOUNT_ID
 
@@ -97,7 +97,7 @@ near view $FACTORY_ACCOUNT_ID get_dao_list
 #### Upgrade the factory
 #### NOTE: Make sure you've built on the right commit!
 #### --------------------------------------------
-near deploy --wasmFile astra-factory/res/sputnikdao_factory2.wasm --accountId $FACTORY_ACCOUNT_ID --force
+near deploy --wasmFile astra-factory/res/astra_factory.wasm --accountId $FACTORY_ACCOUNT_ID --force
 #### --------------------------------------------
 
 
@@ -180,8 +180,8 @@ near view $DAO_ACCOUNT_ID get_proposal '{"id": 3}'
 #### --------------------------------------------
 COUNCIL='["'$NEAR_ACCT'"]'
 TIMESTAMP=$(date +"%s")
-DAO_NAME=sputnikdao-dev-v3-$TIMESTAMP
-DAO_ARGS=`echo '{"config": {"name": "'$DAO_NAME'", "purpose": "Sputnik Dev v3 DAO '$TIMESTAMP'", "metadata":""}, "policy": '$COUNCIL'}' | base64`
+DAO_NAME=astradao-dev-v3-$TIMESTAMP
+DAO_ARGS=`echo '{"config": {"name": "'$DAO_NAME'", "purpose": "astra Dev v3 DAO '$TIMESTAMP'", "metadata":""}, "policy": '$COUNCIL'}' | base64`
 near call $FACTORY_ACCOUNT_ID create "{\"name\": \"$DAO_NAME\", \"args\": \"$DAO_ARGS\"}" --accountId $FACTORY_ACCOUNT_ID --gas $GAS_150_TGAS --amount 10
 DEMO_DAO_ACCOUNT=$DAO_NAME.$FACTORY_ACCOUNT_ID
 
@@ -211,7 +211,7 @@ near view $FACTORY_ACCOUNT_ID get_dao_list
 # cleanup local files!
 # #### --------------------------------------------
 rm astra_original.wasm
-rm sputnikdao_factory2_original.wasm
+rm astra_factory_original.wasm
 rm v2_code_hash_result.txt
 rm v3_code_hash_result.txt
 

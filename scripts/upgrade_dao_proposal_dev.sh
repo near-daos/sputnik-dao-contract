@@ -1,8 +1,8 @@
 #!/bin/bash
 #### --------------------------------------------
 #### NOTE: The following flows are supported in this file, for testing!
-# - Create an UpgradeDAO via sputnikv2.testnet, funded with enough for 10 upgrades
-# - Create an Upgradeable DAO via sputnikv2.testnet, for testing v2-v3 upgrade
+# - Create an UpgradeDAO via astra.testnet, funded with enough for 10 upgrades
+# - Create an Upgradeable DAO via astra.testnet, for testing v2-v3 upgrade
 # - UpgradeDAO proposal to store_blob on Upgradeable DAO
 # - Upgradeable DAO proposal UpgradeSelf with hash from UpgradeDAO store_blob
 # - Check code_hash on Upgradeable DAO
@@ -20,15 +20,15 @@ export NEAR_ENV=testnet
 export FACTORY=testnet
 
 if [ -z ${NEAR_ACCT+x} ]; then
-  # export NEAR_ACCT=sputnikv2.$FACTORY
-  export NEAR_ACCT=sputnikpm.$FACTORY
+  # export NEAR_ACCT=astra.$FACTORY
+  export NEAR_ACCT=astrapm.$FACTORY
 else
   export NEAR_ACCT=$NEAR_ACCT
 fi
 
-# export FACTORY_ACCOUNT_ID=sputnikv2.$FACTORY
+# export FACTORY_ACCOUNT_ID=astra.$FACTORY
 export FACTORY_ACCOUNT_ID=factory_1.$NEAR_ACCT
-# export DAO_ACCOUNT_ID=croncat.sputnikv2.$FACTORY
+# export DAO_ACCOUNT_ID=croncat.astra.$FACTORY
 export MAX_GAS=300000000000000
 export GAS_100_TGAS=100000000000000
 export GAS_150_TGAS=150000000000000
@@ -51,12 +51,12 @@ near create-account $FACTORY_ACCOUNT_ID --masterAccount $NEAR_ACCT --initialBala
 #### Grab the factory v2 code data
 #### --------------------------------------------
 http --json post https://rpc.testnet.near.org jsonrpc=2.0 id=dontcare method=query \
-params:='{"request_type":"view_code","finality":"final","account_id":"'sputnikv2.$FACTORY'"}' \
+params:='{"request_type":"view_code","finality":"final","account_id":"'astra.$FACTORY'"}' \
 | jq -r .result.code_base64 \
-| base64 --decode > sputnikdao_factory2_original.wasm
+| base64 --decode > astra_factory_original.wasm
 
 # Deploy the previous version to allow accurate testing
-near deploy --wasmFile sputnikdao_factory2_original.wasm --accountId $FACTORY_ACCOUNT_ID --initFunction new --initArgs '{}' --initGas $MAX_GAS
+near deploy --wasmFile astra_factory_original.wasm --accountId $FACTORY_ACCOUNT_ID --initFunction new --initArgs '{}' --initGas $MAX_GAS
 #### --------------------------------------------
 
 
@@ -84,7 +84,7 @@ near view $FACTORY_ACCOUNT_ID get_dao_list
 #### Upgrade the factory
 #### NOTE: Make sure you've built on the right commit!
 #### --------------------------------------------
-near deploy --wasmFile astra-factory/res/sputnikdao_factory2.wasm --accountId $FACTORY_ACCOUNT_ID --force
+near deploy --wasmFile astra-factory/res/astra_factory.wasm --accountId $FACTORY_ACCOUNT_ID --force
 #### --------------------------------------------
 
 
@@ -224,7 +224,7 @@ near view $UPGRDADEME_ACCOUNT get_proposal '{"id": 2}'
 # cleanup local files!
 # #### --------------------------------------------
 rm astra_original.wasm
-rm sputnikdao_factory2_original.wasm
+rm astra_factory_original.wasm
 rm v2_code_hash_result.txt
 rm v3_code_hash_result.txt
 

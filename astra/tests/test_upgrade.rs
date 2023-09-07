@@ -100,7 +100,7 @@ struct NewArgs {
     referral_fee: u32,
 }
 
-/// Test that Sputnik can upgrade another contract.
+/// Test that astra can upgrade another contract.
 #[test]
 fn test_upgrade_other() {
     let (root, dao) = setup_dao();

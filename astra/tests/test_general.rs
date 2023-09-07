@@ -6,7 +6,7 @@ use near_sdk::{env, AccountId};
 use near_sdk_sim::{call, init_simulator, to_yocto, view};
 
 use crate::utils::*;
-use sputnik_staking::User;
+use astra_staking::User;
 use astra::{
     default_policy, Action, BountyClaim, BountyOutput, Config, Policy, Proposal, ProposalInput,
     ProposalKind, ProposalOutput, ProposalStatus, RoleKind, RolePermission, VersionedPolicy,

@@ -1,8 +1,8 @@
-# Sputnik DAO Contract ABIs
+# Astra DAO Contract ABIs
 
 V1 is archived in a different repo. :)
 
-## Sputnik DAO :: v2
+## Astra DAO :: v2
 ```
 {
   "viewMethods": [
@@ -40,7 +40,7 @@ V1 is archived in a different repo. :)
 }
 ```
 
-## Sputnik DAO :: v3
+## Astra DAO :: v3
 ```
 {
   "viewMethods": [

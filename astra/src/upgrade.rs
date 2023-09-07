@@ -1,4 +1,4 @@
-//! Logic to upgrade Sputnik contracts.
+//! Logic to upgrade astra contracts.
 
 use near_sdk::serde_json::json;
 use near_sdk::Gas;
@@ -24,10 +24,10 @@ pub struct FactoryInfo {
 }
 
 pub fn get_default_factory_id() -> AccountId {
-    // ex: mydao.sputnik-dao.near
+    // ex: mydao.astra-dao.near
     let dao_id = env::current_account_id().to_string();
     let idx = dao_id.find('.').expect("INTERNAL_FAIL");
-    // ex: sputnik-dao.near
+    // ex: astra-dao.near
     let factory_id = &dao_id[idx + 1..];
 
     AccountId::new_unchecked(String::from(factory_id))

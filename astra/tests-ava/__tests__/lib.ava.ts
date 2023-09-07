@@ -98,7 +98,7 @@ workspaceWithFactory.test(
 workspaceWithoutInit.test(
     'Upgrade self negative',
     async (test, { root, dao }) => {
-        const config = { name: 'sputnik', purpose: 'testing', metadata: '' };
+        const config = { name: 'astra', purpose: 'testing', metadata: '' };
 
         // NOT INITIALIZED
         let err = await captureError(async () =>

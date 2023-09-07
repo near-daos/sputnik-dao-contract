@@ -29,7 +29,7 @@ workspace.test(
     async (test, { alice, root, dao }) => {
         test.is(await dao.view('get_last_proposal_id'), 0);
         const config = {
-            name: 'sputnikdao',
+            name: 'astra',
             purpose: 'testing',
             metadata: '',
         };
@@ -85,10 +85,10 @@ workspace.test(
         test.is(new_proposal.status, 'InProgress');
 
         test.truthy(new_proposal.kind.ChangeConfig);
-        test.is(new_proposal.kind.ChangeConfig.config.name, 'sputnikdao');
+        test.is(new_proposal.kind.ChangeConfig.config.name, 'astra');
         //same config as we did not execute that proposal
         test.deepEqual(await dao.view('get_config'), {
-            name: 'sputnik',
+            name: 'astra',
             purpose: 'testing',
             metadata: '',
         });
@@ -353,7 +353,7 @@ workspace.test(
     'Voting is only allowed for councils',
     async (test, { alice, root, dao }) => {
         const config = {
-            name: 'sputnikdao',
+            name: 'astra',
             purpose: 'testing',
             metadata: '',
         };
@@ -485,7 +485,7 @@ workspaceWithoutInit.test(
             bounty_forgiveness_period: period,
         };
 
-        let config = { name: 'sputnik', purpose: 'testing', metadata: '' };
+        let config = { name: 'astra', purpose: 'testing', metadata: '' };
 
         await root.call(dao, 'new', { config, policy });
 

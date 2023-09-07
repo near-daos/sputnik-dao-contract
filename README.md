@@ -82,7 +82,7 @@ git clone https://github.com/near-daos/sputnik-dao-contract
 <p>
 
 ```bash
-cd sputnik-dao-contract/astra-factory && ./build.sh
+cd astra-dao-contract/astra-factory && ./build.sh
 ```
 
 </p>
@@ -98,10 +98,10 @@ cd sputnik-dao-contract/astra-factory && ./build.sh
 export CONTRACT_ID=YOUR_ACCOUNT.testnet
 ```
 
-- Deploy factory contract by running the following command from your current directory _(`sputnik-dao-contract/astra-factory`)_:
+- Deploy factory contract by running the following command from your current directory _(`astra-dao-contract/astra-factory`)_:
 
 ```bash
-near deploy $CONTRACT_ID --wasmFile=res/sputnikdao_factory2.wasm --accountId $CONTRACT_ID
+near deploy $CONTRACT_ID --wasmFile=res/astra_factory.wasm --accountId $CONTRACT_ID
 ```
 
 </p>
@@ -143,7 +143,7 @@ near call $CONTRACT_ID create "{\"name\": \"genesis\", \"args\": \"$ARGS\"}" --a
 **Example Response:**
 
 ```bash
-Scheduling a call: sputnik-v2.testnet.create({"name": "genesis", "args": "eyJjb25maWciOiB7Im5hbWUiOiAiZ2VuZXNpcyIsICJwdXJwb3NlIjogIkdlbmVzaXMgREFPIiwgIm1ldGFkYXRhIjoiIn0sICJwb2xpY3kiOiBbImNvdW5jaWwtbWVtYmVyLnRlc3RuZXQiLCAiWU9VUl9BQ0NPVU5ULnRlc3RuZXQiXX0K"}) with attached 5 NEAR
+Scheduling a call: astra-v2.testnet.create({"name": "genesis", "args": "eyJjb25maWciOiB7Im5hbWUiOiAiZ2VuZXNpcyIsICJwdXJwb3NlIjogIkdlbmVzaXMgREFPIiwgIm1ldGFkYXRhIjoiIn0sICJwb2xpY3kiOiBbImNvdW5jaWwtbWVtYmVyLnRlc3RuZXQiLCAiWU9VUl9BQ0NPVU5ULnRlc3RuZXQiXX0K"}) with attached 5 NEAR
 Transaction Id 5beqy8ZMkzpzw7bTLPMv6qswukqqowfzYXZnMAitRVS7
 To see the transaction in the transaction explorer, please open this url in your browser
 https://explorer.testnet.near.org/transactions/5beqy8ZMkzpzw7bTLPMv6qswukqqowfzYXZnMAitRVS7
@@ -159,18 +159,18 @@ true
 <summary>7. Verify successful deployment and policy configuration.</summary>
 <p>
 
-The DAO deployment will create a new [sub-account](https://docs.near.org/docs/concepts/account#subaccounts) ( `genesis.YOUR_ACCOUNT.testnet` ) and deploy a Sputnik v2 DAO contract to it.
+The DAO deployment will create a new [sub-account](https://docs.near.org/docs/concepts/account#subaccounts) ( `genesis.YOUR_ACCOUNT.testnet` ) and deploy a Astra DAO contract to it.
 
 - Setup another env variable for your DAO contract:
 
 ```bash
-export SPUTNIK_ID=genesis.$CONTRACT_ID
+export ASTRA_ID=genesis.$CONTRACT_ID
 ```
 
 - Now call `get_policy` on this contract using [`near view`](https://docs.near.org/docs/tools/near-cli#near-view)
 
 ```bash
-near view $SPUTNIK_ID get_policy
+near view $ASTRA_ID get_policy
 ```
 
 - Verify that the name, purpose, metadata, and council are all configured correctly. Also note the following default values:
@@ -334,7 +334,7 @@ ProposalKind::ChangePolicyUpdateParameters { .. },
 <p>
 
 ```bash
-near call genesis.sputnik-v2.testnet add_proposal \
+near call genesis.astra.testnet add_proposal \
 '{"proposal": {"description": "Add New Council", "kind": {"AddMemberToRole": {"member_id": "council_member_3.testnet", "role": "council"}}}}' \
 --accountId proposer.testnet \
 --amount 1
@@ -373,7 +373,7 @@ https://explorer.testnet.near.org/transactions/HbJdK9AnZrvjuuoys2z1PojdkyFiuWBvr
 <p>
 
 ```bash
-near view genesis.sputnik-v2.testnet get_proposal '{"id": 0}'
+near view genesis.astra.testnet get_proposal '{"id": 0}'
 ```
 
 </p>
@@ -420,7 +420,7 @@ near view genesis.sputnik-v2.testnet get_proposal '{"id": 0}'
 <p>
 
 ```bash
-near view genesis.sputnik-v2.testnet get_proposals '{"from_index": 1, "limit": 2}'
+near view genesis.astra.testnet get_proposals '{"from_index": 1, "limit": 2}'
 ```
 
 </p>
@@ -479,7 +479,7 @@ near view genesis.sputnik-v2.testnet get_proposals '{"from_index": 1, "limit": 2
 <p>
 
 ```bash
-near call genesis.sputnik-v2.testnet act_proposal '{"id": 0, "action": "VoteApprove"}' \
+near call genesis.astra.testnet act_proposal '{"id": 0, "action": "VoteApprove"}' \
 --accountId council_member_1.testnet
 ```
 
@@ -492,7 +492,7 @@ near call genesis.sputnik-v2.testnet act_proposal '{"id": 0, "action": "VoteAppr
 
 ```bash
 Receipts: 3mkSgRaHsd46FHkf9AtTcPbNXkYkxMCzPfJFHsHk8NPm, GjJ6hmoAhxt2a7si4hVPYZiL9CWeM5fmSEzMTpC7URxV
-        Log [genesis.sputnik-v2.testnet]: ["council"]
+        Log [genesis.astra.testnet]: ["council"]
 Transaction Id BZPHxNoBpyMG4seCojzeNrKpr685vWPynDMTdg1JACa7
 To see the transaction in the transaction explorer, please open this url in your browser
 https://explorer.testnet.near.org/transactions/BZPHxNoBpyMG4seCojzeNrKpr685vWPynDMTdg1JACa7

@@ -41,13 +41,13 @@ pub struct DaoContractMetadata {
 
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
-pub struct SputnikDAOFactory {
+pub struct AstraFactory {
     factory_manager: FactoryManager,
     daos: UnorderedSet<AccountId>,
 }
 
 #[near_bindgen]
-impl SputnikDAOFactory {
+impl AstraFactory {
     #[init]
     pub fn new() -> Self {
         let this = Self {
@@ -150,7 +150,7 @@ impl SputnikDAOFactory {
 
     /// Allows a DAO to store the official factory version as a blob, funded by the DAO wanting to upgrade
     /// Required to successfully upgrade a DAO via proposals (proposal to store blob, proposal to upgrade from local blob)
-    /// Only intended for sputnik v2 DAO's created by sputnik factory
+    /// Only intended for astra v2 DAO's created by astra factory
     /// Payment is needed to cover storage costs for code blob size, paid by the DAO and returned upon blob removal
     #[payable]
     pub fn store_contract_self(&mut self, code_hash: Base58CryptoHash) {
@@ -166,7 +166,7 @@ impl SputnikDAOFactory {
         // Lock down contract upgrades to this factory:
         let dao_id = env::predecessor_account_id().to_string();
         let idx = dao_id.find('.').expect("INTERNAL_FAIL");
-        // ex: sputnik-dao.near
+        // ex: astra-dao.near
         let factory_id = &dao_id[idx + 1..];
 
         assert_eq!(
@@ -380,7 +380,7 @@ pub fn slice_to_hash(hash: &[u8]) -> Base58CryptoHash {
 #[no_mangle]
 pub extern "C" fn store() {
     env::setup_panic_hook();
-    let contract: SputnikDAOFactory = env::state_read().expect("Contract is not initialized");
+    let contract: AstraFactory = env::state_read().expect("Contract is not initialized");
     contract.assert_owner();
     let prev_storage = env::storage_usage();
     contract.factory_manager.store_contract();
@@ -410,7 +410,7 @@ mod tests {
             .current_account_id(accounts(0))
             .predecessor_account_id(accounts(0))
             .build());
-        let mut factory = SputnikDAOFactory::new();
+        let mut factory = AstraFactory::new();
 
         testing_env!(context.attached_deposit(to_yocto("5")).build());
         factory.create("test".parse().unwrap(), "{}".as_bytes().to_vec().into());
@@ -423,7 +423,7 @@ mod tests {
             .current_account_id(accounts(0))
             .predecessor_account_id(accounts(0))
             .build());
-        let mut factory = SputnikDAOFactory::new();
+        let mut factory = AstraFactory::new();
 
         testing_env!(context.attached_deposit(to_yocto("6")).build());
         factory.create("test".parse().unwrap(), "{}".as_bytes().to_vec().into());
@@ -462,7 +462,7 @@ mod tests {
             .predecessor_account_id(alice())
             .attached_deposit(to_yocto("5"))
             .build());
-        let factory = SputnikDAOFactory::new();
+        let factory = AstraFactory::new();
 
         assert_eq!(factory.get_owner(), alice());
     }
@@ -476,7 +476,7 @@ mod tests {
             .predecessor_account_id(carol())
             .attached_deposit(to_yocto("5"))
             .build());
-        let factory = SputnikDAOFactory::new();
+        let factory = AstraFactory::new();
 
         factory.set_owner(bob());
     }
@@ -489,15 +489,15 @@ mod tests {
             .predecessor_account_id(bob())
             .attached_deposit(to_yocto("6"))
             .build());
-        let mut factory = SputnikDAOFactory::new();
+        let mut factory = AstraFactory::new();
 
         factory.create(bob(), "{}".as_bytes().to_vec().into());
 
-        factory.set_owner(AccountId::new_unchecked("bob.sputnik-dao.near".to_string()));
+        factory.set_owner(AccountId::new_unchecked("bob.astra-dao.near".to_string()));
 
         assert_eq!(
             factory.get_owner(),
-            AccountId::new_unchecked("bob.sputnik-dao.near".to_string())
+            AccountId::new_unchecked("bob.astra-dao.near".to_string())
         )
     }
 
@@ -509,7 +509,7 @@ mod tests {
             .predecessor_account_id(accounts(0))
             .attached_deposit(to_yocto("5"))
             .build());
-        let factory = SputnikDAOFactory::new();
+        let factory = AstraFactory::new();
 
         assert_ne!(factory.get_owner(), bob());
 
