@@ -2484,7 +2484,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sputnik-staking"
+name = "astra-staking"
 version = "1.0.0"
 dependencies = [
  "hex",

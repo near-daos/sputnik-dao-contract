@@ -97,7 +97,7 @@ near view $FACTORY_ACCOUNT_ID get_dao_list
 #### Upgrade the factory
 #### NOTE: Make sure you've built on the right commit!
 #### --------------------------------------------
-near deploy --wasmFile sputnikdao-factory2/res/sputnikdao_factory2.wasm --accountId $FACTORY_ACCOUNT_ID --force
+near deploy --wasmFile astra-factory/res/sputnikdao_factory2.wasm --accountId $FACTORY_ACCOUNT_ID --force
 #### --------------------------------------------
 
 
@@ -108,10 +108,10 @@ near deploy --wasmFile sputnikdao-factory2/res/sputnikdao_factory2.wasm --accoun
 http --json post https://rpc.testnet.near.org jsonrpc=2.0 id=dontcare method=query \
 params:='{"request_type":"view_code","finality":"final","account_id":"'$DAO_ACCOUNT_ID'"}' \
 | jq -r .result.code_base64 \
-| base64 --decode > sputnikdao2_original.wasm
+| base64 --decode > astra_original.wasm
 
 # Store the code data
-V2_BYTES='cat sputnikdao2_original.wasm | base64'
+V2_BYTES='cat astra_original.wasm | base64'
 near call $FACTORY_ACCOUNT_ID store $(eval "$V2_BYTES") --base64 --accountId $FACTORY_ACCOUNT_ID --gas $GAS_100_TGAS --amount 10 > v2_code_hash_result.txt
 
 # Update the factory metadata
@@ -135,7 +135,7 @@ near view $FACTORY_ACCOUNT_ID get_contracts_metadata
 #### Get DAO v3 code data & store it in factory
 #### --------------------------------------------
 # Store the code data
-V3_BYTES='cat sputnikdao2/res/sputnikdao2.wasm | base64'
+V3_BYTES='cat astra/res/astra.wasm | base64'
 near call $FACTORY_ACCOUNT_ID store $(eval "$V3_BYTES") --base64 --accountId $FACTORY_ACCOUNT_ID --gas $GAS_100_TGAS --amount 10 > v3_code_hash_result.txt
 
 # Update the factory metadata
@@ -210,7 +210,7 @@ near view $FACTORY_ACCOUNT_ID get_dao_list
 # #### --------------------------------------------
 # cleanup local files!
 # #### --------------------------------------------
-rm sputnikdao2_original.wasm
+rm astra_original.wasm
 rm sputnikdao_factory2_original.wasm
 rm v2_code_hash_result.txt
 rm v3_code_hash_result.txt

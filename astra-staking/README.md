@@ -32,7 +32,7 @@ export USER_ACCOUNT_ID=YOU.testnet
 export MAX_GAS=300000000000000
 
 # Deploy staking contract
-near deploy $STAKING_ACCOUNT_ID --wasmFile=sputnik-staking/res/sputnik_staking.wasm --accountId $STAKING_ACCOUNT_ID --initFunction new --initArgs '{"owner_id": "'$DAO_ACCOUNT_ID'","token_id": "'$TOKEN_ACCOUNT_ID'","unstake_period": "604800000"}'
+near deploy $STAKING_ACCOUNT_ID --wasmFile=astra-staking/res/sputnik_staking.wasm --accountId $STAKING_ACCOUNT_ID --initFunction new --initArgs '{"owner_id": "'$DAO_ACCOUNT_ID'","token_id": "'$TOKEN_ACCOUNT_ID'","unstake_period": "604800000"}'
 
 # Change DAO to use a staking contract
 near call $DAO_ACCOUNT_ID add_proposal '{"proposal": { "description": "", "kind": { "SetStakingContract": { "staking_id": "'$STAKING_ACCOUNT_ID'" } } } }' --accountId $USER_ACCOUNT_ID --amount 1

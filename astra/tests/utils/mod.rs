@@ -16,10 +16,10 @@ use astra_factory::SputnikDAOFactoryContract as FactoryContract;
 use test_token::ContractContract as TestTokenContract;
 
 near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
-    FACTORY_WASM_BYTES => "../sputnikdao-factory2/res/astra_factory.wasm",
+    FACTORY_WASM_BYTES => "../astra-factory/res/astra_factory.wasm",
     DAO_WASM_BYTES => "res/astra.wasm",
     TEST_TOKEN_WASM_BYTES => "../test-token/res/test_token.wasm",
-    STAKING_WASM_BYTES => "../sputnik-staking/res/sputnik_staking.wasm",
+    STAKING_WASM_BYTES => "../astra-staking/res/sputnik_staking.wasm",
 }
 
 type Contract = ContractAccount<DAOContract>;

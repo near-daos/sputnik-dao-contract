@@ -38,7 +38,7 @@ export const workspaceWithoutInit = Workspace.init(async ({ root }) => {
 export const workspaceWithFactory = Workspace.init(async ({ root }) => {
     const factory = await root.createAndDeploy(
         'factory',
-        '../../sputnikdao-factory2/res/astra_factory.wasm',
+        '../../astra-factory/res/astra_factory.wasm',
         {
             initialBalance: toYocto('500'),
         },
@@ -66,7 +66,7 @@ export async function initStaking(
 ) {
     const staking = await root.createAndDeploy(
         'staking',
-        '../../sputnik-staking/res/sputnik_staking.wasm',
+        '../../astra-staking/res/sputnik_staking.wasm',
         {
             method: 'new',
             args: {

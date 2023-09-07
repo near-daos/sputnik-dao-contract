@@ -84,7 +84,7 @@ UPGRDADEME_ACCOUNT=$DAO_NAME.$FACTORY_ACCOUNT_ID
 #### Upgradeable DAO Store blob
 #### --------------------------------------------
 # propose function call on UpgradeDAO to store_blob on Upgradeable DAO
-V3_BYTES='cat sputnikdao2/res/sputnikdao2.wasm | base64'
+V3_BYTES='cat astra/res/astra.wasm | base64'
 
 near call $UPGRDADEME_ACCOUNT store_blob $(eval "$V3_BYTES") --base64 --accountId $NEAR_ACCT --depositYocto $BYTE_STORAGE_COST --gas $MAX_GAS > v3_code_hash_result.txt
 
