@@ -1,8 +1,8 @@
-# Sputnik Staking
+# Astra Staking
 
-This is staking contract for Sputnik DAO.
+This is staking contract for Astra DAO.
 
-The default version just allows to stake the tokens by users and convert them into "weight" in the Sputnik itself.
+The default version just allows to stake the tokens by users and convert them into "weight" in the Astra itself.
 Further modifications can be done to allow to leverage the staked token for other functions (providing liquidity for example).
 
 
@@ -26,13 +26,13 @@ NOTE: This is not 100% working, help finalize :)
 
 ```bash
 export STAKING_ACCOUNT_ID=YOUR_STAKING_CONTRACT.testnet
-export DAO_ACCOUNT_ID=YOUR_DAO.sputnikv2.testnet
+export DAO_ACCOUNT_ID=YOUR_DAO.astra.testnet
 export TOKEN_ACCOUNT_ID=YOUR_TOKEN_ID.testnet
 export USER_ACCOUNT_ID=YOU.testnet
 export MAX_GAS=300000000000000
 
 # Deploy staking contract
-near deploy $STAKING_ACCOUNT_ID --wasmFile=astra-staking/res/sputnik_staking.wasm --accountId $STAKING_ACCOUNT_ID --initFunction new --initArgs '{"owner_id": "'$DAO_ACCOUNT_ID'","token_id": "'$TOKEN_ACCOUNT_ID'","unstake_period": "604800000"}'
+near deploy $STAKING_ACCOUNT_ID --wasmFile=astra-staking/res/astra_staking.wasm --accountId $STAKING_ACCOUNT_ID --initFunction new --initArgs '{"owner_id": "'$DAO_ACCOUNT_ID'","token_id": "'$TOKEN_ACCOUNT_ID'","unstake_period": "604800000"}'
 
 # Change DAO to use a staking contract
 near call $DAO_ACCOUNT_ID add_proposal '{"proposal": { "description": "", "kind": { "SetStakingContract": { "staking_id": "'$STAKING_ACCOUNT_ID'" } } } }' --accountId $USER_ACCOUNT_ID --amount 1

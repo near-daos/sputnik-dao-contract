@@ -151,7 +151,7 @@ impl Contract {
     pub fn internal_register_user(&mut self, sender_id: &AccountId, near_amount: Balance) {
         let user = User::new(near_amount);
         self.save_user(sender_id, user);
-        ext_sputnik::register_delegation(
+        ext_astra::register_delegation(
             sender_id.clone(),
             self.owner_id.clone(),
             (U128_LEN as Balance) * env::storage_byte_cost(),

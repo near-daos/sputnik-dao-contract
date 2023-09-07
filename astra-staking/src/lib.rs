@@ -30,8 +30,8 @@ pub const GAS_FOR_REGISTER: Gas = Gas(10_000_000_000_000);
 /// Amount of gas for undelegate action.
 pub const GAS_FOR_UNDELEGATE: Gas = Gas(10_000_000_000_000);
 
-#[ext_contract(ext_sputnik)]
-pub trait Sputnik {
+#[ext_contract(ext_astra)]
+pub trait Astra {
     fn register_delegation(&mut self, account_id: AccountId);
     fn delegate(&mut self, account_id: AccountId, amount: U128);
     fn undelegate(&mut self, account_id: AccountId, amount: U128);
@@ -90,7 +90,7 @@ impl Contract {
     pub fn delegate(&mut self, account_id: AccountId, amount: U128) -> Promise {
         let sender_id = env::predecessor_account_id();
         self.internal_delegate(sender_id, account_id.clone().into(), amount.0);
-        ext_sputnik::delegate(
+        ext_astra::delegate(
             account_id.into(),
             amount,
             self.owner_id.clone(),
@@ -103,7 +103,7 @@ impl Contract {
     pub fn undelegate(&mut self, account_id: AccountId, amount: U128) -> Promise {
         let sender_id = env::predecessor_account_id();
         self.internal_undelegate(sender_id, account_id.clone().into(), amount.0);
-        ext_sputnik::undelegate(
+        ext_astra::undelegate(
             account_id.into(),
             amount,
             self.owner_id.clone(),
