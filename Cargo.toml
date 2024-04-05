@@ -3,6 +3,7 @@
 members = [
   "sputnik-staking",
   "sputnikdao2",
+  "sputnikdao2-gasfix",
   "sputnikdao-factory2",
   "test-token"
 ]
