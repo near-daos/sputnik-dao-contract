@@ -20,9 +20,14 @@ impl StorageManagement for Contract {
         let account_id = account_id.unwrap_or_else(env::predecessor_account_id);
 
         if self.users.contains_key(&account_id) {
-            log!("ERR_ACC_REGISTERED");
-            if deposit_amount > 0 {
-                Promise::new(env::predecessor_account_id()).transfer(deposit_amount);
+            if registration_only.unwrap_or(false) {
+                log!("ERR_ACC_REGISTERED");
+
+                if deposit_amount > 0 {
+                    Promise::new(env::predecessor_account_id()).transfer(deposit_amount);
+                }
+            } else {
+                self.internal_update_user_storage(&account_id, deposit_amount);
             }
         } else {
             let min_balance = User::min_storage() as Balance * env::storage_byte_cost();
