@@ -88,8 +88,8 @@ jobs:
       - name: Install binaryen
         run: |
           set -e
-          curl -L https://github.com/WebAssembly/binaryen/releases/download/version_105/binaryen-version_105-x86_64-linux.tar.gz | tar xzf -
-          echo "`pwd`/binaryen-version_105/bin" >> $GITHUB_PATH
+          curl -L https://github.com/WebAssembly/binaryen/releases/download/version_119/binaryen-version_119-x86_64-linux.tar.gz | tar xzf - 
+          echo "`pwd`/binaryen-version_119/bin" >> $GITHUB_PATH 
       # triggers all build.rs steps
       - name: Trigger build.rs steps
         run: |

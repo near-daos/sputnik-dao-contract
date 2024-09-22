@@ -14,7 +14,7 @@ docker create \
      --mount type=bind,source=$DIR/..,target=/host \
      --cap-add=SYS_PTRACE --security-opt seccomp=unconfined \
      --name=$NAME \
-     -w /host/sputnikdao_factory2 \
+     -w /host/sputnikdao-factory2 \
      -e RUSTFLAGS='-C link-arg=-s' \
      -it \
      nearprotocol/contract-builder \
