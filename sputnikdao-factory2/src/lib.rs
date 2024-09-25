@@ -23,7 +23,7 @@ const DAO_CONTRACT_NO_DATA: &str = "no data";
 
 // Gas & Costs for blob storage
 const GAS_STORE_CONTRACT_LEFTOVER: Gas = Gas(20_000_000_000_000);
-const ON_REMOVE_CONTRACT_GAS: Gas = Gas(10_000_000_000_000);
+const ON_REMOVE_CONTRACT_GAS: Gas = Gas(20_000_000_000_000);
 const NO_DEPOSIT: Balance = 0;
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
