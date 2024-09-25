@@ -1,61 +1,117 @@
-import { Workspace, NearAccount, BN, toYocto, tGas } from 'near-workspaces-ava';
+import { Worker, NearAccount, BN, toYocto, tGas, KeyPair } from 'near-workspaces';
+import anyTest, { TestFn } from 'ava';
+import * as fs from 'fs';
 
-async function initWorkspace(root: NearAccount) {
-    const alice = await root.createAccount('alice');
-    // console.log('alice\'s balance is: ' + (await alice.balance()).total) //100N
+export async function deployAndInit({
+    root,
+    subContractId,
+    code,
+    init,
+    initialBalance,
+}: {
+    root: NearAccount;
+    subContractId: string;
+    code: Uint8Array | string;
+    init?: {
+        methodName: string;
+        args?: Record<string, unknown>;
+        options?: {
+            gas?: string | BN;
+            attachedDeposit?: string | BN;
+            signWithKey?: KeyPair;
+        }
+    };
+    initialBalance?: string;
+}): Promise<NearAccount> {
+    const contract = await root.createSubAccount(subContractId, {
+        initialBalance,
+    });
+    const result = await contract.deploy(code);
+    if (result.failed) {
+        throw result.Failure;
+    }
+    if (init) {
+        await contract.call(contract, init.methodName, init.args ?? {}, init.options);
+    }
+    return contract;
+}
 
-    const config = { name: 'sputnik', purpose: 'testing', metadata: '' };
-    const policy = [root.accountId];
+export function initWorkspace(options?: { skipInit?: boolean, factory?: boolean}) {
+    const test = anyTest as TestFn<{
+        worker: Worker;
+        accounts: Record<string, NearAccount>;
+    }>;
 
-    //for short let's call it just dao
-    const dao = await root.createAndDeploy('dao', '../res/sputnikdao2.wasm', {
-        method: 'new',
-        args: { config, policy },
-        initialBalance: toYocto('200'),
+    test.beforeEach(async (t) => {
+        // Init the worker and start a Sandbox server
+        const worker = await Worker.init();
+
+        // Create accounts
+        const root = worker.rootAccount;
+        const alice = await root.createSubAccount('alice');
+        // console.log('alice\'s balance is: ' + (await alice.balance()).total) //100N
+
+        const config = { name: 'sputnik', purpose: 'testing', metadata: '' };
+        const policy = [root.accountId];
+
+        //for short let's call it just dao
+        const dao = await deployAndInit({
+            root,
+            subContractId: 'dao',
+            code: '../res/sputnikdao2.wasm',
+            init: options?.skipInit ? undefined : {
+                methodName: 'new',
+                args: { config, policy },
+            },
+            initialBalance: toYocto('200'),
+        });
+
+        const factory = options?.factory ? await deployAndInit({
+            root,
+            subContractId: 'factory',
+            code: '../../sputnikdao-factory2/res/sputnikdao_factory2.wasm',
+            init: {
+                methodName: 'new',
+                args: {},
+                options: {
+                    gas: tGas(300),
+                },
+            }, // 300 Tags
+            initialBalance: toYocto('500'),
+        }) : undefined;
+
+        // Save state for test runs, it is unique for each test
+        t.context.worker = worker;
+        t.context.accounts = {
+            root,
+            alice,
+            dao,
+            factory,
+        };
     });
 
-    // console.log('dao\'s balance is: ' + (await dao.balance()).total) //~200N
+    test.afterEach.always(async (t) => {
+        // Stop Sandbox server
+        await t.context.worker.tearDown().catch((error) => {
+            console.log('Failed to stop the Sandbox:', error);
+        });
+    });
 
-    return { alice, dao };
+    return test;
 }
 
 export const STORAGE_PER_BYTE = new BN('10000000000000000000');
 
-export const workspace = Workspace.init(async ({ root }) => {
-    return initWorkspace(root);
-});
-
-export const workspaceWithoutInit = Workspace.init(async ({ root }) => {
-    const alice = await root.createAccount('alice');
-
-    //for short let's call it just dao
-    const dao = await root.createAndDeploy('dao', '../res/sputnikdao2.wasm', {
+export async function initTestToken(root: NearAccount) {
+    const testToken = await deployAndInit({
+        root,
+        subContractId: 'test-token',
+        code: '../../test-token/res/test_token.wasm',
+        init: {
+            methodName: 'new',
+        },
         initialBalance: toYocto('200'),
     });
-    return { alice, dao };
-});
-
-export const workspaceWithFactory = Workspace.init(async ({ root }) => {
-    const factory = await root.createAndDeploy(
-        'factory',
-        '../../sputnikdao-factory2/res/sputnikdao_factory2.wasm',
-        {
-            initialBalance: toYocto('500'),
-        },
-    );
-    await factory.call(factory.accountId, 'new', {}, { gas: tGas(300) });
-    return { factory };
-});
-
-export async function initTestToken(root: NearAccount) {
-    const testToken = await root.createAndDeploy(
-        'test-token',
-        '../../test-token/res/test_token.wasm',
-        {
-            method: 'new',
-            initialBalance: toYocto('200'),
-        },
-    );
     return testToken;
 }
 
@@ -64,19 +120,20 @@ export async function initStaking(
     dao: NearAccount,
     testToken: NearAccount,
 ) {
-    const staking = await root.createAndDeploy(
-        'staking',
-        '../../sputnik-staking/res/sputnik_staking.wasm',
-        {
-            method: 'new',
+    const staking = await deployAndInit({
+        root,
+        subContractId: 'staking',
+        code: '../../sputnik-staking/res/sputnik_staking.wasm',
+        init: {
+            methodName: 'new',
             args: {
                 owner_id: dao,
                 token_id: testToken,
                 unstake_period: '100000000000',
             },
-            initialBalance: toYocto('100'),
         },
-    );
+        initialBalance: toYocto('100'),
+    });
     return staking;
 }
 
@@ -106,6 +163,7 @@ export async function setStakingId(
 }
 
 export const regCost = STORAGE_PER_BYTE.mul(new BN(16));
+export const DAO_WASM_BYTES: Uint8Array = fs.readFileSync('../res/sputnikdao2.wasm');
 
 export async function registerAndDelegate(
     dao: NearAccount,
@@ -261,7 +319,7 @@ export async function giveupBountyRaw(
     dao: NearAccount,
     proposalId: number,
 ) {
-    return await alice.call_raw(dao, 'bounty_giveup', { id: proposalId });
+    return await alice.callRaw(dao, 'bounty_giveup', { id: proposalId });
 }
 
 export async function voteApprove(
@@ -281,3 +339,9 @@ export async function voteApprove(
         },
     );
 }
+
+export type ProposalStatus = 'InProgress' | 'Approved' | 'Rejected' | 'Removed' | 'Expired' | 'Moved' | 'Failed';
+
+export interface Proposal {
+    status: ProposalStatus
+};

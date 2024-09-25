@@ -8,7 +8,7 @@ jobs:
   tests:
     strategy:
       matrix:
-        platform: [ubuntu-latest, macos-latest]
+        platform: [ubuntu-22.04, macos-13]
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v2
@@ -16,6 +16,15 @@ jobs:
         with:
           toolchain: stable
           target: wasm32-unknown-unknown
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.17.0
+      - name: Setup dependencies
+        if: startsWith(matrix.platform, 'macos')
+        run: |
+          brew install llvm@14
+          echo /usr/local/opt/llvm@14/bin >> $GITHUB_PATH
       - name: Build
         env:
           IS_GITHUB_ACTION: true

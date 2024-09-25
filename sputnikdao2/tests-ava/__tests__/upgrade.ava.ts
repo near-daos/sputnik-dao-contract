@@ -1,6 +1,6 @@
-import { toYocto, tGas } from 'near-workspaces-ava';
+import { toYocto, tGas } from 'near-workspaces';
 
-import { workspaceWithFactory } from './utils';
+import { initWorkspace } from './utils';
 
 // DAO v2 Upgrade flow:
 // 1. add proposal for store_contract_self(get it approved)
@@ -8,14 +8,19 @@ import { workspaceWithFactory } from './utils';
 // 3. add proposal for remove_contract_self(get it approved)
 // 4. Confirm DAO contract code_hash and returned balance
 
-workspaceWithFactory.test('basic', async (test, { root, factory }) => {
-    test.true(await root.exists());
-    test.true(await factory.exists());
+// Set up workspace with DAO factory contract
+const test = initWorkspace({ factory: true });
+
+test('basic', async (t) => {
+    const { root, factory } = t.context.accounts;
+    t.true(await root.exists());
+    t.true(await factory.exists());
 });
 
-workspaceWithFactory.test(
+test(
     'Store DAO upgrade code in DAO via factory',
-    async (test, { root, factory }) => {
+    async (t) => {
+        const { root, factory } = t.context.accounts;
         const config = {
             name: 'upgradedao',
             purpose: 'to test',
@@ -40,7 +45,7 @@ workspaceWithFactory.test(
             },
         );
 
-        test.deepEqual(await factory.view('get_dao_list', {}), [
+        t.deepEqual(await factory.view('get_dao_list', {}), [
             'upgradedao.factory.test.near',
         ]);
 
@@ -55,7 +60,7 @@ workspaceWithFactory.test(
             {},
             { gas: tGas(300) },
         );
-        test.is(proposalId, 0);
+        t.is(proposalId, 0);
 
         const args = Buffer.from(
             `{ "code_hash": "${default_code_hash}" }`,
@@ -97,7 +102,7 @@ workspaceWithFactory.test(
             {},
             { gas: tGas(300) },
         );
-        test.is(proposalId, 1);
+        t.is(proposalId, 1);
 
         let new_proposal: any = await root.call(
             'upgradedao.factory.test.near',
@@ -106,15 +111,15 @@ workspaceWithFactory.test(
             { gas: tGas(300) },
         );
 
-        test.log(new_proposal);
-        test.is(
+        t.log(new_proposal);
+        t.is(
             new_proposal.description,
             'Store DAO upgrade contract code blob',
         );
-        test.is(new_proposal.proposer, 'test.near');
-        test.is(new_proposal.status, 'InProgress');
-        test.truthy(new_proposal.kind.FunctionCall);
-        test.is(
+        t.is(new_proposal.proposer, 'test.near');
+        t.is(new_proposal.status, 'InProgress');
+        t.truthy(new_proposal.kind.FunctionCall);
+        t.is(
             new_proposal.kind.FunctionCall.receiver_id,
             `${factory.accountId}`,
         );
@@ -132,8 +137,8 @@ workspaceWithFactory.test(
             { id: 0 },
             { gas: tGas(300) },
         );
-        test.log(passed_proposal_0);
-        test.is(passed_proposal_0.status, 'Approved');
+        t.log(passed_proposal_0);
+        t.is(passed_proposal_0.status, 'Approved');
 
         // 2. add proposal for UpgradeSelf with hash of blob from #1(get it approved)
         // --------------------------------------------------------------------
@@ -164,14 +169,14 @@ workspaceWithFactory.test(
             { gas: tGas(300) },
         );
 
-        test.log(new_proposal_1);
-        test.is(
+        t.log(new_proposal_1);
+        t.is(
             new_proposal_1.description,
             'Upgrade DAO contract using local code blob',
         );
-        test.is(new_proposal_1.proposer, 'test.near');
-        test.is(new_proposal_1.status, 'InProgress');
-        test.truthy(new_proposal_1.kind.UpgradeSelf);
+        t.is(new_proposal_1.proposer, 'test.near');
+        t.is(new_proposal_1.status, 'InProgress');
+        t.truthy(new_proposal_1.kind.UpgradeSelf);
 
         await root.call(
             'upgradedao.factory.test.near',
@@ -187,8 +192,8 @@ workspaceWithFactory.test(
             { gas: tGas(300) },
         );
 
-        test.log(passed_proposal_1);
-        test.is(passed_proposal_1.status, 'Approved');
+        t.log(passed_proposal_1);
+        t.is(passed_proposal_1.status, 'Approved');
 
         // 3. add proposal for remove_contract_self(get it approved)
         // --------------------------------------------------------------------
@@ -236,15 +241,15 @@ workspaceWithFactory.test(
             { gas: tGas(300) },
         );
 
-        test.log(new_proposal_2);
-        test.is(
+        t.log(new_proposal_2);
+        t.is(
             new_proposal_2.description,
             'Remove DAO upgrade contract local code blob via factory',
         );
-        test.is(new_proposal_2.proposer, 'test.near');
-        test.is(new_proposal_2.status, 'InProgress');
-        test.truthy(new_proposal_2.kind.FunctionCall);
-        test.is(
+        t.is(new_proposal_2.proposer, 'test.near');
+        t.is(new_proposal_2.status, 'InProgress');
+        t.truthy(new_proposal_2.kind.FunctionCall);
+        t.is(
             new_proposal_2.kind.FunctionCall.receiver_id,
             `${factory.accountId}`,
         );
@@ -263,11 +268,77 @@ workspaceWithFactory.test(
             { gas: tGas(300) },
         );
 
-        test.log(passed_proposal_2);
-        test.is(passed_proposal_2.status, 'Approved');
+        t.log(passed_proposal_2);
+        t.is(passed_proposal_2.status, 'Approved');
 
         // 4. Confirm DAO contract code_hash and returned balance
         // --------------------------------------------------------------------
         // TODO: Check if balance increased by 6 NEAR for refund
+    },
+);
+
+test(
+    'Upgrade self using factory',
+    async (t) => {
+        const { root, factory } = t.context.accounts;
+        const config = {
+            name: 'testdao',
+            purpose: 'to test',
+            metadata: '',
+        };
+        const policy = [root.accountId];
+        const params = {
+            config,
+            policy,
+        };
+
+        await root.call(
+            factory,
+            'create',
+            {
+                name: 'testdao',
+                args: Buffer.from(JSON.stringify(params)).toString('base64'),
+            },
+            {
+                attachedDeposit: toYocto('10'),
+                gas: tGas(300),
+            },
+        );
+
+        t.deepEqual(await factory.view('get_dao_list', {}), [
+            'testdao.factory.test.near',
+        ]);
+        const hash = await factory.view('get_default_code_hash', {});
+
+        const proposalId: number = await root.call(
+            'testdao.factory.test.near',
+            'add_proposal',
+            {
+                proposal: {
+                    description: 'proposal to test',
+                    kind: {
+                        UpgradeSelf: {
+                            hash: hash,
+                        },
+                    },
+                },
+            },
+            {
+                attachedDeposit: toYocto('1'),
+            },
+        );
+        t.is(proposalId, 0);
+
+        await root.call(
+            'testdao.factory.test.near',
+            'act_proposal',
+            {
+                id: proposalId,
+                action: 'VoteApprove',
+            },
+            {
+                gas: tGas(300),
+            },
+        );
     },
 );

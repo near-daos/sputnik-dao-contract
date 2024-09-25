@@ -2,11 +2,14 @@
   "private": true,
   "scripts": {
     "format": "prettier --write \"__tests__/*.{js,jsx,ts,tsx}\" --tab-width=4 --single-quote --trailing-comma all",
-    "test": "near-workspaces-ava",
-    "test:testnet": "near-workspaces-ava --config ./ava.testnet.config.cjs"
+    "test": "ava",
+    "test:testnet": "ava --config ./ava.testnet.config.cjs"
   },
   "devDependencies": {
-    "near-workspaces-ava": "^1.1.0",
-    "prettier": "^2.5.1"
+    "@types/bn.js": "^5.1.6",
+    "ava": "^6.1.3",
+    "near-workspaces": "^3.5.0",
+    "prettier": "^2.5.1",
+    "ts-node": "^10.9.2"
   }
 }
