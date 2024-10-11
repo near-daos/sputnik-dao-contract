@@ -4,18 +4,21 @@ import {
     captureError,
     toYocto,
     tGas,
-} from 'near-workspaces-ava';
+} from 'near-workspaces';
 import {
-    workspace,
     initStaking,
     initTestToken,
     STORAGE_PER_BYTE,
     setStakingId,
     registerAndDelegate,
     regCost,
+    initWorkspace,
 } from './utils';
 
-workspace.test('Register delegation', async (test, { root, dao, alice }) => {
+const test = initWorkspace();
+
+test('Register delegation', async (t) => {
+    const { root, dao, alice } = t.context.accounts;
     const testToken = await initTestToken(root);
     const staking = await initStaking(root, dao, testToken);
 
@@ -28,14 +31,15 @@ workspace.test('Register delegation', async (test, { root, dao, alice }) => {
     let bal: BN = new BN(
         await dao.view('delegation_balance_of', { account_id: alice }),
     );
-    test.deepEqual(bal, new BN(1));
+    t.deepEqual(bal, new BN(1));
     const total: BN = new BN(await dao.view('delegation_total_supply'));
-    test.deepEqual(total, new BN(1));
+    t.deepEqual(total, new BN(1));
 });
 
-workspace.test(
+test(
     'Register delegation fail',
-    async (test, { root, dao, alice }) => {
+    async (t) => {
+        const { root, dao, alice } = t.context.accounts;
         const testToken = await initTestToken(root);
         const staking = await initStaking(root, dao, testToken);
 
@@ -48,7 +52,7 @@ workspace.test(
                 { attachedDeposit: regCost },
             ),
         );
-        test.regex(errorString, /ERR_NO_STAKING/);
+        t.regex(errorString, /ERR_NO_STAKING/);
 
         await setStakingId(root, dao, staking);
         // Can only be called by the `staking_id`
@@ -60,7 +64,7 @@ workspace.test(
                 { attachedDeposit: regCost },
             ),
         );
-        test.regex(errorString, /ERR_INVALID_CALLER/);
+        t.regex(errorString, /ERR_INVALID_CALLER/);
 
         // Attached deposit is handled correctly
         await captureError(async () =>
@@ -82,40 +86,42 @@ workspace.test(
     },
 );
 
-workspace.test('Delegation', async (test, { root, dao, alice }) => {
+test('Delegation', async (t) => {
+    const { root, dao, alice } = t.context.accounts;
     const testToken = await initTestToken(root);
     const staking = await initStaking(root, dao, testToken);
     const randomAmount = new BN('10087687667869');
-    const bob = await root.createAccount('bob');
+    const bob = await root.createSubAccount('bob');
 
     // set staking
     await setStakingId(root, dao, staking);
 
     let result = await registerAndDelegate(dao, staking, alice, randomAmount);
-    test.deepEqual(
+    t.deepEqual(
         [new BN(result[0]), new BN(result[1]), new BN(result[2])],
         [new BN('0'), randomAmount, randomAmount],
     );
     result = await registerAndDelegate(dao, staking, bob, randomAmount.muln(2));
-    test.deepEqual(
+    t.deepEqual(
         [new BN(result[0]), new BN(result[1]), new BN(result[2])],
         [new BN('0'), randomAmount.muln(2), randomAmount.muln(3)],
     );
-    test.deepEqual(
+    t.deepEqual(
         new BN(await dao.view('delegation_balance_of', { account_id: alice })),
         randomAmount,
     );
-    test.deepEqual(
+    t.deepEqual(
         new BN(await dao.view('delegation_balance_of', { account_id: bob })),
         randomAmount.muln(2),
     );
-    test.deepEqual(
+    t.deepEqual(
         new BN(await dao.view('delegation_total_supply')),
         randomAmount.muln(3),
     );
 });
 
-workspace.test('Delegation fail', async (test, { root, dao, alice }) => {
+test('Delegation fail', async (t) => {
+    const { root, dao, alice } = t.context.accounts;
     const testToken = await initTestToken(root);
     const staking = await initStaking(root, dao, testToken);
     const randomAmount = new BN('10087687667869');
@@ -127,7 +133,7 @@ workspace.test('Delegation fail', async (test, { root, dao, alice }) => {
             amount: randomAmount,
         }),
     );
-    test.regex(errorString, /ERR_NO_STAKING/);
+    t.regex(errorString, /ERR_NO_STAKING/);
 
     // set staking
     await setStakingId(root, dao, staking);
@@ -139,7 +145,7 @@ workspace.test('Delegation fail', async (test, { root, dao, alice }) => {
             amount: randomAmount,
         }),
     );
-    test.regex(errorString, /ERR_INVALID_CALLER/);
+    t.regex(errorString, /ERR_INVALID_CALLER/);
 
     // Can't be called without previos registration
     errorString = await captureError(async () =>
@@ -148,10 +154,11 @@ workspace.test('Delegation fail', async (test, { root, dao, alice }) => {
             amount: randomAmount,
         }),
     );
-    test.regex(errorString, /ERR_NOT_REGISTERED/);
+    t.regex(errorString, /ERR_NOT_REGISTERED/);
 });
 
-workspace.test('Undelegate', async (test, { root, dao, alice }) => {
+test('Undelegate', async (t) => {
+    const { root, dao, alice } = t.context.accounts;
     const testToken = await initTestToken(root);
     const staking = await initStaking(root, dao, testToken);
     const randomAmount = new BN('44887687667868');
@@ -166,13 +173,14 @@ workspace.test('Undelegate', async (test, { root, dao, alice }) => {
         account_id: alice,
         amount: randomAmount.divn(2).toString(),
     });
-    test.deepEqual(
+    t.deepEqual(
         [new BN(result[0]), new BN(result[1]), new BN(result[2])],
         [randomAmount, randomAmount.divn(2), randomAmount.divn(2)],
     );
 });
 
-workspace.test('Undelegate fail', async (test, { root, dao, alice }) => {
+test('Undelegate fail', async (t) => {
+    const { root, dao, alice } = t.context.accounts;
     const testToken = await initTestToken(root);
     const staking = await initStaking(root, dao, testToken);
     const randomAmount = new BN('44887687667868');
@@ -184,7 +192,7 @@ workspace.test('Undelegate fail', async (test, { root, dao, alice }) => {
             amount: randomAmount,
         }),
     );
-    test.regex(errorString, /ERR_NO_STAKING/);
+    t.regex(errorString, /ERR_NO_STAKING/);
 
     // Set staking
     await setStakingId(root, dao, staking);
@@ -196,7 +204,7 @@ workspace.test('Undelegate fail', async (test, { root, dao, alice }) => {
             amount: randomAmount,
         }),
     );
-    test.regex(errorString, /ERR_INVALID_CALLER/);
+    t.regex(errorString, /ERR_INVALID_CALLER/);
 
     await registerAndDelegate(dao, staking, alice, randomAmount);
     // Check that a user can't remove more than it delegated
@@ -206,5 +214,5 @@ workspace.test('Undelegate fail', async (test, { root, dao, alice }) => {
             amount: randomAmount.addn(1).toString(),
         }),
     );
-    test.regex(errorString, /ERR_INVALID_STAKING_CONTRACT/);
+    t.regex(errorString, /ERR_INVALID_STAKING_CONTRACT/);
 });
