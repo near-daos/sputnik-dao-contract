@@ -4,8 +4,10 @@ members = [
   "sputnik-staking",
   "sputnikdao2",
   "sputnikdao-factory2",
-  "test-token"
+  "test-token",
+  "workspaces-rs-tests",
 ]
+resolver = "2"
 
 [profile.release]
 codegen-units = 1

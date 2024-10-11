@@ -1,0 +1,21 @@
+[package]
+name = "workspaces-rs-tests"
+version = "0.1.0"
+authors = ["Nemanja Ninkovic <nninkovic.py@gmail.com>"]
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dev-dependencies]
+anyhow = "1.0"
+near-primitives = "0.5.0"
+near-sdk = { version = "4.0.0-pre.4", features = ["unstable"]  }
+near-units = "0.2.0"
+serde_json = "1.0"
+tokio = { version = "1.14", features = ["full"] }
+near-workspaces = "0.7.0"
+near-sdk-sim = "4.0.0-pre.4"
+sputnikdao2 = { path = "../sputnikdao2" }
+sputnikdao-factory2 = { path = "../sputnikdao-factory2" }
