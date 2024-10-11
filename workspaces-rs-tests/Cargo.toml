@@ -16,5 +16,6 @@ near-units = "0.2.0"
 serde_json = "1.0"
 tokio = { version = "1.14", features = ["full"] }
 near-workspaces = "0.7.0"
+near-sdk-sim = "4.0.0-pre.4"
 sputnikdao2 = { path = "../sputnikdao2" }
 sputnikdao-factory2 = { path = "../sputnikdao-factory2" }
