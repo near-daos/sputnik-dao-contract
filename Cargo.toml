@@ -1,6 +1,5 @@
 [workspace]
 # include a member for each contract
-resolver = "2"
 members = [
   "sputnik-staking",
   "sputnikdao2",
@@ -8,6 +7,7 @@ members = [
   "test-token",
   "workspaces-rs-tests",
 ]
+resolver = "2"
 
 [profile.release]
 codegen-units = 1
