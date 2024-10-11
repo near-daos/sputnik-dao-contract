@@ -15,6 +15,6 @@ near-sdk = { version = "4.0.0-pre.4", features = ["unstable"]  }
 near-units = "0.2.0"
 serde_json = "1.0"
 tokio = { version = "1.14", features = ["full"] }
-near-workspaces = { version = "0.10.0", features = ["unstable"] } as workspaces
+near-workspaces = { version = "0.10.0", features = ["unstable"] }
 sputnikdao2 = { path = "../sputnikdao2" }
 sputnikdao-factory2 = { path = "../sputnikdao-factory2" }
