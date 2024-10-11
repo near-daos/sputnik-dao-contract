@@ -2,7 +2,7 @@ use near_sdk::json_types::Base64VecU8;
 use near_units::{parse_gas, parse_near};
 use sputnikdao2::{Config, VersionedPolicy};
 use std::str::FromStr;
-use near_workspaces as workspaces;
+extern crate near_workspaces as workspaces;
 use workspaces::types::{KeyType, SecretKey};
 use workspaces::AccountId;
 use workspaces::types::{KeyType, SecretKey};
