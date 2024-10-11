@@ -2,7 +2,7 @@
 name = "sputnik-staking"
 version = "1.0.0"
 authors = ["Sputnik Devs <near-daos@protonmail.com>"]
-edition = "2018"
+edition = "2021"
 publish = false
 
 [lib]

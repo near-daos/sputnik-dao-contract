@@ -1,5 +1,6 @@
 [workspace]
 # include a member for each contract
+resolver = "2"
 members = [
   "sputnik-staking",
   "sputnikdao2",
