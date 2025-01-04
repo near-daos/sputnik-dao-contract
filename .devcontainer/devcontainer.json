@@ -1,0 +1,20 @@
+{
+    "hostRequirements": {
+        "cpus": 2,
+        "memory": "8gb",
+        "storage": "32gb"
+    },
+    "image": "mcr.microsoft.com/devcontainers/base:jammy",
+    "features": {
+        "ghcr.io/devcontainers/features/rust:latest": {}
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "github.vscode-github-actions",
+                "rust-lang.rust-analyzer"
+            ]
+        }
+    },
+    "postCreateCommand": "./.devcontainer/install-dependencies.sh"
+}
