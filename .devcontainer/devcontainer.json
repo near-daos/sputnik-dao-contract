@@ -2,7 +2,7 @@
     "hostRequirements": {
         "cpus": 2,
         "memory": "8gb",
-        "storage": "32gb"
+        "storage": "64gb"
     },
     "image": "mcr.microsoft.com/devcontainers/base:jammy",
     "features": {

@@ -1,4 +1,5 @@
-
+use near_workspaces::{AccountId};
+use near_workspaces::types::NearToken;
 
 #[tokio::test]
 async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
@@ -11,7 +12,7 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
 
     let sputnik_dao_factory = worker
         .import_contract(&sputnikdao_factory_contract_id, &mainnet)
-        .initial_balance(NearToken::from_near(1000))
+        .initial_balance(NearToken::from_near(50))
         .transact()
         .await?;
 
@@ -25,5 +26,5 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
     }
     assert!(init_sputnik_dao_factory_result.is_success());
 
-
+    Ok(())
 }
