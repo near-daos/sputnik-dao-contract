@@ -1,8 +1,8 @@
-
-use near_workspaces::AccountId;
-use near_workspaces::types::NearToken;
-use near_sdk::serde_json::json;
 use near_sdk::base64;
+use near_sdk::serde_json::{json, Value};
+use near_workspaces::types::NearToken;
+use near_workspaces::{AccountId, Contract};
+use std::fs;
 
 #[tokio::test]
 async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
@@ -19,6 +19,11 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
         .transact()
         .await?;
 
+    let wasm = fs::read("./res/sputnikdao_factory2.wasm").expect("Unable to read contract wasm");
+
+    let deploy_result = sputnik_dao_factory.as_account().deploy(wasm.as_slice()).await?;
+    assert!(deploy_result.is_success());
+
     let init_sputnik_dao_factory_result =
         sputnik_dao_factory.call("new").max_gas().transact().await?;
     if init_sputnik_dao_factory_result.is_failure() {
@@ -29,9 +34,10 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
     }
     assert!(init_sputnik_dao_factory_result.is_success());
 
-    let create_dao_args =json!({
+    let dao_name = "testdao";
+    let create_dao_args = json!({
         "config": {
-        "name": "testdao",
+        "name": dao_name,
         "purpose": "creating dao treasury",
         "metadata": "",
         },
@@ -82,18 +88,55 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
         "bounty_forgiveness_period": "604800000000000",
         },
     });
-        
 
     let user_account = worker.dev_create_account().await?;
-    let create_result = user_account.call(&sputnikdao_factory_contract_id, "create")
+    let account_details_before = user_account.view_account().await?;
+
+    let create_result = user_account
+        .call(&sputnikdao_factory_contract_id, "create")
         .args_json(json!({
-            "name": "testdao",
+            "name": dao_name,
+            "public_key": user_account.secret_key().public_key().to_string(),
             "args": base64::encode(create_dao_args.to_string())
         }))
         .max_gas()
         .deposit(NearToken::from_near(6))
-        .transact().await?;
-    println!("{:?}", create_result);
+        .transact()
+        .await?;
+
     assert!(create_result.is_success());
+
+    println!("{:?}", create_result);
+    println!(
+        "public key {}",
+        user_account.secret_key().public_key().to_string()
+    );
+    let dao_account_id: AccountId = format!("{}.{}", dao_name, SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT).parse().unwrap();
+    let dao_contract = Contract::from_secret_key(
+        dao_account_id.clone(),
+        user_account.secret_key().clone(),
+        &worker,
+    );
+
+    let get_config_result = worker
+        .view(
+            &dao_account_id,
+            "get_config",
+        )
+        .await?;
+
+    let config: Value = get_config_result.json().unwrap();
+    assert_eq!(create_dao_args["config"], config);
+
+    let user_account_status_before_delete = user_account.view_account().await?;
+    assert_eq!(user_account_status_before_delete.balance, NearToken::from_yoctonear(93984722284196139773822472));
+    
+    let delete_result = dao_contract.delete_contract(user_account.id()).await?;
+    assert!(delete_result.is_success());
+    println!("{:?}", delete_result);
+
+    let user_account_status_after_delete = user_account.view_account().await?;
+    assert_eq!(user_account_status_after_delete.balance, account_details_before.balance);
+    
     Ok(())
 }

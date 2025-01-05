@@ -97,7 +97,7 @@ impl SputnikDAOFactory {
     }
 
     #[payable]
-    pub fn create(&mut self, name: AccountId, public_key: Option<&str>, args: Base64VecU8) {
+    pub fn create(&mut self, name: AccountId, public_key: Option<String>, args: Base64VecU8) {
         let account_id: AccountId = format!("{}.{}", name, env::current_account_id())
             .parse()
             .unwrap();
