@@ -75,6 +75,7 @@ fn test_large_policy() {
         root,
         factory.create(
             AccountId::new_unchecked("testdao".to_string()),
+            None,
             Base64VecU8(params)
         ),
         deposit = to_yocto("10")

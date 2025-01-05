@@ -43,6 +43,7 @@ fn test_upgrade_using_factory() {
         root,
         factory.create(
             AccountId::new_unchecked("testdao".to_string()),
+            None,
             Base64VecU8(params)
         ),
         deposit = to_yocto("10")

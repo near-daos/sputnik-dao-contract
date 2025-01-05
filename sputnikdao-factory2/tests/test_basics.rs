@@ -1,5 +1,8 @@
-use near_workspaces::{AccountId};
+
+use near_workspaces::AccountId;
 use near_workspaces::types::NearToken;
+use near_sdk::serde_json::json;
+use near_sdk::base64;
 
 #[tokio::test]
 async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
@@ -26,5 +29,71 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
     }
     assert!(init_sputnik_dao_factory_result.is_success());
 
+    let create_dao_args =json!({
+        "config": {
+        "name": "testdao",
+        "purpose": "creating dao treasury",
+        "metadata": "",
+        },
+        "policy": {
+        "roles": [
+            {
+            "kind": {
+                "Group": ["acc3.near", "acc2.near", "acc1.near"],
+            },
+            "name": "Create Requests",
+            "permissions": [
+                "call:AddProposal",
+                "transfer:AddProposal",
+                "config:Finalize",
+            ],
+            "vote_policy": {},
+            },
+            {
+            "kind": {
+                "Group": ["acc1.near"],
+            },
+            "name": "Manage Members",
+            "permissions": [
+                "config:*",
+                "policy:*",
+                "add_member_to_role:*",
+                "remove_member_from_role:*",
+            ],
+            "vote_policy": {},
+            },
+            {
+            "kind": {
+                "Group": ["acc1.near", "acc2.near"],
+            },
+            "name": "Vote",
+            "permissions": ["*:VoteReject", "*:VoteApprove", "*:VoteRemove"],
+            "vote_policy": {},
+            },
+        ],
+        "default_vote_policy": {
+            "weight_kind": "RoleWeight",
+            "quorum": "0",
+            "threshold": [1, 2],
+        },
+        "proposal_bond": "100000000000000000000000",
+        "proposal_period": "604800000000000",
+        "bounty_bond": "100000000000000000000000",
+        "bounty_forgiveness_period": "604800000000000",
+        },
+    });
+        
+
+    let user_account = worker.dev_create_account().await?;
+    let create_result = user_account.call(&sputnikdao_factory_contract_id, "create")
+        .args_json(json!({
+            "name": "testdao",
+            "args": base64::encode(create_dao_args.to_string())
+        }))
+        .max_gas()
+        .deposit(NearToken::from_near(6))
+        .transact().await?;
+    println!("{:?}", create_result);
+    assert!(create_result.is_success());
     Ok(())
 }
