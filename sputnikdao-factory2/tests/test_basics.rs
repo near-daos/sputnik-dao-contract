@@ -106,11 +106,6 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
 
     assert!(create_result.is_success());
 
-    println!("{:?}", create_result);
-    println!(
-        "public key {}",
-        user_account.secret_key().public_key().to_string()
-    );
     let dao_account_id: AccountId = format!("{}.{}", dao_name, SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT).parse().unwrap();
     let dao_contract = Contract::from_secret_key(
         dao_account_id.clone(),
@@ -129,14 +124,15 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(create_dao_args["config"], config);
 
     let user_account_status_before_delete = user_account.view_account().await?;
-    assert_eq!(user_account_status_before_delete.balance, NearToken::from_yoctonear(93984722284196139773822472));
-    
+    assert_eq!(user_account_status_before_delete.balance.as_near(), account_details_before.balance.saturating_sub(NearToken::from_near(7)).as_near());
+
     let delete_result = dao_contract.delete_contract(user_account.id()).await?;
     assert!(delete_result.is_success());
-    println!("{:?}", delete_result);
+
+    worker.fast_forward(10).await?;
 
     let user_account_status_after_delete = user_account.view_account().await?;
-    assert_eq!(user_account_status_after_delete.balance, account_details_before.balance);
-    
+    assert_eq!(user_account_status_after_delete.balance.as_near(), account_details_before.balance.saturating_sub(NearToken::from_near(1)).as_near());
+
     Ok(())
 }

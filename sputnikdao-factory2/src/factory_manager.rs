@@ -120,10 +120,8 @@ impl FactoryManager {
         env::promise_batch_action_create_account(promise_id);
         // Transfer attached deposit.
         env::promise_batch_action_transfer(promise_id, attached_deposit);
-        env::log_str("checking key");
         if let Some(public_key) = public_key {
             // Add passed public key
-            env::log_str(format!("Adding key {:?}", public_key.as_str()).as_str());
             env::promise_batch_action_add_key_with_full_access(promise_id, &PublicKey::from_str(public_key.as_str()).unwrap(), 0);
         }
         
