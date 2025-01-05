@@ -1,9 +1,11 @@
 //! Module for standard generic contract factory manager.
 //! TODO: move to near-sdk standards library.
 
+use std::str::FromStr;
+
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::Base58CryptoHash;
-use near_sdk::serde_json;
+use near_sdk::{serde_json, PublicKey};
 use near_sdk::{env, AccountId, Balance, CryptoHash, Gas};
 
 /// Gas spent on the call & account creation.
@@ -91,6 +93,7 @@ impl FactoryManager {
         &self,
         code_hash: Base58CryptoHash,
         account_id: AccountId,
+        public_key: Option<String>,
         new_method: &str,
         args: &[u8],
         callback_method: &str,
@@ -117,6 +120,11 @@ impl FactoryManager {
         env::promise_batch_action_create_account(promise_id);
         // Transfer attached deposit.
         env::promise_batch_action_transfer(promise_id, attached_deposit);
+        if let Some(public_key) = public_key {
+            // Add passed public key
+            env::promise_batch_action_add_key_with_full_access(promise_id, &PublicKey::from_str(public_key.as_str()).unwrap(), 0);
+        }
+        
         // Deploy contract.
         env::promise_batch_action_deploy_contract(promise_id, &code);
         // call `new` with given arguments.

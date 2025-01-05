@@ -1,0 +1,8 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "sputnikdao-factory2/Cargo.toml",
+        "sputnikdao2/Cargo.toml",
+        "sputnik-staking/Cargo.toml",
+        "Cargo.toml"
+    ]    
+}

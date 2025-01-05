@@ -97,7 +97,7 @@ impl SputnikDAOFactory {
     }
 
     #[payable]
-    pub fn create(&mut self, name: AccountId, args: Base64VecU8) {
+    pub fn create(&mut self, name: AccountId, public_key: Option<String>, args: Base64VecU8) {
         let account_id: AccountId = format!("{}.{}", name, env::current_account_id())
             .parse()
             .unwrap();
@@ -110,6 +110,7 @@ impl SputnikDAOFactory {
         self.factory_manager.create_contract(
             self.get_default_code_hash(),
             account_id,
+            public_key,
             "new",
             &args.0,
             "on_create",
@@ -405,28 +406,35 @@ mod tests {
     #[test]
     #[should_panic(expected = "ERR_NOT_ENOUGH_DEPOSIT")]
     fn test_create_error() {
+        let public_key: near_sdk::PublicKey =
+            "ed25519:H3C2AVAWKq5Qm7FkyDB5cHKcYKHgbiiB2BzX8DQX8CJ".parse().unwrap();
         let mut context = VMContextBuilder::new();
         testing_env!(context
             .current_account_id(accounts(0))
             .predecessor_account_id(accounts(0))
+            .signer_account_pk(public_key)
             .build());
         let mut factory = SputnikDAOFactory::new();
 
         testing_env!(context.attached_deposit(to_yocto("5")).build());
-        factory.create("test".parse().unwrap(), "{}".as_bytes().to_vec().into());
+        factory.create("test".parse().unwrap(), None, "{}".as_bytes().to_vec().into());
     }
 
     #[test]
     fn test_basics() {
+        let public_key: near_sdk::PublicKey =
+            "ed25519:H3C2AVAWKq5Qm7FkyDB5cHKcYKHgbiiB2BzX8DQX8CJ".parse().unwrap();
+        
         let mut context = VMContextBuilder::new();
         testing_env!(context
             .current_account_id(accounts(0))
             .predecessor_account_id(accounts(0))
+            .signer_account_pk(public_key)
             .build());
         let mut factory = SputnikDAOFactory::new();
 
         testing_env!(context.attached_deposit(to_yocto("6")).build());
-        factory.create("test".parse().unwrap(), "{}".as_bytes().to_vec().into());
+        factory.create("test".parse().unwrap(), None, "{}".as_bytes().to_vec().into());
 
         testing_env!(
             context.predecessor_account_id(accounts(0)).build(),
@@ -483,15 +491,19 @@ mod tests {
 
     #[test]
     fn test_owner_can_be_a_dao_account() {
+        let public_key: near_sdk::PublicKey =
+            "ed25519:H3C2AVAWKq5Qm7FkyDB5cHKcYKHgbiiB2BzX8DQX8CJ".parse().unwrap();
+        
         let mut context = VMContextBuilder::new();
         testing_env!(context
             .current_account_id(bob())
             .predecessor_account_id(bob())
             .attached_deposit(to_yocto("6"))
+            .signer_account_pk(public_key)
             .build());
         let mut factory = SputnikDAOFactory::new();
 
-        factory.create(bob(), "{}".as_bytes().to_vec().into());
+        factory.create(bob(), None, "{}".as_bytes().to_vec().into());
 
         factory.set_owner(AccountId::new_unchecked("bob.sputnik-dao.near".to_string()));
 
