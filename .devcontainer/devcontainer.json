@@ -6,7 +6,9 @@
   },
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "features": {
-    "ghcr.io/devcontainers/features/rust:latest": {}
+    "ghcr.io/devcontainers/features/rust:latest": {},
+    "ghcr.io/near/near-devcontainers/features/cargo-near:latest": {},
+    "ghcr.io/devcontainers-community/features/llvm": {}
   },
   "customizations": {
     "vscode": {
