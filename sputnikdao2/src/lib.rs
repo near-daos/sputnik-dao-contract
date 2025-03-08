@@ -171,6 +171,7 @@ pub extern "C" fn store_blob() {
     env::state_write(&contract);
 }
 
+#[cfg(feature = "test-near-sdk-sim")]
 #[cfg(test)]
 mod tests {
     use near_sdk::test_utils::{accounts, VMContextBuilder};

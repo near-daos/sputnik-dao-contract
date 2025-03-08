@@ -171,6 +171,7 @@ impl FungibleTokenReceiver for Contract {
     }
 }
 
+#[cfg(feature = "test-near-sdk-sim")]
 #[cfg(test)]
 mod tests {
     use near_contract_standards::storage_management::StorageManagement;

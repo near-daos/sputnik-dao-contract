@@ -12,6 +12,5 @@ crate-type = ["cdylib", "rlib"]
 near-sdk = { version = "4.0.0-pre.4", features = ["unstable"]  }
 
 [dev-dependencies]
-near-sdk-sim = "4.0.0-pre.9"
 near-workspaces = "0.17.0"
 tokio = { version = "1.42.0", features = ["full"] }

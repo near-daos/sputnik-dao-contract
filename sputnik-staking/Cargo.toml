@@ -14,5 +14,4 @@ near-contract-standards = "4.0.0-pre.4"
 hex = "0.4.2"
 
 [dev-dependencies]
-near-sdk-sim = "4.0.0-pre.4"
 test-token = { path = "../test-token" }

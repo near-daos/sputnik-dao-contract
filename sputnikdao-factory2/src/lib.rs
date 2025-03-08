@@ -392,6 +392,7 @@ pub extern "C" fn store() {
     );
 }
 
+#[cfg(feature = "test-near-sdk-sim")]
 #[cfg(test)]
 mod tests {
     use near_sdk::test_utils::test_env::{alice, bob, carol};

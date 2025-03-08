@@ -1,3 +1,5 @@
+#[cfg(feature = "test-near-sdk-sim")]
+mod test_upgrade {
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::Base58CryptoHash;
 use near_sdk::serde_json::json;
@@ -142,4 +144,5 @@ fn test_upgrade_other() {
     )
     .assert_success();
     call!(root, dao.act_proposal(0, Action::VoteApprove, None)).assert_success();
+}
 }

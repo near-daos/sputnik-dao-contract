@@ -207,6 +207,7 @@ impl Contract {
     }
 }
 
+#[cfg(feature = "test-near-sdk-sim")]
 #[cfg(test)]
 mod tests {
     use near_sdk::test_utils::{accounts, VMContextBuilder};

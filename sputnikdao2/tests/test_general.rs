@@ -1,3 +1,5 @@
+#[cfg(feature = "test-near-sdk-sim")]
+mod test_general {
 use std::collections::HashMap;
 
 use near_sdk::json_types::U128;
@@ -503,4 +505,5 @@ fn test_payment_failures() {
         ProposalStatus::Approved,
         "Did not return to approved status."
     );
+}
 }

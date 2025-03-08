@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-RUSTFLAGS=-Ctarget-cpu=mvp cargo +stable build --target wasm32-unknown-unknown --release
+cargo +stable build --target wasm32-unknown-unknown --release
 cp target/wasm32-unknown-unknown/release/sputnik_staking.wasm ./sputnik-staking/res/
 cp target/wasm32-unknown-unknown/release/sputnikdao2.wasm ./sputnikdao2/res/
 cp target/wasm32-unknown-unknown/release/sputnikdao_factory2.wasm ./sputnikdao-factory2/res/
