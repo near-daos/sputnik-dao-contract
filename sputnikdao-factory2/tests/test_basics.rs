@@ -103,7 +103,7 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
         .transact()
         .await?;
 
-    assert!(create_result.is_success());
+    assert!(create_result.is_success(), "{:?}", create_result.failures());
 
     let dao_account_id: AccountId = format!("{}.{}", dao_name, SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT).parse().unwrap();
     let dao_contract = Contract::from_secret_key(
