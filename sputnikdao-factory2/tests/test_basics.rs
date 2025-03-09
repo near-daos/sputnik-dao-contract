@@ -21,7 +21,10 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
 
     let wasm = fs::read("./res/sputnikdao_factory2.wasm").expect("Unable to read contract wasm");
 
-    let deploy_result = sputnik_dao_factory.as_account().deploy(wasm.as_slice()).await?;
+    let deploy_result = sputnik_dao_factory
+        .as_account()
+        .deploy(wasm.as_slice())
+        .await?;
     assert!(deploy_result.is_success());
 
     let init_sputnik_dao_factory_result =
@@ -105,22 +108,19 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
 
     assert!(create_result.is_success(), "{:?}", create_result.failures());
 
-    let dao_account_id: AccountId = format!("{}.{}", dao_name, SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT).parse().unwrap();
+    let dao_account_id: AccountId = format!("{}.{}", dao_name, SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT)
+        .parse()
+        .unwrap();
     let dao_contract = Contract::from_secret_key(
         dao_account_id.clone(),
         user_account.secret_key().clone(),
         &worker,
     );
 
-    let get_config_result = worker
-        .view(
-            &dao_account_id,
-            "get_config",
-        )
-        .await?;
+    let get_config_result = worker.view(&dao_account_id, "get_config").await?;
 
     let config: Value = get_config_result.json().unwrap();
     assert_eq!(create_dao_args["config"], config);
-    
+
     Ok(())
 }
