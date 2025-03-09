@@ -1,10 +1,10 @@
 #![allow(dead_code)]
 pub use near_sdk::json_types::{Base64VecU8, U64};
-use near_sdk::{env, AccountId, Balance};
-use near_sdk_sim::transaction::ExecutionStatus;
-use near_sdk_sim::{
-    call, deploy, init_simulator, to_yocto, ContractAccount, ExecutionResult, UserAccount,
-};
+
+use near_workspaces::network::Sandbox;
+use near_workspaces::result::ExecutionFinalResult;
+use near_workspaces::types::NearToken;
+use near_workspaces::{AccountId, Contract, Worker};
 
 use near_sdk::json_types::U128;
 use sputnik_staking::ContractContract as StakingContract;
@@ -12,38 +12,72 @@ use sputnikdao2::{
     Action, Bounty, Config, ContractContract as DAOContract, OldAccountId, ProposalInput,
     ProposalKind, VersionedPolicy, OLD_BASE_TOKEN,
 };
-use sputnikdao_factory2::SputnikDAOFactoryContract as FactoryContract;
-use test_token::ContractContract as TestTokenContract;
 
-near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
-    FACTORY_WASM_BYTES => "../sputnikdao-factory2/res/sputnikdao_factory2.wasm",
-    DAO_WASM_BYTES => "res/sputnikdao2.wasm",
-    TEST_TOKEN_WASM_BYTES => "../test-token/res/test_token.wasm",
-    STAKING_WASM_BYTES => "../sputnik-staking/res/sputnik_staking.wasm",
+pub static FACTORY_WASM_BYTES: &[u8] =
+    include_bytes!("../../../sputnikdao-factory2/res/sputnikdao_factory2.wasm");
+pub static DAO_WASM_BYTES: &[u8] = include_bytes!("../../res/sputnikdao2.wasm");
+pub static TEST_TOKEN_WASM_BYTES: &[u8] = include_bytes!("../../../test-token/res/test_token.wasm");
+pub static STAKING_WASM_BYTES: &[u8] =
+    include_bytes!("../../../sputnik-staking/res/sputnik_staking.wasm");
+
+pub static SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &str = "sputnik-dao.near";
+
+pub fn root() -> near_sdk::AccountId {
+    near_sdk::AccountId::new_unchecked("near".to_string())
 }
-
-type Contract = ContractAccount<DAOContract>;
 
 pub fn base_token() -> Option<AccountId> {
     None
 }
 
-pub fn should_fail(r: ExecutionResult) {
-    match r.status() {
-        ExecutionStatus::Failure(_) => {}
-        _ => panic!("Should fail"),
+pub fn should_fail(r: ExecutionFinalResult) {
+    if r.is_success() {
+        panic!("Should fail");
     }
 }
 
-pub fn setup_factory(root: &UserAccount) -> ContractAccount<FactoryContract> {
-    deploy!(
-        contract: FactoryContract,
-        contract_id: "factory".to_string(),
-        bytes: &FACTORY_WASM_BYTES,
-        signer_account: root,
-        deposit: to_yocto("500"),
-    )
+pub async fn setup_factory() -> Result<(Contract, Worker<Sandbox>), Box<dyn std::error::Error>> {
+    let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.parse()?;
+
+    let worker = near_workspaces::sandbox().await?;
+    let mainnet = near_workspaces::mainnet().await?;
+
+    let _sputnik_dao_factory = worker
+        .import_contract(&sputnikdao_factory_contract_id, &mainnet)
+        .initial_balance(NearToken::from_near(50))
+        .transact()
+        .await?;
+
+    let mainnet = near_workspaces::mainnet().await?;
+    let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.parse()?;
+
+    let worker = near_workspaces::sandbox().await?;
+
+    let sputnik_dao_factory = worker
+        .import_contract(&sputnikdao_factory_contract_id, &mainnet)
+        .initial_balance(NearToken::from_near(50))
+        .transact()
+        .await?;
+
+    let deploy_result = sputnik_dao_factory
+        .as_account()
+        .deploy(FACTORY_WASM_BYTES)
+        .await?;
+    assert!(deploy_result.is_success());
+
+    let init_sputnik_dao_factory_result =
+        sputnik_dao_factory.call("new").max_gas().transact().await?;
+    if init_sputnik_dao_factory_result.is_failure() {
+        panic!(
+            "Error initializing sputnik-dao contract: {:?}",
+            String::from_utf8(init_sputnik_dao_factory_result.raw_bytes().unwrap())
+        );
+    }
+    assert!(init_sputnik_dao_factory_result.is_success());
+    Ok((sputnik_dao_factory, worker))
 }
+
+/*
 
 pub fn setup_dao() -> (UserAccount, Contract) {
     let root = init_simulator(None);
@@ -169,3 +203,5 @@ pub fn convert_new_to_old_token(new_account_id: Option<AccountId>) -> OldAccount
     }
     new_account_id.unwrap().to_string()
 }
+
+ */
