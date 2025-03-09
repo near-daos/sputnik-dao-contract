@@ -210,10 +210,10 @@ pub fn add_member_proposal(
         },
     )
 }
+*/
 
-pub fn add_bounty_proposal(root: &UserAccount, dao: &Contract) -> ExecutionResult {
+pub async fn add_bounty_proposal(worker: &Worker<Sandbox>, dao: &Contract) -> ExecutionFinalResult {
     add_proposal(
-        root,
         dao,
         ProposalInput {
             description: "test".to_string(),
@@ -221,15 +221,17 @@ pub fn add_bounty_proposal(root: &UserAccount, dao: &Contract) -> ExecutionResul
                 bounty: Bounty {
                     description: "test bounty".to_string(),
                     token: String::from(OLD_BASE_TOKEN),
-                    amount: U128(to_yocto("10")),
+                    amount: U128(NearToken::from_near(10).as_yoctonear()),
                     times: 3,
-                    max_deadline: U64(env::block_timestamp() + 10_000_000_000),
+                    max_deadline: U64(
+                        worker.view_block().await.unwrap().timestamp() + 10_000_000_000
+                    ),
                 },
             },
         },
     )
+    .await
 }
- */
 
 pub fn convert_new_to_old_token(new_account_id: Option<near_sdk::AccountId>) -> OldAccountId {
     if new_account_id.is_none() {

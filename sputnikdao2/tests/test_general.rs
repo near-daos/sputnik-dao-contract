@@ -79,7 +79,7 @@ async fn test_large_policy() -> Result<(), Box<dyn std::error::Error>> {
         .await?
         .json::<Vec<AccountId>>()
         .unwrap();
-    assert_eq!(dao_list, vec![dao_account_id.clone()]);
+    assert_eq!(dao_list, vec![dao_account_id]);
 
     Ok(())
 }
@@ -214,125 +214,269 @@ async fn test_multi_council() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/*
 #[tokio::test]
-fn test_bounty_workflow() {
-    let (root, dao) = setup_dao();
-    let user1 = root.create_user(user(1), to_yocto("1000"));
-    let user2 = root.create_user(user(2), to_yocto("1000"));
+async fn test_bounty_workflow() -> Result<(), Box<dyn std::error::Error>> {
+    let (dao, worker, root) = setup_dao().await?;
+    let user1 = root
+        .create_subaccount(user(1).as_str())
+        .initial_balance(NearToken::from_near(1000))
+        .transact()
+        .await?
+        .result;
+    let user2 = root
+        .create_subaccount(user(2).as_str())
+        .initial_balance(NearToken::from_near(1000))
+        .transact()
+        .await?
+        .result;
 
-    let mut proposal_id = add_bounty_proposal(&root, &dao).unwrap_json::<u64>();
+    let proposal_id = add_bounty_proposal(&worker, &dao)
+        .await
+        .json::<u64>()
+        .unwrap();
     assert_eq!(proposal_id, 0);
-    call!(
-        root,
-        dao.act_proposal(proposal_id, Action::VoteApprove, None)
-    )
-    .assert_success();
+    assert_eq!(
+        0,
+        dao.view("get_last_proposal_id")
+            .await
+            .unwrap()
+            .json::<u64>()
+            .unwrap()
+            - 1
+    );
 
-    let bounty_id = view!(dao.get_last_bounty_id()).unwrap_json::<u64>() - 1;
+    let act_proposal_result = root
+        .call(dao.id(), "act_proposal")
+        .args_json(json!({"id": proposal_id, "action": Action::VoteApprove }))
+        .transact()
+        .await
+        .unwrap();
+
+    assert_eq!(
+        0,
+        act_proposal_result.failures().len(),
+        "{:?}",
+        act_proposal_result.failures()
+    );
+
+    let bounty_id = dao.view("get_last_bounty_id").await?.json::<u64>().unwrap() - 1;
     assert_eq!(bounty_id, 0);
     assert_eq!(
-        view!(dao.get_bounty(bounty_id))
-            .unwrap_json::<BountyOutput>()
+        dao.view("get_bounty")
+            .args_json(json!({"id": bounty_id}))
+            .await?
+            .json::<BountyOutput>()
+            .unwrap()
             .bounty
             .times,
         3
     );
 
-    assert_eq!(to_yocto("1000"), user1.account().unwrap().amount);
-    call!(
-        user1,
-        dao.bounty_claim(bounty_id, U64::from(0)),
-        deposit = to_yocto("1")
-    )
-    .assert_success();
-    assert!(user1.account().unwrap().amount < to_yocto("999"));
     assert_eq!(
-        view!(dao.get_bounty_claims(user1.account_id()))
-            .unwrap_json::<Vec<BountyClaim>>()
-            .len(),
-        1
+        NearToken::from_near(1000),
+        user1.view_account().await?.balance
     );
+    let bouny_claim_result = user1
+        .call(dao.id(), "bounty_claim")
+        .args_json(json!({
+            "id": bounty_id,
+            "deadline": U64::from(0)
+        }))
+        .deposit(NearToken::from_near(1))
+        .transact()
+        .await?;
+
     assert_eq!(
-        view!(dao.get_bounty_number_of_claims(bounty_id)).unwrap_json::<u64>(),
-        1
+        0,
+        bouny_claim_result.failures().len(),
+        "{:?}",
+        bouny_claim_result.failures()
     );
 
-    call!(user1, dao.bounty_giveup(bounty_id)).assert_success();
-    assert!(user1.account().unwrap().amount > to_yocto("999"));
-    assert_eq!(
-        view!(dao.get_bounty_claims(user1.account_id()))
-            .unwrap_json::<Vec<BountyClaim>>()
-            .len(),
-        0
-    );
-    assert_eq!(
-        view!(dao.get_bounty_number_of_claims(bounty_id)).unwrap_json::<u64>(),
-        0
+    assert!(
+        user1.view_account().await?.balance < NearToken::from_near(999),
+        "user 1 balance after bounty claim: {:?} NEAR",
+        user1.view_account().await?.balance.as_near()
     );
 
-    assert_eq!(to_yocto("1000"), user2.account().unwrap().amount);
-    call!(
-        user2,
-        dao.bounty_claim(bounty_id, U64(env::block_timestamp() + 5_000_000_000)),
-        deposit = to_yocto("1")
-    )
-    .assert_success();
-    assert!(user2.account().unwrap().amount < to_yocto("999"));
     assert_eq!(
-        view!(dao.get_bounty_claims(user2.account_id()))
-            .unwrap_json::<Vec<BountyClaim>>()
-            .len(),
-        1
+        1,
+        dao.view("get_bounty_claims")
+            .args_json(json!({"account_id": user1.id()}))
+            .await
+            .unwrap()
+            .json::<Vec<BountyClaim>>()
+            .unwrap()
+            .len()
     );
     assert_eq!(
-        view!(dao.get_bounty_number_of_claims(bounty_id)).unwrap_json::<u64>(),
-        1
+        1,
+        dao.view("get_bounty_number_of_claims")
+            .args_json(json!({"id": bounty_id}))
+            .await
+            .unwrap()
+            .json::<u64>()
+            .unwrap()
     );
 
-    call!(
-        user2,
-        dao.bounty_done(bounty_id, None, "Bounty is done".to_string()),
-        deposit = to_yocto("1")
-    )
-    .assert_success();
-    assert!(user2.account().unwrap().amount < to_yocto("998"));
-    proposal_id = view!(dao.get_last_proposal_id()).unwrap_json::<u64>() - 1;
+    assert!(user1
+        .call(dao.id(), "bounty_giveup")
+        .args_json(json!({
+            "id": bounty_id,
+            "deadline": U64::from(0)
+        }))
+        .transact()
+        .await?
+        .is_success());
+    assert_eq!(
+        0,
+        dao.view("get_bounty_claims")
+            .args_json(json!({"account_id": user1.id()}))
+            .await
+            .unwrap()
+            .json::<Vec<BountyClaim>>()
+            .unwrap()
+            .len()
+    );
+    assert_eq!(
+        0,
+        dao.view("get_bounty_number_of_claims")
+            .args_json(json!({"id": bounty_id}))
+            .await
+            .unwrap()
+            .json::<u64>()
+            .unwrap()
+    );
+
+    assert_eq!(
+        NearToken::from_near(1000),
+        user2.view_account().await?.balance
+    );
+    assert!(user2
+        .call(dao.id(), "bounty_claim")
+        .args_json(json!({
+            "id": bounty_id,
+            "deadline": U64(worker.view_block().await.unwrap().timestamp() + 5_000_000_000)
+        }))
+        .deposit(NearToken::from_near(1))
+        .transact()
+        .await?
+        .is_success());
+    assert!(
+        user2.view_account().await?.balance < NearToken::from_near(999),
+        "user 2 balance after bounty claim: {:?} NEAR",
+        user1.view_account().await?.balance.as_near()
+    );
+    assert_eq!(
+        1,
+        dao.view("get_bounty_claims")
+            .args_json(json!({"account_id": user2.id()}))
+            .await
+            .unwrap()
+            .json::<Vec<BountyClaim>>()
+            .unwrap()
+            .len()
+    );
+    assert_eq!(
+        1,
+        dao.view("get_bounty_number_of_claims")
+            .args_json(json!({"id": bounty_id}))
+            .await
+            .unwrap()
+            .json::<u64>()
+            .unwrap()
+    );
+
+    let bounty_done_result = user2
+        .call(dao.id(), "bounty_done")
+        .args_json(json!({
+            "id": bounty_id,
+            "description": "Bounty is done"
+        }))
+        .deposit(NearToken::from_near(1))
+        .transact()
+        .await?;
+
+    println!("Bounty done logs: {:?}", bounty_done_result.logs());
+    assert_eq!(
+        0,
+        bounty_done_result.failures().len(),
+        "{:?}",
+        bounty_done_result.failures()
+    );
+
+    assert!(
+        user2.view_account().await?.balance < NearToken::from_near(998),
+        "user 2 balance after bounty done: {:?} NEAR",
+        user1.view_account().await?.balance.as_near()
+    );
+
+    let proposal_id = dao
+        .view("get_last_proposal_id")
+        .await
+        .unwrap()
+        .json::<u64>()
+        .unwrap()
+        - 1;
     assert_eq!(proposal_id, 1);
     assert_eq!(
-        view!(dao.get_proposal(proposal_id))
-            .unwrap_json::<ProposalOutput>()
+        "bounty_done",
+        dao.view("get_proposal")
+            .args_json(json!({"id": proposal_id}))
+            .await
+            .unwrap()
+            .json::<ProposalOutput>()
+            .unwrap()
             .proposal
             .kind
-            .to_policy_label(),
-        "bounty_done"
+            .to_policy_label()
     );
 
-    call!(
-        root,
-        dao.act_proposal(proposal_id, Action::VoteApprove, None)
-    )
-    .assert_success();
-    assert!(user2.account().unwrap().amount > to_yocto("999"));
-    assert_eq!(
-        view!(dao.get_bounty_claims(user2.account_id()))
-            .unwrap_json::<Vec<BountyClaim>>()
-            .len(),
-        0
+    let act_bounty_done_proposal_result = root
+        .call(dao.id(), "act_proposal")
+        .args_json(json!({
+            "id": proposal_id,
+            "action": Action::VoteApprove
+        }))
+        .max_gas()
+        .transact()
+        .await?;
+    assert!(
+        act_bounty_done_proposal_result.is_success(),
+        "{:?}",
+        act_bounty_done_proposal_result.failures()
+    );
+
+    assert!(
+        user2.view_account().await?.balance > NearToken::from_near(999),
+        "{:?}",
+        user1.view_account().await?.balance.as_near()
     );
     assert_eq!(
-        view!(dao.get_bounty_number_of_claims(bounty_id)).unwrap_json::<u64>(),
-        0
+        0,
+        dao.view("get_bounty_claims")
+            .args_json(json!({"account_id": user2.id()}))
+            .await
+            .unwrap()
+            .json::<Vec<BountyClaim>>()
+            .unwrap()
+            .len()
     );
     assert_eq!(
-        view!(dao.get_bounty(bounty_id))
-            .unwrap_json::<BountyOutput>()
+        dao.view("get_bounty")
+            .args_json(json!({"id": bounty_id}))
+            .await?
+            .json::<BountyOutput>()
+            .unwrap()
             .bounty
             .times,
         2
     );
+
+    Ok(())
 }
 
+/*
 #[tokio::test]
 fn test_create_dao_and_use_token() {
     let (root, dao) = setup_dao();
