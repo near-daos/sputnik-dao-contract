@@ -3103,10 +3103,12 @@ dependencies = [
  "hex",
  "near-contract-standards",
  "near-sdk",
+ "near-workspaces",
  "serde_with 1.6.4",
  "sputnik-staking",
  "sputnikdao-factory2",
  "test-token",
+ "tokio",
 ]
 
 [[package]]

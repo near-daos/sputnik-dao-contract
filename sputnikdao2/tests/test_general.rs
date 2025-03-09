@@ -1,11 +1,10 @@
-#[cfg(feature = "test-near-sdk-sim")]
-mod test_general {
-use std::collections::HashMap;
-
+use near_sdk::base64;
 use near_sdk::json_types::U128;
 use near_sdk::serde_json::json;
-use near_sdk::{env, AccountId};
-use near_sdk_sim::{call, init_simulator, to_yocto, view};
+use near_sdk::{env, NearToken};
+use near_workspaces::types::NearToken;
+use near_workspaces::{sandbox, AccountId, Worker};
+use std::collections::HashMap;
 
 use crate::utils::*;
 use sputnik_staking::User;
@@ -21,20 +20,47 @@ fn user(id: u32) -> AccountId {
     format!("user{}", id).parse().unwrap()
 }
 
-#[test]
-fn test_large_policy() {
-    let root = init_simulator(None);
-    let factory = setup_factory(&root);
-    factory
-        .user_account
-        .call(
-            factory.user_account.account_id.clone(),
-            "new",
-            &[],
-            near_sdk_sim::DEFAULT_GAS,
-            0,
-        )
-        .assert_success();
+#[tokio::test]
+async fn test_large_policy() -> Result<(), Box<dyn std::error::Error>> {
+    const SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &str = "sputnik-dao.near";
+
+    let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.parse()?;
+
+    let worker = near_workspaces::sandbox().await?;
+    let mainnet = near_workspaces::mainnet().await?;
+
+    let sputnik_dao_factory = worker
+        .import_contract(&sputnikdao_factory_contract_id, &mainnet)
+        .initial_balance(NearToken::from_near(50))
+        .transact()
+        .await?;
+
+    let mainnet = near_workspaces::mainnet().await?;
+    let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.parse()?;
+
+    let worker = near_workspaces::sandbox().await?;
+
+    let sputnik_dao_factory = worker
+        .import_contract(&sputnikdao_factory_contract_id, &mainnet)
+        .initial_balance(NearToken::from_near(50))
+        .transact()
+        .await?;
+
+    let deploy_result = sputnik_dao_factory
+        .as_account()
+        .deploy(FACTORY_WASM_BYTES)
+        .await?;
+    assert!(deploy_result.is_success());
+
+    let init_sputnik_dao_factory_result =
+        sputnik_dao_factory.call("new").max_gas().transact().await?;
+    if init_sputnik_dao_factory_result.is_failure() {
+        panic!(
+            "Error initializing sputnik-dao contract: {:?}",
+            String::from_utf8(init_sputnik_dao_factory_result.raw_bytes().unwrap())
+        );
+    }
+    assert!(init_sputnik_dao_factory_result.is_success());
 
     let config = Config {
         name: "testdao".to_string(),
@@ -73,25 +99,30 @@ fn test_large_policy() {
         .to_string()
         .into_bytes();
 
-    call!(
-        root,
-        factory.create(
-            AccountId::new_unchecked("testdao".to_string()),
-            Base64VecU8(params)
-        ),
-        deposit = to_yocto("10")
-    )
-    .assert_success();
+    let create_result = sputnik_dao_factory
+        .call("create")
+        .args_json(json!({
+            "name": "testdao",
+            "args": base64::encode(params)
+        }))
+        .deposit(NearToken::from_near(10))
+        .transact()
+        .await?;
 
-    let dao_account_id = AccountId::new_unchecked("testdao.factory".to_string());
-    let dao_list = factory
-        .user_account
-        .view(factory.user_account.account_id.clone(), "get_dao_list", &[])
-        .unwrap_json::<Vec<AccountId>>();
+    assert!(create_result.is_success(), "{:?}", create_result.failures());
+
+    let dao_account_id = "testdao.sputnik-dao.near";
+    let dao_list = sputnik_dao_factory
+        .view("get_dao_list")
+        .await?
+        .json::<Vec<AccountId>>()
+        .unwrap();
     assert_eq!(dao_list, vec![dao_account_id.clone()]);
+
+    Ok(())
 }
 
-#[test]
+#[tokio::test]
 fn test_multi_council() {
     let (root, dao) = setup_dao();
     let user1 = root.create_user(user(1), to_yocto("1000"));
@@ -149,7 +180,7 @@ fn test_multi_council() {
     assert_eq!(proposal.status, ProposalStatus::Approved);
 }
 
-#[test]
+#[tokio::test]
 fn test_bounty_workflow() {
     let (root, dao) = setup_dao();
     let user1 = root.create_user(user(1), to_yocto("1000"));
@@ -267,7 +298,7 @@ fn test_bounty_workflow() {
     );
 }
 
-#[test]
+#[tokio::test]
 fn test_create_dao_and_use_token() {
     let (root, dao) = setup_dao();
     let user2 = root.create_user(user(2), to_yocto("1000"));
@@ -417,7 +448,7 @@ fn test_create_dao_and_use_token() {
 }
 
 /// Test various cases that must fail.
-#[test]
+#[tokio::test]
 fn test_failures() {
     let (root, dao) = setup_dao();
     should_fail(add_transfer_proposal(
@@ -505,5 +536,4 @@ fn test_payment_failures() {
         ProposalStatus::Approved,
         "Did not return to approved status."
     );
-}
 }

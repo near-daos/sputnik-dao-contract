@@ -13,4 +13,4 @@ near-sdk = { version = "4.0.0-pre.4", features = ["unstable"]  }
 
 [dev-dependencies]
 near-workspaces = "0.17.0"
-tokio = { version = "1.42.0", features = ["full"] }
+tokio = { version = "1.44.0", features = ["full"] }
