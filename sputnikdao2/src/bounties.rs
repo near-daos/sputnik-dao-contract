@@ -207,12 +207,11 @@ impl Contract {
     }
 }
 
-#[cfg(feature = "test-near-sdk-sim")]
 #[cfg(test)]
 mod tests {
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::testing_env;
-    use near_sdk_sim::to_yocto;
+    use near_workspaces::types::NearToken;
 
     use crate::proposals::{ProposalInput, ProposalKind};
     use crate::{Action, Config};
@@ -220,14 +219,16 @@ mod tests {
     use super::*;
 
     fn add_bounty(context: &mut VMContextBuilder, contract: &mut Contract, times: u32) -> u64 {
-        testing_env!(context.attached_deposit(to_yocto("1")).build());
+        testing_env!(context
+            .attached_deposit(NearToken::from_near(1).as_yoctonear())
+            .build());
         let id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::AddBounty {
                 bounty: Bounty {
                     description: "test bounty".to_string(),
                     token: String::from(OLD_BASE_TOKEN),
-                    amount: U128(to_yocto("10")),
+                    amount: U128(NearToken::from_near(10).as_yoctonear()),
                     times,
                     max_deadline: U64::from(1_000),
                 },
