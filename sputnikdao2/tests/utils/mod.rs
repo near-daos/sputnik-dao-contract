@@ -1,10 +1,11 @@
 #![allow(dead_code)]
 pub use near_sdk::json_types::{Base64VecU8, U64};
+use near_sdk::serde_json::json;
 
 use near_workspaces::network::Sandbox;
 use near_workspaces::result::ExecutionFinalResult;
 use near_workspaces::types::NearToken;
-use near_workspaces::{AccountId, Contract, Worker};
+use near_workspaces::{Account, AccountId, Contract, Worker};
 
 use near_sdk::json_types::U128;
 use sputnik_staking::ContractContract as StakingContract;
@@ -26,7 +27,7 @@ pub fn root() -> near_sdk::AccountId {
     near_sdk::AccountId::new_unchecked("near".to_string())
 }
 
-pub fn base_token() -> Option<AccountId> {
+pub fn base_token() -> Option<near_sdk::AccountId> {
     None
 }
 
@@ -77,26 +78,99 @@ pub async fn setup_factory() -> Result<(Contract, Worker<Sandbox>), Box<dyn std:
     Ok((sputnik_dao_factory, worker))
 }
 
-/*
+pub async fn setup_dao() -> Result<(Contract, Worker<Sandbox>, Account), Box<dyn std::error::Error>>
+{
+    let worker = near_workspaces::sandbox().await?;
+    let root = worker.root_account().unwrap();
+    let dao_account = root
+        .create_subaccount("dao")
+        .initial_balance(NearToken::from_near(200))
+        .transact()
+        .await?
+        .result;
 
-pub fn setup_dao() -> (UserAccount, Contract) {
-    let root = init_simulator(None);
     let config = Config {
         name: "test".to_string(),
         purpose: "to test".to_string(),
         metadata: Base64VecU8(vec![]),
     };
-    let dao = deploy!(
-        contract: DAOContract,
-        contract_id: "dao".to_string(),
-        bytes: &DAO_WASM_BYTES,
-        signer_account: root,
-        deposit: to_yocto("200"),
-        init_method: new(config, VersionedPolicy::Default(vec![root.account_id.clone()]))
-    );
-    (root, dao)
+
+    let dao = dao_account.deploy(DAO_WASM_BYTES).await?.result;
+    let dao_new_result = dao
+        .call("new")
+        .args_json(json!({
+            "config": config,
+            "policy": VersionedPolicy::Default(vec![
+                near_sdk::AccountId::new_unchecked(root.id().to_string())
+            ])
+        }))
+        .max_gas()
+        .transact()
+        .await?;
+
+    assert!(dao_new_result.is_success());
+    Ok((dao, worker, root))
 }
 
+pub async fn add_proposal(dao: &Contract, proposal: ProposalInput) -> ExecutionFinalResult {
+    dao.call("add_proposal")
+        .args_json(json!({"proposal": proposal}))
+        .deposit(NearToken::from_near(1))
+        .transact()
+        .await
+        .unwrap()
+}
+
+pub async fn add_transfer_proposal(
+    dao: &Contract,
+    token_id: Option<near_sdk::AccountId>,
+    receiver_id: near_sdk::AccountId,
+    amount: near_sdk::Balance,
+    msg: Option<String>,
+) -> ExecutionFinalResult {
+    add_proposal(
+        dao,
+        ProposalInput {
+            description: "test".to_string(),
+            kind: ProposalKind::Transfer {
+                token_id: convert_new_to_old_token(token_id),
+                receiver_id,
+                amount: U128(amount),
+                msg,
+            },
+        },
+    )
+    .await
+}
+
+pub async fn vote(
+    users: Vec<&Account>,
+    dao: &Contract,
+    proposal_id: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    for user in users.into_iter() {
+        let act_proposal_result = user
+            .call(dao.id(), "act_proposal")
+            .args_json(json!({"id": proposal_id, "action": Action::VoteApprove}))
+            .max_gas()
+            .transact()
+            .await?;
+        assert!(
+            act_proposal_result.is_success(),
+            "{:?}",
+            act_proposal_result.failures()
+        );
+        assert_eq!(
+            act_proposal_result.failures().len(),
+            0,
+            "{:?}",
+            act_proposal_result.failures()
+        );
+    }
+    Ok(())
+}
+
+/*
 pub fn setup_test_token(root: &UserAccount) -> ContractAccount<TestTokenContract> {
     deploy!(
         contract: TestTokenContract,
@@ -119,14 +193,6 @@ pub fn setup_staking(root: &UserAccount) -> ContractAccount<StakingContract> {
     )
 }
 
-pub fn add_proposal(
-    root: &UserAccount,
-    dao: &Contract,
-    proposal: ProposalInput,
-) -> ExecutionResult {
-    call!(root, dao.add_proposal(proposal), deposit = to_yocto("1"))
-}
-
 pub fn add_member_proposal(
     root: &UserAccount,
     dao: &Contract,
@@ -140,29 +206,6 @@ pub fn add_member_proposal(
             kind: ProposalKind::AddMemberToRole {
                 member_id: member_id,
                 role: "council".to_string(),
-            },
-        },
-    )
-}
-
-pub fn add_transfer_proposal(
-    root: &UserAccount,
-    dao: &Contract,
-    token_id: Option<AccountId>,
-    receiver_id: AccountId,
-    amount: Balance,
-    msg: Option<String>,
-) -> ExecutionResult {
-    add_proposal(
-        root,
-        dao,
-        ProposalInput {
-            description: "test".to_string(),
-            kind: ProposalKind::Transfer {
-                token_id: convert_new_to_old_token(token_id),
-                receiver_id,
-                amount: U128(amount),
-                msg,
             },
         },
     )
@@ -186,22 +229,11 @@ pub fn add_bounty_proposal(root: &UserAccount, dao: &Contract) -> ExecutionResul
         },
     )
 }
+ */
 
-pub fn vote(users: Vec<&UserAccount>, dao: &Contract, proposal_id: u64) {
-    for user in users.into_iter() {
-        call!(
-            user,
-            dao.act_proposal(proposal_id, Action::VoteApprove, None)
-        )
-        .assert_success();
-    }
-}
-
-pub fn convert_new_to_old_token(new_account_id: Option<AccountId>) -> OldAccountId {
+pub fn convert_new_to_old_token(new_account_id: Option<near_sdk::AccountId>) -> OldAccountId {
     if new_account_id.is_none() {
         return String::from(OLD_BASE_TOKEN);
     }
     new_account_id.unwrap().to_string()
 }
-
- */

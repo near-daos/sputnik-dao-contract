@@ -21,45 +21,7 @@ fn user(id: u32) -> near_sdk::AccountId {
 
 #[tokio::test]
 async fn test_large_policy() -> Result<(), Box<dyn std::error::Error>> {
-    const SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &str = "sputnik-dao.near";
-
-    let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.parse()?;
-
-    let worker = near_workspaces::sandbox().await?;
-    let mainnet = near_workspaces::mainnet().await?;
-
-    let sputnik_dao_factory = worker
-        .import_contract(&sputnikdao_factory_contract_id, &mainnet)
-        .initial_balance(NearToken::from_near(50))
-        .transact()
-        .await?;
-
-    let mainnet = near_workspaces::mainnet().await?;
-    let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.parse()?;
-
-    let worker = near_workspaces::sandbox().await?;
-
-    let sputnik_dao_factory = worker
-        .import_contract(&sputnikdao_factory_contract_id, &mainnet)
-        .initial_balance(NearToken::from_near(50))
-        .transact()
-        .await?;
-
-    let deploy_result = sputnik_dao_factory
-        .as_account()
-        .deploy(FACTORY_WASM_BYTES)
-        .await?;
-    assert!(deploy_result.is_success());
-
-    let init_sputnik_dao_factory_result =
-        sputnik_dao_factory.call("new").max_gas().transact().await?;
-    if init_sputnik_dao_factory_result.is_failure() {
-        panic!(
-            "Error initializing sputnik-dao contract: {:?}",
-            String::from_utf8(init_sputnik_dao_factory_result.raw_bytes().unwrap())
-        );
-    }
-    assert!(init_sputnik_dao_factory_result.is_success());
+    let (sputnik_dao_factory, worker) = setup_factory().await?;
 
     let config = Config {
         name: "testdao".to_string(),
@@ -122,13 +84,28 @@ async fn test_large_policy() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/*
 #[tokio::test]
-fn test_multi_council() {
-    let (root, dao) = setup_dao();
-    let user1 = root.create_user(user(1), to_yocto("1000"));
-    let user2 = root.create_user(user(2), to_yocto("1000"));
-    let user3 = root.create_user(user(3), to_yocto("1000"));
+async fn test_multi_council() -> Result<(), Box<dyn std::error::Error>> {
+    let (dao, _worker, root) = setup_dao().await?;
+    let user1 = root
+        .create_subaccount(user(1).as_str())
+        .initial_balance(NearToken::from_near(1000))
+        .transact()
+        .await?
+        .result;
+    let user2 = root
+        .create_subaccount(user(2).as_str())
+        .initial_balance(NearToken::from_near(1000))
+        .transact()
+        .await?
+        .result;
+    let user3 = root
+        .create_subaccount(user(3).as_str())
+        .initial_balance(NearToken::from_near(1000))
+        .transact()
+        .await?
+        .result;
+
     let new_policy = Policy {
         roles: vec![
             RolePermission {
@@ -139,13 +116,28 @@ fn test_multi_council() {
             },
             RolePermission {
                 name: "council".to_string(),
-                kind: RoleKind::Group(vec![user(1), user(2)].into_iter().collect()),
+                kind: RoleKind::Group(
+                    vec![
+                        near_sdk::AccountId::new_unchecked(user1.id().to_string()),
+                        near_sdk::AccountId::new_unchecked(user2.id().to_string()),
+                    ]
+                    .into_iter()
+                    .collect(),
+                ),
                 permissions: vec!["*:*".to_string()].into_iter().collect(),
                 vote_policy: HashMap::default(),
             },
             RolePermission {
                 name: "community".to_string(),
-                kind: RoleKind::Group(vec![user(1), user(3), user(4)].into_iter().collect()),
+                kind: RoleKind::Group(
+                    vec![
+                        near_sdk::AccountId::new_unchecked(user1.id().to_string()),
+                        near_sdk::AccountId::new_unchecked(user3.id().to_string()),
+                        user(4),
+                    ]
+                    .into_iter()
+                    .collect(),
+                ),
                 permissions: vec!["*:*".to_string()].into_iter().collect(),
                 vote_policy: HashMap::default(),
             },
@@ -156,8 +148,7 @@ fn test_multi_council() {
         bounty_bond: U128(10u128.pow(24)),
         bounty_forgiveness_period: U64::from(1_000_000_000 * 60 * 60 * 24),
     };
-    add_proposal(
-        &root,
+    let add_proposal_result = add_proposal(
         &dao,
         ProposalInput {
             description: "new policy".to_string(),
@@ -166,21 +157,64 @@ fn test_multi_council() {
             },
         },
     )
-    .assert_success();
-    vote(vec![&root], &dao, 0);
-    assert_eq!(view!(dao.get_policy()).unwrap_json::<Policy>(), new_policy);
-    add_transfer_proposal(&root, &dao, base_token(), user(1), 1_000_000, None).assert_success();
-    vote(vec![&user2], &dao, 1);
-    vote(vec![&user3], &dao, 1);
-    let proposal = view!(dao.get_proposal(1)).unwrap_json::<Proposal>();
+    .await;
+    assert!(
+        add_proposal_result.is_success(),
+        "{:?}",
+        add_proposal_result.failures()
+    );
+
+    assert!(vote(vec![&root], &dao, 0).await.is_ok());
+
+    assert_eq!(
+        dao.view("get_policy").await?.json::<Policy>().unwrap(),
+        new_policy
+    );
+
+    let add_transfer_proposal_result = add_transfer_proposal(
+        &dao,
+        base_token(),
+        near_sdk::AccountId::new_unchecked(user1.id().to_string()),
+        1_000_000,
+        None,
+    )
+    .await;
+    assert!(
+        add_transfer_proposal_result.is_success(),
+        "{:?}",
+        add_transfer_proposal_result.failures()
+    );
+
+    assert!(vote(vec![&user2], &dao, 1).await.is_ok());
+    assert!(vote(vec![&user3], &dao, 1).await.is_ok());
+
+    let proposal = dao
+        .view("get_proposal")
+        .args_json(json!({"id": 1}))
+        .await?
+        .json::<Proposal>()
+        .unwrap();
     // Votes from members in different councils.
     assert_eq!(proposal.status, ProposalStatus::InProgress);
     // Finish with vote that is in both councils, which approves the proposal.
-    vote(vec![&user1], &dao, 1);
-    let proposal = view!(dao.get_proposal(1)).unwrap_json::<Proposal>();
-    assert_eq!(proposal.status, ProposalStatus::Approved);
+    assert!(vote(vec![&user1], &dao, 1).await.is_ok());
+
+    let proposal = dao
+        .view("get_proposal")
+        .args_json(json!({"id": 1}))
+        .await?
+        .json::<Proposal>()
+        .unwrap();
+    assert_eq!(
+        proposal.status,
+        ProposalStatus::Approved,
+        "{:?}",
+        proposal.status
+    );
+    Ok(())
 }
 
+/*
 #[tokio::test]
 fn test_bounty_workflow() {
     let (root, dao) = setup_dao();
