@@ -170,36 +170,59 @@ pub async fn vote(
     Ok(())
 }
 
-/*
-pub fn setup_test_token(root: &UserAccount) -> ContractAccount<TestTokenContract> {
-    deploy!(
-        contract: TestTokenContract,
-        contract_id: "test_token".to_string(),
-        bytes: &TEST_TOKEN_WASM_BYTES,
-        signer_account: root,
-        deposit: to_yocto("200"),
-        init_method: new()
-    )
+pub async fn setup_test_token(root: &Account) -> Result<Contract, Box<dyn std::error::Error>> {
+    let test_token_account = root
+        .create_subaccount("test_token")
+        .initial_balance(NearToken::from_near(200))
+        .transact()
+        .await?
+        .result;
+
+    let test_token_contract = test_token_account
+        .deploy(TEST_TOKEN_WASM_BYTES)
+        .await?
+        .result;
+
+    assert!(test_token_contract
+        .call("new")
+        .transact()
+        .await?
+        .is_success());
+    Ok(test_token_contract)
 }
 
-pub fn setup_staking(root: &UserAccount) -> ContractAccount<StakingContract> {
-    deploy!(
-        contract: StakingContract,
-        contract_id: "staking".to_string(),
-        bytes: &STAKING_WASM_BYTES,
-        signer_account: root,
-        deposit: to_yocto("100"),
-        init_method: new("dao".parse().unwrap(), "test_token".parse::<AccountId>().unwrap(), U64(100_000_000_000))
-    )
+pub async fn setup_staking(
+    root: &Account,
+    test_token: &Account,
+    dao: &Account,
+) -> Result<Contract, Box<dyn std::error::Error>> {
+    let staking_account = root
+        .create_subaccount("staking")
+        .initial_balance(NearToken::from_near(100))
+        .transact()
+        .await?
+        .result;
+
+    let staking_contract = staking_account.deploy(STAKING_WASM_BYTES).await?.result;
+
+    assert!(staking_contract
+        .call("new")
+        .args_json(json!({
+            "owner_id": dao.id(),
+            "token_id": test_token.id(),
+            "unstake_period": U64(100_000_000_000)
+        }))
+        .transact()
+        .await?
+        .is_success());
+    Ok(staking_contract)
 }
 
-pub fn add_member_proposal(
-    root: &UserAccount,
+pub async fn add_member_proposal(
     dao: &Contract,
-    member_id: AccountId,
-) -> ExecutionResult {
+    member_id: near_sdk::AccountId,
+) -> ExecutionFinalResult {
     add_proposal(
-        root,
         dao,
         ProposalInput {
             description: "test".to_string(),
@@ -209,8 +232,8 @@ pub fn add_member_proposal(
             },
         },
     )
+    .await
 }
-*/
 
 pub async fn add_bounty_proposal(worker: &Worker<Sandbox>, dao: &Contract) -> ExecutionFinalResult {
     add_proposal(

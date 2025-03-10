@@ -476,156 +476,343 @@ async fn test_bounty_workflow() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/*
 #[tokio::test]
-fn test_create_dao_and_use_token() {
-    let (root, dao) = setup_dao();
-    let user2 = root.create_user(user(2), to_yocto("1000"));
-    let user3 = root.create_user(user(3), to_yocto("1000"));
-    let test_token = setup_test_token(&root);
-    let staking = setup_staking(&root);
+async fn test_create_dao_and_use_token() -> Result<(), Box<dyn std::error::Error>> {
+    let (dao, worker, root) = setup_dao().await?;
+    let user2 = root
+        .create_subaccount(user(2).as_str())
+        .initial_balance(NearToken::from_near(1000))
+        .transact()
+        .await?
+        .result;
+    let user3 = root
+        .create_subaccount(user(3).as_str())
+        .initial_balance(NearToken::from_near(1000))
+        .transact()
+        .await?
+        .result;
 
-    assert!(view!(dao.get_staking_contract())
-        .unwrap_json::<String>()
+    let test_token = setup_test_token(&root).await?;
+    let staking = setup_staking(&root, &test_token.as_account(), &dao.as_account()).await?;
+
+    assert!(dao
+        .view("get_staking_contract")
+        .await?
+        .json::<String>()
+        .unwrap()
         .is_empty());
-    add_member_proposal(&root, &dao, user2.account_id.clone()).assert_success();
-    assert_eq!(view!(dao.get_last_proposal_id()).unwrap_json::<u64>(), 1);
+
+    let add_member_proposal_result = add_member_proposal(
+        &dao,
+        near_sdk::AccountId::new_unchecked(user2.id().to_string()),
+    )
+    .await;
+    assert!(
+        add_member_proposal_result.is_success(),
+        "{:?}",
+        add_member_proposal_result.failures()
+    );
+    assert_eq!(
+        1,
+        dao.view("get_last_proposal_id")
+            .await
+            .unwrap()
+            .json::<u64>()
+            .unwrap()
+    );
+
     // Voting by user who is not member should fail.
-    should_fail(call!(user2, dao.act_proposal(0, Action::VoteApprove, None)));
-    call!(root, dao.act_proposal(0, Action::VoteApprove, None)).assert_success();
+
+    let act_proposal_result = user2
+        .call(dao.id(), "act_proposal")
+        .args_json(json!({
+            "id": 0,
+            "action": Action::VoteApprove
+        }))
+        .max_gas()
+        .transact()
+        .await?;
+    assert!(format!("{:?}", act_proposal_result.failures()).contains("ERR_PERMISSION_DENIED"));
+
+    assert!(root
+        .call(dao.id(), "act_proposal")
+        .args_json(json!({
+            "id": 0,
+            "action": Action::VoteApprove
+        }))
+        .max_gas()
+        .transact()
+        .await?
+        .is_success());
+
     // voting second time should fail.
-    should_fail(call!(root, dao.act_proposal(0, Action::VoteApprove, None)));
+    let act_proposal_result = root
+        .call(dao.id(), "act_proposal")
+        .args_json(json!({
+            "id": 0,
+            "action": Action::VoteApprove
+        }))
+        .max_gas()
+        .transact()
+        .await?;
+    assert!(
+        format!("{:?}", act_proposal_result.failures()).contains("ERR_PROPOSAL_NOT_READY_FOR_VOTE"),
+        "{:?}",
+        act_proposal_result.failures()
+    );
+
     // Add 3rd member.
-    add_member_proposal(&user2, &dao, user3.account_id.clone()).assert_success();
-    vote(vec![&root, &user2], &dao, 1);
-    let policy = view!(dao.get_policy()).unwrap_json::<Policy>();
+    let add_member_proposal_result = add_member_proposal(
+        &dao,
+        near_sdk::AccountId::new_unchecked(user3.id().to_string()),
+    )
+    .await;
+    assert!(
+        add_member_proposal_result.is_success(),
+        "{:?}",
+        add_member_proposal_result.failures()
+    );
+
+    assert!(vote(vec![&root, &user2], &dao, 1).await.is_ok());
+    let policy = dao.view("get_policy").await?.json::<Policy>().unwrap();
     assert_eq!(policy.roles.len(), 2);
+
     assert_eq!(
         policy.roles[1].kind,
         RoleKind::Group(
             vec![
-                root.account_id.clone(),
-                user2.account_id.clone(),
-                user3.account_id.clone()
+                near_sdk::AccountId::new_unchecked(root.id().to_string()),
+                near_sdk::AccountId::new_unchecked(user2.id().to_string()),
+                near_sdk::AccountId::new_unchecked(user3.id().to_string())
             ]
             .into_iter()
             .collect()
         )
     );
-    add_proposal(
-        &user2,
+
+    let add_proposal_result = add_proposal(
         &dao,
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::SetStakingContract {
-                staking_id: "staking".parse().unwrap(),
+                staking_id: near_sdk::AccountId::new_unchecked(staking.id().to_string()),
             },
         },
     )
-    .assert_success();
-    vote(vec![&user3, &user2], &dao, 2);
-    assert!(!view!(dao.get_staking_contract())
-        .unwrap_json::<String>()
+    .await;
+    assert!(
+        add_proposal_result.is_success(),
+        "{:?}",
+        add_proposal_result.failures()
+    );
+
+    assert!(vote(vec![&user3, &user2], &dao, 2).await.is_ok());
+    assert!(!dao
+        .view("get_staking_contract")
+        .await?
+        .json::<String>()
+        .unwrap()
         .is_empty());
     assert_eq!(
-        view!(dao.get_proposal(2)).unwrap_json::<Proposal>().status,
+        dao.view("get_proposal")
+            .args_json(json!({"id": 2}))
+            .await?
+            .json::<Proposal>()
+            .unwrap()
+            .status,
         ProposalStatus::Approved
     );
+    let staking_ft_total_supply = staking
+        .view("ft_total_supply")
+        .await?
+        .json::<U128>()
+        .unwrap()
+        .0;
+    assert_eq!(0, staking_ft_total_supply);
 
-    staking
-        .user_account
-        .view_method_call(staking.contract.ft_total_supply());
+    let mint_result = test_token
+        .call("mint")
+        .args_json(json!({
+            "account_id": user2.id(),
+            "amount": NearToken::from_near(100)
+        }))
+        .transact()
+        .await?;
+    assert!(mint_result.is_success(), "{:?}", mint_result.failures());
+
+    let storage_deposit_result = test_token
+        .call("storage_deposit")
+        .args_json(json!({
+            "account_id": staking.id()
+        }))
+        .deposit(NearToken::from_near(1))
+        .transact()
+        .await?;
+    assert!(
+        storage_deposit_result.is_success(),
+        "{:?}",
+        storage_deposit_result.failures()
+    );
+
+    let storage_deposit_result = user2
+        .call(staking.id(), "storage_deposit")
+        .args_json(json!({}))
+        .deposit(NearToken::from_near(1))
+        .max_gas()
+        .transact()
+        .await?;
+    assert!(
+        storage_deposit_result.is_success(),
+        "{:?}",
+        storage_deposit_result.failures()
+    );
+
+    let ft_transfer_result = user2
+        .call(test_token.id(), "ft_transfer_call")
+        .args_json(
+            json!({"receiver_id": staking.id(), "amount": NearToken::from_near(10), "msg": ""}),
+        )
+        .deposit(NearToken::from_yoctonear(1))
+        .max_gas()
+        .transact()
+        .await?;
     assert_eq!(
-        view!(staking.ft_total_supply()).unwrap_json::<U128>().0,
-        to_yocto("0")
+        0,
+        ft_transfer_result.failures().len(),
+        "{:?}",
+        ft_transfer_result.failures()
     );
-    call!(
-        user2,
-        test_token.mint(user2.account_id.clone(), U128(to_yocto("100")))
-    )
-    .assert_success();
-    call!(
-        user2,
-        test_token.storage_deposit(Some(staking.account_id()), None),
-        deposit = to_yocto("1")
-    )
-    .assert_success();
-    call!(
-        user2,
-        staking.storage_deposit(None, None),
-        deposit = to_yocto("1")
-    );
-    call!(
-        user2,
-        test_token.ft_transfer_call(
-            staking.account_id(),
-            U128(to_yocto("10")),
-            None,
-            "".to_string()
-        ),
-        deposit = 1
-    )
-    .assert_success();
+    println!("{:?}", ft_transfer_result.logs());
+
+    let staking_ft_total_supply = staking
+        .view("ft_total_supply")
+        .await?
+        .json::<U128>()
+        .unwrap()
+        .0;
     assert_eq!(
-        view!(staking.ft_total_supply()).unwrap_json::<U128>().0,
-        to_yocto("10")
-    );
-    let user2_id = user2.account_id.clone();
-    assert_eq!(
-        view!(staking.ft_balance_of(user2_id.clone()))
-            .unwrap_json::<U128>()
-            .0,
-        to_yocto("10")
+        NearToken::from_near(10).as_yoctonear(),
+        staking_ft_total_supply
     );
     assert_eq!(
-        view!(test_token.ft_balance_of(user2_id.clone()))
-            .unwrap_json::<U128>()
-            .0,
-        to_yocto("90")
+        NearToken::from_near(10).as_yoctonear(),
+        staking
+            .view("ft_balance_of")
+            .args_json(json!({"account_id": user2.id()}))
+            .await?
+            .json::<U128>()
+            .unwrap()
+            .0
     );
-    call!(user2, staking.withdraw(U128(to_yocto("5")))).assert_success();
+
     assert_eq!(
-        view!(staking.ft_total_supply()).unwrap_json::<U128>().0,
-        to_yocto("5")
+        NearToken::from_near(90).as_yoctonear(),
+        test_token
+            .view("ft_balance_of")
+            .args_json(json!({"account_id": user2.id()}))
+            .await?
+            .json::<U128>()
+            .unwrap()
+            .0
     );
+
+    let withdraw_result = user2
+        .call(staking.id(), "withdraw")
+        .args_json(json!({"amount": NearToken::from_near(5)}))
+        .max_gas()
+        .transact()
+        .await?;
+    assert!(
+        withdraw_result.is_success(),
+        "{:?}",
+        withdraw_result.failures()
+    );
+
     assert_eq!(
-        view!(test_token.ft_balance_of(user2_id.clone()))
-            .unwrap_json::<U128>()
-            .0,
-        to_yocto("95")
+        NearToken::from_near(95).as_yoctonear(),
+        test_token
+            .view("ft_balance_of")
+            .args_json(json!({"account_id": user2.id()}))
+            .await?
+            .json::<U128>()
+            .unwrap()
+            .0
     );
-    call!(
-        user2,
-        staking.delegate(user2_id.clone(), U128(to_yocto("5")))
-    )
-    .assert_success();
-    call!(
-        user2,
-        staking.undelegate(user2_id.clone(), U128(to_yocto("1")))
-    )
-    .assert_success();
+
+    let delegate_result = user2
+        .call(staking.id(), "delegate")
+        .args_json(json!({"account_id": user2.id(), "amount": NearToken::from_near(5)}))
+        .max_gas()
+        .transact()
+        .await?;
+    assert!(
+        delegate_result.is_success(),
+        "{:?}",
+        delegate_result.failures()
+    );
+
+    let undelegate_result = user2
+        .call(staking.id(), "undelegate")
+        .args_json(json!({"account_id": user2.id(), "amount": NearToken::from_near(1)}))
+        .max_gas()
+        .transact()
+        .await?;
+    assert!(
+        undelegate_result.is_success(),
+        "{:?}",
+        undelegate_result.failures()
+    );
+
     // should fail right after undelegation as need to wait for voting period before can delegate again.
-    should_fail(call!(
-        user2,
-        staking.delegate(user2_id.clone(), U128(to_yocto("1")))
-    ));
-    let user = view!(staking.get_user(user2_id.clone())).unwrap_json::<User>();
+    let delegate_result = user2
+        .call(staking.id(), "delegate")
+        .args_json(json!({"account_id": user2.id(), "amount": NearToken::from_near(1)}))
+        .max_gas()
+        .transact()
+        .await?;
+    assert!(
+    format!("{:?}", delegate_result.failures()).contains("ERR_NOT_ENOUGH_TIME_PASSED"),
+    "should fail right after undelegation as need to wait for voting period before can delegate again. {:?}",
+    delegate_result.failures()
+);
+    let user = staking
+        .view("get_user")
+        .args_json(json!({"account_id": user2.id()}))
+        .await?
+        .json::<User>()
+        .unwrap();
     assert_eq!(
         user.delegated_amounts,
-        vec![(user2_id.clone(), U128(to_yocto("4")))]
+        vec![(
+            near_sdk::AccountId::new_unchecked(user2.id().to_string()),
+            U128(NearToken::from_near(4).as_yoctonear())
+        )]
+    );
+
+    assert_eq!(
+        NearToken::from_near(4).as_yoctonear(),
+        dao.view("delegation_total_supply")
+            .await?
+            .json::<U128>()
+            .unwrap()
+            .0
     );
     assert_eq!(
-        view!(dao.delegation_total_supply()).unwrap_json::<U128>().0,
-        to_yocto("4")
+        NearToken::from_near(4).as_yoctonear(),
+        dao.view("delegation_balance_of")
+            .args_json(json!({
+                "account_id": user2.id()
+            }))
+            .await?
+            .json::<U128>()
+            .unwrap()
+            .0
     );
-    assert_eq!(
-        view!(dao.delegation_balance_of(user2_id.clone()))
-            .unwrap_json::<U128>()
-            .0,
-        to_yocto("4")
-    );
+
+    Ok(())
 }
 
+/*
 /// Test various cases that must fail.
 #[tokio::test]
 fn test_failures() {
@@ -716,4 +903,4 @@ fn test_payment_failures() {
         "Did not return to approved status."
     );
 }
- */
+*/
