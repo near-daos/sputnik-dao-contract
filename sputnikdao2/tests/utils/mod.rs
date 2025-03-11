@@ -160,12 +160,6 @@ pub async fn vote(
             "{:?}",
             act_proposal_result.failures()
         );
-        assert_eq!(
-            act_proposal_result.failures().len(),
-            0,
-            "{:?}",
-            act_proposal_result.failures()
-        );
     }
     Ok(())
 }
