@@ -98,58 +98,75 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
     Ok(())
 }
 
-/*
-#[derive(BorshSerialize, BorshDeserialize)]
-struct NewArgs {
-    owner_id: AccountId,
-    exchange_fee: u32,
-    referral_fee: u32,
-}
-
-
-
 /// Test that Sputnik can upgrade another contract.
-#[test]
-fn test_upgrade_other() {
-    let (root, dao) = setup_dao();
-    let ref_account_id: AccountId = "ref-finance".parse().unwrap();
-    let _ = root.deploy_and_init(
-        &OTHER_WASM_BYTES,
-        ref_account_id.clone(),
-        "new",
-        &json!({
-            "owner_id": dao.account_id(),
+#[tokio::test]
+async fn test_upgrade_other() -> Result<(), Box<dyn std::error::Error>> {
+    let (dao, worker, root) = setup_dao().await?;
+
+    let ref_account = root
+        .create_subaccount("ref-finance")
+        .initial_balance(NearToken::from_near(2000))
+        .transact()
+        .await?
+        .result;
+    let ref_contract = ref_account.deploy(&OTHER_WASM_BYTES).await?.result;
+
+    let ref_contract_new_result = ref_contract
+        .call("new")
+        .args_json(json!({
+            "owner_id": dao.id(),
             "exchange_fee": 1,
             "referral_fee": 1,
-        })
-        .to_string()
-        .into_bytes(),
-        to_yocto("1000"),
-        DEFAULT_GAS,
+        }))
+        .transact()
+        .await?;
+
+    assert!(
+        ref_contract_new_result.is_success(),
+        "{:?}",
+        ref_contract_new_result.failures()
     );
+
     let hash = root
-        .call(
-            dao.user_account.account_id.clone(),
-            "store_blob",
-            &OTHER_WASM_BYTES,
-            near_sdk_sim::DEFAULT_GAS,
-            to_yocto("200"),
-        )
-        .unwrap_json::<Base58CryptoHash>();
-    add_proposal(
-        &root,
+        .call(dao.id(), "store_blob")
+        .args(OTHER_WASM_BYTES.to_vec())
+        .deposit(NearToken::from_near(200))
+        .max_gas()
+        .transact()
+        .await?
+        .json::<Base58CryptoHash>()
+        .unwrap();
+    assert!(add_proposal(
         &dao,
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::UpgradeRemote {
-                receiver_id: ref_account_id.clone(),
+                receiver_id: near_sdk::AccountId::new_unchecked(ref_account.id().to_string()),
                 method_name: "upgrade".to_string(),
                 hash,
             },
         },
     )
-    .assert_success();
-    call!(root, dao.act_proposal(0, Action::VoteApprove, None)).assert_success();
-}
+    .await
+    .is_success());
 
-*/
+    let act_proposal_result = root
+        .call(dao.id(), "act_proposal")
+        .args_json(json!({
+            "id": 0,
+            "action": Action::VoteApprove
+        }))
+        .max_gas()
+        .transact()
+        .await?;
+
+    assert_eq!(
+        0,
+        act_proposal_result.failures().len(),
+        "{:?}",
+        act_proposal_result.failures()
+    );
+    assert!(act_proposal_result.is_success());
+
+    Ok(())
+}
