@@ -812,21 +812,28 @@ async fn test_create_dao_and_use_token() -> Result<(), Box<dyn std::error::Error
     Ok(())
 }
 
-/*
 /// Test various cases that must fail.
 #[tokio::test]
-fn test_failures() {
-    let (root, dao) = setup_dao();
-    should_fail(add_transfer_proposal(
-        &root,
+async fn test_failures() -> Result<(), Box<dyn std::error::Error>> {
+    let (dao, worker, root) = setup_dao().await.unwrap();
+    let add_transfer_proposal_result = add_transfer_proposal(
         &dao,
         base_token(),
         user(1),
         1_000_000,
         Some("some".to_string()),
-    ));
+    )
+    .await;
+
+    assert!(
+        format!("{:?}", add_transfer_proposal_result.failures()).contains("ERR_BASE_TOKEN_NO_MSG"),
+        "{:?}",
+        add_transfer_proposal_result.failures()
+    );
+    Ok(())
 }
 
+/*
 /// Test payments that fail
 #[test]
 fn test_payment_failures() {
