@@ -23,10 +23,6 @@ pub static STAKING_WASM_BYTES: &[u8] =
 
 pub static SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &str = "sputnik-dao.near";
 
-pub fn root() -> near_sdk::AccountId {
-    near_sdk::AccountId::new_unchecked("near".to_string())
-}
-
 pub fn base_token() -> Option<near_sdk::AccountId> {
     None
 }
@@ -112,58 +108,6 @@ pub async fn setup_dao() -> Result<(Contract, Worker<Sandbox>, Account), Box<dyn
     Ok((dao, worker, root))
 }
 
-pub async fn add_proposal(dao: &Contract, proposal: ProposalInput) -> ExecutionFinalResult {
-    dao.call("add_proposal")
-        .args_json(json!({"proposal": proposal}))
-        .deposit(NearToken::from_near(1))
-        .transact()
-        .await
-        .unwrap()
-}
-
-pub async fn add_transfer_proposal(
-    dao: &Contract,
-    token_id: Option<near_sdk::AccountId>,
-    receiver_id: near_sdk::AccountId,
-    amount: near_sdk::Balance,
-    msg: Option<String>,
-) -> ExecutionFinalResult {
-    add_proposal(
-        dao,
-        ProposalInput {
-            description: "test".to_string(),
-            kind: ProposalKind::Transfer {
-                token_id: convert_new_to_old_token(token_id),
-                receiver_id,
-                amount: U128(amount),
-                msg,
-            },
-        },
-    )
-    .await
-}
-
-pub async fn vote(
-    users: Vec<&Account>,
-    dao: &Contract,
-    proposal_id: u64,
-) -> Result<(), Box<dyn std::error::Error>> {
-    for user in users.into_iter() {
-        let act_proposal_result = user
-            .call(dao.id(), "act_proposal")
-            .args_json(json!({"id": proposal_id, "action": Action::VoteApprove}))
-            .max_gas()
-            .transact()
-            .await?;
-        assert!(
-            act_proposal_result.is_success(),
-            "{:?}",
-            act_proposal_result.failures()
-        );
-    }
-    Ok(())
-}
-
 pub async fn setup_test_token(root: &Account) -> Result<Contract, Box<dyn std::error::Error>> {
     let test_token_account = root
         .create_subaccount("test_token")
@@ -212,6 +156,15 @@ pub async fn setup_staking(
     Ok(staking_contract)
 }
 
+pub async fn add_proposal(dao: &Contract, proposal: ProposalInput) -> ExecutionFinalResult {
+    dao.call("add_proposal")
+        .args_json(json!({"proposal": proposal}))
+        .deposit(NearToken::from_near(1))
+        .transact()
+        .await
+        .unwrap()
+}
+
 pub async fn add_member_proposal(
     dao: &Contract,
     member_id: near_sdk::AccountId,
@@ -223,6 +176,28 @@ pub async fn add_member_proposal(
             kind: ProposalKind::AddMemberToRole {
                 member_id: member_id,
                 role: "council".to_string(),
+            },
+        },
+    )
+    .await
+}
+
+pub async fn add_transfer_proposal(
+    dao: &Contract,
+    token_id: Option<near_sdk::AccountId>,
+    receiver_id: near_sdk::AccountId,
+    amount: near_sdk::Balance,
+    msg: Option<String>,
+) -> ExecutionFinalResult {
+    add_proposal(
+        dao,
+        ProposalInput {
+            description: "test".to_string(),
+            kind: ProposalKind::Transfer {
+                token_id: convert_new_to_old_token(token_id),
+                receiver_id,
+                amount: U128(amount),
+                msg,
             },
         },
     )
@@ -248,6 +223,27 @@ pub async fn add_bounty_proposal(worker: &Worker<Sandbox>, dao: &Contract) -> Ex
         },
     )
     .await
+}
+
+pub async fn vote(
+    users: Vec<&Account>,
+    dao: &Contract,
+    proposal_id: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    for user in users.into_iter() {
+        let act_proposal_result = user
+            .call(dao.id(), "act_proposal")
+            .args_json(json!({"id": proposal_id, "action": Action::VoteApprove}))
+            .max_gas()
+            .transact()
+            .await?;
+        assert!(
+            act_proposal_result.is_success(),
+            "{:?}",
+            act_proposal_result.failures()
+        );
+    }
+    Ok(())
 }
 
 pub fn convert_new_to_old_token(new_account_id: Option<near_sdk::AccountId>) -> OldAccountId {

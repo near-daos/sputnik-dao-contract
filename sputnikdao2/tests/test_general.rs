@@ -28,7 +28,9 @@ async fn test_large_policy() -> Result<(), Box<dyn std::error::Error>> {
         purpose: "to test".to_string(),
         metadata: Base64VecU8(vec![]),
     };
-    let mut policy = default_policy(vec![root()]);
+    let mut policy = default_policy(vec![near_sdk::AccountId::new_unchecked(
+        worker.root_account().unwrap().id().to_string(),
+    )]);
     const NO_OF_COUNCILS: u32 = 10;
     const USERS_PER_COUNCIL: u32 = 100;
     for council_no in 0..NO_OF_COUNCILS {
