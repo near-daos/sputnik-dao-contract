@@ -171,15 +171,13 @@ impl FungibleTokenReceiver for Contract {
     }
 }
 
-#[cfg(feature = "test-near-sdk-sim")]
 #[cfg(test)]
 mod tests {
     use near_contract_standards::storage_management::StorageManagement;
     use near_sdk::json_types::U64;
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::testing_env;
-
-    use near_sdk_sim::to_yocto;
+    use near_workspaces::types::NearToken;
 
     use super::*;
 
@@ -198,39 +196,58 @@ mod tests {
             .build());
         let mut contract = Contract::new(contract_owner, voting_token.clone(), U64(UNSTAKE_PERIOD));
 
-        testing_env!(context.attached_deposit(to_yocto("1")).build());
+        testing_env!(context
+            .attached_deposit(NearToken::from_near(1).as_yoctonear())
+            .build());
         contract.storage_deposit(Some(delegate_from_user.clone()), None);
 
         testing_env!(context.predecessor_account_id(voting_token.clone()).build());
         contract.ft_on_transfer(
             delegate_from_user.clone(),
-            U128(to_yocto("100")),
+            U128(NearToken::from_near(100).as_yoctonear()),
             "".to_string(),
         );
-        assert_eq!(contract.ft_total_supply().0, to_yocto("100"));
+        assert_eq!(
+            contract.ft_total_supply().0,
+            NearToken::from_near(100).as_yoctonear()
+        );
         assert_eq!(
             contract.ft_balance_of(delegate_from_user.clone()).0,
-            to_yocto("100")
+            NearToken::from_near(100).as_yoctonear()
         );
 
         testing_env!(context
             .predecessor_account_id(delegate_from_user.clone())
             .build());
-        contract.withdraw(U128(to_yocto("50")));
-        assert_eq!(contract.ft_total_supply().0, to_yocto("50"));
+        contract.withdraw(U128(NearToken::from_near(50).as_yoctonear()));
+        assert_eq!(
+            contract.ft_total_supply().0,
+            NearToken::from_near(50).as_yoctonear()
+        );
         assert_eq!(
             contract.ft_balance_of(delegate_from_user.clone()).0,
-            to_yocto("50")
+            NearToken::from_near(50).as_yoctonear()
         );
 
-        testing_env!(context.attached_deposit(to_yocto("1")).build());
+        testing_env!(context
+            .attached_deposit(NearToken::from_near(1).as_yoctonear())
+            .build());
         contract.storage_deposit(Some(delegate_to_user.clone()), None);
 
-        contract.delegate(delegate_to_user.clone(), U128(to_yocto("10")));
+        contract.delegate(
+            delegate_to_user.clone(),
+            U128(NearToken::from_near(10).as_yoctonear()),
+        );
         let user = contract.get_user(delegate_from_user.clone());
-        assert_eq!(user.delegated_amount(), to_yocto("10"));
+        assert_eq!(
+            user.delegated_amount(),
+            NearToken::from_near(10).as_yoctonear()
+        );
 
-        contract.undelegate(delegate_to_user, U128(to_yocto("10")));
+        contract.undelegate(
+            delegate_to_user,
+            U128(NearToken::from_near(10).as_yoctonear()),
+        );
         let user = contract.get_user(delegate_from_user);
         assert_eq!(user.delegated_amount(), 0);
         assert_eq!(user.next_action_timestamp, U64(UNSTAKE_PERIOD));

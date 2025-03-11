@@ -3084,6 +3084,7 @@ dependencies = [
  "hex",
  "near-contract-standards",
  "near-sdk",
+ "near-workspaces",
  "test-token",
 ]
 
