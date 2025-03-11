@@ -412,7 +412,7 @@ mod tests {
         let mut factory = SputnikDAOFactory::new();
 
         testing_env!(context
-            .attached_deposit(NearToken::from_near(5).as_yoctonear())
+            .attached_deposit(NearToken::from_near(3).as_yoctonear())
             .build());
         factory.create("test".parse().unwrap(), "{}".as_bytes().to_vec().into());
     }
