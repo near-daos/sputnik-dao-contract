@@ -13,7 +13,7 @@ const NO_DEPOSIT: Balance = 0;
 
 pub const GAS_FOR_UPGRADE_SELF_PROMISE_CREATION: Gas = Gas(15_000_000_000_000);
 pub const GAS_FOR_UPGRADE_REMOTE_PROMISE_CREATION: Gas = Gas(15_000_000_000_000);
-/// Since Nightshade V2, the send_not_sir of action_function_call_per_byte increase to this value, please refer to: 
+/// Since Nightshade V2, the send_not_sir of action_function_call_per_byte increase to this value, please refer to:
 /// https://github.com/near/nearcore/blob/0c2374993fc74b57faf2bcdf5c7c73a37e82b75a/core/parameters/res/runtime_configs/parameters.snap#L52
 pub const GAS_FUNCTION_CALL_PER_BYTE: u64 = 47_683_715;
 
@@ -139,6 +139,9 @@ pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &
         method_name,
         &input,
         NO_DEPOSIT,
-        env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_REMOTE_PROMISE_CREATION - wasm_argument_gas,
+        env::prepaid_gas()
+            - env::used_gas()
+            - GAS_FOR_UPGRADE_REMOTE_PROMISE_CREATION
+            - wasm_argument_gas,
     );
 }

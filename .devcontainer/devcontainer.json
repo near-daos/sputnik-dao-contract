@@ -1,0 +1,23 @@
+{
+  "hostRequirements": {
+    "cpus": 2,
+    "memory": "8gb",
+    "storage": "64gb"
+  },
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/rust:1": {},
+    "ghcr.io/near/near-devcontainers/features/cargo-near:latest": {},
+    "ghcr.io/devcontainers-community/features/llvm": {},
+    "ghcr.io/devcontainers/features/node:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "github.vscode-github-actions",
+        "rust-lang.rust-analyzer"
+      ]
+    }
+  },
+  "postCreateCommand": "./.devcontainer/install-dependencies.sh"
+}

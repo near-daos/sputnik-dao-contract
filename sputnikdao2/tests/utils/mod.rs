@@ -1,10 +1,11 @@
 #![allow(dead_code)]
 pub use near_sdk::json_types::{Base64VecU8, U64};
-use near_sdk::{env, AccountId, Balance};
-use near_sdk_sim::transaction::ExecutionStatus;
-use near_sdk_sim::{
-    call, deploy, init_simulator, to_yocto, ContractAccount, ExecutionResult, UserAccount,
-};
+use near_sdk::serde_json::json;
+
+use near_workspaces::network::Sandbox;
+use near_workspaces::result::ExecutionFinalResult;
+use near_workspaces::types::NearToken;
+use near_workspaces::{Account, AccountId, Contract, Worker};
 
 use near_sdk::json_types::U128;
 use sputnik_staking::ContractContract as StakingContract;
@@ -12,94 +13,163 @@ use sputnikdao2::{
     Action, Bounty, Config, ContractContract as DAOContract, OldAccountId, ProposalInput,
     ProposalKind, VersionedPolicy, OLD_BASE_TOKEN,
 };
-use sputnikdao_factory2::SputnikDAOFactoryContract as FactoryContract;
-use test_token::ContractContract as TestTokenContract;
 
-near_sdk_sim::lazy_static_include::lazy_static_include_bytes! {
-    FACTORY_WASM_BYTES => "../sputnikdao-factory2/res/sputnikdao_factory2.wasm",
-    DAO_WASM_BYTES => "res/sputnikdao2.wasm",
-    TEST_TOKEN_WASM_BYTES => "../test-token/res/test_token.wasm",
-    STAKING_WASM_BYTES => "../sputnik-staking/res/sputnik_staking.wasm",
-}
+pub static FACTORY_WASM_BYTES: &[u8] =
+    include_bytes!("../../../sputnikdao-factory2/res/sputnikdao_factory2.wasm");
+pub static DAO_WASM_BYTES: &[u8] = include_bytes!("../../res/sputnikdao2.wasm");
+pub static TEST_TOKEN_WASM_BYTES: &[u8] = include_bytes!("../../../test-token/res/test_token.wasm");
+pub static STAKING_WASM_BYTES: &[u8] =
+    include_bytes!("../../../sputnik-staking/res/sputnik_staking.wasm");
 
-type Contract = ContractAccount<DAOContract>;
+pub static SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &str = "sputnik-dao.near";
 
-pub fn base_token() -> Option<AccountId> {
+pub fn base_token() -> Option<near_sdk::AccountId> {
     None
 }
 
-pub fn should_fail(r: ExecutionResult) {
-    match r.status() {
-        ExecutionStatus::Failure(_) => {}
-        _ => panic!("Should fail"),
+pub fn should_fail(r: ExecutionFinalResult) {
+    if r.is_success() {
+        panic!("Should fail");
     }
 }
 
-pub fn setup_factory(root: &UserAccount) -> ContractAccount<FactoryContract> {
-    deploy!(
-        contract: FactoryContract,
-        contract_id: "factory".to_string(),
-        bytes: &FACTORY_WASM_BYTES,
-        signer_account: root,
-        deposit: to_yocto("500"),
-    )
+pub async fn setup_factory() -> Result<(Contract, Worker<Sandbox>), Box<dyn std::error::Error>> {
+    let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.parse()?;
+
+    let worker = near_workspaces::sandbox().await?;
+    let mainnet = near_workspaces::mainnet().await?;
+
+    let _sputnik_dao_factory = worker
+        .import_contract(&sputnikdao_factory_contract_id, &mainnet)
+        .initial_balance(NearToken::from_near(50))
+        .transact()
+        .await?;
+
+    let mainnet = near_workspaces::mainnet().await?;
+    let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.parse()?;
+
+    let worker = near_workspaces::sandbox().await?;
+
+    let sputnik_dao_factory = worker
+        .import_contract(&sputnikdao_factory_contract_id, &mainnet)
+        .initial_balance(NearToken::from_near(50))
+        .transact()
+        .await?;
+
+    let deploy_result = sputnik_dao_factory
+        .as_account()
+        .deploy(FACTORY_WASM_BYTES)
+        .await?;
+    assert!(deploy_result.is_success());
+
+    let init_sputnik_dao_factory_result =
+        sputnik_dao_factory.call("new").max_gas().transact().await?;
+    if init_sputnik_dao_factory_result.is_failure() {
+        panic!(
+            "Error initializing sputnik-dao contract: {:?}",
+            String::from_utf8(init_sputnik_dao_factory_result.raw_bytes().unwrap())
+        );
+    }
+    assert!(init_sputnik_dao_factory_result.is_success());
+    Ok((sputnik_dao_factory, worker))
 }
 
-pub fn setup_dao() -> (UserAccount, Contract) {
-    let root = init_simulator(None);
+pub async fn setup_dao() -> Result<(Contract, Worker<Sandbox>, Account), Box<dyn std::error::Error>>
+{
+    let worker = near_workspaces::sandbox().await?;
+    let root = worker.root_account().unwrap();
+    let dao_account = root
+        .create_subaccount("dao")
+        .initial_balance(NearToken::from_near(200))
+        .transact()
+        .await?
+        .result;
+
     let config = Config {
         name: "test".to_string(),
         purpose: "to test".to_string(),
         metadata: Base64VecU8(vec![]),
     };
-    let dao = deploy!(
-        contract: DAOContract,
-        contract_id: "dao".to_string(),
-        bytes: &DAO_WASM_BYTES,
-        signer_account: root,
-        deposit: to_yocto("200"),
-        init_method: new(config, VersionedPolicy::Default(vec![root.account_id.clone()]))
-    );
-    (root, dao)
+
+    let dao = dao_account.deploy(DAO_WASM_BYTES).await?.result;
+    let dao_new_result = dao
+        .call("new")
+        .args_json(json!({
+            "config": config,
+            "policy": VersionedPolicy::Default(vec![
+                near_sdk::AccountId::new_unchecked(root.id().to_string())
+            ])
+        }))
+        .max_gas()
+        .transact()
+        .await?;
+
+    assert!(dao_new_result.is_success());
+    Ok((dao, worker, root))
 }
 
-pub fn setup_test_token(root: &UserAccount) -> ContractAccount<TestTokenContract> {
-    deploy!(
-        contract: TestTokenContract,
-        contract_id: "test_token".to_string(),
-        bytes: &TEST_TOKEN_WASM_BYTES,
-        signer_account: root,
-        deposit: to_yocto("200"),
-        init_method: new()
-    )
+pub async fn setup_test_token(root: &Account) -> Result<Contract, Box<dyn std::error::Error>> {
+    let test_token_account = root
+        .create_subaccount("test_token")
+        .initial_balance(NearToken::from_near(200))
+        .transact()
+        .await?
+        .result;
+
+    let test_token_contract = test_token_account
+        .deploy(TEST_TOKEN_WASM_BYTES)
+        .await?
+        .result;
+
+    assert!(test_token_contract
+        .call("new")
+        .transact()
+        .await?
+        .is_success());
+    Ok(test_token_contract)
 }
 
-pub fn setup_staking(root: &UserAccount) -> ContractAccount<StakingContract> {
-    deploy!(
-        contract: StakingContract,
-        contract_id: "staking".to_string(),
-        bytes: &STAKING_WASM_BYTES,
-        signer_account: root,
-        deposit: to_yocto("100"),
-        init_method: new("dao".parse().unwrap(), "test_token".parse::<AccountId>().unwrap(), U64(100_000_000_000))
-    )
+pub async fn setup_staking(
+    root: &Account,
+    test_token: &Account,
+    dao: &Account,
+) -> Result<Contract, Box<dyn std::error::Error>> {
+    let staking_account = root
+        .create_subaccount("staking")
+        .initial_balance(NearToken::from_near(100))
+        .transact()
+        .await?
+        .result;
+
+    let staking_contract = staking_account.deploy(STAKING_WASM_BYTES).await?.result;
+
+    assert!(staking_contract
+        .call("new")
+        .args_json(json!({
+            "owner_id": dao.id(),
+            "token_id": test_token.id(),
+            "unstake_period": U64(100_000_000_000)
+        }))
+        .transact()
+        .await?
+        .is_success());
+    Ok(staking_contract)
 }
 
-pub fn add_proposal(
-    root: &UserAccount,
+pub async fn add_proposal(dao: &Contract, proposal: ProposalInput) -> ExecutionFinalResult {
+    dao.call("add_proposal")
+        .args_json(json!({"proposal": proposal}))
+        .deposit(NearToken::from_near(1))
+        .transact()
+        .await
+        .unwrap()
+}
+
+pub async fn add_member_proposal(
     dao: &Contract,
-    proposal: ProposalInput,
-) -> ExecutionResult {
-    call!(root, dao.add_proposal(proposal), deposit = to_yocto("1"))
-}
-
-pub fn add_member_proposal(
-    root: &UserAccount,
-    dao: &Contract,
-    member_id: AccountId,
-) -> ExecutionResult {
+    member_id: near_sdk::AccountId,
+) -> ExecutionFinalResult {
     add_proposal(
-        root,
         dao,
         ProposalInput {
             description: "test".to_string(),
@@ -109,18 +179,17 @@ pub fn add_member_proposal(
             },
         },
     )
+    .await
 }
 
-pub fn add_transfer_proposal(
-    root: &UserAccount,
+pub async fn add_transfer_proposal(
     dao: &Contract,
-    token_id: Option<AccountId>,
-    receiver_id: AccountId,
-    amount: Balance,
+    token_id: Option<near_sdk::AccountId>,
+    receiver_id: near_sdk::AccountId,
+    amount: near_sdk::Balance,
     msg: Option<String>,
-) -> ExecutionResult {
+) -> ExecutionFinalResult {
     add_proposal(
-        root,
         dao,
         ProposalInput {
             description: "test".to_string(),
@@ -132,11 +201,11 @@ pub fn add_transfer_proposal(
             },
         },
     )
+    .await
 }
 
-pub fn add_bounty_proposal(root: &UserAccount, dao: &Contract) -> ExecutionResult {
+pub async fn add_bounty_proposal(worker: &Worker<Sandbox>, dao: &Contract) -> ExecutionFinalResult {
     add_proposal(
-        root,
         dao,
         ProposalInput {
             description: "test".to_string(),
@@ -144,26 +213,40 @@ pub fn add_bounty_proposal(root: &UserAccount, dao: &Contract) -> ExecutionResul
                 bounty: Bounty {
                     description: "test bounty".to_string(),
                     token: String::from(OLD_BASE_TOKEN),
-                    amount: U128(to_yocto("10")),
+                    amount: U128(NearToken::from_near(10).as_yoctonear()),
                     times: 3,
-                    max_deadline: U64(env::block_timestamp() + 10_000_000_000),
+                    max_deadline: U64(
+                        worker.view_block().await.unwrap().timestamp() + 10_000_000_000
+                    ),
                 },
             },
         },
     )
+    .await
 }
 
-pub fn vote(users: Vec<&UserAccount>, dao: &Contract, proposal_id: u64) {
+pub async fn vote(
+    users: Vec<&Account>,
+    dao: &Contract,
+    proposal_id: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
     for user in users.into_iter() {
-        call!(
-            user,
-            dao.act_proposal(proposal_id, Action::VoteApprove, None)
-        )
-        .assert_success();
+        let act_proposal_result = user
+            .call(dao.id(), "act_proposal")
+            .args_json(json!({"id": proposal_id, "action": Action::VoteApprove}))
+            .max_gas()
+            .transact()
+            .await?;
+        assert!(
+            act_proposal_result.is_success(),
+            "{:?}",
+            act_proposal_result.failures()
+        );
     }
+    Ok(())
 }
 
-pub fn convert_new_to_old_token(new_account_id: Option<AccountId>) -> OldAccountId {
+pub fn convert_new_to_old_token(new_account_id: Option<near_sdk::AccountId>) -> OldAccountId {
     if new_account_id.is_none() {
         return String::from(OLD_BASE_TOKEN);
     }

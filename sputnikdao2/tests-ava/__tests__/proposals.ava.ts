@@ -217,7 +217,7 @@ test('Proposal ChangePolicy', async (t) => {
                 kind: {
                     Group: [root.accountId, alice.accountId],
                 },
-                permissions: ['*:VoteApprove', '*:AddProposal'],
+                permissions: ['*:AddProposal', '*:VoteApprove'],
                 vote_policy: {},
             },
         ],

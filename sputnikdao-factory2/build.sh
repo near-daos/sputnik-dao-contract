@@ -1,5 +1,5 @@
 #!/bin/bash
 set -e
 
-RUSTFLAGS='-C link-arg=-s' cargo +stable build --target wasm32-unknown-unknown --release
-cp ../target/wasm32-unknown-unknown/release/sputnikdao_factory2.wasm ./res/
+cargo near build non-reproducible-wasm --no-abi
+cp ../target/near/sputnikdao_factory2/sputnikdao_factory2.wasm ./res/

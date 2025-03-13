@@ -397,8 +397,7 @@ mod tests {
     use near_sdk::test_utils::test_env::{alice, bob, carol};
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::{testing_env, PromiseResult};
-
-    use near_sdk_sim::to_yocto;
+    use near_workspaces::types::NearToken;
 
     use super::*;
 
@@ -412,7 +411,9 @@ mod tests {
             .build());
         let mut factory = SputnikDAOFactory::new();
 
-        testing_env!(context.attached_deposit(to_yocto("5")).build());
+        testing_env!(context
+            .attached_deposit(NearToken::from_near(3).as_yoctonear())
+            .build());
         factory.create("test".parse().unwrap(), "{}".as_bytes().to_vec().into());
     }
 
@@ -425,7 +426,9 @@ mod tests {
             .build());
         let mut factory = SputnikDAOFactory::new();
 
-        testing_env!(context.attached_deposit(to_yocto("6")).build());
+        testing_env!(context
+            .attached_deposit(NearToken::from_near(6).as_yoctonear())
+            .build());
         factory.create("test".parse().unwrap(), "{}".as_bytes().to_vec().into());
 
         testing_env!(
@@ -437,7 +440,7 @@ mod tests {
         );
         factory.on_create(
             format!("test.{}", accounts(0)).parse().unwrap(),
-            U128(to_yocto("6")),
+            U128(NearToken::from_near(6).as_yoctonear()),
             accounts(0),
         );
         assert_eq!(
@@ -460,7 +463,7 @@ mod tests {
         testing_env!(context
             .current_account_id(alice())
             .predecessor_account_id(alice())
-            .attached_deposit(to_yocto("5"))
+            .attached_deposit(NearToken::from_near(5).as_yoctonear())
             .build());
         let factory = SputnikDAOFactory::new();
 
@@ -474,7 +477,7 @@ mod tests {
         testing_env!(context
             .current_account_id(alice())
             .predecessor_account_id(carol())
-            .attached_deposit(to_yocto("5"))
+            .attached_deposit(NearToken::from_near(5).as_yoctonear())
             .build());
         let factory = SputnikDAOFactory::new();
 
@@ -487,7 +490,7 @@ mod tests {
         testing_env!(context
             .current_account_id(bob())
             .predecessor_account_id(bob())
-            .attached_deposit(to_yocto("6"))
+            .attached_deposit(NearToken::from_near(6).as_yoctonear())
             .build());
         let mut factory = SputnikDAOFactory::new();
 
@@ -507,7 +510,7 @@ mod tests {
         testing_env!(context
             .current_account_id(accounts(0))
             .predecessor_account_id(accounts(0))
-            .attached_deposit(to_yocto("5"))
+            .attached_deposit(NearToken::from_near(5).as_yoctonear())
             .build());
         let factory = SputnikDAOFactory::new();
 

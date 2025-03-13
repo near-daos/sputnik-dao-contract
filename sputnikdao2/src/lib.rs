@@ -175,20 +175,22 @@ pub extern "C" fn store_blob() {
 mod tests {
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::testing_env;
-    use near_sdk_sim::to_yocto;
+    use near_workspaces::types::NearToken;
 
     use crate::proposals::ProposalStatus;
 
     use super::*;
 
     fn create_proposal(context: &mut VMContextBuilder, contract: &mut Contract) -> u64 {
-        testing_env!(context.attached_deposit(to_yocto("1")).build());
+        testing_env!(context
+            .attached_deposit(NearToken::from_near(1).as_yoctonear())
+            .build());
         contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
                 token_id: String::from(OLD_BASE_TOKEN),
                 receiver_id: accounts(2).into(),
-                amount: U128(to_yocto("100")),
+                amount: U128(NearToken::from_near(100).as_yoctonear()),
                 msg: None,
             },
         })
@@ -227,7 +229,7 @@ mod tests {
         // non council adding proposal per default policy.
         testing_env!(context
             .predecessor_account_id(accounts(2))
-            .attached_deposit(to_yocto("1"))
+            .attached_deposit(NearToken::from_near(1).as_yoctonear())
             .build());
         let _id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
@@ -304,7 +306,9 @@ mod tests {
             Config::test_config(),
             VersionedPolicy::Default(vec![accounts(1).into()]),
         );
-        testing_env!(context.attached_deposit(to_yocto("1")).build());
+        testing_env!(context
+            .attached_deposit(NearToken::from_near(1).as_yoctonear())
+            .build());
         let id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::AddMemberToRole {
@@ -327,7 +331,9 @@ mod tests {
             Config::test_config(),
             VersionedPolicy::Default(vec![accounts(1).into()]),
         );
-        testing_env!(context.attached_deposit(to_yocto("1")).build());
+        testing_env!(context
+            .attached_deposit(NearToken::from_near(1).as_yoctonear())
+            .build());
         let _id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::ChangePolicy {

@@ -1,5 +1,5 @@
 #!/bin/bash
 set -e
 
-RUSTFLAGS='-C link-arg=-s' cargo +stable build --target wasm32-unknown-unknown --release
-cp ../target/wasm32-unknown-unknown/release/sputnik_staking.wasm ./res/
+cargo near build non-reproducible-wasm --no-abi
+cp ../target/near/sputnik_staking/sputnik_staking.wasm ./res/

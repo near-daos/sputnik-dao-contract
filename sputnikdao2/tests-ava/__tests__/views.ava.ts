@@ -88,11 +88,11 @@ test('View method get_policy', async (t) => {
                     Group: [root.accountId],
                 },
                 permissions: [
-                    '*:Finalize',
                     '*:AddProposal',
-                    '*:VoteApprove',
-                    '*:VoteReject',
+                    '*:Finalize',
                     '*:VoteRemove',
+                    '*:VoteReject',
+                    '*:VoteApprove'                    
                 ],
                 vote_policy: {},
             },
