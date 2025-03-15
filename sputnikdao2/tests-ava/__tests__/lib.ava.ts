@@ -13,6 +13,7 @@ import {
     initTestToken,
     STORAGE_PER_BYTE,
     initWorkspace,
+    getProposalKind,
     Proposal,
     DAO_WASM_BYTES,
 } from './utils';
@@ -282,6 +283,7 @@ test('Callback function call', async (t) => {
         {
             id: transferId,
             action: 'VoteApprove',
+            proposal: await getProposalKind(dao, transferId),
         },
         {
             gas: tGas(200),
@@ -333,6 +335,7 @@ test('Callback function call', async (t) => {
         {
             id: transferId,
             action: 'VoteApprove',
+            proposal: await getProposalKind(dao, transferId),
         },
         {
             gas: tGas(200),
