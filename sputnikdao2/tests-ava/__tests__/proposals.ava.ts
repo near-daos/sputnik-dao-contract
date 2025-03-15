@@ -15,6 +15,7 @@ import {
     voteApprove,
     Proposal,
     initWorkspace,
+    getProposalKind,
 } from './utils';
 
 const test = initWorkspace();
@@ -591,6 +592,7 @@ test('Callback function call', async (t) => {
         {
             id: transferId,
             action: 'VoteApprove',
+            proposal: await getProposalKind(dao, transferId),
         },
         {
             gas: tGas(200),
@@ -642,6 +644,7 @@ test('Callback function call', async (t) => {
         {
             id: transferId,
             action: 'VoteApprove',
+            proposal: await getProposalKind(dao, transferId),
         },
         {
             gas: tGas(200),

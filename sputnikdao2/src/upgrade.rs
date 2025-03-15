@@ -18,7 +18,7 @@ pub const GAS_FOR_UPGRADE_REMOTE_PROMISE_CREATION: Gas = Gas(15_000_000_000_000)
 pub const GAS_FUNCTION_CALL_PER_BYTE: u64 = 47_683_715;
 
 /// Info about factory that deployed this contract and if auto-update is allowed.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct FactoryInfo {

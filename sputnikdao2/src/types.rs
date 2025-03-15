@@ -18,7 +18,7 @@ pub const ONE_YOCTO_NEAR: Balance = 1;
 pub const GAS_FOR_FT_TRANSFER: Gas = Gas(10_000_000_000_000);
 
 /// Configuration of the DAO.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Config {
     /// Name of the DAO.
