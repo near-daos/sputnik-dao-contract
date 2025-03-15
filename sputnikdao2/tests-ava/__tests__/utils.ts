@@ -344,8 +344,8 @@ export async function voteApprove(
 }
 
 export async function getProposalKind(dao: NearAccount, proposalId: number) {
-    const propolsal: any = await dao.view("get_proposal", { id: proposalId });
-    return propolsal.kind;
+    const proposal: any = await dao.view("get_proposal", { id: proposalId });
+    return proposal.kind;
 }
 
 export type ProposalStatus = 'InProgress' | 'Approved' | 'Rejected' | 'Removed' | 'Expired' | 'Moved' | 'Failed';
