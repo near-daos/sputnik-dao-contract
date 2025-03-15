@@ -334,6 +334,29 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "ERR_WRONG_KIND")]
+    fn test_wrong_kind() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(1)).build());
+        let mut contract = Contract::new(
+            Config::test_config(),
+            VersionedPolicy::Default(vec![accounts(1).into(), accounts(2).into()]),
+        );
+        let id = create_proposal(&mut context, &mut contract);
+        contract.act_proposal(
+            id,
+            Action::VoteApprove,
+            ProposalKind::Transfer {
+                token_id: String::from(OLD_BASE_TOKEN),
+                receiver_id: accounts(1).into(), // The only different thing from initial kind
+                amount: U128(NearToken::from_near(100).as_yoctonear()),
+                msg: None,
+            },
+            None,
+        );
+    }
+
+    #[test]
     fn test_add_to_missing_role() {
         let mut context = VMContextBuilder::new();
         testing_env!(context.predecessor_account_id(accounts(1)).build());
