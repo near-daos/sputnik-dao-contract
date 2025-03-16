@@ -270,7 +270,12 @@ mod tests {
 
         assert_eq!(contract.get_last_proposal_id(), 2);
         assert_eq!(
-            contract.get_proposal(1).proposal.kind.to_policy_label(),
+            contract
+                .get_proposal(1)
+                .proposal
+                .latest_version()
+                .kind
+                .to_policy_label(),
             "bounty_done"
         );
 

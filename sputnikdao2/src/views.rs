@@ -11,7 +11,7 @@ pub struct ProposalOutput {
     /// Id of the proposal.
     pub id: u64,
     #[serde(flatten)]
-    pub proposal: Proposal,
+    pub proposal: VersionedProposal,
 }
 
 /// This is format of output via JSON for the bounty.
