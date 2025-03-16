@@ -1,7 +1,8 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, AccountId, Balance, Duration, StorageUsage};
+use near_sdk::{env, AccountId, NearToken, Duration, StorageUsage};
+use near_contract_standards::fungible_token::Balance;
 
 use crate::*;
 
@@ -14,6 +15,7 @@ const ACCOUNT_MAX_LENGTH: StorageUsage = 64;
 /// Once delegated - the tokens are used in the votes. It records for each delegate when was the last vote.
 /// When undelegating - the new delegations or withdrawal are only available after cooldown period from last vote of the delegate.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug)]
+#[borsh(crate = "near_sdk::borsh")]
 #[serde(crate = "near_sdk::serde")]
 pub struct User {
     /// Total amount of storage used by this user struct.
@@ -29,15 +31,16 @@ pub struct User {
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]
+#[borsh(crate = "near_sdk::borsh")]
 pub enum VersionedUser {
     Default(User),
 }
 
 impl User {
-    pub fn new(near_amount: Balance) -> Self {
+    pub fn new(near_amount: NearToken) -> Self {
         Self {
             storage_used: Self::min_storage(),
-            near_amount: U128(near_amount),
+            near_amount: U128(near_amount.as_yoctonear()),
             vote_amount: U128(0),
             delegated_amounts: vec![],
             next_action_timestamp: 0.into(),
@@ -53,12 +56,12 @@ impl User {
 
     fn assert_storage(&self) {
         assert!(
-            (self.storage_used as Balance) * env::storage_byte_cost() <= self.near_amount.0,
+            env::storage_byte_cost().saturating_mul(self.storage_used as u128).as_yoctonear() <= self.near_amount.0,
             "ERR_NOT_ENOUGH_STORAGE"
         );
     }
 
-    pub(crate) fn delegated_amount(&self) -> Balance {
+    pub(crate) fn delegated_amount(&self) -> u128 {
         self.delegated_amounts
             .iter()
             .fold(0, |total, (_, amount)| total + amount.0)
@@ -85,7 +88,7 @@ impl User {
     pub fn undelegate(
         &mut self,
         delegate_id: &AccountId,
-        amount: Balance,
+        amount: u128,
         undelegation_period: Duration,
     ) {
         let f = self
@@ -125,8 +128,8 @@ impl User {
     }
 
     /// Returns amount in NEAR that is available for storage.
-    pub fn storage_available(&self) -> Balance {
-        self.near_amount.0 - self.storage_used as Balance * env::storage_byte_cost()
+    pub fn storage_available(&self) -> NearToken {
+        env::storage_byte_cost().saturating_mul(self.near_amount.0 - self.storage_used as u128)
     }
 }
 
@@ -148,14 +151,12 @@ impl Contract {
     }
 
     /// Internal register new user.
-    pub fn internal_register_user(&mut self, sender_id: &AccountId, near_amount: Balance) {
+    pub fn internal_register_user(&mut self, sender_id: &AccountId, near_amount: NearToken) {
         let user = User::new(near_amount);
         self.save_user(sender_id, user);
-        ext_sputnik::register_delegation(
-            sender_id.clone(),
-            self.owner_id.clone(),
-            (U128_LEN as Balance) * env::storage_byte_cost(),
-            GAS_FOR_REGISTER,
+        ext_sputnik::ext(self.owner_id.clone()).with_static_gas(GAS_FOR_REGISTER)
+            .with_attached_deposit(env::storage_byte_cost().saturating_mul(U128_LEN.into())).register_delegation(
+            sender_id.clone()
         );
     }
 

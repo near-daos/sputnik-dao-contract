@@ -21,11 +21,11 @@ impl StorageManagement for Contract {
 
         if self.users.contains_key(&account_id) {
             log!("ERR_ACC_REGISTERED");
-            if deposit_amount > 0 {
+            if !deposit_amount.is_zero() {
                 Promise::new(env::predecessor_account_id()).transfer(deposit_amount);
             }
         } else {
-            let min_balance = User::min_storage() as Balance * env::storage_byte_cost();
+            let min_balance = env::storage_byte_cost().saturating_mul(User::min_storage().into());
             if deposit_amount < min_balance {
                 env::panic_str("ERR_DEPOSIT_LESS_THAN_MIN_STORAGE");
             }
@@ -33,8 +33,8 @@ impl StorageManagement for Contract {
             let registration_only = registration_only.unwrap_or(false);
             if registration_only {
                 self.internal_register_user(&account_id, min_balance);
-                let refund = deposit_amount - min_balance;
-                if refund > 0 {
+                let refund = deposit_amount.saturating_sub(min_balance);
+                if refund > NearToken::from_near(0) {
                     Promise::new(env::predecessor_account_id()).transfer(refund);
                 }
             } else {
@@ -46,12 +46,12 @@ impl StorageManagement for Contract {
     }
 
     #[payable]
-    fn storage_withdraw(&mut self, amount: Option<U128>) -> StorageBalance {
+    fn storage_withdraw(&mut self, amount: Option<NearToken>) -> StorageBalance {
         assert_one_yocto();
         let account_id = env::predecessor_account_id();
         let user = self.internal_get_user(&account_id);
         let available = user.storage_available();
-        let amount = amount.map(|a| a.0).unwrap_or(available);
+        let amount = amount.map(|a| a).unwrap_or(available);
         assert!(amount <= available, "ERR_STORAGE_WITHDRAW_TOO_MUCH");
         Promise::new(account_id.clone()).transfer(amount);
         self.storage_balance_of(account_id.try_into().unwrap())
@@ -67,7 +67,7 @@ impl StorageManagement for Contract {
             // TODO: figure out force option logic.
             assert!(user.vote_amount.0 > 0, "ERR_STORAGE_UNREGISTER_NOT_EMPTY");
             self.users.remove(&account_id);
-            Promise::new(account_id.clone()).transfer(user.near_amount.0);
+            Promise::new(account_id.clone()).transfer(NearToken::from_yoctonear(user.near_amount.0));
             true
         } else {
             false
@@ -76,7 +76,7 @@ impl StorageManagement for Contract {
 
     fn storage_balance_bounds(&self) -> StorageBalanceBounds {
         StorageBalanceBounds {
-            min: U128(User::min_storage() as Balance * env::storage_byte_cost()),
+            min: env::storage_byte_cost().saturating_mul(User::min_storage().into()),
             max: None,
         }
     }
@@ -84,8 +84,8 @@ impl StorageManagement for Contract {
     fn storage_balance_of(&self, account_id: AccountId) -> Option<StorageBalance> {
         self.internal_get_user_opt(&account_id)
             .map(|user| StorageBalance {
-                total: user.near_amount,
-                available: U128(user.storage_available()),
+                total: NearToken::from_yoctonear(user.near_amount.0),
+                available: user.storage_available(),
             })
     }
 }
