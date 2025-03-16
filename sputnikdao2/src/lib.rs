@@ -12,7 +12,7 @@ pub use crate::policy::{
     default_policy, Policy, RoleKind, RolePermission, VersionedPolicy, VotePolicy,
 };
 use crate::proposals::VersionedProposal;
-pub use crate::proposals::{Proposal, ProposalInput, ProposalKind, ProposalStatus};
+pub use crate::proposals::{ProposalInput, ProposalKind, ProposalStatus, ProposalV0, ProposalV1};
 pub use crate::types::{Action, Config, OldAccountId, OLD_BASE_TOKEN};
 use crate::upgrade::{internal_get_factory_info, internal_set_factory_info, FactoryInfo};
 pub use crate::views::{BountyOutput, ProposalOutput};
@@ -20,7 +20,7 @@ pub use crate::views::{BountyOutput, ProposalOutput};
 mod bounties;
 mod delegation;
 mod policy;
-mod proposals;
+pub mod proposals;
 mod types;
 mod upgrade;
 pub mod views;
@@ -205,13 +205,24 @@ mod tests {
             VersionedPolicy::Default(vec![accounts(1).into()]),
         );
         let id = create_proposal(&mut context, &mut contract);
-        assert_eq!(contract.get_proposal(id).proposal.description, "test");
+        assert_eq!(
+            contract
+                .get_proposal(id)
+                .proposal
+                .latest_version_ref()
+                .description,
+            "test"
+        );
         assert_eq!(contract.get_proposals(0, 10).len(), 1);
 
         let id = create_proposal(&mut context, &mut contract);
         contract.act_proposal(id, Action::VoteApprove, None);
         assert_eq!(
-            contract.get_proposal(id).proposal.status,
+            contract
+                .get_proposal(id)
+                .proposal
+                .latest_version_ref()
+                .status,
             ProposalStatus::Approved
         );
 
@@ -222,7 +233,11 @@ mod tests {
             .build());
         contract.act_proposal(id, Action::Finalize, None);
         assert_eq!(
-            contract.get_proposal(id).proposal.status,
+            contract
+                .get_proposal(id)
+                .proposal
+                .latest_version_ref()
+                .status,
             ProposalStatus::Expired
         );
 
@@ -250,7 +265,14 @@ mod tests {
             VersionedPolicy::Default(vec![accounts(1).into()]),
         );
         let id = create_proposal(&mut context, &mut contract);
-        assert_eq!(contract.get_proposal(id).proposal.description, "test");
+        assert_eq!(
+            contract
+                .get_proposal(id)
+                .proposal
+                .latest_version_ref()
+                .description,
+            "test"
+        );
         contract.act_proposal(id, Action::RemoveProposal, None);
     }
 
@@ -264,7 +286,14 @@ mod tests {
             .insert("*:RemoveProposal".to_string());
         let mut contract = Contract::new(Config::test_config(), policy);
         let id = create_proposal(&mut context, &mut contract);
-        assert_eq!(contract.get_proposal(id).proposal.description, "test");
+        assert_eq!(
+            contract
+                .get_proposal(id)
+                .proposal
+                .latest_version_ref()
+                .description,
+            "test"
+        );
         contract.act_proposal(id, Action::RemoveProposal, None);
         assert_eq!(contract.get_proposals(0, 10).len(), 0);
     }

@@ -10,8 +10,8 @@ mod utils;
 use crate::utils::*;
 use sputnik_staking::User;
 use sputnikdao2::{
-    default_policy, Action, BountyClaim, BountyOutput, Config, Policy, Proposal, ProposalInput,
-    ProposalKind, ProposalOutput, ProposalStatus, RoleKind, RolePermission, VersionedPolicy,
+    default_policy, Action, BountyClaim, BountyOutput, Config, Policy, ProposalInput, ProposalKind,
+    ProposalOutput, ProposalStatus, ProposalV0, RoleKind, RolePermission, VersionedPolicy,
     VotePolicy,
 };
 
@@ -194,7 +194,7 @@ async fn test_multi_council() -> Result<(), Box<dyn std::error::Error>> {
         .view("get_proposal")
         .args_json(json!({"id": 1}))
         .await?
-        .json::<Proposal>()
+        .json::<ProposalV0>()
         .unwrap();
     // Votes from members in different councils.
     assert_eq!(proposal.status, ProposalStatus::InProgress);
@@ -205,7 +205,7 @@ async fn test_multi_council() -> Result<(), Box<dyn std::error::Error>> {
         .view("get_proposal")
         .args_json(json!({"id": 1}))
         .await?
-        .json::<Proposal>()
+        .json::<ProposalV0>()
         .unwrap();
     assert_eq!(
         proposal.status,
@@ -430,6 +430,7 @@ async fn test_bounty_workflow() -> Result<(), Box<dyn std::error::Error>> {
             .json::<ProposalOutput>()
             .unwrap()
             .proposal
+            .latest_version_ref()
             .kind
             .to_policy_label()
     );
@@ -619,7 +620,7 @@ async fn test_create_dao_and_use_token() -> Result<(), Box<dyn std::error::Error
         dao.view("get_proposal")
             .args_json(json!({"id": 2}))
             .await?
-            .json::<Proposal>()
+            .json::<ProposalV0>()
             .unwrap()
             .status,
         ProposalStatus::Approved
@@ -910,7 +911,7 @@ async fn test_payment_failures() -> Result<(), Box<dyn std::error::Error>> {
         .view("get_proposal")
         .args_json(json!({"id": 1}))
         .await?
-        .json::<Proposal>()
+        .json::<ProposalV0>()
         .unwrap();
 
     assert_eq!(proposal.status, ProposalStatus::Failed);
@@ -950,7 +951,7 @@ async fn test_payment_failures() -> Result<(), Box<dyn std::error::Error>> {
         .view("get_proposal")
         .args_json(json!({"id": 1}))
         .await?
-        .json::<Proposal>()
+        .json::<ProposalV0>()
         .unwrap();
 
     assert_eq!(
