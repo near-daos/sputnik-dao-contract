@@ -2,8 +2,10 @@ use near_contract_standards::fungible_token::metadata::{
     FungibleTokenMetadata, FungibleTokenMetadataProvider,
 };
 
-use near_contract_standards::fungible_token::{FungibleTokenCore, FungibleToken};
-use near_contract_standards::storage_management::{StorageBalance, StorageBalanceBounds, StorageManagement};
+use near_contract_standards::fungible_token::{FungibleToken, FungibleTokenCore};
+use near_contract_standards::storage_management::{
+    StorageBalance, StorageBalanceBounds, StorageManagement,
+};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::U128;
 use near_sdk::{near_bindgen, AccountId, NearToken, PanicOnDefault, PromiseOrValue};
@@ -36,12 +38,7 @@ impl Contract {
 
 #[near_bindgen]
 impl FungibleTokenCore for Contract {
-    fn ft_transfer(
-        &mut self,
-        receiver_id: AccountId,
-        amount: U128,
-        memo: Option<String>,
-    ) {
+    fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>) {
         self.token.ft_transfer(receiver_id, amount, memo);
     }
 
@@ -101,7 +98,11 @@ impl FungibleTokenMetadataProvider for Contract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use near_sdk::{env, NearToken, test_utils::{accounts, VMContextBuilder}, testing_env};
+    use near_sdk::{
+        env,
+        test_utils::{accounts, VMContextBuilder},
+        testing_env, NearToken,
+    };
 
     #[test]
     fn test_basics() {

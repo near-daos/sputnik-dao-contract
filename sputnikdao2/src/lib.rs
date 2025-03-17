@@ -1,10 +1,11 @@
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_contract_standards::fungible_token::Balance;
+use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::json_types::{Base58CryptoHash, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    env, ext_contract, near_bindgen, AccountId, NearToken, BorshStorageKey, CryptoHash, PanicOnDefault, Promise, PromiseOrValue, PromiseResult
+    env, ext_contract, near_bindgen, AccountId, BorshStorageKey, CryptoHash, NearToken,
+    PanicOnDefault, Promise, PromiseOrValue, PromiseResult,
 };
 
 pub use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
@@ -19,11 +20,11 @@ pub use crate::views::{BountyOutput, ProposalOutput};
 
 mod bounties;
 mod delegation;
+mod ext_fungible_token;
 mod policy;
 mod proposals;
 mod types;
 mod upgrade;
-mod ext_fungible_token;
 pub mod views;
 
 #[derive(BorshStorageKey, BorshSerialize)]
@@ -132,7 +133,7 @@ impl Contract {
         );
         env::storage_remove(&hash);
         let blob_len = env::register_len(u64::MAX - 1).unwrap();
-        let storage_cost = env::storage_byte_cost().saturating_mul((blob_len + 32) as u128 );
+        let storage_cost = env::storage_byte_cost().saturating_mul((blob_len + 32) as u128);
         Promise::new(account_id).transfer(storage_cost)
     }
 
@@ -185,9 +186,7 @@ mod tests {
     use super::*;
 
     fn create_proposal(context: &mut VMContextBuilder, contract: &mut Contract) -> u64 {
-        testing_env!(context
-            .attached_deposit(NearToken::from_near(1))
-            .build());
+        testing_env!(context.attached_deposit(NearToken::from_near(1)).build());
         contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
@@ -309,9 +308,7 @@ mod tests {
             Config::test_config(),
             VersionedPolicy::Default(vec![accounts(1).into()]),
         );
-        testing_env!(context
-            .attached_deposit(NearToken::from_near(1))
-            .build());
+        testing_env!(context.attached_deposit(NearToken::from_near(1)).build());
         let id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::AddMemberToRole {
@@ -334,9 +331,7 @@ mod tests {
             Config::test_config(),
             VersionedPolicy::Default(vec![accounts(1).into()]),
         );
-        testing_env!(context
-            .attached_deposit(NearToken::from_near(1))
-            .build());
+        testing_env!(context.attached_deposit(NearToken::from_near(1)).build());
         let _id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::ChangePolicy {

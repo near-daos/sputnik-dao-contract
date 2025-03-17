@@ -130,7 +130,8 @@ impl SputnikDAOFactory {
             self.daos.insert(&account_id);
             true
         } else {
-            Promise::new(predecessor_account_id).transfer(NearToken::from_yoctonear(attached_deposit.0));
+            Promise::new(predecessor_account_id)
+                .transfer(NearToken::from_yoctonear(attached_deposit.0));
             false
         }
     }
@@ -201,7 +202,9 @@ impl SputnikDAOFactory {
             method_name,
             &dao_contract_code,
             storage_cost,
-            env::prepaid_gas().saturating_sub(env::used_gas()).saturating_sub(GAS_STORE_CONTRACT_LEFTOVER),
+            env::prepaid_gas()
+                .saturating_sub(env::used_gas())
+                .saturating_sub(GAS_STORE_CONTRACT_LEFTOVER),
         );
         env::promise_return(promise_id);
     }
@@ -280,11 +283,13 @@ impl SputnikDAOFactory {
     }
 
     pub fn get_owner(&self) -> AccountId {
-            String::from_utf8(
-                env::storage_read(FACTORY_OWNER_KEY)
-                    .unwrap_or(env::current_account_id().as_bytes().to_vec()),
-            )
-            .expect("INTERNAL_FAIL").parse().unwrap()
+        String::from_utf8(
+            env::storage_read(FACTORY_OWNER_KEY)
+                .unwrap_or(env::current_account_id().as_bytes().to_vec()),
+        )
+        .expect("INTERNAL_FAIL")
+        .parse()
+        .unwrap()
     }
 
     pub fn get_default_code_hash(&self) -> Base58CryptoHash {
@@ -323,9 +328,11 @@ impl SputnikDAOFactory {
         if storage_metadata.is_none() {
             let mut storage_metadata: UnorderedMap<Base58CryptoHash, DaoContractMetadata> =
                 UnorderedMap::new(b"m".to_vec());
-            storage_metadata.insert(&code_hash, &metadata);            
+            storage_metadata.insert(&code_hash, &metadata);
             let mut serialized_metadata_buffer: Vec<u8> = Vec::new();
-            storage_metadata.serialize(&mut serialized_metadata_buffer).expect("INTERNAL_FAIL");
+            storage_metadata
+                .serialize(&mut serialized_metadata_buffer)
+                .expect("INTERNAL_FAIL");
             env::storage_write(CODE_METADATA_KEY, &serialized_metadata_buffer);
         } else {
             let storage_metadata = storage_metadata.expect("INTERNAL_FAIL");
@@ -333,7 +340,9 @@ impl SputnikDAOFactory {
                 BorshDeserialize::try_from_slice(&storage_metadata).expect("INTERNAL_FAIL");
             deserialized_metadata.insert(&code_hash, &metadata);
             let mut serialized_metadata_buffer: Vec<u8> = Vec::new();
-            deserialized_metadata.serialize(&mut serialized_metadata_buffer).expect("INTERNAL_FAIL");
+            deserialized_metadata
+                .serialize(&mut serialized_metadata_buffer)
+                .expect("INTERNAL_FAIL");
             env::storage_write(CODE_METADATA_KEY, &serialized_metadata_buffer);
         }
 
@@ -349,7 +358,9 @@ impl SputnikDAOFactory {
             BorshDeserialize::try_from_slice(&storage_metadata).expect("INTERNAL_FAIL");
         deserialized_metadata.remove(&code_hash);
         let mut serialized_metadata_buffer: Vec<u8> = Vec::new();
-        deserialized_metadata.serialize(&mut serialized_metadata_buffer).expect("INTERNAL_FAIL");
+        deserialized_metadata
+            .serialize(&mut serialized_metadata_buffer)
+            .expect("INTERNAL_FAIL");
         env::storage_write(CODE_METADATA_KEY, &serialized_metadata_buffer);
     }
 
@@ -384,7 +395,8 @@ pub extern "C" fn store() {
     contract.assert_owner();
     let prev_storage = env::storage_usage();
     contract.factory_manager.store_contract();
-    let storage_cost = env::storage_byte_cost().saturating_mul(env::storage_usage().saturating_sub(prev_storage) as u128);
+    let storage_cost = env::storage_byte_cost()
+        .saturating_mul(env::storage_usage().saturating_sub(prev_storage) as u128);
     assert!(
         storage_cost <= env::attached_deposit(),
         "Must at least deposit {} to store",
@@ -397,7 +409,7 @@ mod tests {
     use near_sdk::test_utils::test_env::{alice, bob, carol};
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::{test_vm_config, testing_env, PromiseResult, RuntimeFeesConfig};
-    
+
     use near_workspaces::types::NearToken;
 
     use super::*;
@@ -412,9 +424,7 @@ mod tests {
             .build());
         let mut factory = SputnikDAOFactory::new();
 
-        testing_env!(context
-            .attached_deposit(NearToken::from_near(3))
-            .build());
+        testing_env!(context.attached_deposit(NearToken::from_near(3)).build());
         factory.create("test".parse().unwrap(), "{}".as_bytes().to_vec().into());
     }
 
@@ -427,9 +437,7 @@ mod tests {
             .build());
         let mut factory = SputnikDAOFactory::new();
 
-        testing_env!(context
-            .attached_deposit(NearToken::from_near(6))
-            .build());
+        testing_env!(context.attached_deposit(NearToken::from_near(6)).build());
         factory.create("test".parse().unwrap(), "{}".as_bytes().to_vec().into());
 
         testing_env!(
@@ -446,7 +454,7 @@ mod tests {
         );
         assert_eq!(
             factory.get_dao_list(),
-           vec![format!("test.{}", accounts(0).as_str())]
+            vec![format!("test.{}", accounts(0).as_str())]
         );
         assert_eq!(
             factory.get_daos(0, 100),
@@ -499,10 +507,7 @@ mod tests {
 
         factory.set_owner("bob.sputnik-dao.near".parse().unwrap());
 
-        assert_eq!(
-            factory.get_owner().as_str(),
-            "bob.sputnik-dao.near"
-        )
+        assert_eq!(factory.get_owner().as_str(), "bob.sputnik-dao.near")
     }
 
     #[test]

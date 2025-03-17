@@ -1,8 +1,8 @@
+use near_contract_standards::fungible_token::Balance;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{U128, U64};
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, AccountId, NearToken, Duration, StorageUsage};
-use near_contract_standards::fungible_token::Balance;
+use near_sdk::{env, AccountId, Duration, NearToken, StorageUsage};
 
 use crate::*;
 
@@ -56,7 +56,10 @@ impl User {
 
     fn assert_storage(&self) {
         assert!(
-            env::storage_byte_cost().saturating_mul(self.storage_used as u128).as_yoctonear() <= self.near_amount.0,
+            env::storage_byte_cost()
+                .saturating_mul(self.storage_used as u128)
+                .as_yoctonear()
+                <= self.near_amount.0,
             "ERR_NOT_ENOUGH_STORAGE"
         );
     }
@@ -154,10 +157,10 @@ impl Contract {
     pub fn internal_register_user(&mut self, sender_id: &AccountId, near_amount: NearToken) {
         let user = User::new(near_amount);
         self.save_user(sender_id, user);
-        ext_sputnik::ext(self.owner_id.clone()).with_static_gas(GAS_FOR_REGISTER)
-            .with_attached_deposit(env::storage_byte_cost().saturating_mul(U128_LEN.into())).register_delegation(
-            sender_id.clone()
-        );
+        ext_sputnik::ext(self.owner_id.clone())
+            .with_static_gas(GAS_FOR_REGISTER)
+            .with_attached_deposit(env::storage_byte_cost().saturating_mul(U128_LEN.into()))
+            .register_delegation(sender_id.clone());
     }
 
     /// Deposit voting token.

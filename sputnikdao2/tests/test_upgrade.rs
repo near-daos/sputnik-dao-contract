@@ -22,9 +22,7 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
         purpose: "to test".to_string(),
         metadata: Base64VecU8(vec![]),
     };
-    let policy = VersionedPolicy::Default(vec![
-        root.id().clone(),
-    ]);
+    let policy = VersionedPolicy::Default(vec![root.id().clone()]);
     let params = json!({ "config": config, "policy": policy })
         .to_string()
         .into_bytes();
@@ -49,12 +47,7 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
         .await?
         .json::<Vec<near_sdk::AccountId>>()
         .unwrap();
-    assert_eq!(
-        dao_list,
-        vec![
-            dao_account_id.clone()
-        ]
-    );
+    assert_eq!(dao_list, vec![dao_account_id.clone()]);
 
     let hash = factory
         .view("get_default_code_hash")

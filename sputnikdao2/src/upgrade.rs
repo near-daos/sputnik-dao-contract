@@ -51,10 +51,7 @@ pub(crate) fn internal_get_factory_info() -> FactoryInfo {
 pub(crate) fn internal_set_factory_info(factory_info: &FactoryInfo) {
     let mut serialize_buf: Vec<u8> = Vec::new();
     BorshSerialize::serialize(factory_info, &mut serialize_buf).expect("INTERNAL_FAIL");
-    env::storage_write(
-        FACTORY_KEY,
-        &serialize_buf
-    );
+    env::storage_write(FACTORY_KEY, &serialize_buf);
 }
 
 /// Function that receives new contract, updates and calls migration.
@@ -96,7 +93,9 @@ pub fn update() {
         "migrate",
         &[],
         NO_DEPOSIT,
-        env::prepaid_gas().saturating_sub(env::used_gas()).saturating_sub(UPDATE_GAS_LEFTOVER),
+        env::prepaid_gas()
+            .saturating_sub(env::used_gas())
+            .saturating_sub(UPDATE_GAS_LEFTOVER),
     );
     env::promise_return(promise_id);
 }
@@ -113,7 +112,9 @@ pub(crate) fn upgrade_using_factory(code_hash: Base58CryptoHash) {
             .to_string()
             .into_bytes(),
         NO_DEPOSIT,
-        env::prepaid_gas().saturating_sub(env::used_gas()).saturating_sub(FACTORY_UPDATE_GAS_LEFTOVER),
+        env::prepaid_gas()
+            .saturating_sub(env::used_gas())
+            .saturating_sub(FACTORY_UPDATE_GAS_LEFTOVER),
     );
     env::promise_return(promise_id);
 }
@@ -129,7 +130,9 @@ pub(crate) fn upgrade_self(hash: &[u8]) {
         "migrate",
         &[],
         NO_DEPOSIT,
-        env::prepaid_gas().saturating_sub(env::used_gas()).saturating_sub(GAS_FOR_UPGRADE_SELF_PROMISE_CREATION),
+        env::prepaid_gas()
+            .saturating_sub(env::used_gas())
+            .saturating_sub(GAS_FOR_UPGRADE_SELF_PROMISE_CREATION),
     );
 }
 
@@ -142,6 +145,9 @@ pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &
         method_name,
         &input,
         NO_DEPOSIT,
-        env::prepaid_gas().saturating_sub(env::used_gas()).saturating_sub(GAS_FOR_UPGRADE_REMOTE_PROMISE_CREATION).saturating_sub(wasm_argument_gas),
+        env::prepaid_gas()
+            .saturating_sub(env::used_gas())
+            .saturating_sub(GAS_FOR_UPGRADE_REMOTE_PROMISE_CREATION)
+            .saturating_sub(wasm_argument_gas),
     );
 }

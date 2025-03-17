@@ -200,7 +200,9 @@ impl Contract {
             PromiseOrValue::Value(())
         } else {
             // Within forgiveness period. Return bond.
-            self.locked_amount = self.locked_amount.saturating_sub(NearToken::from_yoctonear(policy.bounty_bond.0));
+            self.locked_amount = self
+                .locked_amount
+                .saturating_sub(NearToken::from_yoctonear(policy.bounty_bond.0));
             Promise::new(env::predecessor_account_id())
                 .transfer(NearToken::from_yoctonear(policy.bounty_bond.0))
                 .into()
@@ -222,9 +224,7 @@ mod tests {
     use super::*;
 
     fn add_bounty(context: &mut VMContextBuilder, contract: &mut Contract, times: u32) -> u64 {
-        testing_env!(context
-            .attached_deposit(NearToken::from_near(1))
-            .build());
+        testing_env!(context.attached_deposit(NearToken::from_near(1)).build());
         let id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::AddBounty {

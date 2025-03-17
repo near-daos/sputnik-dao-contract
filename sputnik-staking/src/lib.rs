@@ -4,7 +4,8 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::LookupMap;
 use near_sdk::json_types::{U128, U64};
 use near_sdk::{
-    env, ext_contract, near_bindgen, AccountId, NearToken, BorshStorageKey, Duration, Gas, PanicOnDefault, Promise, PromiseOrValue, PromiseResult
+    env, ext_contract, near_bindgen, AccountId, BorshStorageKey, Duration, Gas, NearToken,
+    PanicOnDefault, Promise, PromiseOrValue, PromiseResult,
 };
 
 pub use user::{User, VersionedUser};
@@ -39,12 +40,7 @@ pub trait Sputnik {
 
 #[ext_contract(fungible_token)]
 pub trait FungibleToken {
-    fn ft_transfer(
-        &mut self,
-        receiver_id: AccountId,
-        amount: U128,
-        memo: Option<String>,
-    );
+    fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
 }
 
 #[near_bindgen]
@@ -96,20 +92,18 @@ impl Contract {
     pub fn delegate(&mut self, account_id: AccountId, amount: U128) -> Promise {
         let sender_id = env::predecessor_account_id();
         self.internal_delegate(sender_id, account_id.clone().into(), amount.0);
-        ext_sputnik::ext(self.owner_id.clone()).with_static_gas(GAS_FOR_DELEGATE).delegate(
-            account_id.into(),
-            amount
-        )
+        ext_sputnik::ext(self.owner_id.clone())
+            .with_static_gas(GAS_FOR_DELEGATE)
+            .delegate(account_id.into(), amount)
     }
 
     /// Remove given amount of delegation.
     pub fn undelegate(&mut self, account_id: AccountId, amount: U128) -> Promise {
         let sender_id = env::predecessor_account_id();
         self.internal_undelegate(sender_id, account_id.clone().into(), amount.0);
-        ext_sputnik::ext(self.owner_id.clone()).with_static_gas(GAS_FOR_UNDELEGATE).undelegate(
-            account_id.into(),
-            amount
-        )
+        ext_sputnik::ext(self.owner_id.clone())
+            .with_static_gas(GAS_FOR_UNDELEGATE)
+            .undelegate(account_id.into(), amount)
     }
 
     /// Withdraw non delegated tokens back to the user's account.
@@ -117,17 +111,15 @@ impl Contract {
     pub fn withdraw(&mut self, amount: U128) -> Promise {
         let sender_id = env::predecessor_account_id();
         self.internal_withdraw(&sender_id, amount.0);
-        fungible_token::ext(self.vote_token_id.clone()).with_static_gas(GAS_FOR_FT_TRANSFER).with_attached_deposit(NearToken::from_yoctonear(1))
-            .ft_transfer(
-                sender_id.clone(),
-                amount,
-                None
-        )
-        .then(
-            Self::ext(env::current_account_id()).with_static_gas(GAS_FOR_FT_TRANSFER).exchange_callback_post_withdraw(
-            sender_id,
-            amount
-        ))
+        fungible_token::ext(self.vote_token_id.clone())
+            .with_static_gas(GAS_FOR_FT_TRANSFER)
+            .with_attached_deposit(NearToken::from_yoctonear(1))
+            .ft_transfer(sender_id.clone(), amount, None)
+            .then(
+                Self::ext(env::current_account_id())
+                    .with_static_gas(GAS_FOR_FT_TRANSFER)
+                    .exchange_callback_post_withdraw(sender_id, amount),
+            )
     }
 
     #[private]
@@ -191,9 +183,7 @@ mod tests {
             .build());
         let mut contract = Contract::new(contract_owner, voting_token.clone(), U64(UNSTAKE_PERIOD));
 
-        testing_env!(context
-            .attached_deposit(NearToken::from_near(1))
-            .build());
+        testing_env!(context.attached_deposit(NearToken::from_near(1)).build());
         contract.storage_deposit(Some(delegate_from_user.clone()), None);
 
         testing_env!(context.predecessor_account_id(voting_token.clone()).build());
@@ -224,9 +214,7 @@ mod tests {
             NearToken::from_near(50).as_yoctonear()
         );
 
-        testing_env!(context
-            .attached_deposit(NearToken::from_near(1))
-            .build());
+        testing_env!(context.attached_deposit(NearToken::from_near(1)).build());
         contract.storage_deposit(Some(delegate_to_user.clone()), None);
 
         contract.delegate(

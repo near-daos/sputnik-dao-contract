@@ -3,8 +3,8 @@
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::Base58CryptoHash;
-use near_sdk::{serde_json, NearToken};
 use near_sdk::{env, AccountId, CryptoHash, Gas};
+use near_sdk::{serde_json, NearToken};
 
 /// Gas spent on the call & account creation.
 const CREATE_CALL_GAS: Gas = Gas::from_tgas(40);
@@ -82,7 +82,10 @@ impl FactoryManager {
             method_name,
             &code,
             NO_DEPOSIT,
-            env::prepaid_gas().saturating_sub(env::used_gas()).saturating_sub(GAS_UPDATE_LEFTOVER).saturating_sub(wasm_argument_gas),
+            env::prepaid_gas()
+                .saturating_sub(env::used_gas())
+                .saturating_sub(GAS_UPDATE_LEFTOVER)
+                .saturating_sub(wasm_argument_gas),
         );
         env::promise_return(promise_id);
     }

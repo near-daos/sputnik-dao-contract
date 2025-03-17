@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
+use ext_fungible_token::ext_fungible_token;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{Base64VecU8, U128, U64};
 use near_sdk::{log, AccountId, Gas, PromiseOrValue};
-use ext_fungible_token::ext_fungible_token;
 
 use crate::policy::UserInfo;
 use crate::types::{
@@ -148,7 +148,7 @@ impl ProposalKind {
 
 /// Votes recorded in the proposal.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
-#[borsh(crate = "near_sdk::borsh", use_discriminant=true)]
+#[borsh(crate = "near_sdk::borsh", use_discriminant = true)]
 #[serde(crate = "near_sdk::serde")]
 pub enum Vote {
     Approve = 0x0,
@@ -266,27 +266,20 @@ impl Contract {
         msg: Option<String>,
     ) -> PromiseOrValue<()> {
         if token_id.is_none() {
-            Promise::new(receiver_id.clone()).transfer(NearToken::from_yoctonear(amount)).into()
+            Promise::new(receiver_id.clone())
+                .transfer(NearToken::from_yoctonear(amount))
+                .into()
         } else {
             if let Some(msg) = msg {
                 ext_fungible_token::ext(token_id.as_ref().unwrap().clone())
-                        .with_attached_deposit(ONE_YOCTO_NEAR)
-                        .with_static_gas(GAS_FOR_FT_TRANSFER)
-                        .ft_transfer_call(
-                    receiver_id.clone(),
-                    U128(amount),
-                    Some(memo),
-                    msg
-                )
+                    .with_attached_deposit(ONE_YOCTO_NEAR)
+                    .with_static_gas(GAS_FOR_FT_TRANSFER)
+                    .ft_transfer_call(receiver_id.clone(), U128(amount), Some(memo), msg)
             } else {
                 ext_fungible_token::ext(token_id.as_ref().unwrap().clone())
                     .with_attached_deposit(ONE_YOCTO_NEAR)
                     .with_static_gas(GAS_FOR_FT_TRANSFER)
-                    .ft_transfer(
-                    receiver_id.clone(),
-                    U128(amount),
-                    Some(memo),
-                )
+                    .ft_transfer(receiver_id.clone(), U128(amount), Some(memo))
             }
             .into()
         }
@@ -295,14 +288,20 @@ impl Contract {
     fn internal_return_bonds(&mut self, policy: &Policy, proposal: &Proposal) -> Promise {
         match &proposal.kind {
             ProposalKind::BountyDone { .. } => {
-                self.locked_amount = self.locked_amount .saturating_sub(NearToken::from_yoctonear(policy.bounty_bond.0));
-                Promise::new(proposal.proposer.clone()).transfer(NearToken::from_yoctonear(policy.bounty_bond.0));
+                self.locked_amount = self
+                    .locked_amount
+                    .saturating_sub(NearToken::from_yoctonear(policy.bounty_bond.0));
+                Promise::new(proposal.proposer.clone())
+                    .transfer(NearToken::from_yoctonear(policy.bounty_bond.0));
             }
             _ => {}
         }
 
-        self.locked_amount = self.locked_amount.saturating_sub(NearToken::from_yoctonear(policy.proposal_bond.0));
-        Promise::new(proposal.proposer.clone()).transfer(NearToken::from_yoctonear(policy.proposal_bond.0))
+        self.locked_amount = self
+            .locked_amount
+            .saturating_sub(NearToken::from_yoctonear(policy.proposal_bond.0));
+        Promise::new(proposal.proposer.clone())
+            .transfer(NearToken::from_yoctonear(policy.proposal_bond.0))
     }
 
     /// Executes given proposal and updates the contract's state.
@@ -417,9 +416,11 @@ impl Contract {
         };
         match result {
             PromiseOrValue::Promise(promise) => promise
-                .then(Self::ext(env::current_account_id()).with_static_gas(GAS_FOR_FT_TRANSFER).on_proposal_callback(
-                    proposal_id
-                ))
+                .then(
+                    Self::ext(env::current_account_id())
+                        .with_static_gas(GAS_FOR_FT_TRANSFER)
+                        .on_proposal_callback(proposal_id),
+                )
                 .into(),
             PromiseOrValue::Value(()) => self.internal_return_bonds(&policy, &proposal).into(),
         }

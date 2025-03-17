@@ -67,7 +67,8 @@ impl StorageManagement for Contract {
             // TODO: figure out force option logic.
             assert!(user.vote_amount.0 > 0, "ERR_STORAGE_UNREGISTER_NOT_EMPTY");
             self.users.remove(&account_id);
-            Promise::new(account_id.clone()).transfer(NearToken::from_yoctonear(user.near_amount.0));
+            Promise::new(account_id.clone())
+                .transfer(NearToken::from_yoctonear(user.near_amount.0));
             true
         } else {
             false
