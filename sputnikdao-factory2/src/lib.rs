@@ -5,7 +5,7 @@ use near_sdk::collections::{UnorderedMap, UnorderedSet};
 use near_sdk::json_types::{Base58CryptoHash, Base64VecU8, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::serde_json::{self, json};
-use near_sdk::{env, near_bindgen, AccountId, Balance, CryptoHash, Gas, PanicOnDefault, Promise};
+use near_sdk::{env, near_bindgen, AccountId, CryptoHash, Gas, NearToken, PanicOnDefault, Promise};
 
 use factory_manager::FactoryManager;
 
@@ -22,12 +22,13 @@ const DAO_CONTRACT_INITIAL_VERSION: Version = [3, 0];
 const DAO_CONTRACT_NO_DATA: &str = "no data";
 
 // Gas & Costs for blob storage
-const GAS_STORE_CONTRACT_LEFTOVER: Gas = Gas(20_000_000_000_000);
-const ON_REMOVE_CONTRACT_GAS: Gas = Gas(20_000_000_000_000);
-const NO_DEPOSIT: Balance = 0;
+const GAS_STORE_CONTRACT_LEFTOVER: Gas = Gas::from_tgas(20);
+const ON_REMOVE_CONTRACT_GAS: Gas = Gas::from_tgas(20);
+const NO_DEPOSIT: NearToken = NearToken::from_near(0);
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
+#[borsh(crate = "near_sdk::borsh")]
 #[serde(crate = "near_sdk::serde")]
 pub struct DaoContractMetadata {
     // version of the DAO contract code (e.g. [2, 0] -> 2.0, [3, 1] -> 3.1, [4, 0] -> 4.0)
@@ -41,6 +42,7 @@ pub struct DaoContractMetadata {
 
 #[near_bindgen]
 #[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
+#[borsh(crate = "near_sdk::borsh")]
 pub struct SputnikDAOFactory {
     factory_manager: FactoryManager,
     daos: UnorderedSet<AccountId>,
@@ -103,7 +105,7 @@ impl SputnikDAOFactory {
             .unwrap();
         let callback_args = serde_json::to_vec(&json!({
             "account_id": account_id,
-            "attached_deposit": U128(env::attached_deposit()),
+            "attached_deposit": env::attached_deposit(),
             "predecessor_account_id": env::predecessor_account_id()
         }))
         .expect("Failed to serialize");
@@ -128,7 +130,7 @@ impl SputnikDAOFactory {
             self.daos.insert(&account_id);
             true
         } else {
-            Promise::new(predecessor_account_id).transfer(attached_deposit.0);
+            Promise::new(predecessor_account_id).transfer(NearToken::from_yoctonear(attached_deposit.0));
             false
         }
     }
@@ -179,7 +181,7 @@ impl SputnikDAOFactory {
 
         // Compute and use the correct amount needed for storage
         let blob_len = dao_contract_code.len();
-        let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
+        let storage_cost = env::storage_byte_cost().saturating_mul((blob_len + 32) as u128);
 
         // Confirm payment before proceeding
         assert!(
@@ -189,7 +191,7 @@ impl SputnikDAOFactory {
         );
 
         // refund the extra cost
-        let extra_attached_deposit = env::attached_deposit() - storage_cost;
+        let extra_attached_deposit = env::attached_deposit().saturating_sub(storage_cost);
         Promise::new(account_id.clone()).transfer(extra_attached_deposit);
 
         // Create a promise toward given account.
@@ -199,7 +201,7 @@ impl SputnikDAOFactory {
             method_name,
             &dao_contract_code,
             storage_cost,
-            env::prepaid_gas() - env::used_gas() - GAS_STORE_CONTRACT_LEFTOVER,
+            env::prepaid_gas().saturating_sub(env::used_gas()).saturating_sub(GAS_STORE_CONTRACT_LEFTOVER),
         );
         env::promise_return(promise_id);
     }
@@ -252,7 +254,7 @@ impl SputnikDAOFactory {
             let hash: CryptoHash = code_hash.into();
             let dao_contract_code = env::storage_read(&hash).expect("CODE_HASH_NONEXIST");
             let blob_len = dao_contract_code.len();
-            let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
+            let storage_cost = env::storage_byte_cost().saturating_mul((blob_len + 32) as u128);
             Promise::new(account_id).transfer(storage_cost);
             true
         } else {
@@ -278,13 +280,11 @@ impl SputnikDAOFactory {
     }
 
     pub fn get_owner(&self) -> AccountId {
-        AccountId::new_unchecked(
             String::from_utf8(
                 env::storage_read(FACTORY_OWNER_KEY)
                     .unwrap_or(env::current_account_id().as_bytes().to_vec()),
             )
-            .expect("INTERNAL_FAIL"),
-        )
+            .expect("INTERNAL_FAIL").parse().unwrap()
     }
 
     pub fn get_default_code_hash(&self) -> Base58CryptoHash {
@@ -323,18 +323,18 @@ impl SputnikDAOFactory {
         if storage_metadata.is_none() {
             let mut storage_metadata: UnorderedMap<Base58CryptoHash, DaoContractMetadata> =
                 UnorderedMap::new(b"m".to_vec());
-            storage_metadata.insert(&code_hash, &metadata);
-            let serialized_metadata =
-                BorshSerialize::try_to_vec(&storage_metadata).expect("INTERNAL_FAIL");
-            env::storage_write(CODE_METADATA_KEY, &serialized_metadata);
+            storage_metadata.insert(&code_hash, &metadata);            
+            let mut serialized_metadata_buffer: Vec<u8> = Vec::new();
+            storage_metadata.serialize(&mut serialized_metadata_buffer).expect("INTERNAL_FAIL");
+            env::storage_write(CODE_METADATA_KEY, &serialized_metadata_buffer);
         } else {
             let storage_metadata = storage_metadata.expect("INTERNAL_FAIL");
             let mut deserialized_metadata: UnorderedMap<Base58CryptoHash, DaoContractMetadata> =
                 BorshDeserialize::try_from_slice(&storage_metadata).expect("INTERNAL_FAIL");
             deserialized_metadata.insert(&code_hash, &metadata);
-            let serialized_metadata =
-                BorshSerialize::try_to_vec(&deserialized_metadata).expect("INTERNAL_FAIL");
-            env::storage_write(CODE_METADATA_KEY, &serialized_metadata);
+            let mut serialized_metadata_buffer: Vec<u8> = Vec::new();
+            deserialized_metadata.serialize(&mut serialized_metadata_buffer).expect("INTERNAL_FAIL");
+            env::storage_write(CODE_METADATA_KEY, &serialized_metadata_buffer);
         }
 
         if set_default {
@@ -348,9 +348,9 @@ impl SputnikDAOFactory {
         let mut deserialized_metadata: UnorderedMap<Base58CryptoHash, DaoContractMetadata> =
             BorshDeserialize::try_from_slice(&storage_metadata).expect("INTERNAL_FAIL");
         deserialized_metadata.remove(&code_hash);
-        let serialized_metadata =
-            BorshSerialize::try_to_vec(&deserialized_metadata).expect("INTERNAL_FAIL");
-        env::storage_write(CODE_METADATA_KEY, &serialized_metadata);
+        let mut serialized_metadata_buffer: Vec<u8> = Vec::new();
+        deserialized_metadata.serialize(&mut serialized_metadata_buffer).expect("INTERNAL_FAIL");
+        env::storage_write(CODE_METADATA_KEY, &serialized_metadata_buffer);
     }
 
     pub fn get_contracts_metadata(&self) -> Vec<(Base58CryptoHash, DaoContractMetadata)> {
@@ -384,7 +384,7 @@ pub extern "C" fn store() {
     contract.assert_owner();
     let prev_storage = env::storage_usage();
     contract.factory_manager.store_contract();
-    let storage_cost = (env::storage_usage() - prev_storage) as u128 * env::storage_byte_cost();
+    let storage_cost = env::storage_byte_cost().saturating_mul(env::storage_usage().saturating_sub(prev_storage) as u128);
     assert!(
         storage_cost <= env::attached_deposit(),
         "Must at least deposit {} to store",
@@ -396,7 +396,8 @@ pub extern "C" fn store() {
 mod tests {
     use near_sdk::test_utils::test_env::{alice, bob, carol};
     use near_sdk::test_utils::{accounts, VMContextBuilder};
-    use near_sdk::{testing_env, PromiseResult};
+    use near_sdk::{test_vm_config, testing_env, PromiseResult, RuntimeFeesConfig};
+    
     use near_workspaces::types::NearToken;
 
     use super::*;
@@ -412,7 +413,7 @@ mod tests {
         let mut factory = SputnikDAOFactory::new();
 
         testing_env!(context
-            .attached_deposit(NearToken::from_near(3).as_yoctonear())
+            .attached_deposit(NearToken::from_near(3))
             .build());
         factory.create("test".parse().unwrap(), "{}".as_bytes().to_vec().into());
     }
@@ -427,14 +428,14 @@ mod tests {
         let mut factory = SputnikDAOFactory::new();
 
         testing_env!(context
-            .attached_deposit(NearToken::from_near(6).as_yoctonear())
+            .attached_deposit(NearToken::from_near(6))
             .build());
         factory.create("test".parse().unwrap(), "{}".as_bytes().to_vec().into());
 
         testing_env!(
             context.predecessor_account_id(accounts(0)).build(),
-            near_sdk::VMConfig::test(),
-            near_sdk::RuntimeFeesConfig::test(),
+            test_vm_config(),
+            RuntimeFeesConfig::test(),
             Default::default(),
             vec![PromiseResult::Successful(vec![])],
         );
@@ -445,11 +446,11 @@ mod tests {
         );
         assert_eq!(
             factory.get_dao_list(),
-            vec![format!("test.{}", accounts(0)).parse().unwrap()]
+           vec![format!("test.{}", accounts(0).as_str())]
         );
         assert_eq!(
             factory.get_daos(0, 100),
-            vec![format!("test.{}", accounts(0)).parse().unwrap()]
+            vec![format!("test.{}", accounts(0).as_str())]
         );
     }
 
@@ -463,7 +464,7 @@ mod tests {
         testing_env!(context
             .current_account_id(alice())
             .predecessor_account_id(alice())
-            .attached_deposit(NearToken::from_near(5).as_yoctonear())
+            .attached_deposit(NearToken::from_near(5))
             .build());
         let factory = SputnikDAOFactory::new();
 
@@ -477,7 +478,7 @@ mod tests {
         testing_env!(context
             .current_account_id(alice())
             .predecessor_account_id(carol())
-            .attached_deposit(NearToken::from_near(5).as_yoctonear())
+            .attached_deposit(NearToken::from_near(5))
             .build());
         let factory = SputnikDAOFactory::new();
 
@@ -490,17 +491,17 @@ mod tests {
         testing_env!(context
             .current_account_id(bob())
             .predecessor_account_id(bob())
-            .attached_deposit(NearToken::from_near(6).as_yoctonear())
+            .attached_deposit(NearToken::from_near(6))
             .build());
         let mut factory = SputnikDAOFactory::new();
 
         factory.create(bob(), "{}".as_bytes().to_vec().into());
 
-        factory.set_owner(AccountId::new_unchecked("bob.sputnik-dao.near".to_string()));
+        factory.set_owner("bob.sputnik-dao.near".parse().unwrap());
 
         assert_eq!(
-            factory.get_owner(),
-            AccountId::new_unchecked("bob.sputnik-dao.near".to_string())
+            factory.get_owner().as_str(),
+            "bob.sputnik-dao.near"
         )
     }
 
@@ -510,7 +511,7 @@ mod tests {
         testing_env!(context
             .current_account_id(accounts(0))
             .predecessor_account_id(accounts(0))
-            .attached_deposit(NearToken::from_near(5).as_yoctonear())
+            .attached_deposit(NearToken::from_near(5))
             .build());
         let factory = SputnikDAOFactory::new();
 

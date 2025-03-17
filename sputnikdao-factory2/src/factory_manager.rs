@@ -3,27 +3,28 @@
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::Base58CryptoHash;
-use near_sdk::serde_json;
-use near_sdk::{env, AccountId, Balance, CryptoHash, Gas};
+use near_sdk::{serde_json, NearToken};
+use near_sdk::{env, AccountId, CryptoHash, Gas};
 
 /// Gas spent on the call & account creation.
-const CREATE_CALL_GAS: Gas = Gas(40_000_000_000_000);
+const CREATE_CALL_GAS: Gas = Gas::from_tgas(40);
 
 /// Gas allocated on the callback.
-const ON_CREATE_CALL_GAS: Gas = Gas(10_000_000_000_000);
+const ON_CREATE_CALL_GAS: Gas = Gas::from_tgas(10);
 
 /// Leftover gas after creating promise and calling update.
-const GAS_UPDATE_LEFTOVER: Gas = Gas(10_000_000_000_000);
+const GAS_UPDATE_LEFTOVER: Gas = Gas::from_tgas(10);
 
 /// Since Nightshade V2, the send_not_sir of action_function_call_per_byte increase to this value, please refer to:
 /// https://github.com/near/nearcore/blob/0c2374993fc74b57faf2bcdf5c7c73a37e82b75a/core/parameters/res/runtime_configs/parameters.snap#L52
 pub const GAS_FUNCTION_CALL_PER_BYTE: u64 = 47_683_715;
 
-const NO_DEPOSIT: Balance = 0;
+const NO_DEPOSIT: NearToken = NearToken::from_near(0);
 
 /// Factory manager that allows to store/load contracts by hash directly in the storage.
 /// Uses directly underlying host functions to not load any of the data into WASM memory.
 #[derive(BorshSerialize, BorshDeserialize)]
+#[borsh(crate = "near_sdk::borsh")]
 pub struct FactoryManager {}
 
 impl FactoryManager {
@@ -72,7 +73,7 @@ impl FactoryManager {
         assert!(env::storage_has_key(&code_hash), "Contract doesn't exist");
         // Load the hash from storage.
         let code = env::storage_read(&code_hash).expect("ERR_NO_HASH");
-        let wasm_argument_gas = Gas(code.len() as u64 * GAS_FUNCTION_CALL_PER_BYTE);
+        let wasm_argument_gas = Gas::from_gas(code.len() as u64 * GAS_FUNCTION_CALL_PER_BYTE);
         // Create a promise toward given account.
         let promise_id = env::promise_batch_create(&account_id);
         // Call `update` method, which should also handle migrations.
@@ -81,7 +82,7 @@ impl FactoryManager {
             method_name,
             &code,
             NO_DEPOSIT,
-            env::prepaid_gas() - env::used_gas() - GAS_UPDATE_LEFTOVER - wasm_argument_gas,
+            env::prepaid_gas().saturating_sub(env::used_gas()).saturating_sub(GAS_UPDATE_LEFTOVER).saturating_sub(wasm_argument_gas),
         );
         env::promise_return(promise_id);
     }
@@ -105,7 +106,7 @@ impl FactoryManager {
         let code = env::storage_read(&code_hash).expect("ERR_NO_HASH");
         // Compute storage cost.
         let code_len = code.len();
-        let storage_cost = ((code_len + 32) as Balance) * env::storage_byte_cost();
+        let storage_cost = env::storage_byte_cost().saturating_mul((code_len + 32) as u128);
         assert!(
             attached_deposit >= storage_cost,
             "ERR_NOT_ENOUGH_DEPOSIT:{}",
