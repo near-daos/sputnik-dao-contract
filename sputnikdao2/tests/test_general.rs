@@ -28,9 +28,9 @@ async fn test_large_policy() -> Result<(), Box<dyn std::error::Error>> {
         purpose: "to test".to_string(),
         metadata: Base64VecU8(vec![]),
     };
-    let mut policy = default_policy(vec![near_sdk::AccountId::new_unchecked(
-        worker.root_account().unwrap().id().to_string(),
-    )]);
+    let mut policy = default_policy(vec![
+        worker.root_account().unwrap().id().clone()
+    ]);
     const NO_OF_COUNCILS: u32 = 10;
     const USERS_PER_COUNCIL: u32 = 100;
     for council_no in 0..NO_OF_COUNCILS {
@@ -120,8 +120,8 @@ async fn test_multi_council() -> Result<(), Box<dyn std::error::Error>> {
                 name: "council".to_string(),
                 kind: RoleKind::Group(
                     vec![
-                        near_sdk::AccountId::new_unchecked(user1.id().to_string()),
-                        near_sdk::AccountId::new_unchecked(user2.id().to_string()),
+                        user1.id().clone(),
+                        user2.id().clone()
                     ]
                     .into_iter()
                     .collect(),
@@ -133,9 +133,9 @@ async fn test_multi_council() -> Result<(), Box<dyn std::error::Error>> {
                 name: "community".to_string(),
                 kind: RoleKind::Group(
                     vec![
-                        near_sdk::AccountId::new_unchecked(user1.id().to_string()),
-                        near_sdk::AccountId::new_unchecked(user3.id().to_string()),
-                        user(4),
+                        user1.id().clone(),
+                        user3.id().clone(),
+                        user(4)
                     ]
                     .into_iter()
                     .collect(),
@@ -176,7 +176,7 @@ async fn test_multi_council() -> Result<(), Box<dyn std::error::Error>> {
     let add_transfer_proposal_result = add_transfer_proposal(
         &dao,
         base_token(),
-        near_sdk::AccountId::new_unchecked(user1.id().to_string()),
+        user1.id().clone(),
         1_000_000,
         None,
     )
@@ -506,7 +506,7 @@ async fn test_create_dao_and_use_token() -> Result<(), Box<dyn std::error::Error
 
     let add_member_proposal_result = add_member_proposal(
         &dao,
-        near_sdk::AccountId::new_unchecked(user2.id().to_string()),
+        user2.id().clone()
     )
     .await;
     assert!(
@@ -566,7 +566,7 @@ async fn test_create_dao_and_use_token() -> Result<(), Box<dyn std::error::Error
     // Add 3rd member.
     let add_member_proposal_result = add_member_proposal(
         &dao,
-        near_sdk::AccountId::new_unchecked(user3.id().to_string()),
+        user3.id().clone(),
     )
     .await;
     assert!(
@@ -583,9 +583,9 @@ async fn test_create_dao_and_use_token() -> Result<(), Box<dyn std::error::Error
         policy.roles[1].kind,
         RoleKind::Group(
             vec![
-                near_sdk::AccountId::new_unchecked(root.id().to_string()),
-                near_sdk::AccountId::new_unchecked(user2.id().to_string()),
-                near_sdk::AccountId::new_unchecked(user3.id().to_string())
+                root.id().clone(),
+                user2.id().clone(),
+                user3.id().clone()
             ]
             .into_iter()
             .collect()
@@ -597,7 +597,7 @@ async fn test_create_dao_and_use_token() -> Result<(), Box<dyn std::error::Error
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::SetStakingContract {
-                staking_id: near_sdk::AccountId::new_unchecked(staking.id().to_string()),
+                staking_id: staking.id().clone()
             },
         },
     )
@@ -786,7 +786,7 @@ async fn test_create_dao_and_use_token() -> Result<(), Box<dyn std::error::Error
     assert_eq!(
         user.delegated_amounts,
         vec![(
-            near_sdk::AccountId::new_unchecked(user2.id().to_string()),
+            user2.id().clone(),
             U128(NearToken::from_near(4).as_yoctonear())
         )]
     );
@@ -856,7 +856,7 @@ async fn test_payment_failures() -> Result<(), Box<dyn std::error::Error>> {
 
     let add_member_proposal_result = add_member_proposal(
         &dao,
-        near_sdk::AccountId::new_unchecked(user1.id().to_string()),
+        user1.id().clone()
     )
     .await;
     assert!(
@@ -894,10 +894,10 @@ async fn test_payment_failures() -> Result<(), Box<dyn std::error::Error>> {
     // Attempt to transfer more than it has
     assert!(add_transfer_proposal(
         &dao,
-        Some(near_sdk::AccountId::new_unchecked(
-            test_token.id().to_string()
-        )),
-        near_sdk::AccountId::new_unchecked(user1.id().to_string()),
+        Some(
+            test_token.id().clone()
+        ),
+        user1.id().clone(),
         10,
         None,
     )

@@ -22,9 +22,9 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
         purpose: "to test".to_string(),
         metadata: Base64VecU8(vec![]),
     };
-    let policy = VersionedPolicy::Default(vec![near_sdk::AccountId::new_unchecked(
-        root.id().to_string(),
-    )]);
+    let policy = VersionedPolicy::Default(vec![
+        root.id().clone(),
+    ]);
     let params = json!({ "config": config, "policy": policy })
         .to_string()
         .into_bytes();
@@ -51,9 +51,9 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
         .unwrap();
     assert_eq!(
         dao_list,
-        vec![near_sdk::AccountId::new_unchecked(
-            dao_account_id.to_string()
-        )]
+        vec![
+            dao_account_id.clone()
+        ]
     );
 
     let hash = factory
@@ -141,7 +141,7 @@ async fn test_upgrade_other() -> Result<(), Box<dyn std::error::Error>> {
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::UpgradeRemote {
-                receiver_id: near_sdk::AccountId::new_unchecked(ref_account.id().to_string()),
+                receiver_id: ref_account.id().clone(),
                 method_name: "upgrade".to_string(),
                 hash,
             },
