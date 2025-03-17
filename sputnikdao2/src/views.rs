@@ -6,6 +6,7 @@ use crate::*;
 
 /// This is format of output via JSON for the proposal.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[borsh(crate = "near_sdk::borsh")]
 #[serde(crate = "near_sdk::serde")]
 pub struct ProposalOutput {
     /// Id of the proposal.
@@ -16,6 +17,7 @@ pub struct ProposalOutput {
 
 /// This is format of output via JSON for the bounty.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[borsh(crate = "near_sdk::borsh")]
 #[serde(crate = "near_sdk::serde")]
 pub struct BountyOutput {
     /// Id of the bounty.
@@ -53,13 +55,13 @@ impl Contract {
 
     /// Returns locked amount of NEAR that is used for storage.
     pub fn get_locked_storage_amount(&self) -> U128 {
-        let locked_storage_amount = env::storage_byte_cost() * (env::storage_usage() as u128);
-        U128(locked_storage_amount)
+        let locked_storage_amount = env::storage_byte_cost().saturating_mul(env::storage_usage() as u128);
+        U128(locked_storage_amount.as_yoctonear())
     }
 
     /// Returns available amount of NEAR that can be spent (outside of amount for storage and bonds).
     pub fn get_available_amount(&self) -> U128 {
-        U128(env::account_balance() - self.get_locked_storage_amount().0 - self.locked_amount)
+        U128(env::account_balance().saturating_sub(NearToken::from_yoctonear(self.get_locked_storage_amount().0)).saturating_sub(self.locked_amount).as_yoctonear())
     }
 
     /// Returns total delegated stake.

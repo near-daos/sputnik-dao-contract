@@ -1,10 +1,10 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_contract_standards::fungible_token::Balance;
 use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::json_types::{Base58CryptoHash, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    env, ext_contract, near_bindgen, AccountId, Balance, BorshStorageKey, CryptoHash,
-    PanicOnDefault, Promise, PromiseResult,
+    env, ext_contract, near_bindgen, AccountId, NearToken, BorshStorageKey, CryptoHash, PanicOnDefault, Promise, PromiseOrValue, PromiseResult
 };
 
 pub use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
@@ -23,9 +23,11 @@ mod policy;
 mod proposals;
 mod types;
 mod upgrade;
+mod ext_fungible_token;
 pub mod views;
 
 #[derive(BorshStorageKey, BorshSerialize)]
+#[borsh(crate = "near_sdk::borsh")]
 pub enum StorageKeys {
     Config,
     Policy,
@@ -45,6 +47,7 @@ pub trait ExtSelf {
 }
 
 #[near_bindgen]
+#[borsh(crate = "near_sdk::borsh")]
 #[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
 pub struct Contract {
     /// DAO configuration.
@@ -53,7 +56,7 @@ pub struct Contract {
     pub policy: LazyOption<VersionedPolicy>,
 
     /// Amount of $NEAR locked for bonds.
-    pub locked_amount: Balance,
+    pub locked_amount: NearToken,
 
     /// Vote staking contract id. That contract must have this account as owner.
     pub staking_id: Option<AccountId>,
@@ -97,7 +100,7 @@ impl Contract {
             bounty_claimers: LookupMap::new(StorageKeys::BountyClaimers),
             bounty_claims_count: LookupMap::new(StorageKeys::BountyClaimCounts),
             blobs: LookupMap::new(StorageKeys::Blobs),
-            locked_amount: 0,
+            locked_amount: NearToken::from_near(0),
         };
         internal_set_factory_info(&FactoryInfo {
             factory_id: env::predecessor_account_id(),
@@ -129,7 +132,7 @@ impl Contract {
         );
         env::storage_remove(&hash);
         let blob_len = env::register_len(u64::MAX - 1).unwrap();
-        let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
+        let storage_cost = env::storage_byte_cost().saturating_mul((blob_len + 32) as u128 );
         Promise::new(account_id).transfer(storage_cost)
     }
 
@@ -150,7 +153,7 @@ pub extern "C" fn store_blob() {
     assert!(!env::storage_has_key(&sha256_hash), "ERR_ALREADY_EXISTS");
 
     let blob_len = input.len();
-    let storage_cost = ((blob_len + 32) as u128) * env::storage_byte_cost();
+    let storage_cost = env::storage_byte_cost().saturating_mul((blob_len + 32) as u128);
     assert!(
         env::attached_deposit() >= storage_cost,
         "ERR_NOT_ENOUGH_DEPOSIT:{}",
@@ -183,7 +186,7 @@ mod tests {
 
     fn create_proposal(context: &mut VMContextBuilder, contract: &mut Contract) -> u64 {
         testing_env!(context
-            .attached_deposit(NearToken::from_near(1).as_yoctonear())
+            .attached_deposit(NearToken::from_near(1))
             .build());
         contract.add_proposal(ProposalInput {
             description: "test".to_string(),
@@ -229,7 +232,7 @@ mod tests {
         // non council adding proposal per default policy.
         testing_env!(context
             .predecessor_account_id(accounts(2))
-            .attached_deposit(NearToken::from_near(1).as_yoctonear())
+            .attached_deposit(NearToken::from_near(1))
             .build());
         let _id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
@@ -307,7 +310,7 @@ mod tests {
             VersionedPolicy::Default(vec![accounts(1).into()]),
         );
         testing_env!(context
-            .attached_deposit(NearToken::from_near(1).as_yoctonear())
+            .attached_deposit(NearToken::from_near(1))
             .build());
         let id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
@@ -332,7 +335,7 @@ mod tests {
             VersionedPolicy::Default(vec![accounts(1).into()]),
         );
         testing_env!(context
-            .attached_deposit(NearToken::from_near(1).as_yoctonear())
+            .attached_deposit(NearToken::from_near(1))
             .build());
         let _id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
