@@ -2,7 +2,9 @@ use near_contract_standards::fungible_token::metadata::{
     FungibleTokenMetadata, FungibleTokenMetadataProvider,
 };
 
-use near_contract_standards::fungible_token::{FungibleToken, FungibleTokenCore};
+use near_contract_standards::fungible_token::{
+    FungibleToken, FungibleTokenCore, FungibleTokenResolver,
+};
 use near_contract_standards::storage_management::{
     StorageBalance, StorageBalanceBounds, StorageManagement,
 };
@@ -38,10 +40,12 @@ impl Contract {
 
 #[near_bindgen]
 impl FungibleTokenCore for Contract {
+    #[payable]
     fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>) {
         self.token.ft_transfer(receiver_id, amount, memo);
     }
 
+    #[payable]
     fn ft_transfer_call(
         &mut self,
         receiver_id: AccountId,
@@ -62,7 +66,21 @@ impl FungibleTokenCore for Contract {
 }
 
 #[near_bindgen]
+impl FungibleTokenResolver for Contract {
+    fn ft_resolve_transfer(
+        &mut self,
+        sender_id: AccountId,
+        receiver_id: AccountId,
+        amount: U128,
+    ) -> U128 {
+        self.token
+            .ft_resolve_transfer(sender_id, receiver_id, amount)
+    }
+}
+
+#[near_bindgen]
 impl StorageManagement for Contract {
+    #[payable]
     fn storage_deposit(
         &mut self,
         account_id: Option<AccountId>,

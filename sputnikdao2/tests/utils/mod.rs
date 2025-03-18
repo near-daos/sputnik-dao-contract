@@ -11,8 +11,8 @@ use near_workspaces::{Account, AccountId, Contract, Worker};
 use near_sdk::json_types::U128;
 use sputnik_staking::Contract as StakingContract;
 use sputnikdao2::{
-Action, Bounty, Config, ContractContract as DAOContract, OldAccountId, Proposal, ProposalInput,
-ProposalKind, VersionedPolicy, OLD_BASE_TOKEN,
+    Action, Bounty, Config, Contract as DAOContract, OldAccountId, Proposal, ProposalInput,
+    ProposalKind, VersionedPolicy, OLD_BASE_TOKEN,
 };
 
 pub static FACTORY_WASM_BYTES: &[u8] =

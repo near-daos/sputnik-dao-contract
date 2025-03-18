@@ -62,7 +62,6 @@ impl RoleKind {
     }
 }
 
-
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq)]
 #[borsh(crate = "near_sdk::borsh")]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
