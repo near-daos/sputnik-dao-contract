@@ -127,7 +127,7 @@ test(
         await root.call(
             'upgradedao.factory.test.near',
             'act_proposal',
-            { id: 0, action: 'VoteApprove' },
+            { id: 0, action: 'VoteApprove', proposal: new_proposal.kind },
             { gas: tGas(300) },
         );
 
@@ -181,7 +181,7 @@ test(
         await root.call(
             'upgradedao.factory.test.near',
             'act_proposal',
-            { id: 1, action: 'VoteApprove' },
+            { id: 1, action: 'VoteApprove', proposal: new_proposal_1.kind },
             { gas: tGas(300) },
         );
 
@@ -257,7 +257,7 @@ test(
         await root.call(
             'upgradedao.factory.test.near',
             'act_proposal',
-            { id: 2, action: 'VoteApprove' },
+            { id: 2, action: 'VoteApprove', proposal: new_proposal_2.kind },
             { gas: tGas(300) },
         );
 
@@ -335,6 +335,11 @@ test(
             {
                 id: proposalId,
                 action: 'VoteApprove',
+                proposal: {
+                    UpgradeSelf: {
+                        hash: hash,
+                    },
+                },
             },
             {
                 gas: tGas(300),
