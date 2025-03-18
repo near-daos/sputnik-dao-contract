@@ -16,20 +16,10 @@ import {
     Proposal,
     initWorkspace,
     getProposalKind,
+    normalizePolicy
 } from './utils';
 
 const test = initWorkspace();
-
-
-function normalizePolicy(policy) {
-    return {
-        ...policy,
-        roles: policy.roles.map(role => ({
-            ...role,
-            permissions: role.permissions.sort()
-        }))
-    };
-}
 
 test('basic', async (t) => {
     const { alice, root, dao } = t.context.accounts;
