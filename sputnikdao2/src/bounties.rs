@@ -22,7 +22,7 @@ pub struct BountyClaim {
 }
 
 /// Bounty information.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[borsh(crate = "near_sdk::borsh")]
 #[serde(crate = "near_sdk::serde")]
@@ -238,7 +238,12 @@ mod tests {
             },
         });
         assert_eq!(contract.get_last_bounty_id(), id);
-        contract.act_proposal(id, Action::VoteApprove, None);
+        contract.act_proposal(
+            id,
+            Action::VoteApprove,
+            contract.get_proposal(id).proposal.kind,
+            None,
+        );
         id
     }
 
@@ -277,7 +282,12 @@ mod tests {
             "bounty_done"
         );
 
-        contract.act_proposal(1, Action::VoteApprove, None);
+        contract.act_proposal(
+            1,
+            Action::VoteApprove,
+            contract.get_proposal(1).proposal.kind,
+            None,
+        );
         testing_env!(
             context.build(),
             near_sdk::test_vm_config(),
@@ -292,7 +302,12 @@ mod tests {
 
         contract.bounty_claim(0, U64::from(500));
         contract.bounty_done(0, None, "Bounty is done 2".to_string());
-        contract.act_proposal(2, Action::VoteApprove, None);
+        contract.act_proposal(
+            2,
+            Action::VoteApprove,
+            contract.get_proposal(2).proposal.kind,
+            None,
+        );
         testing_env!(
             context.build(),
             near_sdk::test_vm_config(),

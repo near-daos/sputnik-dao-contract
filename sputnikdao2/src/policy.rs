@@ -10,9 +10,9 @@ use near_sdk::{env, AccountId};
 use crate::proposals::{PolicyParameters, Proposal, ProposalKind, ProposalStatus, Vote};
 use crate::types::Action;
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq)]
 #[borsh(crate = "near_sdk::borsh")]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub enum RoleKind {
     /// Matches everyone, who is not matched by other roles.
@@ -62,9 +62,10 @@ impl RoleKind {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq)]
 #[borsh(crate = "near_sdk::borsh")]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct RolePermission {
     /// Name of the role to display to the user.
@@ -84,9 +85,9 @@ pub struct UserInfo {
 }
 
 /// Direct weight or ratio to total weight, used for the voting policy.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq)]
 #[borsh(crate = "near_sdk::borsh")]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[serde(crate = "near_sdk::serde")]
 #[serde(untagged)]
 pub enum WeightOrRatio {
@@ -120,9 +121,9 @@ pub enum WeightKind {
 }
 
 /// Defines configuration of the vote.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq)]
 #[borsh(crate = "near_sdk::borsh")]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct VotePolicy {
     /// Kind of weight to use for votes.
@@ -148,9 +149,9 @@ impl Default for VotePolicy {
 }
 
 /// Defines voting / decision making policy of this DAO.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq)]
 #[borsh(crate = "near_sdk::borsh")]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[serde(crate = "near_sdk::serde")]
 pub struct Policy {
     /// List of roles and permissions for them in the current policy.
@@ -168,9 +169,9 @@ pub struct Policy {
 }
 
 /// Versioned policy.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq)]
 #[borsh(crate = "near_sdk::borsh")]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[serde(crate = "near_sdk::serde", untagged)]
 pub enum VersionedPolicy {
     /// Default policy with given accounts as council.

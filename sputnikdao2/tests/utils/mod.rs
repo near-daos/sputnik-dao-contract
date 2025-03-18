@@ -11,8 +11,8 @@ use near_workspaces::{Account, AccountId, Contract, Worker};
 use near_sdk::json_types::U128;
 use sputnik_staking::Contract as StakingContract;
 use sputnikdao2::{
-    Action, Bounty, Config, Contract as DAOContract, OldAccountId, ProposalInput, ProposalKind,
-    VersionedPolicy, OLD_BASE_TOKEN,
+Action, Bounty, Config, ContractContract as DAOContract, OldAccountId, Proposal, ProposalInput,
+ProposalKind, VersionedPolicy, OLD_BASE_TOKEN,
 };
 
 pub static FACTORY_WASM_BYTES: &[u8] =
@@ -234,7 +234,10 @@ pub async fn vote(
     for user in users.into_iter() {
         let act_proposal_result = user
             .call(dao.id(), "act_proposal")
-            .args_json(json!({"id": proposal_id, "action": Action::VoteApprove}))
+            .args_json(json!({
+                "id": proposal_id,
+                "action": Action::VoteApprove,
+                "proposal": get_proposal_kind(&dao, proposal_id).await}))
             .max_gas()
             .transact()
             .await?;
@@ -252,4 +255,14 @@ pub fn convert_new_to_old_token(new_account_id: Option<near_sdk::AccountId>) -> 
         return String::from(OLD_BASE_TOKEN);
     }
     new_account_id.unwrap().to_string()
+}
+
+pub async fn get_proposal_kind(dao: &Contract, proposal_id: u64) -> ProposalKind {
+    dao.view("get_proposal")
+        .args_json(json!({"id": proposal_id}))
+        .await
+        .unwrap()
+        .json::<Proposal>()
+        .unwrap()
+        .kind
 }

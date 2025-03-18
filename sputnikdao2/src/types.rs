@@ -18,7 +18,7 @@ pub const ONE_YOCTO_NEAR: NearToken = NearToken::from_yoctonear(1);
 pub const GAS_FOR_FT_TRANSFER: Gas = Gas::from_tgas(10);
 
 /// Configuration of the DAO.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[borsh(crate = "near_sdk::borsh")]
 #[serde(crate = "near_sdk::serde")]
 pub struct Config {

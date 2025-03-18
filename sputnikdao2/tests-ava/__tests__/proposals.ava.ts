@@ -15,6 +15,7 @@ import {
     voteApprove,
     Proposal,
     initWorkspace,
+    getProposalKind,
 } from './utils';
 
 const test = initWorkspace();
@@ -408,6 +409,66 @@ test(
     },
 );
 
+test(
+    'act_proposal should include correct kind',
+    async (t) => {
+        const { alice, root, dao } = t.context.accounts;
+        const config = {
+            name: 'sputnikdao',
+            purpose: 'testing',
+            metadata: '',
+        };
+        const wrong_config = {
+            name: 'sputnikdao_fake',
+            purpose: 'testing',
+            metadata: '',
+        };
+        //add_proposal returns new proposal id
+        const id: number = await alice.call(
+            dao,
+            'add_proposal',
+            {
+                proposal: {
+                    description: 'rename the dao',
+                    kind: {
+                        ChangeConfig: {
+                            config,
+                        },
+                    },
+                },
+            },
+            { attachedDeposit: toYocto('1') },
+        );
+
+        //Check that act_proposal is not allowed with wrong kind included
+        const err = await captureError(
+            async () => await root.call(
+                dao,
+                'act_proposal',
+                {
+                    id: id,
+                    action: 'VoteApprove',
+                    proposal: {
+                        ChangeConfig: {
+                            config: wrong_config,
+                        },
+                    },
+                },
+                {
+                    gas: tGas(100),
+                },
+            ),
+        );
+        t.log(err);
+        t.true(err.includes('ERR_WRONG_KIND'));
+
+        let proposal: any = await dao.view('get_proposal', { id });
+        t.log(proposal);
+        t.is(proposal.status, 'InProgress');
+    },
+);
+
+
 // If the number of votes in the group has changed (new members has been added)
 //  the proposal can lose it's approved state.
 //  In this case new proposal needs to be made, this one should expire
@@ -591,6 +652,7 @@ test('Callback function call', async (t) => {
         {
             id: transferId,
             action: 'VoteApprove',
+            proposal: await getProposalKind(dao, transferId),
         },
         {
             gas: tGas(200),
@@ -642,6 +704,7 @@ test('Callback function call', async (t) => {
         {
             id: transferId,
             action: 'VoteApprove',
+            proposal: await getProposalKind(dao, transferId),
         },
         {
             gas: tGas(200),

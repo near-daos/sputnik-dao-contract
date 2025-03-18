@@ -234,7 +234,11 @@ async fn test_bounty_workflow() -> Result<(), Box<dyn std::error::Error>> {
 
     let act_proposal_result = root
         .call(dao.id(), "act_proposal")
-        .args_json(json!({"id": proposal_id, "action": Action::VoteApprove }))
+        .args_json(json!({
+            "id": proposal_id,
+            "action": Action::VoteApprove,
+            "proposal": get_proposal_kind(&dao, proposal_id).await
+        }))
         .transact()
         .await
         .unwrap();
@@ -423,7 +427,8 @@ async fn test_bounty_workflow() -> Result<(), Box<dyn std::error::Error>> {
         .call(dao.id(), "act_proposal")
         .args_json(json!({
             "id": proposal_id,
-            "action": Action::VoteApprove
+            "action": Action::VoteApprove,
+            "proposal": get_proposal_kind(&dao, proposal_id).await
         }))
         .max_gas()
         .transact()
@@ -510,7 +515,8 @@ async fn test_create_dao_and_use_token() -> Result<(), Box<dyn std::error::Error
         .call(dao.id(), "act_proposal")
         .args_json(json!({
             "id": 0,
-            "action": Action::VoteApprove
+            "action": Action::VoteApprove,
+            "proposal": get_proposal_kind(&dao, 0).await
         }))
         .max_gas()
         .transact()
@@ -521,7 +527,8 @@ async fn test_create_dao_and_use_token() -> Result<(), Box<dyn std::error::Error
         .call(dao.id(), "act_proposal")
         .args_json(json!({
             "id": 0,
-            "action": Action::VoteApprove
+            "action": Action::VoteApprove,
+            "proposal": get_proposal_kind(&dao, 0).await
         }))
         .max_gas()
         .transact()
@@ -533,7 +540,8 @@ async fn test_create_dao_and_use_token() -> Result<(), Box<dyn std::error::Error
         .call(dao.id(), "act_proposal")
         .args_json(json!({
             "id": 0,
-            "action": Action::VoteApprove
+            "action": Action::VoteApprove,
+            "proposal": get_proposal_kind(&dao, 0).await
         }))
         .max_gas()
         .transact()
@@ -746,10 +754,10 @@ async fn test_create_dao_and_use_token() -> Result<(), Box<dyn std::error::Error
         .transact()
         .await?;
     assert!(
-    format!("{:?}", delegate_result.failures()).contains("ERR_NOT_ENOUGH_TIME_PASSED"),
-    "should fail right after undelegation as need to wait for voting period before can delegate again. {:?}",
-    delegate_result.failures()
-);
+        format!("{:?}", delegate_result.failures()).contains("ERR_NOT_ENOUGH_TIME_PASSED"),
+        "should fail right after undelegation as need to wait for voting period before can delegate again. {:?}",
+        delegate_result.failures()
+    );
     let user = staking
         .view("get_user")
         .args_json(json!({"account_id": user2.id()}))
@@ -903,11 +911,17 @@ async fn test_payment_failures() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Council member retries payment via an action
-    let act_proposal_result = root.call(dao.id(), "act_proposal")
-        .args_json(json!({"id": 1, "action": Action::Finalize, "msg": "Sorry! We topped up our tokens. Thanks."}))
-            .max_gas()
-            .transact()
-            .await?;
+    let act_proposal_result = root
+        .call(dao.id(), "act_proposal")
+        .args_json(json!({
+            "id": 1,
+            "action": Action::Finalize,
+            "msg": "Sorry! We topped up our tokens. Thanks.",
+            "proposal": get_proposal_kind(&dao, 1).await
+        }))
+        .max_gas()
+        .transact()
+        .await?;
     assert!(
         act_proposal_result.is_success(),
         "{:?}",

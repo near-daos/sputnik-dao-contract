@@ -14,6 +14,7 @@ import {
     setStakingId,
     initWorkspace,
     Proposal,
+    getProposalKind,
     DAO_WASM_BYTES,
 } from './utils';
 
@@ -109,7 +110,7 @@ test(
 
         await root.call(dao, 'new', { config, policy });
 
-        let proposalId = await alice.call(
+        let proposalId: number = await alice.call(
             dao,
             'add_proposal',
             {
@@ -129,6 +130,7 @@ test(
         await alice.call(dao, 'act_proposal', {
             id: proposalId,
             action: 'RemoveProposal',
+            proposal: await getProposalKind(dao, proposalId),
         });
         let err = await captureError(async () =>
             dao.view('get_proposal', { id: proposalId }),
@@ -139,6 +141,7 @@ test(
             alice.call(dao, 'act_proposal', {
                 id: proposalId,
                 action: 'VoteApprove',
+                proposal: await getProposalKind(dao, proposalId),
             }),
         );
         t.regex(err, /ERR_NO_PROPOSAL/);
@@ -163,22 +166,27 @@ test(
             alice.call(dao, 'act_proposal', {
                 id: proposalId,
                 action: 'AddProposal',
+                proposal: await getProposalKind(dao, proposalId),
             }),
         );
         t.regex(err, /ERR_WRONG_ACTION/);
 
         // Check if every vote counts
+        const proposal_kind = await getProposalKind(dao, proposalId);
         await user1.call(dao, 'act_proposal', {
             id: proposalId,
             action: 'VoteApprove',
+            proposal: proposal_kind,
         });
         await user2.call(dao, 'act_proposal', {
             id: proposalId,
             action: 'VoteReject',
+            proposal: proposal_kind,
         });
         await alice.call(dao, 'act_proposal', {
             id: proposalId,
             action: 'VoteRemove',
+            proposal: proposal_kind,
         });
         {
             const { vote_counts, votes } = await dao.view('get_proposal', {
@@ -197,6 +205,7 @@ test(
             alice.call(dao, 'act_proposal', {
                 id: proposalId,
                 action: 'Finalize',
+                proposal: proposal_kind,
             }),
         );
         t.regex(err, /ERR_PROPOSAL_NOT_EXPIRED_OR_FAILED/);
@@ -257,6 +266,7 @@ test(
         await root.call(dao, 'act_proposal', {
             id: proposalId,
             action: 'VoteApprove',
+            proposal: await getProposalKind(dao, proposalId),
         });
 
         // Setting up a new config
@@ -284,13 +294,16 @@ test(
                 attachedDeposit: toYocto('1'),
             },
         );
+        const proposal_kind = await getProposalKind(dao, proposalId);
         await alice.call(dao, 'act_proposal', {
             id: proposalId,
             action: 'VoteApprove',
+            proposal: proposal_kind,
         });
         await bob.call(dao, 'act_proposal', {
             id: proposalId,
             action: 'VoteApprove',
+            proposal: proposal_kind,
         });
         t.deepEqual(await dao.view('get_config'), new_config);
     },
@@ -346,6 +359,11 @@ test('Policy self-lock', async (t) => {
     await alice.call(dao, 'act_proposal', {
         id: proposalId,
         action: 'VoteApprove',
+        proposal: {
+            ChangePolicy: {
+                policy,
+            },
+        },
     });
     let { status } : Proposal = await dao.view('get_proposal', { id: proposalId });
     t.is(status, 'InProgress');

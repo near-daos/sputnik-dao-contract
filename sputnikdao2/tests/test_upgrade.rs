@@ -55,11 +55,12 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
         .json::<Base58CryptoHash>()
         .unwrap();
 
+    let proposal_kind = ProposalKind::UpgradeSelf { hash };
     let proposal_id = root
         .call(&dao_account_id, "add_proposal")
         .args_json(json!({ "proposal": ProposalInput {
             description: "proposal to test".to_string(),
-            kind: ProposalKind::UpgradeSelf { hash }
+            kind: proposal_kind.clone()
         }}))
         .deposit(NearToken::from_near(1))
         .transact()
@@ -72,7 +73,11 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
 
     let act_proposal_result = root
         .call(&dao_account_id, "act_proposal")
-        .args_json(json!({"id": 0, "action": Action::VoteApprove}))
+        .args_json(json!({
+            "id": 0,
+            "action": Action::VoteApprove,
+            "proposal": proposal_kind
+        }))
         .max_gas()
         .transact()
         .await?;
@@ -147,7 +152,8 @@ async fn test_upgrade_other() -> Result<(), Box<dyn std::error::Error>> {
         .call(dao.id(), "act_proposal")
         .args_json(json!({
             "id": 0,
-            "action": Action::VoteApprove
+            "action": Action::VoteApprove,
+            "proposal": get_proposal_kind(&dao, 0).await
         }))
         .max_gas()
         .transact()

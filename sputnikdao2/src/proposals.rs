@@ -35,7 +35,8 @@ pub enum ProposalStatus {
 }
 
 /// Function call arguments.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq)]
 #[borsh(crate = "near_sdk::borsh")]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
 #[serde(crate = "near_sdk::serde")]
@@ -47,7 +48,8 @@ pub struct ActionCall {
 }
 
 /// Function call arguments.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq)]
 #[borsh(crate = "near_sdk::borsh")]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
 #[serde(crate = "near_sdk::serde")]
@@ -59,7 +61,7 @@ pub struct PolicyParameters {
 }
 
 /// Kinds of proposals, doing different action.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq)]
 #[borsh(crate = "near_sdk::borsh")]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
 #[serde(crate = "near_sdk::serde")]
@@ -542,7 +544,14 @@ impl Contract {
 
     /// Act on given proposal by id, if permissions allow.
     /// Memo is logged but not stored in the state. Can be used to leave notes or explain the action.
-    pub fn act_proposal(&mut self, id: u64, action: Action, memo: Option<String>) {
+    pub fn act_proposal(
+        &mut self,
+        id: u64,
+        action: Action,
+        proposal: ProposalKind,
+        memo: Option<String>,
+    ) {
+        let input_proposal_kind = proposal;
         let mut proposal: Proposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL").into();
         let policy = self.policy.get().unwrap().to_policy();
         // Check permissions for the given action.
@@ -550,6 +559,8 @@ impl Contract {
             policy.can_execute_action(self.internal_user_info(), &proposal.kind, &action);
         assert!(allowed, "ERR_PERMISSION_DENIED");
         let sender_id = env::predecessor_account_id();
+        // Verify propolsal kind
+        assert!(proposal.kind == input_proposal_kind, "ERR_WRONG_KIND");
         // Update proposal given action. Returns true if should be updated in storage.
         let update = match action {
             Action::AddProposal => env::panic_str("ERR_WRONG_ACTION"),
