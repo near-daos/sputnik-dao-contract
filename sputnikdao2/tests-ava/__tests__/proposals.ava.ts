@@ -20,6 +20,17 @@ import {
 
 const test = initWorkspace();
 
+
+function normalizePolicy(policy) {
+    return {
+        ...policy,
+        roles: policy.roles.map(role => ({
+            ...role,
+            permissions: role.permissions.sort()
+        }))
+    };
+}
+
 test('basic', async (t) => {
     const { alice, root, dao } = t.context.accounts;
     t.true(await alice.exists());
@@ -287,7 +298,8 @@ test('Proposal ChangePolicy', async (t) => {
     );
 
     //Check that the policy is changed
-    t.deepEqual(await dao.view('get_policy'), correctPolicy);
+    
+    t.deepEqual(normalizePolicy(await dao.view('get_policy')), normalizePolicy(correctPolicy));
 });
 
 test('Proposal Transfer', async (t) => {
