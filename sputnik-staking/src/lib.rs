@@ -4,8 +4,8 @@ use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::LookupMap;
 use near_sdk::json_types::{U128, U64};
 use near_sdk::{
-    env, ext_contract, near_bindgen, AccountId, BorshStorageKey, Duration, Gas, NearToken,
-    PanicOnDefault, Promise, PromiseOrValue, PromiseResult,
+    env, ext_contract, near, AccountId, BorshStorageKey, Duration, Gas, NearToken, PanicOnDefault,
+    Promise, PromiseOrValue, PromiseResult,
 };
 
 pub use user::{User, VersionedUser};
@@ -43,9 +43,8 @@ pub trait FungibleToken {
     fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
 }
 
-#[near_bindgen]
-#[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
-#[borsh(crate = "near_sdk::borsh")]
+#[near(contract_state)]
+#[derive(PanicOnDefault)]
 pub struct Contract {
     /// DAO owner of this staking contract.
     owner_id: AccountId,
@@ -59,7 +58,7 @@ pub struct Contract {
     unstake_period: Duration,
 }
 
-#[near_bindgen]
+#[near]
 impl Contract {
     #[init]
     pub fn new(owner_id: AccountId, token_id: AccountId, unstake_period: U64) -> Self {
@@ -139,7 +138,7 @@ impl Contract {
     }
 }
 
-#[near_bindgen]
+#[near]
 impl FungibleTokenReceiver for Contract {
     fn ft_on_transfer(
         &mut self,

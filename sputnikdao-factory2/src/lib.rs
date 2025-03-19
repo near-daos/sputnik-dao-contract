@@ -1,11 +1,9 @@
 mod factory_manager;
-
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{UnorderedMap, UnorderedSet};
 use near_sdk::json_types::{Base58CryptoHash, Base64VecU8, U128};
-use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::serde_json::{self, json};
-use near_sdk::{env, near_bindgen, AccountId, CryptoHash, Gas, NearToken, PanicOnDefault, Promise};
+use near_sdk::{env, near, AccountId, CryptoHash, Gas, NearToken, PanicOnDefault, Promise};
 
 use factory_manager::FactoryManager;
 
@@ -26,10 +24,8 @@ const GAS_STORE_CONTRACT_LEFTOVER: Gas = Gas::from_tgas(20);
 const ON_REMOVE_CONTRACT_GAS: Gas = Gas::from_tgas(20);
 const NO_DEPOSIT: NearToken = NearToken::from_near(0);
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[near(serializers=[borsh,json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
-#[borsh(crate = "near_sdk::borsh")]
-#[serde(crate = "near_sdk::serde")]
 pub struct DaoContractMetadata {
     // version of the DAO contract code (e.g. [2, 0] -> 2.0, [3, 1] -> 3.1, [4, 0] -> 4.0)
     pub version: Version,
@@ -40,15 +36,14 @@ pub struct DaoContractMetadata {
     pub changelog_url: Option<String>,
 }
 
-#[near_bindgen]
-#[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
-#[borsh(crate = "near_sdk::borsh")]
+#[near(contract_state)]
+#[derive(PanicOnDefault)]
 pub struct SputnikDAOFactory {
     factory_manager: FactoryManager,
     daos: UnorderedSet<AccountId>,
 }
 
-#[near_bindgen]
+#[near]
 impl SputnikDAOFactory {
     #[init]
     pub fn new() -> Self {

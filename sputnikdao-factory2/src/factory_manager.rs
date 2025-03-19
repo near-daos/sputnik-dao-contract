@@ -1,10 +1,8 @@
 //! Module for standard generic contract factory manager.
 //! TODO: move to near-sdk standards library.
 
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::Base58CryptoHash;
-use near_sdk::{env, AccountId, CryptoHash, Gas};
-use near_sdk::{serde_json, NearToken};
+use near_sdk::{env, near, serde_json, AccountId, CryptoHash, Gas, NearToken};
 
 /// Gas spent on the call & account creation.
 const CREATE_CALL_GAS: Gas = Gas::from_tgas(40);
@@ -23,8 +21,7 @@ const NO_DEPOSIT: NearToken = NearToken::from_near(0);
 
 /// Factory manager that allows to store/load contracts by hash directly in the storage.
 /// Uses directly underlying host functions to not load any of the data into WASM memory.
-#[derive(BorshSerialize, BorshDeserialize)]
-#[borsh(crate = "near_sdk::borsh")]
+#[near(serializers=[borsh])]
 pub struct FactoryManager {}
 
 impl FactoryManager {

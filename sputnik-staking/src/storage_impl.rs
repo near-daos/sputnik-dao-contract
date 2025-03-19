@@ -8,7 +8,7 @@ use near_sdk::{assert_one_yocto, log};
 use crate::*;
 
 /// Implements users storage management for the pool.
-#[near_bindgen]
+#[near]
 impl StorageManagement for Contract {
     #[payable]
     fn storage_deposit(

@@ -8,18 +8,16 @@ use near_contract_standards::fungible_token::{
 use near_contract_standards::storage_management::{
     StorageBalance, StorageBalanceBounds, StorageManagement,
 };
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::U128;
-use near_sdk::{near_bindgen, AccountId, NearToken, PanicOnDefault, PromiseOrValue};
+use near_sdk::{near, AccountId, NearToken, PanicOnDefault, PromiseOrValue};
 
-#[near_bindgen]
-#[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
-#[borsh(crate = "near_sdk::borsh")]
+#[near(contract_state)]
+#[derive(PanicOnDefault)]
 pub struct Contract {
     token: FungibleToken,
 }
 
-#[near_bindgen]
+#[near]
 impl Contract {
     #[init]
     pub fn new() -> Self {
@@ -38,7 +36,7 @@ impl Contract {
     }
 }
 
-#[near_bindgen]
+#[near]
 impl FungibleTokenCore for Contract {
     #[payable]
     fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>) {
@@ -65,7 +63,7 @@ impl FungibleTokenCore for Contract {
     }
 }
 
-#[near_bindgen]
+#[near]
 impl FungibleTokenResolver for Contract {
     fn ft_resolve_transfer(
         &mut self,
@@ -78,7 +76,7 @@ impl FungibleTokenResolver for Contract {
     }
 }
 
-#[near_bindgen]
+#[near]
 impl StorageManagement for Contract {
     #[payable]
     fn storage_deposit(
@@ -106,7 +104,7 @@ impl StorageManagement for Contract {
     }
 }
 
-#[near_bindgen]
+#[near]
 impl FungibleTokenMetadataProvider for Contract {
     fn ft_metadata(&self) -> FungibleTokenMetadata {
         unimplemented!()
