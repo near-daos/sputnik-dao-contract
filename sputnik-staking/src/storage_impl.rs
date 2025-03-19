@@ -68,7 +68,7 @@ impl StorageManagement for Contract {
             assert!(user.vote_amount.0 > 0, "ERR_STORAGE_UNREGISTER_NOT_EMPTY");
             self.users.remove(&account_id);
             Promise::new(account_id.clone())
-                .transfer(NearToken::from_yoctonear(user.near_amount.0));
+                .transfer(user.near_amount);
             true
         } else {
             false
@@ -85,8 +85,24 @@ impl StorageManagement for Contract {
     fn storage_balance_of(&self, account_id: AccountId) -> Option<StorageBalance> {
         self.internal_get_user_opt(&account_id)
             .map(|user| StorageBalance {
-                total: NearToken::from_yoctonear(user.near_amount.0),
+                total: user.near_amount,
                 available: user.storage_available(),
             })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use near_sdk::{borsh::{BorshDeserialize, BorshSerialize}, json_types::U128, NearToken};
+
+    #[test]
+    fn test_deserialize_serialize() {
+        let mut buf: Vec<u8> = Vec::new();
+        let token_to_serialize = NearToken::from_near(1234);
+        token_to_serialize.serialize(&mut buf).unwrap();
+
+        let mut deserialize_buf = buf.as_slice();
+        let deserialize_result : U128 = BorshDeserialize::deserialize(&mut deserialize_buf).unwrap();
+        assert_eq!(deserialize_result.0, token_to_serialize.as_yoctonear());
     }
 }
