@@ -11,19 +11,21 @@ use std::str::FromStr;
 async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
     const SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &str = "sputnik-dao.near";
 
+    // Import the mainnet sputnik-dao.near factory contract
     let mainnet = near_workspaces::mainnet().await?;
     let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.parse()?;
 
     let worker = near_workspaces::sandbox().await?;
-
     let user_account = worker.dev_create_account().await?;
 
+    // Deploy the sputnik-dao.near factory contract to the sandbox
     let sputnik_dao_factory = worker
         .import_contract(&sputnikdao_factory_contract_id, &mainnet)
         .initial_balance(NearToken::from_near(100))
         .transact()
         .await?;
 
+    // Initialize the sputnik-dao factory contract
     let init_sputnik_dao_factory_result =
         sputnik_dao_factory.call("new").max_gas().transact().await?;
     if init_sputnik_dao_factory_result.is_failure() {
@@ -34,6 +36,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
     }
     assert!(init_sputnik_dao_factory_result.is_success());
 
+    // Create a testdao.sputnik-dao.near instance
     let dao_name = "testdao";
     let create_dao_args = json!({
         "config": {
@@ -109,19 +112,20 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         &worker,
     );
 
+    // Verify the DAO configuration
     let get_config_result = worker.view(&dao_account_id, "get_config").await?;
-
     let config: Value = get_config_result.json().unwrap();
     assert_eq!(create_dao_args["config"], config);
 
+    // Deploy the local build of the sputnik-dao factory contract
     let wasm = fs::read("./res/sputnikdao_factory2.wasm").expect("Unable to read contract wasm");
-
     let deploy_result = sputnik_dao_factory
         .as_account()
         .deploy(wasm.as_slice())
         .await?;
     assert!(deploy_result.is_success());
 
+    // Store the local build of sputnikdao2.wasm into sputnik-dao.near
     let sputnikdao2_wasm =
         fs::read("../sputnikdao2/res/sputnikdao2.wasm").expect("Unable to read sputnikdao2.wasm");
     let computed_hash = sha256(&sputnikdao2_wasm);
@@ -138,6 +142,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
     let stored_contract_hash =
         Base58CryptoHash::from_str(stored_contract_hash_string.as_str()).unwrap();
 
+    // Set the stored contract hash as the default code hash
     let set_default_code_hash_result = sputnik_dao_factory
         .call("set_default_code_hash")
         .args_json(json!({"code_hash": stored_contract_hash}))
@@ -150,6 +155,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         set_default_code_hash_result.failures()
     );
 
+    // Verify the default code hash matches the computed hash
     let hash = sputnik_dao_factory
         .view("get_default_code_hash")
         .await?
@@ -162,6 +168,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         "Hashes do not match"
     );
 
+    // Create a self-upgrade proposal
     let proposal_id = user_account
         .call(dao_contract.id(), "add_proposal")
         .args_json(json!({ "proposal": {
@@ -179,6 +186,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
 
     assert_eq!(0, proposal_id);
 
+    // Create a transfer proposal to check after the upgrade
     let transfer_proposal_id = user_account
         .call(dao_contract.id(), "add_proposal")
         .args_json(json!({ "proposal": {
@@ -198,6 +206,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         .json::<u64>()
         .unwrap();
 
+    // Act on the self-upgrade proposal
     let act_proposal_result = user_account
         .call(dao_contract.id(), "act_proposal")
         .args_json(json!({
@@ -223,14 +232,16 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         act_proposal_result.failures()
     );
 
+    // Verify the code of testdao.sputnik-dao.near matches the local build of sputnikdao2.wasm
     let upgraded_code = dao_contract.view_code().await?;
     assert_eq!(upgraded_code, sputnikdao2_wasm);
 
+    // Verify the DAO configuration remains the same
     let get_config_result = worker.view(&dao_account_id, "get_config").await?;
-
     let config: Value = get_config_result.json().unwrap();
     assert_eq!(create_dao_args["config"], config);
 
+    // Act on the transfer proposal
     let act_proposal_result = user_account
         .call(dao_contract.id(), "act_proposal")
         .args_json(json!({
