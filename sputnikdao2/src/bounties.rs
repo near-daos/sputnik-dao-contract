@@ -7,9 +7,7 @@ use crate::types::{convert_old_to_new_token, OldAccountId};
 use crate::*;
 
 /// Information recorded about claim of the bounty by given user.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-#[borsh(crate = "near_sdk::borsh")]
-#[serde(crate = "near_sdk::serde")]
+#[near(serializers=[borsh, json])]
 pub struct BountyClaim {
     /// Bounty id that was claimed.
     bounty_id: u64,
@@ -22,10 +20,9 @@ pub struct BountyClaim {
 }
 
 /// Bounty information.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq)]
+#[near(serializers=[borsh, json])]
+#[derive(Clone, PartialEq)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-#[borsh(crate = "near_sdk::borsh")]
-#[serde(crate = "near_sdk::serde")]
 pub struct Bounty {
     /// Description of the bounty.
     pub description: String,
@@ -40,10 +37,8 @@ pub struct Bounty {
     pub max_deadline: U64,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-#[borsh(crate = "near_sdk::borsh")]
+#[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
-#[serde(crate = "near_sdk::serde")]
 pub enum VersionedBounty {
     Default(Bounty),
 }
@@ -99,7 +94,7 @@ impl Contract {
     }
 }
 
-#[near_bindgen]
+#[near]
 impl Contract {
     /// Claim given bounty by caller with given expected duration to execute.
     /// Bond must be attached to the claim.

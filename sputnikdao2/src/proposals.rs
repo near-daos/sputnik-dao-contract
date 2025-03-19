@@ -486,7 +486,7 @@ impl Contract {
     }
 }
 
-#[near_bindgen]
+#[near]
 impl Contract {
     /// Add proposal to this DAO.
     #[payable]

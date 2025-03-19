@@ -26,7 +26,7 @@ pub struct BountyOutput {
     pub bounty: Bounty,
 }
 
-#[near_bindgen]
+#[near]
 impl Contract {
     /// Returns semver of this contract.
     pub fn version(&self) -> String {

@@ -6,7 +6,7 @@ impl Contract {
     }
 }
 
-#[near_bindgen]
+#[near]
 impl Contract {
     #[payable]
     pub fn register_delegation(&mut self, account_id: &AccountId) {

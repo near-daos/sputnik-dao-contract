@@ -4,8 +4,8 @@ use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::json_types::{Base58CryptoHash, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    env, ext_contract, near_bindgen, AccountId, BorshStorageKey, CryptoHash, NearToken,
-    PanicOnDefault, Promise, PromiseOrValue, PromiseResult,
+    env, ext_contract, near, AccountId, BorshStorageKey, CryptoHash, NearToken, PanicOnDefault,
+    Promise, PromiseOrValue, PromiseResult,
 };
 
 pub use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
@@ -27,8 +27,8 @@ mod types;
 mod upgrade;
 pub mod views;
 
-#[derive(BorshStorageKey, BorshSerialize)]
-#[borsh(crate = "near_sdk::borsh")]
+#[near(serializers=[borsh])]
+#[derive(BorshStorageKey)]
 pub enum StorageKeys {
     Config,
     Policy,
@@ -47,9 +47,8 @@ pub trait ExtSelf {
     fn on_proposal_callback(&mut self, proposal_id: u64) -> PromiseOrValue<()>;
 }
 
-#[near_bindgen]
-#[borsh(crate = "near_sdk::borsh")]
-#[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
+#[near(contract_state)]
+#[derive(PanicOnDefault)]
 pub struct Contract {
     /// DAO configuration.
     pub config: LazyOption<Config>,
@@ -84,7 +83,7 @@ pub struct Contract {
     pub blobs: LookupMap<CryptoHash, AccountId>,
 }
 
-#[near_bindgen]
+#[near]
 impl Contract {
     #[init]
     pub fn new(config: Config, policy: VersionedPolicy) -> Self {
