@@ -67,8 +67,7 @@ impl StorageManagement for Contract {
             // TODO: figure out force option logic.
             assert!(user.vote_amount.0 > 0, "ERR_STORAGE_UNREGISTER_NOT_EMPTY");
             self.users.remove(&account_id);
-            Promise::new(account_id.clone())
-                .transfer(user.near_amount);
+            Promise::new(account_id.clone()).transfer(user.near_amount);
             true
         } else {
             false
@@ -93,7 +92,11 @@ impl StorageManagement for Contract {
 
 #[cfg(test)]
 mod tests {
-    use near_sdk::{borsh::{BorshDeserialize, BorshSerialize}, json_types::U128, NearToken};
+    use near_sdk::{
+        borsh::{BorshDeserialize, BorshSerialize},
+        json_types::U128,
+        NearToken,
+    };
 
     #[test]
     fn test_deserialize_serialize() {
@@ -102,7 +105,7 @@ mod tests {
         token_to_serialize.serialize(&mut buf).unwrap();
 
         let mut deserialize_buf = buf.as_slice();
-        let deserialize_result : U128 = BorshDeserialize::deserialize(&mut deserialize_buf).unwrap();
+        let deserialize_result: U128 = BorshDeserialize::deserialize(&mut deserialize_buf).unwrap();
         assert_eq!(deserialize_result.0, token_to_serialize.as_yoctonear());
     }
 }

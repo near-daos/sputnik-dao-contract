@@ -1,7 +1,6 @@
 use near_contract_standards::fungible_token::Balance;
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{U128, U64};
-use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{env, AccountId, Duration, NearToken, StorageUsage};
 
 use crate::*;
@@ -14,14 +13,12 @@ const ACCOUNT_MAX_LENGTH: StorageUsage = 64;
 /// Recording deposited voting tokens, storage used and delegations for voting.
 /// Once delegated - the tokens are used in the votes. It records for each delegate when was the last vote.
 /// When undelegating - the new delegations or withdrawal are only available after cooldown period from last vote of the delegate.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug)]
-#[borsh(crate = "near_sdk::borsh")]
-#[serde(crate = "near_sdk::serde")]
+#[near(serializers=[borsh, json])]
 pub struct User {
     /// Total amount of storage used by this user struct.
     pub storage_used: StorageUsage,
     /// Amount of $NEAR to cover storage.
-    pub near_amount: U128,
+    pub near_amount: NearToken,
     /// Amount of staked token deposited.
     pub vote_amount: U128,
     /// Withdrawal or next delegation available timestamp.
@@ -30,8 +27,7 @@ pub struct User {
     pub delegated_amounts: Vec<(AccountId, U128)>,
 }
 
-#[derive(BorshSerialize, BorshDeserialize)]
-#[borsh(crate = "near_sdk::borsh")]
+#[near(serializers=[borsh])]
 pub enum VersionedUser {
     Default(User),
 }
@@ -40,7 +36,7 @@ impl User {
     pub fn new(near_amount: NearToken) -> Self {
         Self {
             storage_used: Self::min_storage(),
-            near_amount: U128(near_amount.as_yoctonear()),
+            near_amount: near_amount,
             vote_amount: U128(0),
             delegated_amounts: vec![],
             next_action_timestamp: 0.into(),
@@ -56,10 +52,7 @@ impl User {
 
     fn assert_storage(&self) {
         assert!(
-            env::storage_byte_cost()
-                .saturating_mul(self.storage_used as u128)
-                .as_yoctonear()
-                <= self.near_amount.0,
+            env::storage_byte_cost().saturating_mul(self.storage_used as u128) <= self.near_amount,
             "ERR_NOT_ENOUGH_STORAGE"
         );
     }
@@ -132,7 +125,8 @@ impl User {
 
     /// Returns amount in NEAR that is available for storage.
     pub fn storage_available(&self) -> NearToken {
-        env::storage_byte_cost().saturating_mul(self.near_amount.0 - self.storage_used as u128)
+        env::storage_byte_cost()
+            .saturating_mul(self.near_amount.as_yoctonear() - self.storage_used as u128)
     }
 }
 

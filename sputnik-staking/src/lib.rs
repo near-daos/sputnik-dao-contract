@@ -1,6 +1,5 @@
 use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
 use near_contract_standards::fungible_token::Balance;
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::LookupMap;
 use near_sdk::json_types::{U128, U64};
 use near_sdk::{
@@ -13,8 +12,8 @@ pub use user::{User, VersionedUser};
 mod storage_impl;
 mod user;
 
-#[derive(BorshStorageKey, BorshSerialize)]
-#[borsh(crate = "near_sdk::borsh")]
+#[near(serializers=[borsh])]
+#[derive(BorshStorageKey)]
 enum StorageKeys {
     Users,
 }
