@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ext_fungible_token::ext_fungible_token;
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{Base64VecU8, U128, U64};
 use near_sdk::{log, AccountId, Gas, PromiseOrValue};
 

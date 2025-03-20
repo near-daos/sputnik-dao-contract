@@ -1,7 +1,5 @@
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{U128, U64};
-use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, near_bindgen, AccountId, Promise, PromiseOrValue};
+use near_sdk::{env, AccountId, Promise, PromiseOrValue};
 
 use crate::types::{convert_old_to_new_token, OldAccountId};
 use crate::*;

@@ -1,5 +1,5 @@
 use near_contract_standards::fungible_token::Balance;
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::json_types::{Base58CryptoHash, U128};
 use near_sdk::serde::{Deserialize, Serialize};
