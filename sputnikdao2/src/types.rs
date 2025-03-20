@@ -1,7 +1,7 @@
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::Base64VecU8;
 use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{AccountId, Gas, NearToken};
+use near_sdk::{near, AccountId, Gas, NearToken};
 
 /// Account ID used for $NEAR in near-sdk v3.
 /// Need to keep it around for backward compatibility.
@@ -18,9 +18,8 @@ pub const ONE_YOCTO_NEAR: NearToken = NearToken::from_yoctonear(1);
 pub const GAS_FOR_FT_TRANSFER: Gas = Gas::from_tgas(10);
 
 /// Configuration of the DAO.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug, PartialEq)]
-#[borsh(crate = "near_sdk::borsh")]
-#[serde(crate = "near_sdk::serde")]
+#[derive(Clone, Debug, PartialEq)]
+#[near(serializers=[borsh, json])]
 pub struct Config {
     /// Name of the DAO.
     pub name: String,
@@ -43,9 +42,8 @@ impl Config {
 }
 
 /// Set of possible action to take.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug)]
-#[borsh(crate = "near_sdk::borsh")]
-#[serde(crate = "near_sdk::serde")]
+#[derive(Debug)]
+#[near(serializers=[borsh, json])]
 pub enum Action {
     /// Action to add proposal. Used internally.
     AddProposal,

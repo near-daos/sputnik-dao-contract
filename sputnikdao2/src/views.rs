@@ -5,9 +5,7 @@ use std::cmp::min;
 use crate::*;
 
 /// This is format of output via JSON for the proposal.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-#[borsh(crate = "near_sdk::borsh")]
-#[serde(crate = "near_sdk::serde")]
+#[near(serializers=[borsh, json])]
 pub struct ProposalOutput {
     /// Id of the proposal.
     pub id: u64,
@@ -16,9 +14,7 @@ pub struct ProposalOutput {
 }
 
 /// This is format of output via JSON for the bounty.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-#[borsh(crate = "near_sdk::borsh")]
-#[serde(crate = "near_sdk::serde")]
+#[near(serializers=[borsh, json])]
 pub struct BountyOutput {
     /// Id of the bounty.
     pub id: u64,
