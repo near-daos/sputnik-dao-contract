@@ -35,10 +35,9 @@ pub enum ProposalStatus {
 
 /// Function call arguments.
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq)]
-#[borsh(crate = "near_sdk::borsh")]
+#[derive(PartialEq)]
+#[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
-#[serde(crate = "near_sdk::serde")]
 pub struct ActionCall {
     method_name: String,
     args: Base64VecU8,
@@ -48,10 +47,9 @@ pub struct ActionCall {
 
 /// Function call arguments.
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq)]
-#[borsh(crate = "near_sdk::borsh")]
+#[derive(PartialEq)]
+#[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
-#[serde(crate = "near_sdk::serde")]
 pub struct PolicyParameters {
     pub proposal_bond: Option<U128>,
     pub proposal_period: Option<U64>,
@@ -60,10 +58,9 @@ pub struct PolicyParameters {
 }
 
 /// Kinds of proposals, doing different action.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq)]
-#[borsh(crate = "near_sdk::borsh")]
+#[derive(PartialEq)]
+#[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
-#[serde(crate = "near_sdk::serde")]
 pub enum ProposalKind {
     /// Change the DAO config.
     ChangeConfig { config: Config },
@@ -169,10 +166,8 @@ impl From<Action> for Vote {
 }
 
 /// Proposal that are sent to this DAO.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-#[borsh(crate = "near_sdk::borsh")]
+#[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-#[serde(crate = "near_sdk::serde")]
 pub struct Proposal {
     /// Original proposer.
     pub proposer: AccountId,
@@ -190,10 +185,8 @@ pub struct Proposal {
     pub submission_time: U64,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-#[borsh(crate = "near_sdk::borsh")]
+#[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-#[serde(crate = "near_sdk::serde")]
 pub enum VersionedProposal {
     Default(Proposal),
 }
@@ -233,8 +226,7 @@ impl Proposal {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(crate = "near_sdk::serde")]
+#[near(serializers=[json])]
 pub struct ProposalInput {
     /// Description of this proposal.
     pub description: String,
