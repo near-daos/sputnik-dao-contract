@@ -14,9 +14,8 @@ use crate::upgrade::{upgrade_remote, upgrade_using_factory};
 use crate::*;
 
 /// Status of a proposal.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq, Debug)]
-#[borsh(crate = "near_sdk::borsh")]
-#[serde(crate = "near_sdk::serde")]
+#[derive(Clone, PartialEq, Debug)]
+#[near(serializers=[borsh, json])]
 pub enum ProposalStatus {
     InProgress,
     /// If quorum voted yes, this proposal is successfully approved.
