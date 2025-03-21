@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use ext_fungible_token::ext_fungible_token;
+use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{Base64VecU8, U128, U64};
-use near_sdk::{log, AccountId, Balance, Gas, PromiseOrValue};
+use near_sdk::{log, AccountId, Gas, PromiseOrValue};
 
 use crate::policy::UserInfo;
 use crate::types::{
@@ -14,8 +14,8 @@ use crate::upgrade::{upgrade_remote, upgrade_using_factory};
 use crate::*;
 
 /// Status of a proposal.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq, Debug)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(Clone, PartialEq, Debug)]
+#[near(serializers=[borsh, json])]
 pub enum ProposalStatus {
     InProgress,
     /// If quorum voted yes, this proposal is successfully approved.
@@ -34,9 +34,10 @@ pub enum ProposalStatus {
 }
 
 /// Function call arguments.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq)]
+
+#[derive(PartialEq)]
+#[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
-#[serde(crate = "near_sdk::serde")]
 pub struct ActionCall {
     method_name: String,
     args: Base64VecU8,
@@ -45,9 +46,10 @@ pub struct ActionCall {
 }
 
 /// Function call arguments.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq)]
+
+#[derive(PartialEq)]
+#[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
-#[serde(crate = "near_sdk::serde")]
 pub struct PolicyParameters {
     pub proposal_bond: Option<U128>,
     pub proposal_period: Option<U64>,
@@ -56,9 +58,9 @@ pub struct PolicyParameters {
 }
 
 /// Kinds of proposals, doing different action.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq)]
+#[derive(PartialEq)]
+#[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
-#[serde(crate = "near_sdk::serde")]
 pub enum ProposalKind {
     /// Change the DAO config.
     ChangeConfig { config: Config },
@@ -144,6 +146,7 @@ impl ProposalKind {
 
 /// Votes recorded in the proposal.
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
+#[borsh(crate = "near_sdk::borsh", use_discriminant = true)]
 #[serde(crate = "near_sdk::serde")]
 pub enum Vote {
     Approve = 0x0,
@@ -163,9 +166,8 @@ impl From<Action> for Vote {
 }
 
 /// Proposal that are sent to this DAO.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-#[serde(crate = "near_sdk::serde")]
 pub struct Proposal {
     /// Original proposer.
     pub proposer: AccountId,
@@ -183,9 +185,8 @@ pub struct Proposal {
     pub submission_time: U64,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-#[serde(crate = "near_sdk::serde")]
 pub enum VersionedProposal {
     Default(Proposal),
 }
@@ -225,8 +226,7 @@ impl Proposal {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(crate = "near_sdk::serde")]
+#[near(serializers=[json])]
 pub struct ProposalInput {
     /// Description of this proposal.
     pub description: String,
@@ -259,27 +259,20 @@ impl Contract {
         msg: Option<String>,
     ) -> PromiseOrValue<()> {
         if token_id.is_none() {
-            Promise::new(receiver_id.clone()).transfer(amount).into()
+            Promise::new(receiver_id.clone())
+                .transfer(NearToken::from_yoctonear(amount))
+                .into()
         } else {
             if let Some(msg) = msg {
-                ext_fungible_token::ft_transfer_call(
-                    receiver_id.clone(),
-                    U128(amount),
-                    Some(memo),
-                    msg,
-                    token_id.as_ref().unwrap().clone(),
-                    ONE_YOCTO_NEAR,
-                    GAS_FOR_FT_TRANSFER,
-                )
+                ext_fungible_token::ext(token_id.as_ref().unwrap().clone())
+                    .with_attached_deposit(ONE_YOCTO_NEAR)
+                    .with_static_gas(GAS_FOR_FT_TRANSFER)
+                    .ft_transfer_call(receiver_id.clone(), U128(amount), Some(memo), msg)
             } else {
-                ext_fungible_token::ft_transfer(
-                    receiver_id.clone(),
-                    U128(amount),
-                    Some(memo),
-                    token_id.as_ref().unwrap().clone(),
-                    ONE_YOCTO_NEAR,
-                    GAS_FOR_FT_TRANSFER,
-                )
+                ext_fungible_token::ext(token_id.as_ref().unwrap().clone())
+                    .with_attached_deposit(ONE_YOCTO_NEAR)
+                    .with_static_gas(GAS_FOR_FT_TRANSFER)
+                    .ft_transfer(receiver_id.clone(), U128(amount), Some(memo))
             }
             .into()
         }
@@ -288,14 +281,20 @@ impl Contract {
     fn internal_return_bonds(&mut self, policy: &Policy, proposal: &Proposal) -> Promise {
         match &proposal.kind {
             ProposalKind::BountyDone { .. } => {
-                self.locked_amount -= policy.bounty_bond.0;
-                Promise::new(proposal.proposer.clone()).transfer(policy.bounty_bond.0);
+                self.locked_amount = self
+                    .locked_amount
+                    .saturating_sub(NearToken::from_yoctonear(policy.bounty_bond.0));
+                Promise::new(proposal.proposer.clone())
+                    .transfer(NearToken::from_yoctonear(policy.bounty_bond.0));
             }
             _ => {}
         }
 
-        self.locked_amount -= policy.proposal_bond.0;
-        Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond.0)
+        self.locked_amount = self
+            .locked_amount
+            .saturating_sub(NearToken::from_yoctonear(policy.proposal_bond.0));
+        Promise::new(proposal.proposer.clone())
+            .transfer(NearToken::from_yoctonear(policy.proposal_bond.0))
     }
 
     /// Executes given proposal and updates the contract's state.
@@ -335,8 +334,8 @@ impl Contract {
                     promise = promise.function_call(
                         action.method_name.clone().into(),
                         action.args.clone().into(),
-                        action.deposit.0,
-                        Gas(action.gas.0),
+                        NearToken::from_yoctonear(action.deposit.0),
+                        Gas::from_gas(action.gas.0),
                     )
                 }
                 promise.into()
@@ -410,12 +409,11 @@ impl Contract {
         };
         match result {
             PromiseOrValue::Promise(promise) => promise
-                .then(ext_self::on_proposal_callback(
-                    proposal_id,
-                    env::current_account_id(),
-                    0,
-                    GAS_FOR_FT_TRANSFER,
-                ))
+                .then(
+                    Self::ext(env::current_account_id())
+                        .with_static_gas(GAS_FOR_FT_TRANSFER)
+                        .on_proposal_callback(proposal_id),
+                )
                 .into(),
             PromiseOrValue::Value(()) => self.internal_return_bonds(&policy, &proposal).into(),
         }
@@ -479,7 +477,7 @@ impl Contract {
     }
 }
 
-#[near_bindgen]
+#[near]
 impl Contract {
     /// Add proposal to this DAO.
     #[payable]
@@ -490,7 +488,7 @@ impl Contract {
 
         assert_eq!(
             env::attached_deposit(),
-            policy.proposal_bond.0,
+            NearToken::from_yoctonear(policy.proposal_bond.0),
             "ERR_MIN_BOND"
         );
 
@@ -531,7 +529,7 @@ impl Contract {
         self.proposals
             .insert(&id, &VersionedProposal::Default(proposal.into()));
         self.last_proposal_id += 1;
-        self.locked_amount += env::attached_deposit();
+        self.locked_amount = self.locked_amount.saturating_add(env::attached_deposit());
         id
     }
 
@@ -645,7 +643,6 @@ impl Contract {
             "ERR_UNEXPECTED_CALLBACK_PROMISES"
         );
         let result = match env::promise_result(0) {
-            PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => self.internal_callback_proposal_success(&mut proposal),
             PromiseResult::Failed => self.internal_callback_proposal_fail(&mut proposal),
         };

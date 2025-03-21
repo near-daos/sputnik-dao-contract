@@ -16,6 +16,7 @@ import {
     Proposal,
     initWorkspace,
     getProposalKind,
+    normalizePolicy
 } from './utils';
 
 const test = initWorkspace();
@@ -287,7 +288,8 @@ test('Proposal ChangePolicy', async (t) => {
     );
 
     //Check that the policy is changed
-    t.deepEqual(await dao.view('get_policy'), correctPolicy);
+    
+    t.deepEqual(normalizePolicy(await dao.view('get_policy')), normalizePolicy(correctPolicy));
 });
 
 test('Proposal Transfer', async (t) => {

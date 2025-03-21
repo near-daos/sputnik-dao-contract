@@ -14,6 +14,7 @@ import {
     registerAndDelegate,
     STORAGE_PER_BYTE,
     deployAndInit,
+    normalizePolicy,
 } from './utils';
 import {
     DEADLINE,
@@ -107,7 +108,7 @@ test('View method get_policy', async (t) => {
         bounty_bond: '1000000000000000000000000',
         bounty_forgiveness_period: '86400000000000',
     };
-    t.deepEqual(await bob.view('get_policy'), policy);
+    t.deepEqual(normalizePolicy(await bob.view('get_policy')), normalizePolicy(policy));
 });
 
 test(

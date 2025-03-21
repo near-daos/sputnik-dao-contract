@@ -353,3 +353,14 @@ export type ProposalStatus = 'InProgress' | 'Approved' | 'Rejected' | 'Removed' 
 export interface Proposal {
     status: ProposalStatus
 };
+
+
+export function normalizePolicy(policy) {
+    return {
+        ...policy,
+        roles: policy.roles.map(role => ({
+            ...role,
+            permissions: role.permissions.sort()
+        }))
+    };
+}

@@ -1,12 +1,9 @@
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-
 use std::cmp::min;
 
 use crate::*;
 
 /// This is format of output via JSON for the proposal.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-#[serde(crate = "near_sdk::serde")]
+#[near(serializers=[borsh, json])]
 pub struct ProposalOutput {
     /// Id of the proposal.
     pub id: u64,
@@ -15,8 +12,7 @@ pub struct ProposalOutput {
 }
 
 /// This is format of output via JSON for the bounty.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-#[serde(crate = "near_sdk::serde")]
+#[near(serializers=[borsh, json])]
 pub struct BountyOutput {
     /// Id of the bounty.
     pub id: u64,
@@ -24,7 +20,7 @@ pub struct BountyOutput {
     pub bounty: Bounty,
 }
 
-#[near_bindgen]
+#[near]
 impl Contract {
     /// Returns semver of this contract.
     pub fn version(&self) -> String {
@@ -52,14 +48,17 @@ impl Contract {
     }
 
     /// Returns locked amount of NEAR that is used for storage.
-    pub fn get_locked_storage_amount(&self) -> U128 {
-        let locked_storage_amount = env::storage_byte_cost() * (env::storage_usage() as u128);
-        U128(locked_storage_amount)
+    pub fn get_locked_storage_amount(&self) -> NearToken {
+        let locked_storage_amount =
+            env::storage_byte_cost().saturating_mul(env::storage_usage() as u128);
+        locked_storage_amount
     }
 
     /// Returns available amount of NEAR that can be spent (outside of amount for storage and bonds).
-    pub fn get_available_amount(&self) -> U128 {
-        U128(env::account_balance() - self.get_locked_storage_amount().0 - self.locked_amount)
+    pub fn get_available_amount(&self) -> NearToken {
+        env::account_balance()
+            .saturating_sub(self.get_locked_storage_amount())
+            .saturating_sub(self.locked_amount)
     }
 
     /// Returns total delegated stake.

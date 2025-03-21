@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use near_contract_standards::fungible_token::Balance;
 pub use near_sdk::json_types::{Base64VecU8, U64};
 use near_sdk::serde_json::json;
 
@@ -8,9 +9,9 @@ use near_workspaces::types::NearToken;
 use near_workspaces::{Account, AccountId, Contract, Worker};
 
 use near_sdk::json_types::U128;
-use sputnik_staking::ContractContract as StakingContract;
+use sputnik_staking::Contract as StakingContract;
 use sputnikdao2::{
-    Action, Bounty, Config, ContractContract as DAOContract, OldAccountId, Proposal, ProposalInput,
+    Action, Bounty, Config, Contract as DAOContract, OldAccountId, Proposal, ProposalInput,
     ProposalKind, VersionedPolicy, OLD_BASE_TOKEN,
 };
 
@@ -97,7 +98,7 @@ pub async fn setup_dao() -> Result<(Contract, Worker<Sandbox>, Account), Box<dyn
         .args_json(json!({
             "config": config,
             "policy": VersionedPolicy::Default(vec![
-                near_sdk::AccountId::new_unchecked(root.id().to_string())
+                root.id().clone()
             ])
         }))
         .max_gas()
@@ -186,7 +187,7 @@ pub async fn add_transfer_proposal(
     dao: &Contract,
     token_id: Option<near_sdk::AccountId>,
     receiver_id: near_sdk::AccountId,
-    amount: near_sdk::Balance,
+    amount: Balance,
     msg: Option<String>,
 ) -> ExecutionFinalResult {
     add_proposal(

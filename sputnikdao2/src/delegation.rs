@@ -6,7 +6,7 @@ impl Contract {
     }
 }
 
-#[near_bindgen]
+#[near]
 impl Contract {
     #[payable]
     pub fn register_delegation(&mut self, account_id: &AccountId) {
@@ -16,7 +16,10 @@ impl Contract {
             staking_id,
             "ERR_INVALID_CALLER"
         );
-        assert_eq!(env::attached_deposit(), 16 * env::storage_byte_cost());
+        assert_eq!(
+            env::attached_deposit(),
+            env::storage_byte_cost().saturating_mul(16)
+        );
         self.delegations.insert(account_id, &0);
     }
 

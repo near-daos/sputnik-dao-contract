@@ -7,20 +7,20 @@ use crate::*;
 
 const FACTORY_KEY: &[u8; 7] = b"FACTORY";
 const ERR_MUST_BE_SELF_OR_FACTORY: &str = "ERR_MUST_BE_SELF_OR_FACTORY";
-const UPDATE_GAS_LEFTOVER: Gas = Gas(10_000_000_000_000);
-const FACTORY_UPDATE_GAS_LEFTOVER: Gas = Gas(15_000_000_000_000);
-const NO_DEPOSIT: Balance = 0;
+const UPDATE_GAS_LEFTOVER: Gas = Gas::from_tgas(10);
+const FACTORY_UPDATE_GAS_LEFTOVER: Gas = Gas::from_tgas(15);
+const NO_DEPOSIT: NearToken = NearToken::from_near(0);
 
-pub const GAS_FOR_UPGRADE_SELF_PROMISE_CREATION: Gas = Gas(15_000_000_000_000);
-pub const GAS_FOR_UPGRADE_REMOTE_PROMISE_CREATION: Gas = Gas(15_000_000_000_000);
+pub const GAS_FOR_UPGRADE_SELF_PROMISE_CREATION: Gas = Gas::from_tgas(15);
+pub const GAS_FOR_UPGRADE_REMOTE_PROMISE_CREATION: Gas = Gas::from_tgas(15);
 /// Since Nightshade V2, the send_not_sir of action_function_call_per_byte increase to this value, please refer to:
 /// https://github.com/near/nearcore/blob/0c2374993fc74b57faf2bcdf5c7c73a37e82b75a/core/parameters/res/runtime_configs/parameters.snap#L52
 pub const GAS_FUNCTION_CALL_PER_BYTE: u64 = 47_683_715;
 
 /// Info about factory that deployed this contract and if auto-update is allowed.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq)]
+#[derive(PartialEq)]
+#[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
-#[serde(crate = "near_sdk::serde")]
 pub struct FactoryInfo {
     pub factory_id: AccountId,
     pub auto_update: bool,
@@ -33,7 +33,7 @@ pub fn get_default_factory_id() -> AccountId {
     // ex: sputnik-dao.near
     let factory_id = &dao_id[idx + 1..];
 
-    AccountId::new_unchecked(String::from(factory_id))
+    factory_id.parse().unwrap()
 }
 
 /// Fetches factory info from the storage.
@@ -48,10 +48,9 @@ pub(crate) fn internal_get_factory_info() -> FactoryInfo {
 }
 
 pub(crate) fn internal_set_factory_info(factory_info: &FactoryInfo) {
-    env::storage_write(
-        FACTORY_KEY,
-        &factory_info.try_to_vec().expect("INTERNAL_FAIL"),
-    );
+    let mut serialize_buf: Vec<u8> = Vec::new();
+    BorshSerialize::serialize(factory_info, &mut serialize_buf).expect("INTERNAL_FAIL");
+    env::storage_write(FACTORY_KEY, &serialize_buf);
 }
 
 /// Function that receives new contract, updates and calls migration.
@@ -93,7 +92,9 @@ pub fn update() {
         "migrate",
         &[],
         NO_DEPOSIT,
-        env::prepaid_gas() - env::used_gas() - UPDATE_GAS_LEFTOVER,
+        env::prepaid_gas()
+            .saturating_sub(env::used_gas())
+            .saturating_sub(UPDATE_GAS_LEFTOVER),
     );
     env::promise_return(promise_id);
 }
@@ -110,7 +111,9 @@ pub(crate) fn upgrade_using_factory(code_hash: Base58CryptoHash) {
             .to_string()
             .into_bytes(),
         NO_DEPOSIT,
-        env::prepaid_gas() - env::used_gas() - FACTORY_UPDATE_GAS_LEFTOVER,
+        env::prepaid_gas()
+            .saturating_sub(env::used_gas())
+            .saturating_sub(FACTORY_UPDATE_GAS_LEFTOVER),
     );
     env::promise_return(promise_id);
 }
@@ -126,22 +129,24 @@ pub(crate) fn upgrade_self(hash: &[u8]) {
         "migrate",
         &[],
         NO_DEPOSIT,
-        env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_SELF_PROMISE_CREATION,
+        env::prepaid_gas()
+            .saturating_sub(env::used_gas())
+            .saturating_sub(GAS_FOR_UPGRADE_SELF_PROMISE_CREATION),
     );
 }
 
 pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &[u8]) {
     let input = env::storage_read(hash).expect("ERR_NO_HASH");
     let promise_id = env::promise_batch_create(receiver_id);
-    let wasm_argument_gas = Gas(input.len() as u64 * GAS_FUNCTION_CALL_PER_BYTE);
+    let wasm_argument_gas = Gas::from_gas(input.len() as u64 * GAS_FUNCTION_CALL_PER_BYTE);
     env::promise_batch_action_function_call(
         promise_id,
         method_name,
         &input,
         NO_DEPOSIT,
         env::prepaid_gas()
-            - env::used_gas()
-            - GAS_FOR_UPGRADE_REMOTE_PROMISE_CREATION
-            - wasm_argument_gas,
+            .saturating_sub(env::used_gas())
+            .saturating_sub(GAS_FOR_UPGRADE_REMOTE_PROMISE_CREATION)
+            .saturating_sub(wasm_argument_gas),
     );
 }
