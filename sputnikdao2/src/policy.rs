@@ -82,10 +82,9 @@ pub struct UserInfo {
 }
 
 /// Direct weight or ratio to total weight, used for the voting policy.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq)]
-#[borsh(crate = "near_sdk::borsh")]
+#[derive(Clone, PartialEq)]
+#[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-#[serde(crate = "near_sdk::serde")]
 #[serde(untagged)]
 pub enum WeightOrRatio {
     Weight(U128),
