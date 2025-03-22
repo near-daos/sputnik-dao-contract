@@ -1,7 +1,10 @@
-use near_sdk::base64;
 use near_sdk::serde_json::{json, Value};
+use near_sdk::{
+    base64::{engine::general_purpose, Engine as _},
+    AccountIdRef,
+};
 use near_workspaces::types::NearToken;
-use near_workspaces::{AccountId, Contract};
+use near_workspaces::AccountId;
 use std::fs;
 
 #[tokio::test]
@@ -9,7 +12,8 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
     const SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &str = "sputnik-dao.near";
 
     let mainnet = near_workspaces::mainnet().await?;
-    let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.parse()?;
+    let sputnikdao_factory_contract_id: AccountId =
+        AccountIdRef::new_or_panic(SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT).into();
 
     let worker = near_workspaces::sandbox().await?;
 
@@ -93,13 +97,12 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let user_account = worker.dev_create_account().await?;
-    let account_details_before = user_account.view_account().await?;
 
     let create_result = user_account
         .call(&sputnikdao_factory_contract_id, "create")
         .args_json(json!({
             "name": dao_name,
-            "args": base64::encode(create_dao_args.to_string())
+            "args":  general_purpose::STANDARD.encode(create_dao_args.to_string())
         }))
         .max_gas()
         .deposit(NearToken::from_near(6))
@@ -111,11 +114,6 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
     let dao_account_id: AccountId = format!("{}.{}", dao_name, SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT)
         .parse()
         .unwrap();
-    let dao_contract = Contract::from_secret_key(
-        dao_account_id.clone(),
-        user_account.secret_key().clone(),
-        &worker,
-    );
 
     let get_config_result = worker.view(&dao_account_id, "get_config").await?;
 

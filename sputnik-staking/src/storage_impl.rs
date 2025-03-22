@@ -51,7 +51,7 @@ impl StorageManagement for Contract {
         let account_id = env::predecessor_account_id();
         let user = self.internal_get_user(&account_id);
         let available = user.storage_available();
-        let amount = amount.map(|a| a).unwrap_or(available);
+        let amount = amount.unwrap_or(available);
         assert!(amount <= available, "ERR_STORAGE_WITHDRAW_TOO_MUCH");
         Promise::new(account_id.clone()).transfer(amount);
         self.storage_balance_of(account_id.try_into().unwrap())
@@ -67,7 +67,7 @@ impl StorageManagement for Contract {
             // TODO: figure out force option logic.
             assert!(user.vote_amount.0 > 0, "ERR_STORAGE_UNREGISTER_NOT_EMPTY");
             self.users.remove(&account_id);
-            Promise::new(account_id.clone()).transfer(user.near_amount);
+            Promise::new(account_id).transfer(user.near_amount);
             true
         } else {
             false

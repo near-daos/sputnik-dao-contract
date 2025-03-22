@@ -83,7 +83,7 @@ impl User {
     pub fn undelegate(
         &mut self,
         delegate_id: &AccountId,
-        amount: u128,
+        amount: Balance,
         undelegation_period: Duration,
     ) {
         let f = self

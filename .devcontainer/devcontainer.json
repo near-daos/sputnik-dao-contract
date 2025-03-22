@@ -9,7 +9,8 @@
     "ghcr.io/devcontainers/features/rust:1": {},
     "ghcr.io/near/near-devcontainers/features/cargo-near:latest": {},
     "ghcr.io/devcontainers-community/features/llvm": {},
-    "ghcr.io/devcontainers/features/node:1": {}
+    "ghcr.io/devcontainers/features/node:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
   "customizations": {
     "vscode": {

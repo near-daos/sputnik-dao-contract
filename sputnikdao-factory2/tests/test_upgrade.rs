@@ -1,7 +1,8 @@
+use near_sdk::base64::{engine::general_purpose, Engine as _};
 use near_sdk::env::sha256;
 use near_sdk::json_types::Base58CryptoHash;
 use near_sdk::serde_json::{json, Value};
-use near_sdk::{base64, CryptoHash};
+use near_sdk::{AccountIdRef, CryptoHash};
 use near_workspaces::types::NearToken;
 use near_workspaces::{AccountId, Contract};
 use std::fs;
@@ -13,7 +14,8 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
 
     // Import the mainnet sputnik-dao.near factory contract
     let mainnet = near_workspaces::mainnet().await?;
-    let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.parse()?;
+    let sputnikdao_factory_contract_id: AccountId =
+        AccountIdRef::new_or_panic(SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT).into();
 
     let worker = near_workspaces::sandbox().await?;
     let user_account = worker.dev_create_account().await?;
@@ -94,7 +96,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         .call(&sputnikdao_factory_contract_id, "create")
         .args_json(json!({
             "name": dao_name,
-            "args": base64::encode(create_dao_args.to_string())
+            "args": general_purpose::STANDARD.encode(create_dao_args.to_string())
         }))
         .max_gas()
         .deposit(NearToken::from_near(6))
