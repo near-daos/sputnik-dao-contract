@@ -4,6 +4,7 @@ version = "0.2.1"
 authors = ["Illia Polosukhin <illia.polosukhin@gmail.com>"]
 edition = "2018"
 publish = false
+repository = "https://github.com/near-daos/sputnik-dao-contract"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -16,3 +17,18 @@ near-contract-standards = "5.9.0"
 near-workspaces = "0.17.0"
 tokio = { version = "1.44.0", features = ["full"] }
 near-sdk = {version="5.9.0", features = ["unit-testing"] }
+
+[package.metadata.near.reproducible_build]
+# docker image, descriptor of build environment
+image = "sourcescan/cargo-near:0.10.1-rust-1.82.0"
+# tag after colon above serves only descriptive purpose; image is identified by digest
+image_digest = "sha256:48206ab74c774cb03394ef84f0c5e0b458a071331164b5da853de06f3510cbf8"
+# list of environment variables names, whose values, if set, will be used as external build parameters
+# in a reproducible manner
+# supported by `sourcescan/cargo-near:0.10.1-rust-1.82.0` image or later images
+passed_env = []
+# build command inside of docker container 
+# if docker image from default gallery is used https://hub.docker.com/r/sourcescan/cargo-near/tags,
+# the command may be any combination of flags of `cargo-near`,
+# supported by respective version of binary inside the container besides `--no-locked` flag
+container_build_command = ["cargo", "near", "build"]
