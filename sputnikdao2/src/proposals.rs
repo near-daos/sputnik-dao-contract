@@ -61,6 +61,7 @@ pub struct PolicyParameters {
 #[derive(PartialEq)]
 #[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
+#[serde(deny_unknown_fields)]
 pub enum ProposalKind {
     /// Change the DAO config.
     ChangeConfig { config: Config },
