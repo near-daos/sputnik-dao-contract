@@ -145,9 +145,9 @@ impl ProposalKind {
 }
 
 /// Votes recorded in the proposal.
-#[derive(Clone, Debug)]
-#[near(serializers=[borsh,json])]
-// #[borsh(use_discriminant = true)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug)]
+#[near(serializers=[json])]
+#[borsh(crate = "near_sdk::borsh", use_discriminant = true)]
 pub enum Vote {
     Approve = 0x0,
     Reject = 0x1,
@@ -166,7 +166,9 @@ impl From<Action> for Vote {
 }
 
 /// Proposal that are sent to this DAO.
-#[near(serializers=[borsh, json])]
+#[derive(BorshDeserialize, BorshSerialize)]
+#[borsh(crate = "near_sdk::borsh")]
+#[near(serializers=[json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct Proposal {
     /// Original proposer.
@@ -185,7 +187,9 @@ pub struct Proposal {
     pub submission_time: U64,
 }
 
-#[near(serializers=[borsh, json])]
+#[derive(BorshDeserialize, BorshSerialize)]
+#[borsh(crate = "near_sdk::borsh")]
+#[near(serializers=[json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub enum VersionedProposal {
     Default(Proposal),

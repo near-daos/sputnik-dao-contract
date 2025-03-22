@@ -3,7 +3,9 @@ use std::cmp::min;
 use crate::*;
 
 /// This is format of output via JSON for the proposal.
-#[near(serializers=[borsh, json])]
+#[derive(BorshSerialize, BorshDeserialize)]
+#[borsh(crate = "near_sdk::borsh")]
+#[near(serializers=[json])]
 pub struct ProposalOutput {
     /// Id of the proposal.
     pub id: u64,
