@@ -162,10 +162,10 @@ pub struct Policy {
 }
 
 /// Versioned policy.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq)]
-#[borsh(crate = "near_sdk::borsh")]
+#[derive(Clone, PartialEq)]
+#[near(serializers = [borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-#[serde(crate = "near_sdk::serde", untagged)]
+#[serde(untagged)]
 pub enum VersionedPolicy {
     /// Default policy with given accounts as council.
     Default(Vec<AccountId>),

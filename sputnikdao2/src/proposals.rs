@@ -145,9 +145,9 @@ impl ProposalKind {
 }
 
 /// Votes recorded in the proposal.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
-#[borsh(crate = "near_sdk::borsh", use_discriminant = true)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(Clone, Debug)]
+#[near(serializers=[borsh,json])]
+// #[borsh(use_discriminant = true)]
 pub enum Vote {
     Approve = 0x0,
     Reject = 0x1,
