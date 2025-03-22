@@ -147,6 +147,7 @@ impl ProposalKind {
 /// Votes recorded in the proposal.
 #[derive(BorshDeserialize, BorshSerialize, Clone, Debug)]
 #[near(serializers=[json])]
+// If adding borsh to the `near` attribute macro, then adding a line with only the additional `use_discriminant` parameter is not allowed
 #[borsh(crate = "near_sdk::borsh", use_discriminant = true)]
 pub enum Vote {
     Approve = 0x0,
@@ -168,6 +169,7 @@ impl From<Action> for Vote {
 /// Proposal that are sent to this DAO.
 #[derive(BorshDeserialize, BorshSerialize)]
 #[borsh(crate = "near_sdk::borsh")]
+// In this case adding `borsh` to the serializers in the `near` attribute macro fails to build with abi
 #[near(serializers=[json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct Proposal {
@@ -189,6 +191,7 @@ pub struct Proposal {
 
 #[derive(BorshDeserialize, BorshSerialize)]
 #[borsh(crate = "near_sdk::borsh")]
+// In this case adding `borsh` to the serializers in the `near` attribute macro fails to build with abi
 #[near(serializers=[json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub enum VersionedProposal {
