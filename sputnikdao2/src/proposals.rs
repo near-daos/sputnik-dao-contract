@@ -535,6 +535,7 @@ impl Contract {
 
     /// Act on given proposal by id, if permissions allow.
     /// Memo is logged but not stored in the state. Can be used to leave notes or explain the action.
+    #[deny_unknown_arguments]
     pub fn act_proposal(
         &mut self,
         id: u64,
