@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use ext_fungible_token::ext_fungible_token;
-use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{Base64VecU8, U128, U64};
 use near_sdk::{log, AccountId, Gas, PromiseOrValue};
 
@@ -145,10 +144,8 @@ impl ProposalKind {
 }
 
 /// Votes recorded in the proposal.
-#[derive(BorshDeserialize, BorshSerialize, Clone, Debug)]
-#[near(serializers=[json])]
-// If adding borsh to the `near` attribute macro, then adding a line with only the additional `use_discriminant` parameter is not allowed
-#[borsh(crate = "near_sdk::borsh", use_discriminant = true)]
+#[derive(Clone, Debug)]
+#[near(serializers=[borsh(use_discriminant=true),json])]
 pub enum Vote {
     Approve = 0x0,
     Reject = 0x1,
@@ -167,10 +164,7 @@ impl From<Action> for Vote {
 }
 
 /// Proposal that are sent to this DAO.
-#[derive(BorshDeserialize, BorshSerialize)]
-#[borsh(crate = "near_sdk::borsh")]
-// In this case adding `borsh` to the serializers in the `near` attribute macro fails to build with abi
-#[near(serializers=[json])]
+#[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct Proposal {
     /// Original proposer.
@@ -189,10 +183,8 @@ pub struct Proposal {
     pub submission_time: U64,
 }
 
-#[derive(BorshDeserialize, BorshSerialize)]
-#[borsh(crate = "near_sdk::borsh")]
 // In this case adding `borsh` to the serializers in the `near` attribute macro fails to build with abi
-#[near(serializers=[json])]
+#[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub enum VersionedProposal {
     Default(Proposal),

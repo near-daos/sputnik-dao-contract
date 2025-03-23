@@ -3,10 +3,7 @@ use std::cmp::min;
 use crate::*;
 
 /// This is format of output via JSON for the proposal.
-#[derive(BorshSerialize, BorshDeserialize)]
-#[borsh(crate = "near_sdk::borsh")]
-// In this case adding `borsh` to the serializers in the `near` attribute macro fails to build with abi
-#[near(serializers=[json])]
+#[near(serializers=[borsh, json])]
 pub struct ProposalOutput {
     /// Id of the proposal.
     pub id: u64,
