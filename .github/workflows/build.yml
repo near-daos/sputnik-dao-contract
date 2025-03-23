@@ -41,21 +41,10 @@ jobs:
     needs: ['create-release-on-tags']
     runs-on: ubuntu-latest
     steps:
-      # rust compiler for running tests
-      - uses: actions/checkout@v2
-      - name: Install latest stable (for linux-gnu)
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: x86_64-unknown-linux-gnu
-          components: rustfmt, clippy
-      # rust compiler for creating binaries
-      - name: Install latest stable (for wasm)
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: wasm32-unknown-unknown
-          components: rustfmt, clippy
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install cargo-near CLI
+        run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/latest/download/cargo-near-installer.sh | sh
       # caching (cargo registry)
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -72,7 +61,7 @@ jobs:
       - name: Cache cargo wasm build (including docs)
         uses: actions/cache@v4
         with:
-          path: target/wasm32-unknown-unknown
+          path: target/near
           key: ubuntu-latest-stable-cargo-release-target-${{ hashFiles('**/Cargo.toml') }}
       # caching (cargo testing artifacts)
       - name: Cache cargo linux-gnu build (for testing)
@@ -80,16 +69,6 @@ jobs:
         with:
           path: target/x86_64-unknown-linux-gnu
           key: ubuntu-latest-stable-cargo-release-target-${{ hashFiles('**/Cargo.toml') }}
-      # downloads/installs any extra requirements
-      #
-      # binaryen, which is used to reduce the contract's size.
-      # based on:
-      # https://github.com/rustwasm/walrus/blob/9d6c9de432d6a97478dc76ebdf18aed51584c3af/.github/workflows/main.yml#L56
-      - name: Install binaryen
-        run: |
-          set -e
-          curl -L https://github.com/WebAssembly/binaryen/releases/download/version_119/binaryen-version_119-x86_64-linux.tar.gz | tar xzf - 
-          echo "`pwd`/binaryen-version_119/bin" >> $GITHUB_PATH 
       # triggers all build.rs steps
       - name: Trigger build.rs steps
         run: |
@@ -99,26 +78,20 @@ jobs:
             -prune \
             -exec touch -c {} \;
       # Builds the wasm binaries
-      - name: Build wasm binaries
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target wasm32-unknown-unknown
-      # Copies the wasm binaries to res/ and strips them 
-      # (reducing their's sizes)
-      - name: Wasm copy and strip
+      - name: Build
+        run: ./build.sh
+      # Copies the wasm binaries to res/
+      - name: Wasm copy
         run: |
-          find target/wasm32-unknown-unknown/release \
-            -maxdepth 1 \
+          set -e
+          find target/near \
+            -maxdepth 2 \
             -name \*.wasm \
             -prune \
             -exec cp {} res \;
-          for f in res/*.wasm
-          do
-            wasm-opt -Oz -o "$f" "$f"
-          done
       - name: Show the wasm files and their sizes
         run: |
+          set -e
           ls -lah res/*.wasm | awk '{print $5 " " $9}'
       # run the tests (which depend on the binaries from res/)
       - name: Run native tests
@@ -127,13 +100,12 @@ jobs:
           command: test
           # the jobs is optional, to reduce RAM usage
           # the --nocapture prints the tests' stdout
-          args: --target=x86_64-unknown-linux-gnu --jobs=2 -- --nocapture
+          args: --jobs=2 -- --nocapture
       # for tagged runs, create an archive releaseruns
       #
       # based on:
       # https://raw.githubusercontent.com/BurntSushi/ripgrep/master/.github/workflows/release.yml
       - name: Build archive
-        if: startsWith(github.ref, 'refs/tags')
         shell: bash
         run: |
           staging="contracts-${{ needs.create-release-on-tags.outputs.rg_version }}"
@@ -146,6 +118,7 @@ jobs:
           echo ${{ needs.create-release-on-tags.outputs.rg_version }} >> "$staging/info/VERSION"
           git rev-parse HEAD >> "$staging/info/VERSION"
           tar czf "$staging.tar.gz" "$staging"
+          tar tvf "$staging.tar.gz"
           echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
       - name: Upload release archive
         if: startsWith(github.ref, 'refs/tags')

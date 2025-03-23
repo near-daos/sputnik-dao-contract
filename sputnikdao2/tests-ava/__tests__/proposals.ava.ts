@@ -271,6 +271,9 @@ test('Proposal ChangePolicy', async (t) => {
     t.is(proposals[0].status, realProposal.status);
     t.deepEqual(proposals[0].vote_counts, realProposal.vote_counts);
     t.deepEqual(proposals[0].votes, realProposal.votes);
+    // Permissions might be in different order
+    proposals[0].kind.ChangePolicy.policy.roles[0].permissions.sort();
+    realProposal.kind.ChangePolicy.policy.roles[0].permissions.sort();
     t.deepEqual(proposals[0].kind, realProposal.kind);
 
     //After voting on the proposal it is Approved
