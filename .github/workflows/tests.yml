@@ -28,7 +28,7 @@ jobs:
       - name: Build
         env:
           IS_GITHUB_ACTION: true
-        run: cargo +stable build --workspace --target wasm32-unknown-unknown --release
+        run: ./build.sh
       - name: Run Cargo tests
         env:
           IS_GITHUB_ACTION: true
