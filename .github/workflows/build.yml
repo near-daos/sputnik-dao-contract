@@ -83,13 +83,16 @@ jobs:
       # Copies the wasm binaries to res/
       - name: Wasm copy
         run: |
+          set -e
           find target/near \
             -maxdepth 1 \
             -name \*.wasm \
             -prune \
             -exec cp {} res \;
+          ls -l res
       - name: Show the wasm files and their sizes
         run: |
+          set -e
           ls -lah res/*.wasm | awk '{print $5 " " $9}'
       # run the tests (which depend on the binaries from res/)
       - name: Run native tests
