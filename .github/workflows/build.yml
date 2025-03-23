@@ -45,9 +45,52 @@ jobs:
         uses: actions/checkout@v4
       - name: Install cargo-near CLI
         run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/latest/download/cargo-near-installer.sh | sh
-      # build
+      # caching (cargo registry)
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ubuntu-latest-stable-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
+      # caching (cargo index)
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ubuntu-latest-stable-cargo-index-${{ hashFiles('**/Cargo.toml') }}
+      # caching (cargo wasm artifacts)
+      - name: Cache cargo wasm build (including docs)
+        uses: actions/cache@v4
+        with:
+          path: target/near
+          key: ubuntu-latest-stable-cargo-release-target-${{ hashFiles('**/Cargo.toml') }}
+      # caching (cargo testing artifacts)
+      - name: Cache cargo linux-gnu build (for testing)
+        uses: actions/cache@v4
+        with:
+          path: target/x86_64-unknown-linux-gnu
+          key: ubuntu-latest-stable-cargo-release-target-${{ hashFiles('**/Cargo.toml') }}
+      # triggers all build.rs steps
+      - name: Trigger build.rs steps
+        run: |
+          find . \
+            -maxdepth 2 \
+            -name build.rs  \
+            -prune \
+            -exec touch -c {} \;
+      # Builds the wasm binaries
       - name: Build
         run: ./build.sh
+      # Copies the wasm binaries to res/
+      - name: Wasm copy
+        run: |
+          find target/near \
+            -maxdepth 1 \
+            -name \*.wasm \
+            -prune \
+            -exec cp {} res \;
+      - name: Show the wasm files and their sizes
+        run: |
+          ls -lah res/*.wasm | awk '{print $5 " " $9}'
       # run the tests (which depend on the binaries from res/)
       - name: Run native tests
         uses: actions-rs/cargo@v1
@@ -61,7 +104,6 @@ jobs:
       # based on:
       # https://raw.githubusercontent.com/BurntSushi/ripgrep/master/.github/workflows/release.yml
       - name: Build archive
-        if: startsWith(github.ref, 'refs/tags')
         shell: bash
         run: |
           staging="contracts-${{ needs.create-release-on-tags.outputs.rg_version }}"
@@ -74,6 +116,7 @@ jobs:
           echo ${{ needs.create-release-on-tags.outputs.rg_version }} >> "$staging/info/VERSION"
           git rev-parse HEAD >> "$staging/info/VERSION"
           tar czf "$staging.tar.gz" "$staging"
+          tar tvf "$staging.tar.gz"
           echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
       - name: Upload release archive
         if: startsWith(github.ref, 'refs/tags')
