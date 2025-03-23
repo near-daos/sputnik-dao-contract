@@ -10,8 +10,8 @@ repository = "https://github.com/near-daos/sputnik-dao-contract"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-near-sdk = "5.9.0"
-near-contract-standards = "5.9.0"
+near-sdk = "5.10.0"
+near-contract-standards = "5.10.0"
 hex = "0.4.3"
 
 [dependencies.serde_with]

@@ -21,6 +21,7 @@ pub const GAS_FUNCTION_CALL_PER_BYTE: u64 = 47_683_715;
 #[derive(PartialEq)]
 #[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
+#[serde(deny_unknown_fields)]
 pub struct FactoryInfo {
     pub factory_id: AccountId,
     pub auto_update: bool,

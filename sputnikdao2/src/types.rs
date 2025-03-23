@@ -18,6 +18,7 @@ pub const GAS_FOR_FT_TRANSFER: Gas = Gas::from_tgas(10);
 /// Configuration of the DAO.
 #[derive(Clone, Debug, PartialEq)]
 #[near(serializers=[borsh, json])]
+#[serde(deny_unknown_fields)]
 pub struct Config {
     /// Name of the DAO.
     pub name: String,
