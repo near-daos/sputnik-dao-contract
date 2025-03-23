@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use ext_fungible_token::ext_fungible_token;
-use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{Base64VecU8, U128, U64};
 use near_sdk::{log, AccountId, Gas, PromiseOrValue};
 
@@ -145,9 +144,8 @@ impl ProposalKind {
 }
 
 /// Votes recorded in the proposal.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
-#[borsh(crate = "near_sdk::borsh", use_discriminant = true)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(Clone, Debug)]
+#[near(serializers=[borsh(use_discriminant=true),json])]
 pub enum Vote {
     Approve = 0x0,
     Reject = 0x1,
@@ -185,6 +183,7 @@ pub struct Proposal {
     pub submission_time: U64,
 }
 
+// In this case adding `borsh` to the serializers in the `near` attribute macro fails to build with abi
 #[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub enum VersionedProposal {

@@ -8,10 +8,11 @@ jobs:
   tests:
     strategy:
       matrix:
-        platform: [ubuntu-latest, macos-latest]
+        platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -25,10 +26,12 @@ jobs:
         run: |
           brew install llvm@14
           echo /usr/local/opt/llvm@14/bin >> $GITHUB_PATH
+      - name: Install cargo-near CLI
+        run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/latest/download/cargo-near-installer.sh | sh     
       - name: Build
         env:
           IS_GITHUB_ACTION: true
-        run: cargo +stable build --workspace --target wasm32-unknown-unknown --release
+        run: ./build.sh
       - name: Run Cargo tests
         env:
           IS_GITHUB_ACTION: true

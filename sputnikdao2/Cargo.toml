@@ -4,6 +4,7 @@ version = "2.3.1"
 authors = ["Sputnik Devs <near-daos@protonmail.com>"]
 edition = "2018"
 publish = false
+repository = "https://github.com/near-daos/sputnik-dao-contract"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -22,3 +23,22 @@ test-token = { path = "../test-token" }
 sputnik-staking = { path = "../sputnik-staking" }
 sputnikdao-factory2 = { path = "../sputnikdao-factory2" }
 tokio = { version = "1.44.0", features = ["full"] }
+
+# fields to configure build with WASM reproducibility, according to specs  
+# in https://github.com/near/NEPs/blob/master/neps/nep-0330.md 
+[package.metadata.near.reproducible_build]
+# docker image, descriptor of build environment
+image = "sourcescan/cargo-near:0.13.3-rust-1.84.1"
+# tag after colon above serves only descriptive purpose; image is identified by digest
+image_digest = "sha256:baa712c5d2b7522d38175e36330d336ad2c4ce32bfaaa41af94ce40407ecd803"
+# list of environment variables names, whose values, if set, will be used as external build parameters
+# in a reproducible manner
+# supported by `sourcescan/cargo-near:0.10.1-rust-1.82.0` image or later images
+passed_env = []
+# build command inside of docker container 
+# if docker image from default gallery is used https://hub.docker.com/r/sourcescan/cargo-near/tags,
+# the command may be any combination of flags of `cargo-near`,
+# supported by respective version of binary inside the container besides `--no-locked` flag
+container_build_command = ["cargo", "near", "build", "non-reproducible-wasm", "--locked"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
