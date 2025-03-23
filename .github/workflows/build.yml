@@ -85,11 +85,10 @@ jobs:
         run: |
           set -e
           find target/near \
-            -maxdepth 1 \
+            -maxdepth 2 \
             -name \*.wasm \
             -prune \
             -exec cp {} res \;
-          ls -l res
       - name: Show the wasm files and their sizes
         run: |
           set -e
