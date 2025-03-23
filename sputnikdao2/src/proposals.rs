@@ -38,6 +38,7 @@ pub enum ProposalStatus {
 #[derive(PartialEq)]
 #[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
+#[serde(deny_unknown_fields)]
 pub struct ActionCall {
     method_name: String,
     args: Base64VecU8,
@@ -50,6 +51,7 @@ pub struct ActionCall {
 #[derive(PartialEq)]
 #[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
+#[serde(deny_unknown_fields)]
 pub struct PolicyParameters {
     pub proposal_bond: Option<U128>,
     pub proposal_period: Option<U64>,

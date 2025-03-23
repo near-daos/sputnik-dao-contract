@@ -947,20 +947,14 @@ async fn test_payment_failures() -> Result<(), Box<dyn std::error::Error>> {
 /// Test json arguments serialization
 #[tokio::test]
 async fn test_deny_unknown_arguments() -> Result<(), Box<dyn std::error::Error>> {
-    let (dao, _worker, root) = setup_dao().await.unwrap();
-    let user1 = root
-        .create_subaccount(user(1).as_str())
-        .initial_balance(NearToken::from_near(1000))
-        .transact()
-        .await?
-        .result;
+    let (dao, worker, root) = setup_dao().await.unwrap();
 
-    // Add user1
-    let add_member_proposal_result = add_member_proposal(&dao, user1.id().clone()).await;
+    // Add bounty proposal
+    let add_proposal_result = add_bounty_proposal(&worker, &dao).await;
     assert!(
-        add_member_proposal_result.is_success(),
+        add_proposal_result.is_success(),
         "{:?}",
-        add_member_proposal_result.failures()
+        add_proposal_result.failures()
     );
     let mut kind = &mut dao
         .view("get_proposal")
@@ -969,7 +963,6 @@ async fn test_deny_unknown_arguments() -> Result<(), Box<dyn std::error::Error>>
         .unwrap()
         .json::<Value>()
         .unwrap()["kind"];
-
     // Check it is not possible to add high level argument
     let act_proposal_result = root
         .call(dao.id(), "act_proposal")
@@ -990,8 +983,7 @@ async fn test_deny_unknown_arguments() -> Result<(), Box<dyn std::error::Error>>
     );
 
     // Check it is not possible to add unknown fields to the argument struct.
-    kind["AddMemberToRole"]["member_id1"] =
-        near_sdk::serde_json::Value::String("fake_user.test.near".to_string());
+    kind["AddBounty"]["bounty"]["amount1"] = near_sdk::serde_json::Value::String("100".to_string());
     let act_proposal_result = root
         .call(dao.id(), "act_proposal")
         .args_json(json!({
