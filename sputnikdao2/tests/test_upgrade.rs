@@ -1,4 +1,3 @@
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::Base58CryptoHash;
 use near_sdk::serde_json::json;
 
@@ -6,11 +5,26 @@ use near_workspaces::types::NearToken;
 use near_workspaces::AccountId;
 use sputnikdao2::{Action, Config, ProposalInput, ProposalKind, VersionedPolicy};
 
+use rand::Rng;
+use walrus::ModuleConfig;
+
 mod utils;
 use crate::utils::*;
 
 pub static DAO_WASM_BYTES: &[u8] = include_bytes!("../res/sputnikdao2.wasm");
 pub static OTHER_WASM_BYTES: &[u8] = include_bytes!("../res/ref_exchange_release.wasm");
+
+pub fn add_data_segment(wasm: &[u8], size: usize) -> anyhow::Result<Vec<u8>> {
+    let mut module = ModuleConfig::new().parse(wasm)?;
+
+    let random_data: Vec<u8> = (0..size).map(|_| rand::thread_rng().gen()).collect();
+    let data_id = module.data.add(walrus::DataKind::Passive, random_data);
+
+    module.data.get_mut(data_id).name = Some("zero-padding".to_string());
+
+    let new_bytes = module.emit_wasm();
+    Ok(new_bytes)
+}
 
 #[tokio::test]
 async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> {
@@ -99,7 +113,7 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
 /// Test that Sputnik can upgrade another contract.
 #[tokio::test]
 async fn test_upgrade_other() -> Result<(), Box<dyn std::error::Error>> {
-    let (dao, worker, root) = setup_dao().await?;
+    let (dao, _worker, root) = setup_dao().await?;
 
     let ref_account = root
         .create_subaccount("ref-finance")
@@ -125,9 +139,12 @@ async fn test_upgrade_other() -> Result<(), Box<dyn std::error::Error>> {
         ref_contract_new_result.failures()
     );
 
+    let extended_wasm = add_data_segment(OTHER_WASM_BYTES, 1200 * 1024).unwrap();
+    assert_eq!(extended_wasm.len(), 1566669);
+
     let hash = root
         .call(dao.id(), "store_blob")
-        .args(OTHER_WASM_BYTES.to_vec())
+        .args(extended_wasm)
         .deposit(NearToken::from_near(200))
         .max_gas()
         .transact()

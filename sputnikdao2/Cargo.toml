@@ -23,6 +23,9 @@ test-token = { path = "../test-token" }
 sputnik-staking = { path = "../sputnik-staking" }
 sputnikdao-factory2 = { path = "../sputnikdao-factory2" }
 tokio = { version = "1.44.0", features = ["full"] }
+walrus = "0.23.3"
+anyhow = "1.0.97"
+rand = "0.8"
 
 # fields to configure build with WASM reproducibility, according to specs  
 # in https://github.com/near/NEPs/blob/master/neps/nep-0330.md 
