@@ -3,7 +3,9 @@ use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{UnorderedMap, UnorderedSet};
 use near_sdk::json_types::{Base58CryptoHash, Base64VecU8, U128};
 use near_sdk::serde_json::{self, json};
-use near_sdk::{env, near, AccountId, CryptoHash, Gas, NearToken, PanicOnDefault, Promise};
+use near_sdk::{
+    env, near, AccountId, CryptoHash, Gas, GasWeight, NearToken, PanicOnDefault, Promise,
+};
 
 use factory_manager::FactoryManager;
 
@@ -192,14 +194,13 @@ impl SputnikDAOFactory {
 
         // Create a promise toward given account.
         let promise_id = env::promise_batch_create(&account_id);
-        env::promise_batch_action_function_call(
+        env::promise_batch_action_function_call_weight(
             promise_id,
             method_name,
             &dao_contract_code,
             storage_cost,
-            env::prepaid_gas()
-                .saturating_sub(env::used_gas())
-                .saturating_sub(GAS_STORE_CONTRACT_LEFTOVER),
+            Gas::from_gas(0),
+            GasWeight::default(),
         );
         env::promise_return(promise_id);
     }

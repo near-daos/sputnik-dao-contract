@@ -84,14 +84,13 @@ pub fn update() {
     env::promise_batch_action_deploy_contract(promise_id, &input);
     // Call promise to migrate the state.
     // Batched together to fail upgrade if migration fails.
-    env::promise_batch_action_function_call(
+    env::promise_batch_action_function_call_weight(
         promise_id,
         "migrate",
         &[],
         NO_DEPOSIT,
-        env::prepaid_gas()
-            .saturating_sub(env::used_gas())
-            .saturating_sub(UPDATE_GAS_LEFTOVER),
+        Gas::from_gas(0),
+        GasWeight::default(),
     );
     env::promise_return(promise_id);
 }
@@ -101,16 +100,15 @@ pub(crate) fn upgrade_using_factory(code_hash: Base58CryptoHash) {
     // Create a promise toward the factory.
     let promise_id = env::promise_batch_create(&account_id);
     // Call `update` method from the factory which calls `update` method on this account.
-    env::promise_batch_action_function_call(
+    env::promise_batch_action_function_call_weight(
         promise_id,
         "update",
         &json!({ "account_id": env::current_account_id(), "code_hash": code_hash })
             .to_string()
             .into_bytes(),
         NO_DEPOSIT,
-        env::prepaid_gas()
-            .saturating_sub(env::used_gas())
-            .saturating_sub(FACTORY_UPDATE_GAS_LEFTOVER),
+        Gas::from_gas(0),
+        GasWeight::default(),
     );
     env::promise_return(promise_id);
 }
