@@ -121,14 +121,13 @@ pub(crate) fn upgrade_self(hash: &[u8]) {
     let input = env::storage_read(hash).expect("ERR_NO_HASH");
     let promise_id = env::promise_batch_create(&current_id);
     env::promise_batch_action_deploy_contract(promise_id, &input);
-    env::promise_batch_action_function_call(
+    env::promise_batch_action_function_call_weight(
         promise_id,
         "migrate",
         &[],
         NO_DEPOSIT,
-        env::prepaid_gas()
-            .saturating_sub(env::used_gas())
-            .saturating_sub(GAS_FOR_UPGRADE_SELF_PROMISE_CREATION),
+        Gas::from_gas(0),
+        GasWeight::default(),
     );
 }
 
