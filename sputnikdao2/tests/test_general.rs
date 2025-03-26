@@ -1,9 +1,9 @@
-use near_sdk::base64;
+use near_sdk::base64::{engine::general_purpose, Engine as _};
 use near_sdk::json_types::U128;
 use near_sdk::serde_json::{json, Value};
 
 use near_workspaces::types::NearToken;
-use near_workspaces::{sandbox, AccountId, Worker};
+use near_workspaces::AccountId;
 use std::collections::HashMap;
 
 mod utils;
@@ -64,7 +64,7 @@ async fn test_large_policy() -> Result<(), Box<dyn std::error::Error>> {
         .call("create")
         .args_json(json!({
             "name": "testdao",
-            "args": base64::encode(params)
+            "args": general_purpose::STANDARD.encode(params)
         }))
         .deposit(NearToken::from_near(10))
         .max_gas()
@@ -470,7 +470,7 @@ async fn test_bounty_workflow() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::test]
 async fn test_create_dao_and_use_token() -> Result<(), Box<dyn std::error::Error>> {
-    let (dao, worker, root) = setup_dao().await?;
+    let (dao, _worker, root) = setup_dao().await?;
     let user2 = root
         .create_subaccount(user(2).as_str())
         .initial_balance(NearToken::from_near(1000))
@@ -798,7 +798,7 @@ async fn test_create_dao_and_use_token() -> Result<(), Box<dyn std::error::Error
 /// Test various cases that must fail.
 #[tokio::test]
 async fn test_failures() -> Result<(), Box<dyn std::error::Error>> {
-    let (dao, worker, root) = setup_dao().await.unwrap();
+    let (dao, _worker, _root) = setup_dao().await.unwrap();
     let add_transfer_proposal_result = add_transfer_proposal(
         &dao,
         base_token(),
@@ -819,7 +819,7 @@ async fn test_failures() -> Result<(), Box<dyn std::error::Error>> {
 /// Test payments that fail
 #[tokio::test]
 async fn test_payment_failures() -> Result<(), Box<dyn std::error::Error>> {
-    let (dao, worker, root) = setup_dao().await.unwrap();
+    let (dao, _worker, root) = setup_dao().await.unwrap();
     let user1 = root
         .create_subaccount(user(1).as_str())
         .initial_balance(NearToken::from_near(1000))
@@ -956,7 +956,7 @@ async fn test_deny_unknown_arguments() -> Result<(), Box<dyn std::error::Error>>
         "{:?}",
         add_proposal_result.failures()
     );
-    let mut kind = &mut dao
+    let kind = &mut dao
         .view("get_proposal")
         .args_json(json!({"id": 0}))
         .await
