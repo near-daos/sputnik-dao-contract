@@ -100,16 +100,6 @@ impl Contract {
     /// Get specific proposal.
     pub fn get_proposal(&self, id: u64) -> ProposalOutput {
         let proposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL");
-        // let proposal: VersionedProposal = match proposal {
-        //     VersionedProposal::V0(mut p) => {
-        //         p.vote_counts = HashMap::new();
-        //         VersionedProposal::V0(p)
-        //     }
-        //     VersionedProposal::V1(mut p) => {
-        //         p.vote_counts = HashMap::new();
-        //         VersionedProposal::V1(p)
-        //     }
-        // };
         ProposalOutput {
             id,
             proposal: proposal.into(),

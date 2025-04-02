@@ -1,3 +1,6 @@
+use std::collections::VecDeque;
+
+use action_log::ActionLog;
 use near_contract_standards::fungible_token::Balance;
 use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
@@ -17,6 +20,7 @@ pub use crate::types::{Action, Config, OldAccountId, OLD_BASE_TOKEN};
 use crate::upgrade::{internal_get_factory_info, internal_set_factory_info, FactoryInfo};
 pub use crate::views::{BountyOutput, ProposalOutput};
 
+pub mod action_log;
 mod bounties;
 mod delegation;
 mod ext_fungible_token;
@@ -80,6 +84,9 @@ pub struct Contract {
 
     /// Large blob storage.
     pub blobs: LookupMap<CryptoHash, AccountId>,
+
+    /// Log of the latest actions on proposals
+    pub actions_log: VecDeque<ActionLog>,
 }
 
 #[near]
@@ -100,6 +107,7 @@ impl Contract {
             bounty_claims_count: LookupMap::new(StorageKeys::BountyClaimCounts),
             blobs: LookupMap::new(StorageKeys::Blobs),
             locked_amount: NearToken::from_near(0),
+            actions_log: VecDeque::new(),
         };
         internal_set_factory_info(&FactoryInfo {
             factory_id: env::predecessor_account_id(),

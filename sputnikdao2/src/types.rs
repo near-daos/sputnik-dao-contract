@@ -40,7 +40,7 @@ impl Config {
 }
 
 /// Set of possible action to take.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[near(serializers=[borsh, json])]
 pub enum Action {
     /// Action to add proposal. Used internally.

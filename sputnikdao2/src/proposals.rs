@@ -1,9 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 use ext_fungible_token::ext_fungible_token;
 use near_sdk::json_types::{Base64VecU8, U128, U64};
 use near_sdk::{log, AccountId, Gas, PromiseOrValue};
 
+use crate::action_log::ActionLog;
 use crate::policy::UserInfo;
 use crate::types::{
     convert_old_to_new_token, Action, Config, OldAccountId, GAS_FOR_FT_TRANSFER, OLD_BASE_TOKEN,
@@ -202,8 +203,8 @@ pub struct ProposalV1 {
     pub votes: HashMap<AccountId, Vote>,
     /// Submission time (for voting period).
     pub submission_time: U64,
-    /// Last touched block_id.
-    pub last_touched_block_height: Option<U64>,
+    /// Last actions log
+    pub last_actions_log: Option<VecDeque<ActionLog>>,
 }
 
 impl From<ProposalV0> for ProposalV1 {
@@ -216,7 +217,7 @@ impl From<ProposalV0> for ProposalV1 {
             vote_counts: v0.vote_counts.clone(),
             votes: v0.votes.clone(),
             submission_time: v0.submission_time,
-            last_touched_block_height: None,
+            last_actions_log: Some(VecDeque::new()),
         }
     }
 }
@@ -342,7 +343,7 @@ impl From<ProposalInput> for VersionedProposal {
             vote_counts: HashMap::default(),
             votes: HashMap::default(),
             submission_time: U64::from(env::block_timestamp()),
-            last_touched_block_height: Some(U64::from(env::block_height())),
+            last_actions_log: Some(VecDeque::new()),
         })
     }
 }
@@ -387,7 +388,7 @@ impl Contract {
                 vote_counts: p.vote_counts.clone(),
                 votes: p.votes.clone(),
                 submission_time: p.submission_time,
-                last_touched_block_height: None,
+                last_actions_log: Some(VecDeque::new()),
             },
             VersionedProposal::V1(p) => p.clone(),
         };
@@ -681,11 +682,6 @@ impl Contract {
         assert!(allowed, "ERR_PERMISSION_DENIED");
         let sender_id = env::predecessor_account_id();
 
-        // Update the last_touched_block_height
-        if let VersionedProposal::V1(ref mut p) = proposal {
-            p.last_touched_block_height = Some(U64::from(env::block_height()));
-        }
-
         // Verify propolsal kind
         assert!(
             proposal.latest_version_ref().kind == input_proposal_kind,
@@ -709,7 +705,7 @@ impl Contract {
                 proposal.update_votes(
                     &sender_id,
                     &roles,
-                    Vote::from(action),
+                    Vote::from(action.clone()),
                     &policy,
                     self.get_user_weight(&sender_id),
                 );
@@ -787,7 +783,8 @@ impl Contract {
             Action::MoveToHub => false,
         };
         if update {
-            let proposal_v1: ProposalV1 = proposal.clone().into();
+            let mut proposal_v1: ProposalV1 = proposal.clone().into();
+            self.internal_log_action(id, action, &mut proposal_v1);
             self.proposals
                 .insert(&id, &VersionedProposal::V1(proposal_v1));
         }
