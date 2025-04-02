@@ -1,14 +1,11 @@
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::json_types::{U128, U64};
-use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, near_bindgen, AccountId, Promise, PromiseOrValue};
+use near_sdk::{env, AccountId, Promise, PromiseOrValue};
 
 use crate::types::{convert_old_to_new_token, OldAccountId};
 use crate::*;
 
 /// Information recorded about claim of the bounty by given user.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-#[serde(crate = "near_sdk::serde")]
+#[near(serializers=[borsh, json])]
 pub struct BountyClaim {
     /// Bounty id that was claimed.
     bounty_id: u64,
@@ -21,9 +18,9 @@ pub struct BountyClaim {
 }
 
 /// Bounty information.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[near(serializers=[borsh, json])]
+#[derive(Clone, PartialEq)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-#[serde(crate = "near_sdk::serde")]
 pub struct Bounty {
     /// Description of the bounty.
     pub description: String,
@@ -38,9 +35,8 @@ pub struct Bounty {
     pub max_deadline: U64,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
-#[serde(crate = "near_sdk::serde")]
 pub enum VersionedBounty {
     Default(Bounty),
 }
@@ -96,7 +92,7 @@ impl Contract {
     }
 }
 
-#[near_bindgen]
+#[near]
 impl Contract {
     /// Claim given bounty by caller with given expected duration to execute.
     /// Bond must be attached to the claim.
@@ -107,7 +103,7 @@ impl Contract {
         let policy = self.policy.get().unwrap().to_policy();
         assert_eq!(
             env::attached_deposit(),
-            policy.bounty_bond.0,
+            NearToken::from_yoctonear(policy.bounty_bond.0),
             "ERR_BOUNTY_WRONG_BOND"
         );
         let claims_count = self.bounty_claims_count.get(&id).unwrap_or_default();
@@ -129,7 +125,7 @@ impl Contract {
         });
         self.bounty_claimers
             .insert(&env::predecessor_account_id(), &claims);
-        self.locked_amount += env::attached_deposit();
+        self.locked_amount = self.locked_amount.saturating_add(env::attached_deposit());
     }
 
     /// Remove the claim of `claimer_id` from this bounty.
@@ -197,9 +193,11 @@ impl Contract {
             PromiseOrValue::Value(())
         } else {
             // Within forgiveness period. Return bond.
-            self.locked_amount -= policy.bounty_bond.0;
+            self.locked_amount = self
+                .locked_amount
+                .saturating_sub(NearToken::from_yoctonear(policy.bounty_bond.0));
             Promise::new(env::predecessor_account_id())
-                .transfer(policy.bounty_bond.0)
+                .transfer(NearToken::from_yoctonear(policy.bounty_bond.0))
                 .into()
         };
         self.internal_remove_claim(id, &env::predecessor_account_id());
@@ -219,9 +217,7 @@ mod tests {
     use super::*;
 
     fn add_bounty(context: &mut VMContextBuilder, contract: &mut Contract, times: u32) -> u64 {
-        testing_env!(context
-            .attached_deposit(NearToken::from_near(1).as_yoctonear())
-            .build());
+        testing_env!(context.attached_deposit(NearToken::from_near(1)).build());
         let id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::AddBounty {
@@ -235,7 +231,12 @@ mod tests {
             },
         });
         assert_eq!(contract.get_last_bounty_id(), id);
-        contract.act_proposal(id, Action::VoteApprove, None);
+        contract.act_proposal(
+            id,
+            Action::VoteApprove,
+            contract.get_proposal(id).proposal.latest_version_ref().kind,
+            None,
+        );
         id
     }
 
@@ -279,10 +280,15 @@ mod tests {
             "bounty_done"
         );
 
-        contract.act_proposal(1, Action::VoteApprove, None);
+        contract.act_proposal(
+            1,
+            Action::VoteApprove,
+            contract.get_proposal(1).proposal.latest_version_ref().kind,
+            None,
+        );
         testing_env!(
             context.build(),
-            near_sdk::VMConfig::test(),
+            near_sdk::test_vm_config(),
             near_sdk::RuntimeFeesConfig::test(),
             Default::default(),
             vec![PromiseResult::Successful(vec![])],
@@ -294,10 +300,15 @@ mod tests {
 
         contract.bounty_claim(0, U64::from(500));
         contract.bounty_done(0, None, "Bounty is done 2".to_string());
-        contract.act_proposal(2, Action::VoteApprove, None);
+        contract.act_proposal(
+            2,
+            Action::VoteApprove,
+            contract.get_proposal(2).proposal.latest_version_ref().kind,
+            None,
+        );
         testing_env!(
             context.build(),
-            near_sdk::VMConfig::test(),
+            near_sdk::test_vm_config(),
             near_sdk::RuntimeFeesConfig::test(),
             Default::default(),
             vec![PromiseResult::Successful(vec![])],

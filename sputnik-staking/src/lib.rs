@@ -1,11 +1,10 @@
-use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
 use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_contract_standards::fungible_token::Balance;
 use near_sdk::collections::LookupMap;
 use near_sdk::json_types::{U128, U64};
 use near_sdk::{
-    env, ext_contract, near_bindgen, AccountId, Balance, BorshStorageKey, Duration, Gas,
-    PanicOnDefault, Promise, PromiseOrValue, PromiseResult,
+    env, ext_contract, near, AccountId, BorshStorageKey, Duration, Gas, NearToken, PanicOnDefault,
+    Promise, PromiseOrValue, PromiseResult,
 };
 
 pub use user::{User, VersionedUser};
@@ -13,22 +12,23 @@ pub use user::{User, VersionedUser};
 mod storage_impl;
 mod user;
 
-#[derive(BorshStorageKey, BorshSerialize)]
+#[near(serializers=[borsh])]
+#[derive(BorshStorageKey)]
 enum StorageKeys {
     Users,
 }
 
 /// Amount of gas for fungible token transfers.
-pub const GAS_FOR_FT_TRANSFER: Gas = Gas(10_000_000_000_000);
+pub const GAS_FOR_FT_TRANSFER: Gas = Gas::from_tgas(10);
 
 /// Amount of gas for delegate action.
-pub const GAS_FOR_DELEGATE: Gas = Gas(10_000_000_000_000);
+pub const GAS_FOR_DELEGATE: Gas = Gas::from_tgas(10);
 
 /// Amount of gas for register action.
-pub const GAS_FOR_REGISTER: Gas = Gas(10_000_000_000_000);
+pub const GAS_FOR_REGISTER: Gas = Gas::from_tgas(10);
 
 /// Amount of gas for undelegate action.
-pub const GAS_FOR_UNDELEGATE: Gas = Gas(10_000_000_000_000);
+pub const GAS_FOR_UNDELEGATE: Gas = Gas::from_tgas(10);
 
 #[ext_contract(ext_sputnik)]
 pub trait Sputnik {
@@ -37,8 +37,13 @@ pub trait Sputnik {
     fn undelegate(&mut self, account_id: AccountId, amount: U128);
 }
 
-#[near_bindgen]
-#[derive(BorshSerialize, BorshDeserialize, PanicOnDefault)]
+#[ext_contract(fungible_token)]
+pub trait FungibleToken {
+    fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
+}
+
+#[near(contract_state)]
+#[derive(PanicOnDefault)]
 pub struct Contract {
     /// DAO owner of this staking contract.
     owner_id: AccountId,
@@ -52,12 +57,7 @@ pub struct Contract {
     unstake_period: Duration,
 }
 
-#[ext_contract(ext_self)]
-pub trait Contract {
-    fn exchange_callback_post_withdraw(&mut self, sender_id: AccountId, amount: U128);
-}
-
-#[near_bindgen]
+#[near]
 impl Contract {
     #[init]
     pub fn new(owner_id: AccountId, token_id: AccountId, unstake_period: U64) -> Self {
@@ -90,26 +90,18 @@ impl Contract {
     pub fn delegate(&mut self, account_id: AccountId, amount: U128) -> Promise {
         let sender_id = env::predecessor_account_id();
         self.internal_delegate(sender_id, account_id.clone().into(), amount.0);
-        ext_sputnik::delegate(
-            account_id.into(),
-            amount,
-            self.owner_id.clone(),
-            0,
-            GAS_FOR_DELEGATE,
-        )
+        ext_sputnik::ext(self.owner_id.clone())
+            .with_static_gas(GAS_FOR_DELEGATE)
+            .delegate(account_id.into(), amount)
     }
 
     /// Remove given amount of delegation.
     pub fn undelegate(&mut self, account_id: AccountId, amount: U128) -> Promise {
         let sender_id = env::predecessor_account_id();
         self.internal_undelegate(sender_id, account_id.clone().into(), amount.0);
-        ext_sputnik::undelegate(
-            account_id.into(),
-            amount,
-            self.owner_id.clone(),
-            0,
-            GAS_FOR_UNDELEGATE,
-        )
+        ext_sputnik::ext(self.owner_id.clone())
+            .with_static_gas(GAS_FOR_UNDELEGATE)
+            .undelegate(account_id.into(), amount)
     }
 
     /// Withdraw non delegated tokens back to the user's account.
@@ -117,21 +109,15 @@ impl Contract {
     pub fn withdraw(&mut self, amount: U128) -> Promise {
         let sender_id = env::predecessor_account_id();
         self.internal_withdraw(&sender_id, amount.0);
-        ext_fungible_token::ft_transfer(
-            sender_id.clone(),
-            amount,
-            None,
-            self.vote_token_id.clone(),
-            1,
-            GAS_FOR_FT_TRANSFER,
-        )
-        .then(ext_self::exchange_callback_post_withdraw(
-            sender_id,
-            amount,
-            env::current_account_id(),
-            0,
-            GAS_FOR_FT_TRANSFER,
-        ))
+        fungible_token::ext(self.vote_token_id.clone())
+            .with_static_gas(GAS_FOR_FT_TRANSFER)
+            .with_attached_deposit(NearToken::from_yoctonear(1))
+            .ft_transfer(sender_id.clone(), amount, None)
+            .then(
+                Self::ext(env::current_account_id())
+                    .with_static_gas(GAS_FOR_FT_TRANSFER)
+                    .exchange_callback_post_withdraw(sender_id, amount),
+            )
     }
 
     #[private]
@@ -142,7 +128,6 @@ impl Contract {
             "ERR_CALLBACK_POST_WITHDRAW_INVALID",
         );
         match env::promise_result(0) {
-            PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => {}
             PromiseResult::Failed => {
                 // This reverts the changes from withdraw function.
@@ -152,7 +137,7 @@ impl Contract {
     }
 }
 
-#[near_bindgen]
+#[near]
 impl FungibleTokenReceiver for Contract {
     fn ft_on_transfer(
         &mut self,
@@ -196,9 +181,7 @@ mod tests {
             .build());
         let mut contract = Contract::new(contract_owner, voting_token.clone(), U64(UNSTAKE_PERIOD));
 
-        testing_env!(context
-            .attached_deposit(NearToken::from_near(1).as_yoctonear())
-            .build());
+        testing_env!(context.attached_deposit(NearToken::from_near(1)).build());
         contract.storage_deposit(Some(delegate_from_user.clone()), None);
 
         testing_env!(context.predecessor_account_id(voting_token.clone()).build());
@@ -229,9 +212,7 @@ mod tests {
             NearToken::from_near(50).as_yoctonear()
         );
 
-        testing_env!(context
-            .attached_deposit(NearToken::from_near(1).as_yoctonear())
-            .build());
+        testing_env!(context.attached_deposit(NearToken::from_near(1)).build());
         contract.storage_deposit(Some(delegate_to_user.clone()), None);
 
         contract.delegate(

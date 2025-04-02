@@ -143,7 +143,7 @@ export async function setStakingId(
     staking: NearAccount,
 ) {
     // Setting staking id
-    const proposalId = await root.call(
+    const proposalId: number = await root.call(
         dao,
         'add_proposal',
         {
@@ -159,6 +159,7 @@ export async function setStakingId(
     await root.call(dao, 'act_proposal', {
         id: proposalId,
         action: 'VoteApprove',
+        proposal: await getProposalKind(dao, proposalId),
     });
 }
 
@@ -261,6 +262,7 @@ export async function voteOnBounty(
         {
             id: proposalId,
             action: 'VoteApprove',
+            proposal: await getProposalKind(dao, proposalId),
         },
         {
             gas: tGas(50),
@@ -333,6 +335,7 @@ export async function voteApprove(
         {
             id: proposalId,
             action: 'VoteApprove',
+            proposal: await getProposalKind(dao, proposalId),
         },
         {
             gas: tGas(100),
@@ -340,8 +343,24 @@ export async function voteApprove(
     );
 }
 
+export async function getProposalKind(dao: NearAccount, proposalId: number) {
+    const proposal: any = await dao.view("get_proposal", { id: proposalId });
+    return proposal.kind;
+}
+
 export type ProposalStatus = 'InProgress' | 'Approved' | 'Rejected' | 'Removed' | 'Expired' | 'Moved' | 'Failed';
 
 export interface Proposal {
     status: ProposalStatus
 };
+
+
+export function normalizePolicy(policy) {
+    return {
+        ...policy,
+        roles: policy.roles.map(role => ({
+            ...role,
+            permissions: role.permissions.sort()
+        }))
+    };
+}

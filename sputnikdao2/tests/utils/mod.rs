@@ -1,6 +1,7 @@
 #![allow(dead_code)]
+use near_contract_standards::fungible_token::Balance;
 pub use near_sdk::json_types::{Base64VecU8, U64};
-use near_sdk::serde_json::json;
+use near_sdk::serde_json::{self, json, Value};
 
 use near_workspaces::network::Sandbox;
 use near_workspaces::result::ExecutionFinalResult;
@@ -8,10 +9,10 @@ use near_workspaces::types::NearToken;
 use near_workspaces::{Account, AccountId, Contract, Worker};
 
 use near_sdk::json_types::U128;
-use sputnik_staking::ContractContract as StakingContract;
+use sputnik_staking::Contract as StakingContract;
 use sputnikdao2::{
-    Action, Bounty, Config, ContractContract as DAOContract, OldAccountId, ProposalInput,
-    ProposalKind, VersionedPolicy, OLD_BASE_TOKEN,
+    Action, Bounty, Config, Contract as DAOContract, OldAccountId, ProposalInput, ProposalKind,
+    ProposalOutput, ProposalV1, VersionedPolicy, OLD_BASE_TOKEN,
 };
 
 pub static FACTORY_WASM_BYTES: &[u8] =
@@ -97,7 +98,7 @@ pub async fn setup_dao() -> Result<(Contract, Worker<Sandbox>, Account), Box<dyn
         .args_json(json!({
             "config": config,
             "policy": VersionedPolicy::Default(vec![
-                near_sdk::AccountId::new_unchecked(root.id().to_string())
+                root.id().clone()
             ])
         }))
         .max_gas()
@@ -186,7 +187,7 @@ pub async fn add_transfer_proposal(
     dao: &Contract,
     token_id: Option<near_sdk::AccountId>,
     receiver_id: near_sdk::AccountId,
-    amount: near_sdk::Balance,
+    amount: Balance,
     msg: Option<String>,
 ) -> ExecutionFinalResult {
     add_proposal(
@@ -233,7 +234,10 @@ pub async fn vote(
     for user in users.into_iter() {
         let act_proposal_result = user
             .call(dao.id(), "act_proposal")
-            .args_json(json!({"id": proposal_id, "action": Action::VoteApprove}))
+            .args_json(json!({
+                "id": proposal_id,
+                "action": Action::VoteApprove,
+                "proposal": get_proposal_kind(&dao, proposal_id).await}))
             .max_gas()
             .transact()
             .await?;
@@ -251,4 +255,16 @@ pub fn convert_new_to_old_token(new_account_id: Option<near_sdk::AccountId>) -> 
         return String::from(OLD_BASE_TOKEN);
     }
     new_account_id.unwrap().to_string()
+}
+
+pub async fn get_proposal_kind(dao: &Contract, proposal_id: u64) -> ProposalKind {
+    dao.view("get_proposal")
+        .args_json(json!({"id": proposal_id}))
+        .await
+        .unwrap()
+        .json::<ProposalOutput>()
+        .unwrap()
+        .proposal
+        .latest_version()
+        .kind
 }

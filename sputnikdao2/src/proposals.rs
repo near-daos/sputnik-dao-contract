@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
-use near_contract_standards::fungible_token::core_impl::ext_fungible_token;
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use ext_fungible_token::ext_fungible_token;
 use near_sdk::json_types::{Base64VecU8, U128, U64};
-use near_sdk::{log, AccountId, Balance, Gas, PromiseOrValue};
+use near_sdk::{log, AccountId, Gas, PromiseOrValue};
 
 use crate::policy::UserInfo;
 use crate::types::{
@@ -14,8 +13,8 @@ use crate::upgrade::{upgrade_remote, upgrade_using_factory};
 use crate::*;
 
 /// Status of a proposal.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq, Debug)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(Clone, PartialEq, Debug)]
+#[near(serializers=[borsh, json])]
 pub enum ProposalStatus {
     InProgress,
     /// If quorum voted yes, this proposal is successfully approved.
@@ -34,9 +33,10 @@ pub enum ProposalStatus {
 }
 
 /// Function call arguments.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
-#[serde(crate = "near_sdk::serde")]
+
+#[derive(PartialEq, Clone)]
+#[near(serializers=[borsh, json])]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct ActionCall {
     method_name: String,
     args: Base64VecU8,
@@ -45,9 +45,10 @@ pub struct ActionCall {
 }
 
 /// Function call arguments.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
-#[serde(crate = "near_sdk::serde")]
+
+#[derive(PartialEq, Clone)]
+#[near(serializers=[borsh, json])]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct PolicyParameters {
     pub proposal_bond: Option<U128>,
     pub proposal_period: Option<U64>,
@@ -56,9 +57,9 @@ pub struct PolicyParameters {
 }
 
 /// Kinds of proposals, doing different action.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
-#[serde(crate = "near_sdk::serde")]
+#[derive(PartialEq, Clone)]
+#[near(serializers=[borsh, json])]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub enum ProposalKind {
     /// Change the DAO config.
     ChangeConfig { config: Config },
@@ -143,8 +144,8 @@ impl ProposalKind {
 }
 
 /// Votes recorded in the proposal.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, Debug)]
-#[serde(crate = "near_sdk::serde")]
+#[derive(Clone, Debug)]
+#[near(serializers=[borsh(use_discriminant=true),json])]
 pub enum Vote {
     Approve = 0x0,
     Reject = 0x1,
@@ -163,9 +164,9 @@ impl From<Action> for Vote {
 }
 
 /// Proposal that are sent to this DAO.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-#[serde(crate = "near_sdk::serde")]
+#[derive(Clone)]
 pub struct ProposalV0 {
     /// Original proposer.
     pub proposer: AccountId,
@@ -176,17 +177,16 @@ pub struct ProposalV0 {
     /// Current status of the proposal.
     pub status: ProposalStatus,
     /// Count of votes per role per decision: yes / no / spam.
-    pub vote_counts: HashMap<String, [Balance; 3]>,
+    pub vote_counts: HashMap<String, [U128; 3]>,
     /// Map of who voted and how.
     pub votes: HashMap<AccountId, Vote>,
     /// Submission time (for voting period).
     pub submission_time: U64,
 }
 
-/// Proposal that are sent to this DAO.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-#[serde(crate = "near_sdk::serde")]
+#[derive(Clone)]
 pub struct ProposalV1 {
     /// Original proposer.
     pub proposer: AccountId,
@@ -197,7 +197,7 @@ pub struct ProposalV1 {
     /// Current status of the proposal.
     pub status: ProposalStatus,
     /// Count of votes per role per decision: yes / no / spam.
-    pub vote_counts: HashMap<String, [Balance; 3]>,
+    pub vote_counts: HashMap<String, [U128; 3]>,
     /// Map of who voted and how.
     pub votes: HashMap<AccountId, Vote>,
     /// Submission time (for voting period).
@@ -209,21 +209,22 @@ pub struct ProposalV1 {
 impl From<ProposalV0> for ProposalV1 {
     fn from(v0: ProposalV0) -> Self {
         ProposalV1 {
-            proposer: v0.proposer,
-            description: v0.description,
-            kind: v0.kind,
-            status: v0.status,
-            vote_counts: v0.vote_counts,
-            votes: v0.votes,
+            proposer: v0.proposer.clone(),
+            description: v0.description.clone(),
+            kind: v0.kind.clone(),
+            status: v0.status.clone(),
+            vote_counts: v0.vote_counts.clone(),
+            votes: v0.votes.clone(),
             submission_time: v0.submission_time,
             last_touched_block_height: None,
         }
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
+#[derive(Clone)]
+#[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-#[serde(crate = "near_sdk::serde")]
+#[serde(untagged)]
 pub enum VersionedProposal {
     V0(ProposalV0),
     V1(ProposalV1),
@@ -257,23 +258,18 @@ impl VersionedProposal {
         policy: &Policy,
         user_weight: Balance,
     ) {
-        let mut proposal = self.latest_version_ref();
         for role in roles {
-            let amount =
-                if policy.is_token_weighted(role, &proposal.kind.to_policy_label().to_string()) {
-                    user_weight
-                } else {
-                    1
-                };
-            proposal
-                .vote_counts
-                .entry(role.clone())
-                .or_insert([0u128; 3])[vote.clone() as usize] += amount;
+            let amount = if policy.is_token_weighted(
+                role,
+                &self.latest_version_ref().kind.to_policy_label().to_string(),
+            ) {
+                user_weight
+            } else {
+                1
+            };
+            self.update_counts(role.clone(), vote.clone(), amount);
         }
-        assert!(
-            proposal.votes.insert(account_id.clone(), vote).is_none(),
-            "ERR_ALREADY_VOTED"
-        );
+        self.insert_vote(account_id, vote);
     }
 
     pub fn latest_version(self) -> ProposalV1 {
@@ -286,10 +282,49 @@ impl VersionedProposal {
             VersionedProposal::V1(p) => p.clone(),
         }
     }
+
+    pub fn update_counts(&mut self, role: String, vote: Vote, amount: u128) {
+        let defaults = [U128::from(0); 3];
+
+        match self {
+            VersionedProposal::V0(p) => {
+                let vote_counted =
+                    p.vote_counts.entry(role.clone()).or_insert(defaults)[vote.clone() as usize].0
+                        + amount;
+                p.vote_counts
+                    .entry(role)
+                    .and_modify(|votes| votes[vote.clone() as usize] = vote_counted.into());
+            }
+            VersionedProposal::V1(p) => {
+                let vote_counted =
+                    p.vote_counts.entry(role.clone()).or_insert(defaults)[vote.clone() as usize].0
+                        + amount;
+                p.vote_counts
+                    .entry(role)
+                    .and_modify(|votes| votes[vote.clone() as usize] = vote_counted.into());
+            }
+        }
+    }
+
+    pub fn insert_vote(&mut self, account_id: &AccountId, vote: Vote) {
+        match self {
+            VersionedProposal::V0(p) => {
+                assert!(
+                    p.votes.insert(account_id.clone(), vote).is_none(),
+                    "ERR_ALREADY_VOTED"
+                )
+            }
+            VersionedProposal::V1(p) => {
+                assert!(
+                    p.votes.insert(account_id.clone(), vote).is_none(),
+                    "ERR_ALREADY_VOTED"
+                )
+            }
+        }
+    }
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(crate = "near_sdk::serde")]
+#[near(serializers=[json])]
 pub struct ProposalInput {
     /// Description of this proposal.
     pub description: String,
@@ -323,27 +358,20 @@ impl Contract {
         msg: Option<String>,
     ) -> PromiseOrValue<()> {
         if token_id.is_none() {
-            Promise::new(receiver_id.clone()).transfer(amount).into()
+            Promise::new(receiver_id.clone())
+                .transfer(NearToken::from_yoctonear(amount))
+                .into()
         } else {
             if let Some(msg) = msg {
-                ext_fungible_token::ft_transfer_call(
-                    receiver_id.clone(),
-                    U128(amount),
-                    Some(memo),
-                    msg,
-                    token_id.as_ref().unwrap().clone(),
-                    ONE_YOCTO_NEAR,
-                    GAS_FOR_FT_TRANSFER,
-                )
+                ext_fungible_token::ext(token_id.as_ref().unwrap().clone())
+                    .with_attached_deposit(ONE_YOCTO_NEAR)
+                    .with_static_gas(GAS_FOR_FT_TRANSFER)
+                    .ft_transfer_call(receiver_id.clone(), U128(amount), Some(memo), msg)
             } else {
-                ext_fungible_token::ft_transfer(
-                    receiver_id.clone(),
-                    U128(amount),
-                    Some(memo),
-                    token_id.as_ref().unwrap().clone(),
-                    ONE_YOCTO_NEAR,
-                    GAS_FOR_FT_TRANSFER,
-                )
+                ext_fungible_token::ext(token_id.as_ref().unwrap().clone())
+                    .with_attached_deposit(ONE_YOCTO_NEAR)
+                    .with_static_gas(GAS_FOR_FT_TRANSFER)
+                    .ft_transfer(receiver_id.clone(), U128(amount), Some(memo))
             }
             .into()
         }
@@ -365,14 +393,20 @@ impl Contract {
         };
         match &proposal_data.kind {
             ProposalKind::BountyDone { .. } => {
-                self.locked_amount -= policy.bounty_bond.0;
-                Promise::new(proposal_data.proposer.clone()).transfer(policy.bounty_bond.0);
+                self.locked_amount = self
+                    .locked_amount
+                    .saturating_sub(NearToken::from_yoctonear(policy.bounty_bond.0));
+                Promise::new(proposal_data.proposer.clone())
+                    .transfer(NearToken::from_yoctonear(policy.bounty_bond.0));
             }
             _ => {}
         }
 
-        self.locked_amount -= policy.proposal_bond.0;
-        Promise::new(proposal_data.proposer.clone()).transfer(policy.proposal_bond.0)
+        self.locked_amount = self
+            .locked_amount
+            .saturating_sub(NearToken::from_yoctonear(policy.proposal_bond.0));
+        Promise::new(proposal_data.proposer.clone())
+            .transfer(NearToken::from_yoctonear(policy.proposal_bond.0))
     }
 
     /// Executes given proposal and updates the contract's state.
@@ -412,8 +446,8 @@ impl Contract {
                     promise = promise.function_call(
                         action.method_name.clone().into(),
                         action.args.clone().into(),
-                        action.deposit.0,
-                        Gas(action.gas.0),
+                        NearToken::from_yoctonear(action.deposit.0),
+                        Gas::from_gas(action.gas.0),
                     )
                 }
                 promise.into()
@@ -487,12 +521,11 @@ impl Contract {
         };
         match result {
             PromiseOrValue::Promise(promise) => promise
-                .then(ext_self::on_proposal_callback(
-                    proposal_id,
-                    env::current_account_id(),
-                    0,
-                    GAS_FOR_FT_TRANSFER,
-                ))
+                .then(
+                    Self::ext(env::current_account_id())
+                        .with_static_gas(GAS_FOR_FT_TRANSFER)
+                        .on_proposal_callback(proposal_id),
+                )
                 .into(),
             PromiseOrValue::Value(()) => {
                 let versioned = VersionedProposal::V1(proposal.clone());
@@ -570,7 +603,7 @@ impl Contract {
     }
 }
 
-#[near_bindgen]
+#[near]
 impl Contract {
     /// Add proposal to this DAO.
     #[payable]
@@ -581,7 +614,7 @@ impl Contract {
 
         assert_eq!(
             env::attached_deposit(),
-            policy.proposal_bond.0,
+            NearToken::from_yoctonear(policy.proposal_bond.0),
             "ERR_MIN_BOND"
         );
 
@@ -622,13 +655,20 @@ impl Contract {
         self.proposals
             .insert(&id, &VersionedProposal::from(proposal));
         self.last_proposal_id += 1;
-        self.locked_amount += env::attached_deposit();
+        self.locked_amount = self.locked_amount.saturating_add(env::attached_deposit());
         id
     }
 
     /// Act on given proposal by id, if permissions allow.
     /// Memo is logged but not stored in the state. Can be used to leave notes or explain the action.
-    pub fn act_proposal(&mut self, id: u64, action: Action, memo: Option<String>) {
+    pub fn act_proposal(
+        &mut self,
+        id: u64,
+        action: Action,
+        proposal: ProposalKind,
+        memo: Option<String>,
+    ) {
+        let input_proposal_kind = proposal;
         let mut proposal: VersionedProposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL");
         let policy = self.policy.get().unwrap().to_policy();
 
@@ -646,6 +686,11 @@ impl Contract {
             p.last_touched_block_height = Some(U64::from(env::block_height()));
         }
 
+        // Verify propolsal kind
+        assert!(
+            proposal.latest_version_ref().kind == input_proposal_kind,
+            "ERR_WRONG_KIND"
+        );
         // Update proposal given action. Returns true if should be updated in storage.
         let update = match action {
             Action::AddProposal => env::panic_str("ERR_WRONG_ACTION"),
@@ -765,7 +810,6 @@ impl Contract {
             "ERR_UNEXPECTED_CALLBACK_PROMISES"
         );
         let result = match env::promise_result(0) {
-            PromiseResult::NotReady => unreachable!(),
             PromiseResult::Successful(_) => self.internal_callback_proposal_success(&mut proposal),
             PromiseResult::Failed => self.internal_callback_proposal_fail(&mut proposal),
         };

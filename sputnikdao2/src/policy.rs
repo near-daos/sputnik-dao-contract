@@ -1,17 +1,16 @@
 use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 
-use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
+use near_contract_standards::fungible_token::Balance;
 use near_sdk::json_types::{U128, U64};
-use near_sdk::serde::{Deserialize, Serialize};
-use near_sdk::{env, AccountId, Balance};
+use near_sdk::{env, near, AccountId};
 
 use crate::proposals::{PolicyParameters, ProposalKind, ProposalStatus, VersionedProposal, Vote};
 use crate::types::Action;
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
-#[serde(crate = "near_sdk::serde")]
+#[derive(Clone, PartialEq)]
+#[near(serializers=[json,borsh])]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub enum RoleKind {
     /// Matches everyone, who is not matched by other roles.
     Everyone,
@@ -60,9 +59,9 @@ impl RoleKind {
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
-#[serde(crate = "near_sdk::serde")]
+#[derive(Clone, PartialEq)]
+#[near(serializers=[json,borsh])]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct RolePermission {
     /// Name of the role to display to the user.
     pub name: String,
@@ -81,9 +80,9 @@ pub struct UserInfo {
 }
 
 /// Direct weight or ratio to total weight, used for the voting policy.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
-#[serde(crate = "near_sdk::serde")]
+#[derive(Clone, PartialEq)]
+#[near(serializers=[borsh, json])]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[serde(untagged)]
 pub enum WeightOrRatio {
     Weight(U128),
@@ -104,9 +103,9 @@ impl WeightOrRatio {
 }
 
 /// How the voting policy votes get weigthed.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
+#[near(serializers=[json,borsh])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-#[serde(crate = "near_sdk::serde")]
 pub enum WeightKind {
     /// Using token amounts and total delegated at the moment.
     TokenWeight,
@@ -115,9 +114,9 @@ pub enum WeightKind {
 }
 
 /// Defines configuration of the vote.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
-#[serde(crate = "near_sdk::serde")]
+#[derive(Clone, PartialEq)]
+#[near(serializers=[json,borsh])]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct VotePolicy {
     /// Kind of weight to use for votes.
     pub weight_kind: WeightKind,
@@ -142,9 +141,9 @@ impl Default for VotePolicy {
 }
 
 /// Defines voting / decision making policy of this DAO.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
-#[serde(crate = "near_sdk::serde")]
+#[derive(Clone, PartialEq)]
+#[near(serializers=[json,borsh])]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct Policy {
     /// List of roles and permissions for them in the current policy.
     pub roles: Vec<RolePermission>,
@@ -161,9 +160,10 @@ pub struct Policy {
 }
 
 /// Versioned policy.
-#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Clone)]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
-#[serde(crate = "near_sdk::serde", untagged)]
+#[derive(Clone, PartialEq)]
+#[near(serializers = [borsh, json])]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[serde(untagged)]
 pub enum VersionedPolicy {
     /// Default policy with given accounts as council.
     Default(Vec<AccountId>),
@@ -424,13 +424,14 @@ impl Policy {
                 }
                 RoleKind::Member(_) => total_supply,
             };
-            let threshold = std::cmp::max(
+            let threshold = U128::from(std::cmp::max(
                 vote_policy.quorum.0,
                 vote_policy.threshold.to_weight(total_weight),
-            );
+            ));
             let proposal_data = proposal.latest_version_ref();
             // Check if there is anything voted above the threshold specified by policy for given role.
-            let vote_counts = proposal_data.vote_counts.get(&role).unwrap_or(&[0u128; 3]);
+            let defaults = [U128::from(0); 3];
+            let vote_counts = proposal_data.vote_counts.get(&role).unwrap_or(&defaults);
             if vote_counts[Vote::Approve as usize] >= threshold {
                 return ProposalStatus::Approved;
             } else if vote_counts[Vote::Reject as usize] >= threshold {

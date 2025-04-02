@@ -15,6 +15,8 @@ import {
     voteApprove,
     Proposal,
     initWorkspace,
+    getProposalKind,
+    normalizePolicy
 } from './utils';
 
 const test = initWorkspace();
@@ -269,6 +271,9 @@ test('Proposal ChangePolicy', async (t) => {
     t.is(proposals[0].status, realProposal.status);
     t.deepEqual(proposals[0].vote_counts, realProposal.vote_counts);
     t.deepEqual(proposals[0].votes, realProposal.votes);
+    // Permissions might be in different order
+    proposals[0].kind.ChangePolicy.policy.roles[0].permissions.sort();
+    realProposal.kind.ChangePolicy.policy.roles[0].permissions.sort();
     t.deepEqual(proposals[0].kind, realProposal.kind);
 
     //After voting on the proposal it is Approved
@@ -286,7 +291,8 @@ test('Proposal ChangePolicy', async (t) => {
     );
 
     //Check that the policy is changed
-    t.deepEqual(await dao.view('get_policy'), correctPolicy);
+    
+    t.deepEqual(normalizePolicy(await dao.view('get_policy')), normalizePolicy(correctPolicy));
 });
 
 test('Proposal Transfer', async (t) => {
@@ -407,6 +413,66 @@ test(
         t.deepEqual(await dao.view('get_config'), config);
     },
 );
+
+test(
+    'act_proposal should include correct kind',
+    async (t) => {
+        const { alice, root, dao } = t.context.accounts;
+        const config = {
+            name: 'sputnikdao',
+            purpose: 'testing',
+            metadata: '',
+        };
+        const wrong_config = {
+            name: 'sputnikdao_fake',
+            purpose: 'testing',
+            metadata: '',
+        };
+        //add_proposal returns new proposal id
+        const id: number = await alice.call(
+            dao,
+            'add_proposal',
+            {
+                proposal: {
+                    description: 'rename the dao',
+                    kind: {
+                        ChangeConfig: {
+                            config,
+                        },
+                    },
+                },
+            },
+            { attachedDeposit: toYocto('1') },
+        );
+
+        //Check that act_proposal is not allowed with wrong kind included
+        const err = await captureError(
+            async () => await root.call(
+                dao,
+                'act_proposal',
+                {
+                    id: id,
+                    action: 'VoteApprove',
+                    proposal: {
+                        ChangeConfig: {
+                            config: wrong_config,
+                        },
+                    },
+                },
+                {
+                    gas: tGas(100),
+                },
+            ),
+        );
+        t.log(err);
+        t.true(err.includes('ERR_WRONG_KIND'));
+
+        let proposal: any = await dao.view('get_proposal', { id });
+        t.log(proposal);
+        t.is(proposal.status, 'InProgress');
+    },
+);
+
 
 // If the number of votes in the group has changed (new members has been added)
 //  the proposal can lose it's approved state.
@@ -591,6 +657,7 @@ test('Callback function call', async (t) => {
         {
             id: transferId,
             action: 'VoteApprove',
+            proposal: await getProposalKind(dao, transferId),
         },
         {
             gas: tGas(200),
@@ -642,6 +709,7 @@ test('Callback function call', async (t) => {
         {
             id: transferId,
             action: 'VoteApprove',
+            proposal: await getProposalKind(dao, transferId),
         },
         {
             gas: tGas(200),
