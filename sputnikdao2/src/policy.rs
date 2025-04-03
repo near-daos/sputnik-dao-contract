@@ -7,6 +7,7 @@ use near_sdk::{env, near, AccountId};
 
 use crate::proposals::{PolicyParameters, ProposalKind, ProposalStatus, VersionedProposal, Vote};
 use crate::types::Action;
+use crate::ProposalV1;
 
 #[derive(Clone, PartialEq)]
 #[near(serializers=[json,borsh])]
@@ -383,20 +384,18 @@ impl Policy {
     /// Usually is called after changing it's state.
     pub fn proposal_status(
         &self,
-        proposal: &VersionedProposal,
+        proposal: &ProposalV1,
         roles: Vec<String>,
         total_supply: Balance,
     ) -> ProposalStatus {
         assert!(
             matches!(
-                proposal.latest_version_ref().status,
+                proposal.status,
                 ProposalStatus::InProgress | ProposalStatus::Failed
             ),
             "ERR_PROPOSAL_NOT_IN_PROGRESS"
         );
-        if proposal.latest_version_ref().submission_time.0 + self.proposal_period.0
-            < env::block_timestamp()
-        {
+        if proposal.submission_time.0 + self.proposal_period.0 < env::block_timestamp() {
             // Proposal expired.
             return ProposalStatus::Expired;
         };
@@ -404,13 +403,7 @@ impl Policy {
             let role_info = self.internal_get_role(&role).expect("ERR_MISSING_ROLE");
             let vote_policy = role_info
                 .vote_policy
-                .get(
-                    &proposal
-                        .latest_version_ref()
-                        .kind
-                        .to_policy_label()
-                        .to_string(),
-                )
+                .get(&proposal.kind.to_policy_label().to_string())
                 .unwrap_or(&self.default_vote_policy);
             let total_weight = match &role_info.kind {
                 // Skip role that covers everyone as it doesn't provide a total size.
@@ -428,7 +421,7 @@ impl Policy {
                 vote_policy.quorum.0,
                 vote_policy.threshold.to_weight(total_weight),
             ));
-            let proposal_data = proposal.latest_version_ref();
+            let proposal_data = proposal;
             // Check if there is anything voted above the threshold specified by policy for given role.
             let defaults = [U128::from(0); 3];
             let vote_counts = proposal_data.vote_counts.get(&role).unwrap_or(&defaults);
@@ -442,7 +435,7 @@ impl Policy {
                 // continue to next role.
             }
         }
-        proposal.latest_version_ref().status.clone()
+        proposal.status.clone()
     }
 }
 

@@ -249,8 +249,7 @@ impl From<VersionedProposal> for ProposalV1 {
     }
 }
 
-impl VersionedProposal {
-    /// Adds vote of the given user with given `amount` of weight. If user already voted, fails.
+impl ProposalV1 {
     pub fn update_votes(
         &mut self,
         account_id: &AccountId,
@@ -260,19 +259,28 @@ impl VersionedProposal {
         user_weight: Balance,
     ) {
         for role in roles {
-            let amount = if policy.is_token_weighted(
-                role,
-                &self.latest_version_ref().kind.to_policy_label().to_string(),
-            ) {
+            let amount = if policy.is_token_weighted(role, &self.kind.to_policy_label().to_string())
+            {
                 user_weight
             } else {
                 1
             };
-            self.update_counts(role.clone(), vote.clone(), amount);
+            let defaults = [U128::from(0); 3];
+            let vote_counted =
+                self.vote_counts.entry(role.clone()).or_insert(defaults)[vote.clone() as usize].0
+                    + amount;
+            self.vote_counts
+                .entry(role.clone())
+                .and_modify(|votes| votes[vote.clone() as usize] = vote_counted.into());
         }
-        self.insert_vote(account_id, vote);
+        assert!(
+            self.votes.insert(account_id.clone(), vote).is_none(),
+            "ERR_ALREADY_VOTED"
+        );
     }
+}
 
+impl VersionedProposal {
     pub fn latest_version(self) -> ProposalV1 {
         self.into()
     }
@@ -281,46 +289,6 @@ impl VersionedProposal {
         match self {
             VersionedProposal::V0(p) => ProposalV1::from(p.clone()),
             VersionedProposal::V1(p) => p.clone(),
-        }
-    }
-
-    pub fn update_counts(&mut self, role: String, vote: Vote, amount: u128) {
-        let defaults = [U128::from(0); 3];
-
-        match self {
-            VersionedProposal::V0(p) => {
-                let vote_counted =
-                    p.vote_counts.entry(role.clone()).or_insert(defaults)[vote.clone() as usize].0
-                        + amount;
-                p.vote_counts
-                    .entry(role)
-                    .and_modify(|votes| votes[vote.clone() as usize] = vote_counted.into());
-            }
-            VersionedProposal::V1(p) => {
-                let vote_counted =
-                    p.vote_counts.entry(role.clone()).or_insert(defaults)[vote.clone() as usize].0
-                        + amount;
-                p.vote_counts
-                    .entry(role)
-                    .and_modify(|votes| votes[vote.clone() as usize] = vote_counted.into());
-            }
-        }
-    }
-
-    pub fn insert_vote(&mut self, account_id: &AccountId, vote: Vote) {
-        match self {
-            VersionedProposal::V0(p) => {
-                assert!(
-                    p.votes.insert(account_id.clone(), vote).is_none(),
-                    "ERR_ALREADY_VOTED"
-                )
-            }
-            VersionedProposal::V1(p) => {
-                assert!(
-                    p.votes.insert(account_id.clone(), vote).is_none(),
-                    "ERR_ALREADY_VOTED"
-                )
-            }
         }
     }
 }
@@ -378,26 +346,13 @@ impl Contract {
         }
     }
 
-    fn internal_return_bonds(&mut self, policy: &Policy, proposal: &VersionedProposal) -> Promise {
-        let proposal_data = match proposal {
-            VersionedProposal::V0(p) => ProposalV1 {
-                proposer: p.proposer.clone(),
-                description: p.description.clone(),
-                kind: p.kind.clone(),
-                status: p.status.clone(),
-                vote_counts: p.vote_counts.clone(),
-                votes: p.votes.clone(),
-                submission_time: p.submission_time,
-                last_actions_log: Some(VecDeque::new()),
-            },
-            VersionedProposal::V1(p) => p.clone(),
-        };
-        match &proposal_data.kind {
+    fn internal_return_bonds(&mut self, policy: &Policy, proposal: &ProposalV1) -> Promise {
+        match &proposal.kind {
             ProposalKind::BountyDone { .. } => {
                 self.locked_amount = self
                     .locked_amount
                     .saturating_sub(NearToken::from_yoctonear(policy.bounty_bond.0));
-                Promise::new(proposal_data.proposer.clone())
+                Promise::new(proposal.proposer.clone())
                     .transfer(NearToken::from_yoctonear(policy.bounty_bond.0));
             }
             _ => {}
@@ -406,7 +361,7 @@ impl Contract {
         self.locked_amount = self
             .locked_amount
             .saturating_sub(NearToken::from_yoctonear(policy.proposal_bond.0));
-        Promise::new(proposal_data.proposer.clone())
+        Promise::new(proposal.proposer.clone())
             .transfer(NearToken::from_yoctonear(policy.proposal_bond.0))
     }
 
@@ -528,20 +483,16 @@ impl Contract {
                         .on_proposal_callback(proposal_id),
                 )
                 .into(),
-            PromiseOrValue::Value(()) => {
-                let versioned = VersionedProposal::V1(proposal.clone());
-                self.internal_return_bonds(&policy, &versioned).into()
-            }
+            PromiseOrValue::Value(()) => self.internal_return_bonds(&policy, &proposal).into(),
         }
     }
 
     pub(crate) fn internal_callback_proposal_success(
         &mut self,
-        proposal: &mut VersionedProposal,
+        proposal: &mut ProposalV1,
     ) -> PromiseOrValue<()> {
         let policy = self.policy.get().unwrap().to_policy();
-        let proposal_data = proposal.latest_version_ref();
-        if let ProposalKind::BountyDone { bounty_id, .. } = &proposal_data.kind {
+        if let ProposalKind::BountyDone { bounty_id, .. } = &proposal.kind {
             let mut bounty: Bounty = self.bounties.get(bounty_id).expect("ERR_NO_BOUNTY").into();
             if bounty.times == 0 {
                 self.bounties.remove(bounty_id);
@@ -552,22 +503,14 @@ impl Contract {
             }
         }
 
-        match proposal {
-            VersionedProposal::V0(p) => p.status = ProposalStatus::Approved,
-            VersionedProposal::V1(p) => p.status = ProposalStatus::Approved,
-        }
-
         self.internal_return_bonds(&policy, &proposal).into()
     }
 
     pub(crate) fn internal_callback_proposal_fail(
         &mut self,
-        proposal: &mut VersionedProposal,
+        proposal: &mut ProposalV1,
     ) -> PromiseOrValue<()> {
-        match proposal {
-            VersionedProposal::V0(p) => p.status = ProposalStatus::Failed,
-            VersionedProposal::V1(p) => p.status = ProposalStatus::Failed,
-        }
+        proposal.status = ProposalStatus::Failed;
         PromiseOrValue::Value(())
     }
 
@@ -575,7 +518,7 @@ impl Contract {
     fn internal_reject_proposal(
         &mut self,
         policy: &Policy,
-        proposal: &VersionedProposal,
+        proposal: &ProposalV1,
         return_bonds: bool,
     ) -> PromiseOrValue<()> {
         if return_bonds {
@@ -583,7 +526,7 @@ impl Contract {
             self.internal_return_bonds(policy, proposal);
         }
 
-        let proposal_data = proposal.latest_version_ref();
+        let proposal_data = proposal;
         match &proposal_data.kind {
             ProposalKind::BountyDone {
                 bounty_id,
@@ -670,23 +613,25 @@ impl Contract {
         memo: Option<String>,
     ) {
         let input_proposal_kind = proposal;
-        let mut proposal: VersionedProposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL");
-        let policy = self.policy.get().unwrap().to_policy();
+        // Covert proposal to the latest version
+        let mut proposal: ProposalV1 = self
+            .proposals
+            .get(&id)
+            .expect("ERR_NO_PROPOSAL")
+            .latest_version();
+        // Log the action
+        self.internal_log_action(id, action.clone(), &mut proposal);
 
-        // Get the proposal data for permission check
-        let proposal_data = proposal.latest_version_ref();
+        let policy = self.policy.get().unwrap().to_policy();
 
         // Check permissions for the given action.
         let (roles, allowed) =
-            policy.can_execute_action(self.internal_user_info(), &proposal_data.kind, &action);
+            policy.can_execute_action(self.internal_user_info(), &proposal.kind, &action);
         assert!(allowed, "ERR_PERMISSION_DENIED");
         let sender_id = env::predecessor_account_id();
 
         // Verify propolsal kind
-        assert!(
-            proposal.latest_version_ref().kind == input_proposal_kind,
-            "ERR_WRONG_KIND"
-        );
+        assert!(proposal.kind == input_proposal_kind, "ERR_WRONG_KIND");
         // Update proposal given action. Returns true if should be updated in storage.
         let update = match action {
             Action::AddProposal => env::panic_str("ERR_WRONG_ACTION"),
@@ -696,10 +641,7 @@ impl Contract {
             }
             Action::VoteApprove | Action::VoteReject | Action::VoteRemove => {
                 assert!(
-                    matches!(
-                        proposal.latest_version_ref().status,
-                        ProposalStatus::InProgress
-                    ),
+                    matches!(proposal.status, ProposalStatus::InProgress),
                     "ERR_PROPOSAL_NOT_READY_FOR_VOTE"
                 );
                 proposal.update_votes(
@@ -715,26 +657,15 @@ impl Contract {
                     policy.proposal_status(&proposal, roles.clone(), self.total_delegation_amount);
 
                 // Updates proposal status with new votes using the policy.
-                match &mut proposal {
-                    VersionedProposal::V0(p) => p.status = new_status,
-                    VersionedProposal::V1(p) => p.status = new_status,
-                };
-
-                // Get updated status by reference
-                let status = match &proposal {
-                    VersionedProposal::V0(p) => &p.status,
-                    VersionedProposal::V1(p) => &p.status,
-                };
-
-                if *status == ProposalStatus::Approved {
-                    let proposal_v1: ProposalV1 = proposal.clone().into();
-                    self.internal_execute_proposal(&policy, &proposal_v1, id);
+                proposal.status = new_status;
+                if proposal.status == ProposalStatus::Approved {
+                    self.internal_execute_proposal(&policy, &proposal, id);
                     true
-                } else if proposal.latest_version_ref().status == ProposalStatus::Removed {
+                } else if proposal.status == ProposalStatus::Removed {
                     self.internal_reject_proposal(&policy, &proposal, false);
                     self.proposals.remove(&id);
                     false
-                } else if proposal.latest_version_ref().status == ProposalStatus::Rejected {
+                } else if proposal.status == ProposalStatus::Rejected {
                     self.internal_reject_proposal(&policy, &proposal, true);
                     true
                 } else {
@@ -756,20 +687,10 @@ impl Contract {
                     self.total_delegation_amount,
                 );
 
-                match &mut proposal {
-                    VersionedProposal::V0(p) => p.status = new_status,
-                    VersionedProposal::V1(p) => p.status = new_status,
-                };
-
-                let status = match &proposal {
-                    VersionedProposal::V0(p) => &p.status,
-                    VersionedProposal::V1(p) => &p.status,
-                };
-
-                match status {
+                proposal.status = new_status;
+                match proposal.status {
                     ProposalStatus::Approved => {
-                        let proposal_v1: ProposalV1 = proposal.clone().into();
-                        self.internal_execute_proposal(&policy, &proposal_v1, id);
+                        self.internal_execute_proposal(&policy, &proposal, id);
                     }
                     ProposalStatus::Expired => {
                         self.internal_reject_proposal(&policy, &proposal, true);
@@ -782,11 +703,9 @@ impl Contract {
             }
             Action::MoveToHub => false,
         };
+
         if update {
-            let mut proposal_v1: ProposalV1 = proposal.clone().into();
-            self.internal_log_action(id, action, &mut proposal_v1);
-            self.proposals
-                .insert(&id, &VersionedProposal::V1(proposal_v1));
+            self.proposals.insert(&id, &VersionedProposal::V1(proposal));
         }
         if let Some(memo) = memo {
             log!("Memo: {}", memo);
@@ -799,8 +718,11 @@ impl Contract {
     /// move proposal to "Failed" state.
     #[private]
     pub fn on_proposal_callback(&mut self, proposal_id: u64) -> PromiseOrValue<()> {
-        let mut proposal: VersionedProposal =
-            self.proposals.get(&proposal_id).expect("ERR_NO_PROPOSAL");
+        let mut proposal: ProposalV1 = self
+            .proposals
+            .get(&proposal_id)
+            .expect("ERR_NO_PROPOSAL")
+            .latest_version();
         assert_eq!(
             env::promise_results_count(),
             1,
