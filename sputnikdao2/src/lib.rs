@@ -437,4 +437,64 @@ mod tests {
             },
         });
     }
+
+    #[test]
+    fn test_action_log() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(0)).build());
+        let accounts_list: Vec<AccountId> = [
+            "alice", "bob", "charlie", "danny", "eugene", "fargo", "grace", "hannah", "ian",
+            "julia", "kevin", "linda", "michael", "nathan", "olivia", "patricia", "quinn",
+            "robert", "sarah", "thomas", "ursula", "victor", "wendy", "xavier", "yasmine", "zack",
+            "adam", "bella", "cameron", "diana", "ethan", "fiona", "george", "heidi", "isaac",
+            "jennifer", "kyle", "lily", "marcus", "nina", "oscar", "penelope", "quincy", "ryan",
+            "sophia", "tyler", "uma", "vincent", "willow", "xander",
+        ]
+        .iter()
+        .map(|name| name.parse().unwrap())
+        .collect();
+        let mut contract = Contract::new(
+            Config::test_config(),
+            VersionedPolicy::Default(accounts_list.clone()),
+        );
+        let id = create_proposal(&mut context, &mut contract);
+
+        // Check that last actions log has proposal create
+        let proposal = contract.get_proposal(id).proposal.latest_version();
+        let proposal_kind = contract.get_proposal(id).proposal.latest_version_ref().kind;
+        let proposal_last_actions_log = proposal.last_actions_log.unwrap();
+        let global_last_actions_log = contract.get_actions_log();
+        assert_eq!(
+            proposal_last_actions_log.get(0).unwrap().clone(),
+            ActionLog::new("alice".parse().unwrap(), 0, Action::AddProposal, 0)
+        );
+        assert_eq!(
+            global_last_actions_log.get(0).unwrap().clone(),
+            ActionLog::new("alice".parse().unwrap(), 0, Action::AddProposal, 0)
+        );
+
+        // Fill the latest actions list
+        for i in 1..21 {
+            testing_env!(context
+                .predecessor_account_id(accounts_list.get(i).unwrap().clone())
+                .build());
+            contract.act_proposal(id, Action::VoteApprove, proposal_kind.clone(), None);
+        }
+        // Now the oldest proposal should be bob's vote
+        let proposal_last_actions_log = contract
+            .get_proposal(id)
+            .proposal
+            .latest_version()
+            .last_actions_log
+            .unwrap();
+        let global_last_actions_log = contract.get_actions_log();
+        assert_eq!(
+            proposal_last_actions_log.get(0).unwrap().clone(),
+            ActionLog::new("bob".parse().unwrap(), 0, Action::VoteApprove, 0)
+        );
+        assert_eq!(
+            global_last_actions_log.get(0).unwrap().clone(),
+            ActionLog::new("bob".parse().unwrap(), 0, Action::VoteApprove, 0)
+        );
+    }
 }

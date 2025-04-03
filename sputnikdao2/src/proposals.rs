@@ -596,8 +596,11 @@ impl Contract {
 
         // 3. Actually add proposal to the current list of proposals.
         let id = self.last_proposal_id;
-        self.proposals
-            .insert(&id, &VersionedProposal::from(proposal));
+        // 4. Log proposal creation
+        let mut proposal = VersionedProposal::from(proposal).latest_version();
+        self.internal_log_action(id, Action::AddProposal, &mut proposal);
+
+        self.proposals.insert(&id, &VersionedProposal::V1(proposal));
         self.last_proposal_id += 1;
         self.locked_amount = self.locked_amount.saturating_add(env::attached_deposit());
         id
