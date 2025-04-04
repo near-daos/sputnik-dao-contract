@@ -217,7 +217,7 @@ test('Proposal ChangePolicy', async (t) => {
             {
                 name: 'all',
                 kind: {
-                    Group: [root.accountId, alice.accountId],
+                    Group: [alice.accountId, root.accountId],
                 },
                 permissions: ['*:AddProposal', '*:VoteApprove'],
                 vote_policy: {},
@@ -282,7 +282,7 @@ test('Proposal ChangePolicy', async (t) => {
     t.deepEqual(
         (await dao.view('get_proposals', { from_index: 0, limit: 10 }))[0]
             .vote_counts,
-        { council: [1, 0, 0] },
+        { council: ['1', '0', '0'] },
     );
     t.is(
         (await dao.view('get_proposals', { from_index: 0, limit: 10 }))[0]
@@ -291,7 +291,7 @@ test('Proposal ChangePolicy', async (t) => {
     );
 
     //Check that the policy is changed
-    
+
     t.deepEqual(normalizePolicy(await dao.view('get_policy')), normalizePolicy(correctPolicy));
 });
 

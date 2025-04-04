@@ -1,9 +1,10 @@
 use near_sdk::base64;
 use near_sdk::json_types::U128;
-use near_sdk::serde_json::json;
+use near_sdk::serde_json::{json, Value};
 
 use near_workspaces::types::NearToken;
 use near_workspaces::{sandbox, AccountId, Worker};
+use sputnikdao2::action_log::ActionLog;
 use sputnikdao2::proposals::VersionedProposal;
 use std::collections::HashMap;
 
@@ -953,5 +954,69 @@ async fn test_payment_failures() -> Result<(), Box<dyn std::error::Error>> {
         act_proposal_result.failures()
     );
 
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
+    let (dao, worker, root) = setup_dao().await?;
+
+    // initialize users
+    let mut users = Vec::new();
+    for i in 0..21 {
+        let account_id = user(i); // assuming user(i) returns a String
+        let created = root
+            .create_subaccount(account_id.as_str())
+            .initial_balance(NearToken::from_near(1))
+            .transact()
+            .await?
+            .into_result()?; // use `into_result()` instead of `.result` for better error handling
+
+        users.push(created);
+    }
+
+    let proposal_id = add_bounty_proposal(&worker, &dao)
+        .await
+        .json::<u64>()
+        .unwrap();
+
+    println!("prpo_Id: {}", proposal_id);
+    let actions_log = dao
+        .view("get_proposal")
+        .args_json(json!({"id": proposal_id}))
+        .await
+        .unwrap()
+        .json::<ProposalOutput>()
+        .unwrap()
+        .proposal
+        .latest_version()
+        .last_actions_log
+        .unwrap();
+
+    let output = dao
+        .view("get_proposal")
+        .args_json(json!({"id": proposal_id}))
+        .await
+        .unwrap()
+        .json::<Value>()
+        .unwrap();
+    println!("log: {:?}", &output);
+    assert_eq!(actions_log.len(), 1);
+    assert_eq!(
+        actions_log.get(0).unwrap().clone(),
+        ActionLog::new("ser".parse().unwrap(), proposal_id, Action::AddProposal, 0)
+    );
+
+    let act_proposal_result = root
+        .call(dao.id(), "act_proposal")
+        .args_json(json!({
+            "id": proposal_id,
+            "action": Action::VoteApprove,
+            "proposal": get_proposal_kind(&dao, proposal_id).await
+        }))
+        .transact()
+        .await
+        .unwrap();
+    assert!(false);
     Ok(())
 }

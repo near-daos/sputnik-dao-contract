@@ -79,6 +79,14 @@ pub async fn setup_dao() -> Result<(Contract, Worker<Sandbox>, Account), Box<dyn
 {
     let worker = near_workspaces::sandbox().await?;
     let root = worker.root_account().unwrap();
+    setup_dao_with_policy(VersionedPolicy::Default(vec![root.id().clone()])).await
+}
+
+pub async fn setup_dao_with_policy(
+    policy: VersionedPolicy,
+) -> Result<(Contract, Worker<Sandbox>, Account), Box<dyn std::error::Error>> {
+    let worker = near_workspaces::sandbox().await?;
+    let root = worker.root_account().unwrap();
     let dao_account = root
         .create_subaccount("dao")
         .initial_balance(NearToken::from_near(200))
@@ -97,9 +105,7 @@ pub async fn setup_dao() -> Result<(Contract, Worker<Sandbox>, Account), Box<dyn
         .call("new")
         .args_json(json!({
             "config": config,
-            "policy": VersionedPolicy::Default(vec![
-                root.id().clone()
-            ])
+            "policy": policy,
         }))
         .max_gas()
         .transact()

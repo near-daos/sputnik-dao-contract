@@ -102,7 +102,7 @@ impl Contract {
         let proposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL");
         ProposalOutput {
             id,
-            proposal: proposal.into(),
+            proposal: VersionedProposal::V1(proposal.latest_version()),
         }
     }
 
