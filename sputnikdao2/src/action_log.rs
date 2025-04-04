@@ -10,10 +10,10 @@ const ACTION_LOG_SIZE: usize = 20;
 #[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug, PartialEq))]
 pub struct ActionLog {
-    account_id: AccountId,
-    proposal_id: u64,
-    action: Action,
-    block_height: u64,
+    pub account_id: AccountId,
+    pub proposal_id: u64,
+    pub action: Action,
+    pub block_height: u64,
 }
 
 impl ActionLog {

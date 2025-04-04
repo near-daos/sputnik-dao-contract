@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use near_contract_standards::fungible_token::Balance;
 pub use near_sdk::json_types::{Base64VecU8, U64};
-use near_sdk::serde_json::{self, json, Value};
+use near_sdk::serde_json::json;
 
 use near_workspaces::network::Sandbox;
 use near_workspaces::result::ExecutionFinalResult;
@@ -10,8 +10,8 @@ use near_workspaces::{Account, AccountId, Contract, Worker};
 
 use near_sdk::json_types::U128;
 use sputnikdao2::{
-    Action, Bounty, Config, Contract as DAOContract, OldAccountId, ProposalInput, ProposalKind,
-    ProposalOutput, ProposalV1, VersionedPolicy, OLD_BASE_TOKEN,
+    Action, Bounty, Config, OldAccountId, ProposalInput, ProposalKind, ProposalOutput,
+    VersionedPolicy, OLD_BASE_TOKEN,
 };
 
 pub static FACTORY_WASM_BYTES: &[u8] =
@@ -78,14 +78,19 @@ pub async fn setup_dao() -> Result<(Contract, Worker<Sandbox>, Account), Box<dyn
 {
     let worker = near_workspaces::sandbox().await?;
     let root = worker.root_account().unwrap();
-    setup_dao_with_policy(VersionedPolicy::Default(vec![root.id().clone()])).await
+    setup_dao_with_params(
+        root.clone(),
+        worker,
+        VersionedPolicy::Default(vec![root.id().clone()]),
+    )
+    .await
 }
 
-pub async fn setup_dao_with_policy(
+pub async fn setup_dao_with_params(
+    root: Account,
+    worker: Worker<Sandbox>,
     policy: VersionedPolicy,
 ) -> Result<(Contract, Worker<Sandbox>, Account), Box<dyn std::error::Error>> {
-    let worker = near_workspaces::sandbox().await?;
-    let root = worker.root_account().unwrap();
     let dao_account = root
         .create_subaccount("dao")
         .initial_balance(NearToken::from_near(200))

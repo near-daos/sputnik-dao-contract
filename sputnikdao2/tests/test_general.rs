@@ -3,9 +3,8 @@ use near_sdk::json_types::U128;
 use near_sdk::serde_json::{json, Value};
 
 use near_workspaces::types::NearToken;
-use near_workspaces::{sandbox, AccountId, Worker};
+use near_workspaces::{Account, AccountId};
 use sputnikdao2::action_log::ActionLog;
-use sputnikdao2::proposals::VersionedProposal;
 use std::collections::HashMap;
 
 mod utils;
@@ -13,8 +12,7 @@ use crate::utils::*;
 use sputnik_staking::User;
 use sputnikdao2::{
     default_policy, Action, BountyClaim, BountyOutput, Config, Policy, ProposalInput, ProposalKind,
-    ProposalOutput, ProposalStatus, ProposalV0, RoleKind, RolePermission, VersionedPolicy,
-    VotePolicy,
+    ProposalOutput, ProposalStatus, RoleKind, RolePermission, VersionedPolicy, VotePolicy,
 };
 
 fn user(id: u32) -> near_sdk::AccountId {
@@ -959,11 +957,11 @@ async fn test_payment_failures() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::test]
 async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
-    let (dao, worker, root) = setup_dao().await?;
-
-    // initialize users
+    let worker = near_workspaces::sandbox().await?;
+    let root = worker.root_account().unwrap();
+    // initialize voting users
     let mut users = Vec::new();
-    for i in 0..21 {
+    for i in 0..20 {
         let account_id = user(i); // assuming user(i) returns a String
         let created = root
             .create_subaccount(account_id.as_str())
@@ -975,12 +973,65 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
         users.push(created);
     }
 
+    // Now add empty accounts without transaction for time optimization
+    let mut policy_accounts: Vec<AccountId> = users.iter().map(|u| u.id().clone()).collect();
+    for i in 21..40 {
+        policy_accounts.push(user(i));
+    }
+    // Setup a dao with a lot of voters
+    let (dao, worker, _) = setup_dao_with_params(
+        root.clone(),
+        worker,
+        VersionedPolicy::Default(policy_accounts),
+    )
+    .await?;
+
     let proposal_id = add_bounty_proposal(&worker, &dao)
         .await
         .json::<u64>()
         .unwrap();
 
-    println!("prpo_Id: {}", proposal_id);
+    // Verify add_proposal log has been added
+    let actions_log = dao
+        .view("get_proposal")
+        .args_json(json!({"id": proposal_id}))
+        .await
+        .unwrap()
+        .json::<ProposalOutput>()
+        .unwrap()
+        .proposal
+        .latest_version()
+        .last_actions_log
+        .unwrap();
+    let global_actions_log = dao
+        .view("get_actions_log")
+        .await
+        .unwrap()
+        .json::<Vec<ActionLog>>()
+        .unwrap();
+    let log = actions_log.get(0).unwrap().clone();
+    assert_eq!(log, global_actions_log.get(0).unwrap().clone());
+    assert_eq!(actions_log.len(), 1);
+    assert_eq!(
+        log,
+        ActionLog::new(
+            "dao.test.near".parse().unwrap(),
+            proposal_id,
+            Action::AddProposal,
+            log.block_height // It is uncertain because of async block creation
+        )
+    );
+    assert!(
+        (log.block_height as i128 - worker.view_block().await.unwrap().header().height() as i128)
+            .abs()
+            <= 1 as i128,
+    );
+
+    // Fill the actions log
+    let voting_users: Vec<&Account> = users.iter().take(20).collect();
+    vote(voting_users, &dao, proposal_id).await.unwrap();
+
+    // Verify that the oldest prposal now is the voting approve from user0
     let actions_log = dao
         .view("get_proposal")
         .args_json(json!({"id": proposal_id}))
@@ -993,36 +1044,24 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
         .last_actions_log
         .unwrap();
 
-    let output = dao
-        .view("get_proposal")
-        .args_json(json!({"id": proposal_id}))
+    let global_actions_log = dao
+        .view("get_actions_log")
         .await
         .unwrap()
-        .json::<Value>()
+        .json::<Vec<ActionLog>>()
         .unwrap();
-    println!("log: {:?}", &output);
-    assert_eq!(actions_log.len(), 1);
+    let log = actions_log.get(0).unwrap().clone();
+    assert_eq!(log, global_actions_log.get(0).unwrap().clone());
+    assert_eq!(actions_log.len(), 20);
     assert_eq!(
         actions_log.get(0).unwrap().clone(),
         ActionLog::new(
-            "dao.test.near".parse().unwrap(),
+            "user0.test.near".parse().unwrap(),
             proposal_id,
-            Action::AddProposal,
-            112
+            Action::VoteApprove,
+            log.block_height, // It is uncertain because of async block creation
         )
     );
-
-    let act_proposal_result = root
-        .call(dao.id(), "act_proposal")
-        .args_json(json!({
-            "id": proposal_id,
-            "action": Action::VoteApprove,
-            "proposal": get_proposal_kind(&dao, proposal_id).await
-        }))
-        .transact()
-        .await
-        .unwrap();
-    assert!(false);
     Ok(())
 }
 
