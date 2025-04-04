@@ -9,7 +9,6 @@ use near_workspaces::types::NearToken;
 use near_workspaces::{Account, AccountId, Contract, Worker};
 
 use near_sdk::json_types::U128;
-use sputnik_staking::Contract as StakingContract;
 use sputnikdao2::{
     Action, Bounty, Config, Contract as DAOContract, OldAccountId, ProposalInput, ProposalKind,
     ProposalOutput, ProposalV1, VersionedPolicy, OLD_BASE_TOKEN,

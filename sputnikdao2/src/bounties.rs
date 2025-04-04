@@ -21,6 +21,7 @@ pub struct BountyClaim {
 #[near(serializers=[borsh, json])]
 #[derive(Clone, PartialEq)]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[serde(deny_unknown_fields)]
 pub struct Bounty {
     /// Description of the bounty.
     pub description: String,

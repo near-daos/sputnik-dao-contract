@@ -12,6 +12,7 @@ use crate::ProposalV1;
 #[derive(Clone, PartialEq)]
 #[near(serializers=[json,borsh])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[serde(deny_unknown_fields)]
 pub enum RoleKind {
     /// Matches everyone, who is not matched by other roles.
     Everyone,
@@ -63,6 +64,7 @@ impl RoleKind {
 #[derive(Clone, PartialEq)]
 #[near(serializers=[json,borsh])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[serde(deny_unknown_fields)]
 pub struct RolePermission {
     /// Name of the role to display to the user.
     pub name: String,
@@ -118,6 +120,7 @@ pub enum WeightKind {
 #[derive(Clone, PartialEq)]
 #[near(serializers=[json,borsh])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[serde(deny_unknown_fields)]
 pub struct VotePolicy {
     /// Kind of weight to use for votes.
     pub weight_kind: WeightKind,
@@ -145,6 +148,7 @@ impl Default for VotePolicy {
 #[derive(Clone, PartialEq)]
 #[near(serializers=[json,borsh])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[serde(deny_unknown_fields)]
 pub struct Policy {
     /// List of roles and permissions for them in the current policy.
     pub roles: Vec<RolePermission>,
@@ -164,7 +168,7 @@ pub struct Policy {
 #[derive(Clone, PartialEq)]
 #[near(serializers = [borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-#[serde(untagged)]
+#[serde(untagged, deny_unknown_fields)]
 pub enum VersionedPolicy {
     /// Default policy with given accounts as council.
     Default(Vec<AccountId>),

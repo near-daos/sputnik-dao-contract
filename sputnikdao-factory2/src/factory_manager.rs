@@ -74,15 +74,13 @@ impl FactoryManager {
         // Create a promise toward given account.
         let promise_id = env::promise_batch_create(&account_id);
         // Call `update` method, which should also handle migrations.
-        env::promise_batch_action_function_call(
+        env::promise_batch_action_function_call_weight(
             promise_id,
             method_name,
             &code,
             NO_DEPOSIT,
-            env::prepaid_gas()
-                .saturating_sub(env::used_gas())
-                .saturating_sub(GAS_UPDATE_LEFTOVER)
-                .saturating_sub(wasm_argument_gas),
+            Gas::from_gas(0),
+            near_sdk::GasWeight::default(),
         );
         env::promise_return(promise_id);
     }

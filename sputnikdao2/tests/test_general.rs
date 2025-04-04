@@ -1,4 +1,4 @@
-use near_sdk::base64;
+use near_sdk::base64::{engine::general_purpose, Engine as _};
 use near_sdk::json_types::U128;
 use near_sdk::serde_json::{json, Value};
 
@@ -66,7 +66,7 @@ async fn test_large_policy() -> Result<(), Box<dyn std::error::Error>> {
         .call("create")
         .args_json(json!({
             "name": "testdao",
-            "args": base64::encode(params)
+            "args": general_purpose::STANDARD.encode(params)
         }))
         .deposit(NearToken::from_near(10))
         .max_gas()
@@ -477,7 +477,7 @@ async fn test_bounty_workflow() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::test]
 async fn test_create_dao_and_use_token() -> Result<(), Box<dyn std::error::Error>> {
-    let (dao, worker, root) = setup_dao().await?;
+    let (dao, _worker, root) = setup_dao().await?;
     let user2 = root
         .create_subaccount(user(2).as_str())
         .initial_balance(NearToken::from_near(1000))
@@ -807,7 +807,7 @@ async fn test_create_dao_and_use_token() -> Result<(), Box<dyn std::error::Error
 /// Test various cases that must fail.
 #[tokio::test]
 async fn test_failures() -> Result<(), Box<dyn std::error::Error>> {
-    let (dao, worker, root) = setup_dao().await.unwrap();
+    let (dao, _worker, _root) = setup_dao().await.unwrap();
     let add_transfer_proposal_result = add_transfer_proposal(
         &dao,
         base_token(),
@@ -828,7 +828,7 @@ async fn test_failures() -> Result<(), Box<dyn std::error::Error>> {
 /// Test payments that fail
 #[tokio::test]
 async fn test_payment_failures() -> Result<(), Box<dyn std::error::Error>> {
-    let (dao, worker, root) = setup_dao().await.unwrap();
+    let (dao, _worker, root) = setup_dao().await.unwrap();
     let user1 = root
         .create_subaccount(user(1).as_str())
         .initial_balance(NearToken::from_near(1000))
@@ -927,7 +927,7 @@ async fn test_payment_failures() -> Result<(), Box<dyn std::error::Error>> {
         .args_json(json!({
             "id": 1,
             "action": Action::Finalize,
-            "msg": "Sorry! We topped up our tokens. Thanks.",
+            "memo": "Sorry! We topped up our tokens. Thanks.",
             "proposal": get_proposal_kind(&dao, 1).await
         }))
         .max_gas()
@@ -1004,7 +1004,12 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(actions_log.len(), 1);
     assert_eq!(
         actions_log.get(0).unwrap().clone(),
-        ActionLog::new("ser".parse().unwrap(), proposal_id, Action::AddProposal, 0)
+        ActionLog::new(
+            "dao.test.near".parse().unwrap(),
+            proposal_id,
+            Action::AddProposal,
+            112
+        )
     );
 
     let act_proposal_result = root
@@ -1018,5 +1023,64 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .unwrap();
     assert!(false);
+    Ok(())
+}
+
+/// Test json arguments serialization
+#[tokio::test]
+async fn test_deny_unknown_arguments() -> Result<(), Box<dyn std::error::Error>> {
+    let (dao, worker, root) = setup_dao().await.unwrap();
+
+    // Add bounty proposal
+    let add_proposal_result = add_bounty_proposal(&worker, &dao).await;
+    assert!(
+        add_proposal_result.is_success(),
+        "{:?}",
+        add_proposal_result.failures()
+    );
+    let kind = &mut dao
+        .view("get_proposal")
+        .args_json(json!({"id": 0}))
+        .await
+        .unwrap()
+        .json::<Value>()
+        .unwrap()["kind"];
+    // Check it is not possible to add high level argument
+    let act_proposal_result = root
+        .call(dao.id(), "act_proposal")
+        .args_json(json!({
+            "id": 0,
+            "action": Action::VoteApprove,
+            "proposal": kind,
+            "fake_arg": 0
+        }))
+        .max_gas()
+        .transact()
+        .await?;
+    assert!(
+        format!("{:?}", act_proposal_result.failures())
+            .contains("Failed to deserialize input from JSON."),
+        "{:?}",
+        act_proposal_result.failures()
+    );
+
+    // Check it is not possible to add unknown fields to the argument struct.
+    kind["AddBounty"]["bounty"]["amount1"] = near_sdk::serde_json::Value::String("100".to_string());
+    let act_proposal_result = root
+        .call(dao.id(), "act_proposal")
+        .args_json(json!({
+            "id": 0,
+            "action": Action::VoteApprove,
+            "proposal": kind,
+        }))
+        .max_gas()
+        .transact()
+        .await?;
+    assert!(
+        format!("{:?}", act_proposal_result.failures())
+            .contains("Failed to deserialize input from JSON."),
+        "{:?}",
+        act_proposal_result.failures()
+    );
     Ok(())
 }

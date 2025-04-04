@@ -38,6 +38,7 @@ pub enum ProposalStatus {
 #[derive(PartialEq, Clone)]
 #[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[serde(deny_unknown_fields)]
 pub struct ActionCall {
     method_name: String,
     args: Base64VecU8,
@@ -50,6 +51,7 @@ pub struct ActionCall {
 #[derive(PartialEq, Clone)]
 #[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[serde(deny_unknown_fields)]
 pub struct PolicyParameters {
     pub proposal_bond: Option<U128>,
     pub proposal_period: Option<U64>,
@@ -61,6 +63,7 @@ pub struct PolicyParameters {
 #[derive(PartialEq, Clone)]
 #[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[serde(deny_unknown_fields)]
 pub enum ProposalKind {
     /// Change the DAO config.
     ChangeConfig { config: Config },
@@ -168,6 +171,7 @@ impl From<Action> for Vote {
 #[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[derive(Clone)]
+#[serde(deny_unknown_fields)]
 pub struct ProposalV0 {
     /// Original proposer.
     pub proposer: AccountId,
@@ -608,6 +612,7 @@ impl Contract {
 
     /// Act on given proposal by id, if permissions allow.
     /// Memo is logged but not stored in the state. Can be used to leave notes or explain the action.
+    #[deny_unknown_arguments]
     pub fn act_proposal(
         &mut self,
         id: u64,
