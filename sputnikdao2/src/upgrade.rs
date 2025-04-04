@@ -7,11 +7,7 @@ use crate::*;
 
 const FACTORY_KEY: &[u8; 7] = b"FACTORY";
 const ERR_MUST_BE_SELF_OR_FACTORY: &str = "ERR_MUST_BE_SELF_OR_FACTORY";
-const UPDATE_GAS_LEFTOVER: Gas = Gas::from_tgas(10);
-const FACTORY_UPDATE_GAS_LEFTOVER: Gas = Gas::from_tgas(15);
 const NO_DEPOSIT: NearToken = NearToken::from_near(0);
-
-pub const GAS_FOR_UPGRADE_SELF_PROMISE_CREATION: Gas = Gas::from_tgas(15);
 
 /// Info about factory that deployed this contract and if auto-update is allowed.
 #[derive(PartialEq, Clone)]
