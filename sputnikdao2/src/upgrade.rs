@@ -1,5 +1,6 @@
 //! Logic to upgrade Sputnik contracts.
 
+use near_sdk::borsh::to_vec;
 use near_sdk::serde_json::json;
 use near_sdk::{Gas, GasWeight};
 
@@ -9,6 +10,42 @@ const FACTORY_KEY: &[u8; 7] = b"FACTORY";
 const ERR_MUST_BE_SELF_OR_FACTORY: &str = "ERR_MUST_BE_SELF_OR_FACTORY";
 const NO_DEPOSIT: NearToken = NearToken::from_near(0);
 
+#[near]
+#[derive(PanicOnDefault)]
+pub struct ContractV1 {
+    /// DAO configuration.
+    pub config: LazyOption<Config>,
+    /// Voting and permissions policy.
+    pub policy: LazyOption<VersionedPolicy>,
+
+    /// Amount of $NEAR locked for bonds.
+    pub locked_amount: NearToken,
+
+    /// Vote staking contract id. That contract must have this account as owner.
+    pub staking_id: Option<AccountId>,
+    /// Delegated  token total amount.
+    pub total_delegation_amount: Balance,
+    /// Delegations per user.
+    pub delegations: LookupMap<AccountId, Balance>,
+
+    /// Last available id for the proposals.
+    pub last_proposal_id: u64,
+    /// Proposal map from ID to proposal information.
+    pub proposals: LookupMap<u64, VersionedProposal>,
+
+    /// Last available id for the bounty.
+    pub last_bounty_id: u64,
+    /// Bounties map from ID to bounty information.
+    pub bounties: LookupMap<u64, VersionedBounty>,
+    /// Bounty claimers map per user. Allows quickly to query for each users their claims.
+    pub bounty_claimers: LookupMap<AccountId, Vec<BountyClaim>>,
+    /// Count of claims per bounty.
+    pub bounty_claims_count: LookupMap<u64, u32>,
+
+    /// Large blob storage.
+    pub blobs: LookupMap<CryptoHash, AccountId>,
+}
+
 /// Info about factory that deployed this contract and if auto-update is allowed.
 #[derive(PartialEq, Clone)]
 #[near(serializers=[borsh, json])]
@@ -17,6 +54,29 @@ const NO_DEPOSIT: NearToken = NearToken::from_near(0);
 pub struct FactoryInfo {
     pub factory_id: AccountId,
     pub auto_update: bool,
+}
+
+#[near]
+#[derive(Debug)]
+pub(crate) enum StateVersion {
+    V1,
+    V2,
+}
+
+const VERSION_KEY: &[u8] = b"STATEVERSION";
+
+pub(crate) fn state_version_read() -> StateVersion {
+    env::storage_read(VERSION_KEY)
+        .map(|data| {
+            StateVersion::try_from_slice(&data).expect("Cannot deserialize the contract state.")
+        })
+        .unwrap_or(StateVersion::V1)
+}
+
+pub(crate) fn state_version_write(version: &StateVersion) {
+    let data = to_vec(&version).expect("Cannot serialize the contract state.");
+    env::storage_write(VERSION_KEY, &data);
+    near_sdk::log!("Migrated to version: {:?}", version);
 }
 
 pub fn get_default_factory_id() -> AccountId {

@@ -9,6 +9,7 @@ use near_sdk::{
     env, ext_contract, near, AccountId, BorshStorageKey, CryptoHash, NearToken, PanicOnDefault,
     Promise, PromiseOrValue, PromiseResult,
 };
+use upgrade::{state_version_read, state_version_write, ContractV1, StateVersion};
 
 pub use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
 pub use crate::policy::{
@@ -123,8 +124,33 @@ impl Contract {
     #[private]
     #[init(ignore_state)]
     pub fn migrate() -> Self {
-        let this: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
-        this
+        let version = state_version_read();
+        match version {
+            StateVersion::V1 => {
+                let this: ContractV1 = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
+                state_version_write(&StateVersion::V2);
+                Contract {
+                    config: this.config,
+                    policy: this.policy,
+                    locked_amount: this.locked_amount,
+                    staking_id: this.staking_id,
+                    total_delegation_amount: this.total_delegation_amount,
+                    delegations: this.delegations,
+                    last_proposal_id: this.last_proposal_id,
+                    proposals: this.proposals,
+                    last_bounty_id: this.last_bounty_id,
+                    bounties: this.bounties,
+                    bounty_claimers: this.bounty_claimers,
+                    bounty_claims_count: this.bounty_claims_count,
+                    blobs: this.blobs,
+                    actions_log: VecDeque::new(),
+                }
+            }
+            StateVersion::V2 => {
+                let this: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
+                this
+            }
+        }
     }
 
     /// Remove blob from contract storage and pay back to original storer.
