@@ -76,7 +76,7 @@ pub(crate) fn state_version_read() -> StateVersion {
 pub(crate) fn state_version_write(version: &StateVersion) {
     let data = to_vec(&version).expect("Cannot serialize the contract state.");
     env::storage_write(VERSION_KEY, &data);
-    near_sdk::log!("Migrated to version: {:?}", version);
+    near_sdk::log!("Contract state version: {:?}", version);
 }
 
 pub fn get_default_factory_id() -> AccountId {

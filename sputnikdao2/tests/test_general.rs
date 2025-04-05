@@ -992,7 +992,7 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
 
     // Verify add_proposal log has been added
-    let actions_log = dao
+    let blocks_log = dao
         .view("get_proposal")
         .args_json(json!({"id": proposal_id}))
         .await
@@ -1001,28 +1001,31 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap()
         .proposal
         .latest_version()
-        .last_actions_log
-        .unwrap();
+        .last_actions_log;
     let global_actions_log = dao
         .view("get_actions_log")
         .await
         .unwrap()
         .json::<Vec<ActionLog>>()
         .unwrap();
-    let log = actions_log.get(0).unwrap().clone();
-    assert_eq!(log, global_actions_log.get(0).unwrap().clone());
-    assert_eq!(actions_log.len(), 1);
+
+    let action_log = global_actions_log.get(0).unwrap().clone();
+    let block_log = blocks_log.get(0).unwrap();
+    assert_eq!(action_log.block_height, block_log.block_height);
+    assert_eq!(global_actions_log.len(), 1);
+    assert_eq!(blocks_log.len(), 1);
     assert_eq!(
-        log,
+        action_log,
         ActionLog::new(
             "dao.test.near".parse().unwrap(),
             proposal_id,
             Action::AddProposal,
-            log.block_height // It is uncertain because of async block creation
+            action_log.block_height // It is uncertain because of async block creation
         )
     );
     assert!(
-        (log.block_height as i128 - worker.view_block().await.unwrap().header().height() as i128)
+        (action_log.block_height as i128
+            - worker.view_block().await.unwrap().header().height() as i128)
             .abs()
             <= 1 as i128,
     );
@@ -1032,7 +1035,7 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
     vote(voting_users, &dao, proposal_id).await.unwrap();
 
     // Verify that the oldest prposal now is the voting approve from user0
-    let actions_log = dao
+    let blocks_log = dao
         .view("get_proposal")
         .args_json(json!({"id": proposal_id}))
         .await
@@ -1041,8 +1044,7 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap()
         .proposal
         .latest_version()
-        .last_actions_log
-        .unwrap();
+        .last_actions_log;
 
     let global_actions_log = dao
         .view("get_actions_log")
@@ -1050,16 +1052,19 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap()
         .json::<Vec<ActionLog>>()
         .unwrap();
-    let log = actions_log.get(0).unwrap().clone();
-    assert_eq!(log, global_actions_log.get(0).unwrap().clone());
-    assert_eq!(actions_log.len(), 20);
+
+    let action_log = global_actions_log.get(0).unwrap().clone();
+    let block_log = blocks_log.get(0).unwrap().clone();
+    assert_eq!(action_log.block_height, block_log.block_height);
+    assert_eq!(global_actions_log.len(), 20);
+    assert_eq!(blocks_log.len(), 20);
     assert_eq!(
-        actions_log.get(0).unwrap().clone(),
+        action_log,
         ActionLog::new(
             "user0.test.near".parse().unwrap(),
             proposal_id,
             Action::VoteApprove,
-            log.block_height, // It is uncertain because of async block creation
+            action_log.block_height, // It is uncertain because of async block creation
         )
     );
     Ok(())

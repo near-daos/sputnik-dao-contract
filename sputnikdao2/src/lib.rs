@@ -4,7 +4,6 @@ use action_log::ActionLog;
 use near_contract_standards::fungible_token::Balance;
 use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
-use near_sdk::env::log_str;
 use near_sdk::json_types::{Base58CryptoHash, U128};
 use near_sdk::{
     env, ext_contract, near, AccountId, BorshStorageKey, CryptoHash, NearToken, PanicOnDefault,
@@ -215,6 +214,7 @@ mod tests {
     use near_sdk::testing_env;
     use near_workspaces::types::NearToken;
 
+    use crate::action_log::BlockLog;
     use crate::proposals::ProposalStatus;
 
     use super::*;
@@ -490,11 +490,13 @@ mod tests {
         // Check that last actions log has proposal create
         let proposal = contract.get_proposal(id).proposal.latest_version();
         let proposal_kind = contract.get_proposal(id).proposal.latest_version_ref().kind;
-        let proposal_last_actions_log = proposal.last_actions_log.unwrap();
+        let proposal_last_actions_log = proposal.last_actions_log;
         let global_last_actions_log = contract.get_actions_log();
+        assert_eq!(proposal_last_actions_log.len(), 1);
+        assert_eq!(global_last_actions_log.len(), 1);
         assert_eq!(
             proposal_last_actions_log.get(0).unwrap().clone(),
-            ActionLog::new("alice".parse().unwrap(), 0, Action::AddProposal, 0)
+            BlockLog { block_height: 0 }
         );
         assert_eq!(
             global_last_actions_log.get(0).unwrap().clone(),
@@ -513,12 +515,13 @@ mod tests {
             .get_proposal(id)
             .proposal
             .latest_version()
-            .last_actions_log
-            .unwrap();
+            .last_actions_log;
         let global_last_actions_log = contract.get_actions_log();
+        assert_eq!(proposal_last_actions_log.len(), 20);
+        assert_eq!(global_last_actions_log.len(), 20);
         assert_eq!(
             proposal_last_actions_log.get(0).unwrap().clone(),
-            ActionLog::new("bob".parse().unwrap(), 0, Action::VoteApprove, 0)
+            BlockLog { block_height: 0 }
         );
         assert_eq!(
             global_last_actions_log.get(0).unwrap().clone(),

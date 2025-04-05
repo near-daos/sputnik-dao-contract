@@ -4,7 +4,7 @@ use ext_fungible_token::ext_fungible_token;
 use near_sdk::json_types::{Base64VecU8, U128, U64};
 use near_sdk::{log, AccountId, Gas, PromiseOrValue};
 
-use crate::action_log::ActionLog;
+use crate::action_log::BlockLog;
 use crate::policy::UserInfo;
 use crate::types::{
     convert_old_to_new_token, Action, Config, OldAccountId, GAS_FOR_FT_TRANSFER, OLD_BASE_TOKEN,
@@ -208,7 +208,7 @@ pub struct ProposalV1 {
     /// Submission time (for voting period).
     pub submission_time: U64,
     /// Last actions log
-    pub last_actions_log: Option<VecDeque<ActionLog>>,
+    pub last_actions_log: VecDeque<BlockLog>,
 }
 
 impl From<ProposalV0> for ProposalV1 {
@@ -221,7 +221,7 @@ impl From<ProposalV0> for ProposalV1 {
             vote_counts: v0.vote_counts.clone(),
             votes: v0.votes.clone(),
             submission_time: v0.submission_time,
-            last_actions_log: Some(VecDeque::new()),
+            last_actions_log: VecDeque::new(),
         }
     }
 }
@@ -315,7 +315,7 @@ impl From<ProposalInput> for VersionedProposal {
             vote_counts: HashMap::default(),
             votes: HashMap::default(),
             submission_time: U64::from(env::block_timestamp()),
-            last_actions_log: Some(VecDeque::new()),
+            last_actions_log: VecDeque::new(),
         })
     }
 }
