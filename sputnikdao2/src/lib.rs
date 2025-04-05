@@ -131,7 +131,7 @@ impl Contract {
             StateVersion::V1 => {
                 let this: ContractV1 = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
                 state_version_write(&StateVersion::V2);
-                let new_state = Contract {
+                Contract {
                     config: this.config,
                     policy: this.policy,
                     locked_amount: this.locked_amount,
@@ -146,9 +146,7 @@ impl Contract {
                     bounty_claims_count: this.bounty_claims_count,
                     blobs: this.blobs,
                     actions_log: VecDeque::new(),
-                };
-                env::state_write(&new_state);
-                new_state
+                }
             }
             StateVersion::V2 => {
                 let this: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
