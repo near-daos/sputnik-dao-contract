@@ -4,6 +4,7 @@ use action_log::ActionLog;
 use near_contract_standards::fungible_token::Balance;
 use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
+use near_sdk::env::log_str;
 use near_sdk::json_types::{Base58CryptoHash, U128};
 use near_sdk::{
     env, ext_contract, near, AccountId, BorshStorageKey, CryptoHash, NearToken, PanicOnDefault,
@@ -114,6 +115,7 @@ impl Contract {
             factory_id: env::predecessor_account_id(),
             auto_update: true,
         });
+        state_version_write(&StateVersion::V2);
         this
     }
 
@@ -129,7 +131,7 @@ impl Contract {
             StateVersion::V1 => {
                 let this: ContractV1 = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
                 state_version_write(&StateVersion::V2);
-                Contract {
+                let new_state = Contract {
                     config: this.config,
                     policy: this.policy,
                     locked_amount: this.locked_amount,
@@ -144,7 +146,9 @@ impl Contract {
                     bounty_claims_count: this.bounty_claims_count,
                     blobs: this.blobs,
                     actions_log: VecDeque::new(),
-                }
+                };
+                env::state_write(&new_state);
+                new_state
             }
             StateVersion::V2 => {
                 let this: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
