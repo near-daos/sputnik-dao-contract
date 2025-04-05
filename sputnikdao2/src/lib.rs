@@ -1,3 +1,6 @@
+use std::collections::VecDeque;
+
+use action_log::ActionLog;
 use near_contract_standards::fungible_token::Balance;
 use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
@@ -6,22 +9,24 @@ use near_sdk::{
     env, ext_contract, near, AccountId, BorshStorageKey, CryptoHash, NearToken, PanicOnDefault,
     Promise, PromiseOrValue, PromiseResult,
 };
+use upgrade::{state_version_read, state_version_write, ContractV1, StateVersion};
 
 pub use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
 pub use crate::policy::{
     default_policy, Policy, RoleKind, RolePermission, VersionedPolicy, VotePolicy,
 };
 use crate::proposals::VersionedProposal;
-pub use crate::proposals::{Proposal, ProposalInput, ProposalKind, ProposalStatus};
+pub use crate::proposals::{ProposalInput, ProposalKind, ProposalStatus, ProposalV0, ProposalV1};
 pub use crate::types::{Action, Config, OldAccountId, OLD_BASE_TOKEN};
 use crate::upgrade::{internal_get_factory_info, internal_set_factory_info, FactoryInfo};
 pub use crate::views::{BountyOutput, ProposalOutput};
 
+pub mod action_log;
 mod bounties;
 mod delegation;
 mod ext_fungible_token;
 mod policy;
-mod proposals;
+pub mod proposals;
 mod types;
 mod upgrade;
 pub mod views;
@@ -80,6 +85,9 @@ pub struct Contract {
 
     /// Large blob storage.
     pub blobs: LookupMap<CryptoHash, AccountId>,
+
+    /// Log of the latest actions on proposals
+    pub actions_log: VecDeque<ActionLog>,
 }
 
 #[near]
@@ -100,11 +108,13 @@ impl Contract {
             bounty_claims_count: LookupMap::new(StorageKeys::BountyClaimCounts),
             blobs: LookupMap::new(StorageKeys::Blobs),
             locked_amount: NearToken::from_near(0),
+            actions_log: VecDeque::new(),
         };
         internal_set_factory_info(&FactoryInfo {
             factory_id: env::predecessor_account_id(),
             auto_update: true,
         });
+        state_version_write(&StateVersion::V2);
         this
     }
 
@@ -115,8 +125,33 @@ impl Contract {
     #[private]
     #[init(ignore_state)]
     pub fn migrate() -> Self {
-        let this: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
-        this
+        let version = state_version_read();
+        match version {
+            StateVersion::V1 => {
+                let this: ContractV1 = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
+                state_version_write(&StateVersion::V2);
+                Contract {
+                    config: this.config,
+                    policy: this.policy,
+                    locked_amount: this.locked_amount,
+                    staking_id: this.staking_id,
+                    total_delegation_amount: this.total_delegation_amount,
+                    delegations: this.delegations,
+                    last_proposal_id: this.last_proposal_id,
+                    proposals: this.proposals,
+                    last_bounty_id: this.last_bounty_id,
+                    bounties: this.bounties,
+                    bounty_claimers: this.bounty_claimers,
+                    bounty_claims_count: this.bounty_claims_count,
+                    blobs: this.blobs,
+                    actions_log: VecDeque::new(),
+                }
+            }
+            StateVersion::V2 => {
+                let this: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
+                this
+            }
+        }
     }
 
     /// Remove blob from contract storage and pay back to original storer.
@@ -179,6 +214,7 @@ mod tests {
     use near_sdk::testing_env;
     use near_workspaces::types::NearToken;
 
+    use crate::action_log::BlockLog;
     use crate::proposals::ProposalStatus;
 
     use super::*;
@@ -205,18 +241,29 @@ mod tests {
             VersionedPolicy::Default(vec![accounts(1).into()]),
         );
         let id = create_proposal(&mut context, &mut contract);
-        assert_eq!(contract.get_proposal(id).proposal.description, "test");
+        assert_eq!(
+            contract
+                .get_proposal(id)
+                .proposal
+                .latest_version_ref()
+                .description,
+            "test"
+        );
         assert_eq!(contract.get_proposals(0, 10).len(), 1);
 
         let id = create_proposal(&mut context, &mut contract);
         contract.act_proposal(
             id,
             Action::VoteApprove,
-            contract.get_proposal(id).proposal.kind,
+            contract.get_proposal(id).proposal.latest_version_ref().kind,
             None,
         );
         assert_eq!(
-            contract.get_proposal(id).proposal.status,
+            contract
+                .get_proposal(id)
+                .proposal
+                .latest_version_ref()
+                .status,
             ProposalStatus::Approved
         );
 
@@ -228,11 +275,15 @@ mod tests {
         contract.act_proposal(
             id,
             Action::Finalize,
-            contract.get_proposal(id).proposal.kind,
+            contract.get_proposal(id).proposal.latest_version_ref().kind,
             None,
         );
         assert_eq!(
-            contract.get_proposal(id).proposal.status,
+            contract
+                .get_proposal(id)
+                .proposal
+                .latest_version_ref()
+                .status,
             ProposalStatus::Expired
         );
 
@@ -260,11 +311,18 @@ mod tests {
             VersionedPolicy::Default(vec![accounts(1).into()]),
         );
         let id = create_proposal(&mut context, &mut contract);
-        assert_eq!(contract.get_proposal(id).proposal.description, "test");
+        assert_eq!(
+            contract
+                .get_proposal(id)
+                .proposal
+                .latest_version_ref()
+                .description,
+            "test"
+        );
         contract.act_proposal(
             id,
             Action::RemoveProposal,
-            contract.get_proposal(id).proposal.kind,
+            contract.get_proposal(id).proposal.latest_version_ref().kind,
             None,
         );
     }
@@ -279,11 +337,18 @@ mod tests {
             .insert("*:RemoveProposal".to_string());
         let mut contract = Contract::new(Config::test_config(), policy);
         let id = create_proposal(&mut context, &mut contract);
-        assert_eq!(contract.get_proposal(id).proposal.description, "test");
+        assert_eq!(
+            contract
+                .get_proposal(id)
+                .proposal
+                .latest_version_ref()
+                .description,
+            "test"
+        );
         contract.act_proposal(
             id,
             Action::RemoveProposal,
-            contract.get_proposal(id).proposal.kind,
+            contract.get_proposal(id).proposal.latest_version_ref().kind,
             None,
         );
         assert_eq!(contract.get_proposals(0, 10).len(), 0);
@@ -304,7 +369,7 @@ mod tests {
         contract.act_proposal(
             id,
             Action::VoteApprove,
-            contract.get_proposal(id).proposal.kind,
+            contract.get_proposal(id).proposal.latest_version_ref().kind,
             None,
         );
     }
@@ -322,13 +387,13 @@ mod tests {
         contract.act_proposal(
             id,
             Action::VoteApprove,
-            contract.get_proposal(id).proposal.kind,
+            contract.get_proposal(id).proposal.latest_version_ref().kind,
             None,
         );
         contract.act_proposal(
             id,
             Action::VoteApprove,
-            contract.get_proposal(id).proposal.kind,
+            contract.get_proposal(id).proposal.latest_version_ref().kind,
             None,
         );
     }
@@ -375,7 +440,7 @@ mod tests {
         contract.act_proposal(
             id,
             Action::VoteApprove,
-            contract.get_proposal(id).proposal.kind,
+            contract.get_proposal(id).proposal.latest_version_ref().kind,
             None,
         );
         let x = contract.get_policy();
@@ -399,5 +464,68 @@ mod tests {
                 policy: VersionedPolicy::Default(vec![]),
             },
         });
+    }
+
+    #[test]
+    fn test_action_log() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context.predecessor_account_id(accounts(0)).build());
+        let accounts_list: Vec<AccountId> = [
+            "alice", "bob", "charlie", "danny", "eugene", "fargo", "grace", "hannah", "ian",
+            "julia", "kevin", "linda", "michael", "nathan", "olivia", "patricia", "quinn",
+            "robert", "sarah", "thomas", "ursula", "victor", "wendy", "xavier", "yasmine", "zack",
+            "adam", "bella", "cameron", "diana", "ethan", "fiona", "george", "heidi", "isaac",
+            "jennifer", "kyle", "lily", "marcus", "nina", "oscar", "penelope", "quincy", "ryan",
+            "sophia", "tyler", "uma", "vincent", "willow", "xander",
+        ]
+        .iter()
+        .map(|name| name.parse().unwrap())
+        .collect();
+        let mut contract = Contract::new(
+            Config::test_config(),
+            VersionedPolicy::Default(accounts_list.clone()),
+        );
+        let id = create_proposal(&mut context, &mut contract);
+
+        // Check that last actions log has proposal create
+        let proposal = contract.get_proposal(id).proposal.latest_version();
+        let proposal_kind = contract.get_proposal(id).proposal.latest_version_ref().kind;
+        let proposal_last_actions_log = proposal.last_actions_log;
+        let global_last_actions_log = contract.get_actions_log();
+        assert_eq!(proposal_last_actions_log.len(), 1);
+        assert_eq!(global_last_actions_log.len(), 1);
+        assert_eq!(
+            proposal_last_actions_log.get(0).unwrap().clone(),
+            BlockLog { block_height: 0 }
+        );
+        assert_eq!(
+            global_last_actions_log.get(0).unwrap().clone(),
+            ActionLog::new("alice".parse().unwrap(), 0, Action::AddProposal, 0)
+        );
+
+        // Fill the latest actions list
+        for i in 1..21 {
+            testing_env!(context
+                .predecessor_account_id(accounts_list.get(i).unwrap().clone())
+                .build());
+            contract.act_proposal(id, Action::VoteApprove, proposal_kind.clone(), None);
+        }
+        // Now the oldest proposal should be bob's vote
+        let proposal_last_actions_log = contract
+            .get_proposal(id)
+            .proposal
+            .latest_version()
+            .last_actions_log;
+        let global_last_actions_log = contract.get_actions_log();
+        assert_eq!(proposal_last_actions_log.len(), 20);
+        assert_eq!(global_last_actions_log.len(), 20);
+        assert_eq!(
+            proposal_last_actions_log.get(0).unwrap().clone(),
+            BlockLog { block_height: 0 }
+        );
+        assert_eq!(
+            global_last_actions_log.get(0).unwrap().clone(),
+            ActionLog::new("bob".parse().unwrap(), 0, Action::VoteApprove, 0)
+        );
     }
 }

@@ -41,8 +41,9 @@ impl Config {
 }
 
 /// Set of possible action to take.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[near(serializers=[borsh, json])]
+#[cfg_attr(not(target_arch = "wasm32"), derive(PartialEq))]
 pub enum Action {
     /// Action to add proposal. Used internally.
     AddProposal,

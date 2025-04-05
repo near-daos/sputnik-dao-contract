@@ -5,8 +5,9 @@ use near_contract_standards::fungible_token::Balance;
 use near_sdk::json_types::{U128, U64};
 use near_sdk::{env, near, AccountId};
 
-use crate::proposals::{PolicyParameters, Proposal, ProposalKind, ProposalStatus, Vote};
+use crate::proposals::{PolicyParameters, ProposalKind, ProposalStatus, Vote};
 use crate::types::Action;
+use crate::ProposalV1;
 
 #[derive(Clone, PartialEq)]
 #[near(serializers=[json,borsh])]
@@ -387,7 +388,7 @@ impl Policy {
     /// Usually is called after changing it's state.
     pub fn proposal_status(
         &self,
-        proposal: &Proposal,
+        proposal: &ProposalV1,
         roles: Vec<String>,
         total_supply: Balance,
     ) -> ProposalStatus {
@@ -420,12 +421,14 @@ impl Policy {
                 }
                 RoleKind::Member(_) => total_supply,
             };
-            let threshold = std::cmp::max(
+            let threshold = U128::from(std::cmp::max(
                 vote_policy.quorum.0,
                 vote_policy.threshold.to_weight(total_weight),
-            );
+            ));
+            let proposal_data = proposal;
             // Check if there is anything voted above the threshold specified by policy for given role.
-            let vote_counts = proposal.vote_counts.get(&role).unwrap_or(&[0u128; 3]);
+            let defaults = [U128::from(0); 3];
+            let vote_counts = proposal_data.vote_counts.get(&role).unwrap_or(&defaults);
             if vote_counts[Vote::Approve as usize] >= threshold {
                 return ProposalStatus::Approved;
             } else if vote_counts[Vote::Reject as usize] >= threshold {

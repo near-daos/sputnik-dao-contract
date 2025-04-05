@@ -1,9 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 use ext_fungible_token::ext_fungible_token;
 use near_sdk::json_types::{Base64VecU8, U128, U64};
 use near_sdk::{log, AccountId, Gas, PromiseOrValue};
 
+use crate::action_log::BlockLog;
 use crate::policy::UserInfo;
 use crate::types::{
     convert_old_to_new_token, Action, Config, OldAccountId, GAS_FOR_FT_TRANSFER, OLD_BASE_TOKEN,
@@ -34,9 +35,9 @@ pub enum ProposalStatus {
 
 /// Function call arguments.
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 #[near(serializers=[borsh, json])]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[serde(deny_unknown_fields)]
 pub struct ActionCall {
     method_name: String,
@@ -47,9 +48,9 @@ pub struct ActionCall {
 
 /// Function call arguments.
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 #[near(serializers=[borsh, json])]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[serde(deny_unknown_fields)]
 pub struct PolicyParameters {
     pub proposal_bond: Option<U128>,
@@ -59,9 +60,9 @@ pub struct PolicyParameters {
 }
 
 /// Kinds of proposals, doing different action.
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 #[near(serializers=[borsh, json])]
-#[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[serde(deny_unknown_fields)]
 pub enum ProposalKind {
     /// Change the DAO config.
@@ -169,7 +170,9 @@ impl From<Action> for Vote {
 /// Proposal that are sent to this DAO.
 #[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-pub struct Proposal {
+#[derive(Clone)]
+#[serde(deny_unknown_fields)]
+pub struct ProposalV0 {
     /// Original proposer.
     pub proposer: AccountId,
     /// Description of this proposal.
@@ -179,30 +182,78 @@ pub struct Proposal {
     /// Current status of the proposal.
     pub status: ProposalStatus,
     /// Count of votes per role per decision: yes / no / spam.
-    pub vote_counts: HashMap<String, [Balance; 3]>,
+    pub vote_counts: HashMap<String, [U128; 3]>,
     /// Map of who voted and how.
     pub votes: HashMap<AccountId, Vote>,
     /// Submission time (for voting period).
     pub submission_time: U64,
 }
 
-// In this case adding `borsh` to the serializers in the `near` attribute macro fails to build with abi
 #[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-pub enum VersionedProposal {
-    Default(Proposal),
+#[derive(Clone)]
+pub struct ProposalV1 {
+    /// Original proposer.
+    pub proposer: AccountId,
+    /// Description of this proposal.
+    pub description: String,
+    /// Kind of proposal with relevant information.
+    pub kind: ProposalKind,
+    /// Current status of the proposal.
+    pub status: ProposalStatus,
+    /// Count of votes per role per decision: yes / no / spam.
+    pub vote_counts: HashMap<String, [U128; 3]>,
+    /// Map of who voted and how.
+    pub votes: HashMap<AccountId, Vote>,
+    /// Submission time (for voting period).
+    pub submission_time: U64,
+    /// Last actions log
+    pub last_actions_log: VecDeque<BlockLog>,
 }
 
-impl From<VersionedProposal> for Proposal {
-    fn from(v: VersionedProposal) -> Self {
-        match v {
-            VersionedProposal::Default(p) => p,
+impl From<ProposalV0> for ProposalV1 {
+    fn from(v0: ProposalV0) -> Self {
+        ProposalV1 {
+            proposer: v0.proposer.clone(),
+            description: v0.description.clone(),
+            kind: v0.kind.clone(),
+            status: v0.status.clone(),
+            vote_counts: v0.vote_counts.clone(),
+            votes: v0.votes.clone(),
+            submission_time: v0.submission_time,
+            last_actions_log: VecDeque::new(),
         }
     }
 }
 
-impl Proposal {
-    /// Adds vote of the given user with given `amount` of weight. If user already voted, fails.
+#[derive(Clone)]
+#[near(serializers=[borsh, json])]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
+#[serde(untagged)]
+pub enum VersionedProposal {
+    V0(ProposalV0),
+    V1(ProposalV1),
+}
+
+impl From<VersionedProposal> for ProposalV0 {
+    fn from(v: VersionedProposal) -> Self {
+        match v {
+            VersionedProposal::V0(p) => p,
+            _ => unimplemented!(),
+        }
+    }
+}
+
+impl From<VersionedProposal> for ProposalV1 {
+    fn from(v: VersionedProposal) -> Self {
+        match v {
+            VersionedProposal::V0(p) => p.into(),
+            VersionedProposal::V1(p) => p,
+        }
+    }
+}
+
+impl ProposalV1 {
     pub fn update_votes(
         &mut self,
         account_id: &AccountId,
@@ -218,13 +269,31 @@ impl Proposal {
             } else {
                 1
             };
-            self.vote_counts.entry(role.clone()).or_insert([0u128; 3])[vote.clone() as usize] +=
-                amount;
+            let defaults = [U128::from(0); 3];
+            let vote_counted =
+                self.vote_counts.entry(role.clone()).or_insert(defaults)[vote.clone() as usize].0
+                    + amount;
+            self.vote_counts
+                .entry(role.clone())
+                .and_modify(|votes| votes[vote.clone() as usize] = vote_counted.into());
         }
         assert!(
             self.votes.insert(account_id.clone(), vote).is_none(),
             "ERR_ALREADY_VOTED"
         );
+    }
+}
+
+impl VersionedProposal {
+    pub fn latest_version(self) -> ProposalV1 {
+        self.into()
+    }
+
+    pub fn latest_version_ref(&self) -> ProposalV1 {
+        match self {
+            VersionedProposal::V0(p) => ProposalV1::from(p.clone()),
+            VersionedProposal::V1(p) => p.clone(),
+        }
     }
 }
 
@@ -236,9 +305,9 @@ pub struct ProposalInput {
     pub kind: ProposalKind,
 }
 
-impl From<ProposalInput> for Proposal {
+impl From<ProposalInput> for VersionedProposal {
     fn from(input: ProposalInput) -> Self {
-        Self {
+        VersionedProposal::V1(ProposalV1 {
             proposer: env::predecessor_account_id(),
             description: input.description,
             kind: input.kind,
@@ -246,7 +315,8 @@ impl From<ProposalInput> for Proposal {
             vote_counts: HashMap::default(),
             votes: HashMap::default(),
             submission_time: U64::from(env::block_timestamp()),
-        }
+            last_actions_log: VecDeque::new(),
+        })
     }
 }
 
@@ -280,7 +350,7 @@ impl Contract {
         }
     }
 
-    fn internal_return_bonds(&mut self, policy: &Policy, proposal: &Proposal) -> Promise {
+    fn internal_return_bonds(&mut self, policy: &Policy, proposal: &ProposalV1) -> Promise {
         match &proposal.kind {
             ProposalKind::BountyDone { .. } => {
                 self.locked_amount = self
@@ -303,7 +373,7 @@ impl Contract {
     fn internal_execute_proposal(
         &mut self,
         policy: &Policy,
-        proposal: &Proposal,
+        proposal: &ProposalV1,
         proposal_id: u64,
     ) -> PromiseOrValue<()> {
         let result = match &proposal.kind {
@@ -423,26 +493,26 @@ impl Contract {
 
     pub(crate) fn internal_callback_proposal_success(
         &mut self,
-        proposal: &mut Proposal,
+        proposal: &mut ProposalV1,
     ) -> PromiseOrValue<()> {
         let policy = self.policy.get().unwrap().to_policy();
-        if let ProposalKind::BountyDone { bounty_id, .. } = proposal.kind {
-            let mut bounty: Bounty = self.bounties.get(&bounty_id).expect("ERR_NO_BOUNTY").into();
+        if let ProposalKind::BountyDone { bounty_id, .. } = &proposal.kind {
+            let mut bounty: Bounty = self.bounties.get(bounty_id).expect("ERR_NO_BOUNTY").into();
             if bounty.times == 0 {
-                self.bounties.remove(&bounty_id);
+                self.bounties.remove(bounty_id);
             } else {
                 bounty.times -= 1;
                 self.bounties
-                    .insert(&bounty_id, &VersionedBounty::Default(bounty));
+                    .insert(bounty_id, &VersionedBounty::Default(bounty));
             }
         }
-        proposal.status = ProposalStatus::Approved;
+
         self.internal_return_bonds(&policy, &proposal).into()
     }
 
     pub(crate) fn internal_callback_proposal_fail(
         &mut self,
-        proposal: &mut Proposal,
+        proposal: &mut ProposalV1,
     ) -> PromiseOrValue<()> {
         proposal.status = ProposalStatus::Failed;
         PromiseOrValue::Value(())
@@ -452,14 +522,16 @@ impl Contract {
     fn internal_reject_proposal(
         &mut self,
         policy: &Policy,
-        proposal: &Proposal,
+        proposal: &ProposalV1,
         return_bonds: bool,
     ) -> PromiseOrValue<()> {
         if return_bonds {
             // Return bond to the proposer.
             self.internal_return_bonds(policy, proposal);
         }
-        match &proposal.kind {
+
+        let proposal_data = proposal;
+        match &proposal_data.kind {
             ProposalKind::BountyDone {
                 bounty_id,
                 receiver_id,
@@ -528,8 +600,11 @@ impl Contract {
 
         // 3. Actually add proposal to the current list of proposals.
         let id = self.last_proposal_id;
-        self.proposals
-            .insert(&id, &VersionedProposal::Default(proposal.into()));
+        // 4. Log proposal creation
+        let mut proposal = VersionedProposal::from(proposal).latest_version();
+        self.internal_log_action(id, Action::AddProposal, &mut proposal);
+
+        self.proposals.insert(&id, &VersionedProposal::V1(proposal));
         self.last_proposal_id += 1;
         self.locked_amount = self.locked_amount.saturating_add(env::attached_deposit());
         id
@@ -546,13 +621,23 @@ impl Contract {
         memo: Option<String>,
     ) {
         let input_proposal_kind = proposal;
-        let mut proposal: Proposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL").into();
+        // Covert proposal to the latest version
+        let mut proposal: ProposalV1 = self
+            .proposals
+            .get(&id)
+            .expect("ERR_NO_PROPOSAL")
+            .latest_version();
+        // Log the action
+        self.internal_log_action(id, action.clone(), &mut proposal);
+
         let policy = self.policy.get().unwrap().to_policy();
+
         // Check permissions for the given action.
         let (roles, allowed) =
             policy.can_execute_action(self.internal_user_info(), &proposal.kind, &action);
         assert!(allowed, "ERR_PERMISSION_DENIED");
         let sender_id = env::predecessor_account_id();
+
         // Verify propolsal kind
         assert!(proposal.kind == input_proposal_kind, "ERR_WRONG_KIND");
         // Update proposal given action. Returns true if should be updated in storage.
@@ -570,13 +655,17 @@ impl Contract {
                 proposal.update_votes(
                     &sender_id,
                     &roles,
-                    Vote::from(action),
+                    Vote::from(action.clone()),
                     &policy,
                     self.get_user_weight(&sender_id),
                 );
+
+                // Get new status without cloning the entire proposal
+                let new_status =
+                    policy.proposal_status(&proposal, roles.clone(), self.total_delegation_amount);
+
                 // Updates proposal status with new votes using the policy.
-                proposal.status =
-                    policy.proposal_status(&proposal, roles, self.total_delegation_amount);
+                proposal.status = new_status;
                 if proposal.status == ProposalStatus::Approved {
                     self.internal_execute_proposal(&policy, &proposal, id);
                     true
@@ -600,11 +689,13 @@ impl Contract {
             //  - if the number of votes in the group has changed (new members has been added) -
             //      the proposal can loose it's approved state. In this case new proposal needs to be made, this one can only expire.
             Action::Finalize => {
-                proposal.status = policy.proposal_status(
+                let new_status = policy.proposal_status(
                     &proposal,
                     policy.roles.iter().map(|r| r.name.clone()).collect(),
                     self.total_delegation_amount,
                 );
+
+                proposal.status = new_status;
                 match proposal.status {
                     ProposalStatus::Approved => {
                         self.internal_execute_proposal(&policy, &proposal, id);
@@ -620,9 +711,9 @@ impl Contract {
             }
             Action::MoveToHub => false,
         };
+
         if update {
-            self.proposals
-                .insert(&id, &VersionedProposal::Default(proposal));
+            self.proposals.insert(&id, &VersionedProposal::V1(proposal));
         }
         if let Some(memo) = memo {
             log!("Memo: {}", memo);
@@ -635,11 +726,11 @@ impl Contract {
     /// move proposal to "Failed" state.
     #[private]
     pub fn on_proposal_callback(&mut self, proposal_id: u64) -> PromiseOrValue<()> {
-        let mut proposal: Proposal = self
+        let mut proposal: ProposalV1 = self
             .proposals
             .get(&proposal_id)
             .expect("ERR_NO_PROPOSAL")
-            .into();
+            .latest_version();
         assert_eq!(
             env::promise_results_count(),
             1,
@@ -650,7 +741,7 @@ impl Contract {
             PromiseResult::Failed => self.internal_callback_proposal_fail(&mut proposal),
         };
         self.proposals
-            .insert(&proposal_id, &VersionedProposal::Default(proposal.into()));
+            .insert(&proposal_id, &VersionedProposal::V1(proposal.into()));
         result
     }
 }

@@ -192,7 +192,7 @@ test(
             const { vote_counts, votes } = await dao.view('get_proposal', {
                 id: proposalId,
             }) as any;
-            t.deepEqual(vote_counts.council, [1, 1, 1]);
+            t.deepEqual(vote_counts.council, ['1', '1', '1']);
             t.deepEqual(votes, {
                 [alice.accountId]: 'Remove',
                 [user1.accountId]: 'Approve',
