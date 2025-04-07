@@ -10,8 +10,8 @@ use near_workspaces::{Account, AccountId, Contract, Worker};
 
 use near_sdk::json_types::U128;
 use sputnikdao2::{
-    Action, Bounty, Config, OldAccountId, Proposal, ProposalInput, ProposalKind, VersionedPolicy,
-    OLD_BASE_TOKEN,
+    Action, Bounty, Config, OldAccountId, ProposalInput, ProposalKind, ProposalOutput,
+    VersionedPolicy, OLD_BASE_TOKEN,
 };
 
 pub static FACTORY_WASM_BYTES: &[u8] =
@@ -78,6 +78,19 @@ pub async fn setup_dao() -> Result<(Contract, Worker<Sandbox>, Account), Box<dyn
 {
     let worker = near_workspaces::sandbox().await?;
     let root = worker.root_account().unwrap();
+    setup_dao_with_params(
+        root.clone(),
+        worker,
+        VersionedPolicy::Default(vec![root.id().clone()]),
+    )
+    .await
+}
+
+pub async fn setup_dao_with_params(
+    root: Account,
+    worker: Worker<Sandbox>,
+    policy: VersionedPolicy,
+) -> Result<(Contract, Worker<Sandbox>, Account), Box<dyn std::error::Error>> {
     let dao_account = root
         .create_subaccount("dao")
         .initial_balance(NearToken::from_near(200))
@@ -96,9 +109,7 @@ pub async fn setup_dao() -> Result<(Contract, Worker<Sandbox>, Account), Box<dyn
         .call("new")
         .args_json(json!({
             "config": config,
-            "policy": VersionedPolicy::Default(vec![
-                root.id().clone()
-            ])
+            "policy": policy,
         }))
         .max_gas()
         .transact()
@@ -261,7 +272,8 @@ pub async fn get_proposal_kind(dao: &Contract, proposal_id: u64) -> ProposalKind
         .args_json(json!({"id": proposal_id}))
         .await
         .unwrap()
-        .json::<Proposal>()
+        .json::<ProposalOutput>()
         .unwrap()
+        .proposal
         .kind
 }

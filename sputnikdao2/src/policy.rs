@@ -420,12 +420,14 @@ impl Policy {
                 }
                 RoleKind::Member(_) => total_supply,
             };
-            let threshold = std::cmp::max(
+            let threshold = U128::from(std::cmp::max(
                 vote_policy.quorum.0,
                 vote_policy.threshold.to_weight(total_weight),
-            );
+            ));
+            let proposal_data = proposal;
             // Check if there is anything voted above the threshold specified by policy for given role.
-            let vote_counts = proposal.vote_counts.get(&role).unwrap_or(&[0u128; 3]);
+            let defaults = [U128::from(0); 3];
+            let vote_counts = proposal_data.vote_counts.get(&role).unwrap_or(&defaults);
             if vote_counts[Vote::Approve as usize] >= threshold {
                 return ProposalStatus::Approved;
             } else if vote_counts[Vote::Reject as usize] >= threshold {

@@ -4,6 +4,7 @@ use crate::*;
 
 /// This is format of output via JSON for the proposal.
 #[near(serializers=[borsh, json])]
+#[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub struct ProposalOutput {
     /// Id of the proposal.
     pub id: u64,
@@ -139,5 +140,9 @@ impl Contract {
     /// Returns number of claims per given bounty.
     pub fn get_bounty_number_of_claims(&self, id: u64) -> u32 {
         self.bounty_claims_count.get(&id).unwrap_or_default()
+    }
+
+    pub fn get_actions_log(&self) -> &VecDeque<ActionLog> {
+        &self.actions_log
     }
 }

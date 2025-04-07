@@ -3,16 +3,16 @@ use near_sdk::json_types::U128;
 use near_sdk::serde_json::{json, Value};
 
 use near_workspaces::types::NearToken;
-use near_workspaces::AccountId;
+use near_workspaces::{Account, AccountId};
+use sputnikdao2::action_log::ActionLog;
 use std::collections::HashMap;
 
 mod utils;
 use crate::utils::*;
 use sputnik_staking::User;
 use sputnikdao2::{
-    default_policy, Action, BountyClaim, BountyOutput, Config, Policy, Proposal, ProposalInput,
-    ProposalKind, ProposalOutput, ProposalStatus, RoleKind, RolePermission, VersionedPolicy,
-    VotePolicy,
+    default_policy, Action, BountyClaim, BountyOutput, Config, Policy, ProposalInput, ProposalKind,
+    ProposalOutput, ProposalStatus, RoleKind, RolePermission, VersionedPolicy, VotePolicy,
 };
 
 fn user(id: u32) -> near_sdk::AccountId {
@@ -179,8 +179,9 @@ async fn test_multi_council() -> Result<(), Box<dyn std::error::Error>> {
         .view("get_proposal")
         .args_json(json!({"id": 1}))
         .await?
-        .json::<Proposal>()
-        .unwrap();
+        .json::<ProposalOutput>()
+        .unwrap()
+        .proposal;
     // Votes from members in different councils.
     assert_eq!(proposal.status, ProposalStatus::InProgress);
     // Finish with vote that is in both councils, which approves the proposal.
@@ -190,8 +191,9 @@ async fn test_multi_council() -> Result<(), Box<dyn std::error::Error>> {
         .view("get_proposal")
         .args_json(json!({"id": 1}))
         .await?
-        .json::<Proposal>()
-        .unwrap();
+        .json::<ProposalOutput>()
+        .unwrap()
+        .proposal;
     assert_eq!(
         proposal.status,
         ProposalStatus::Approved,
@@ -600,8 +602,9 @@ async fn test_create_dao_and_use_token() -> Result<(), Box<dyn std::error::Error
         dao.view("get_proposal")
             .args_json(json!({"id": 2}))
             .await?
-            .json::<Proposal>()
+            .json::<ProposalOutput>()
             .unwrap()
+            .proposal
             .status,
         ProposalStatus::Approved
     );
@@ -885,8 +888,9 @@ async fn test_payment_failures() -> Result<(), Box<dyn std::error::Error>> {
         .view("get_proposal")
         .args_json(json!({"id": 1}))
         .await?
-        .json::<Proposal>()
-        .unwrap();
+        .json::<ProposalOutput>()
+        .unwrap()
+        .proposal;
 
     assert_eq!(proposal.status, ProposalStatus::Failed);
 
@@ -931,8 +935,9 @@ async fn test_payment_failures() -> Result<(), Box<dyn std::error::Error>> {
         .view("get_proposal")
         .args_json(json!({"id": 1}))
         .await?
-        .json::<Proposal>()
-        .unwrap();
+        .json::<ProposalOutput>()
+        .unwrap()
+        .proposal;
 
     assert_eq!(
         proposal.status,
@@ -941,6 +946,119 @@ async fn test_payment_failures() -> Result<(), Box<dyn std::error::Error>> {
         act_proposal_result.failures()
     );
 
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
+    let worker = near_workspaces::sandbox().await?;
+    let root = worker.root_account().unwrap();
+    // initialize voting users
+    let mut users = Vec::new();
+    for i in 0..20 {
+        let account_id = user(i); // assuming user(i) returns a String
+        let created = root
+            .create_subaccount(account_id.as_str())
+            .initial_balance(NearToken::from_near(1))
+            .transact()
+            .await?
+            .into_result()?; // use `into_result()` instead of `.result` for better error handling
+
+        users.push(created);
+    }
+
+    // Now add empty accounts without transaction for time optimization
+    let mut policy_accounts: Vec<AccountId> = users.iter().map(|u| u.id().clone()).collect();
+    for i in 21..40 {
+        policy_accounts.push(user(i));
+    }
+    // Setup a dao with a lot of voters
+    let (dao, worker, _) = setup_dao_with_params(
+        root.clone(),
+        worker,
+        VersionedPolicy::Default(policy_accounts),
+    )
+    .await?;
+
+    let proposal_id = add_bounty_proposal(&worker, &dao)
+        .await
+        .json::<u64>()
+        .unwrap();
+
+    // Verify add_proposal log has been added
+    let proposal_log = dao
+        .view("get_proposal")
+        .args_json(json!({"id": proposal_id}))
+        .await
+        .unwrap()
+        .json::<ProposalOutput>()
+        .unwrap()
+        .proposal
+        .last_actions_log;
+    let global_actions_log = dao
+        .view("get_actions_log")
+        .await
+        .unwrap()
+        .json::<Vec<ActionLog>>()
+        .unwrap();
+
+    let action_log = global_actions_log[0].clone();
+    let block_log = proposal_log.get(0).unwrap();
+    assert_eq!(action_log.block_height, block_log.block_height);
+    assert_eq!(global_actions_log.len(), 1);
+    assert_eq!(proposal_log.len(), 1);
+    assert_eq!(
+        action_log,
+        ActionLog {
+            account_id: "dao.test.near".parse().unwrap(),
+            proposal_id: proposal_id.into(),
+            action: Action::AddProposal,
+            block_height: action_log.block_height // It is uncertain because of async block creation
+        }
+    );
+    assert!(
+        (action_log.block_height.0 as i128
+            - worker.view_block().await.unwrap().header().height() as i128)
+            .abs()
+            <= 1 as i128,
+    );
+
+    // Fill the actions log
+    let voting_users: Vec<&Account> = users.iter().take(20).collect();
+    vote(voting_users, &dao, proposal_id).await.unwrap();
+
+    // Verify that the oldest prposal now is the voting approve from user0
+    let proposal_log = dao
+        .view("get_proposal")
+        .args_json(json!({"id": proposal_id}))
+        .await
+        .unwrap()
+        .json::<ProposalOutput>()
+        .unwrap()
+        .proposal
+        .last_actions_log;
+
+    let global_actions_log = dao
+        .view("get_actions_log")
+        .await
+        .unwrap()
+        .json::<Vec<ActionLog>>()
+        .unwrap();
+
+    let action_log = global_actions_log[0].clone();
+    let block_log = proposal_log[0].clone();
+    assert_eq!(action_log.block_height, block_log.block_height);
+    assert_eq!(global_actions_log.len(), 20);
+    assert_eq!(proposal_log.len(), 20);
+    assert_eq!(
+        action_log,
+        ActionLog {
+            account_id: "user0.test.near".parse().unwrap(),
+            proposal_id: proposal_id.into(),
+            action: Action::VoteApprove,
+            block_height: action_log.block_height, // It is uncertain because of async block creation
+        }
+    );
     Ok(())
 }
 
