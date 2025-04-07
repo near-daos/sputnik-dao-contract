@@ -283,19 +283,6 @@ impl Proposal {
     }
 }
 
-impl VersionedProposal {
-    pub fn latest_version(self) -> Proposal {
-        self.into()
-    }
-
-    pub fn latest_version_ref(&self) -> Proposal {
-        match self {
-            VersionedProposal::V1(p) => Proposal::from(p.clone()),
-            VersionedProposal::Latest(p) => p.clone(),
-        }
-    }
-}
-
 #[near(serializers=[json])]
 pub struct ProposalInput {
     /// Description of this proposal.
@@ -600,7 +587,7 @@ impl Contract {
         // 3. Actually add proposal to the current list of proposals.
         let id = self.last_proposal_id;
         // 4. Log proposal creation
-        let mut proposal = VersionedProposal::from(proposal).latest_version();
+        let mut proposal = VersionedProposal::from(proposal).into();
         self.internal_log_action(id, Action::AddProposal, &mut proposal);
 
         self.proposals
@@ -622,11 +609,7 @@ impl Contract {
     ) {
         let input_proposal_kind = proposal;
         // Covert proposal to the latest version
-        let mut proposal: Proposal = self
-            .proposals
-            .get(&id)
-            .expect("ERR_NO_PROPOSAL")
-            .latest_version();
+        let mut proposal: Proposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL").into();
         // Log the action
         self.internal_log_action(id, action.clone(), &mut proposal);
 
@@ -655,14 +638,14 @@ impl Contract {
                 proposal.update_votes(
                     &sender_id,
                     &roles,
-                    Vote::from(action.clone()),
+                    Vote::from(action),
                     &policy,
                     self.get_user_weight(&sender_id),
                 );
 
                 // Updates proposal status with new votes using the policy.
                 proposal.status =
-                    policy.proposal_status(&proposal, roles.clone(), self.total_delegation_amount);
+                    policy.proposal_status(&proposal, roles, self.total_delegation_amount);
                 if proposal.status == ProposalStatus::Approved {
                     self.internal_execute_proposal(&policy, &proposal, id);
                     true

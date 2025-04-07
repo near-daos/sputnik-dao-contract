@@ -5,9 +5,8 @@ use near_contract_standards::fungible_token::Balance;
 use near_sdk::json_types::{U128, U64};
 use near_sdk::{env, near, AccountId};
 
-use crate::proposals::{PolicyParameters, ProposalKind, ProposalStatus, Vote};
+use crate::proposals::{PolicyParameters, Proposal, ProposalKind, ProposalStatus, Vote};
 use crate::types::Action;
-use crate::Proposal;
 
 #[derive(Clone, PartialEq)]
 #[near(serializers=[json,borsh])]

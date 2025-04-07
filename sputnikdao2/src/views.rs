@@ -142,7 +142,7 @@ impl Contract {
         self.bounty_claims_count.get(&id).unwrap_or_default()
     }
 
-    pub fn get_actions_log(&self) -> VecDeque<ActionLog> {
-        self.actions_log.clone()
+    pub fn get_actions_log(&self) -> &VecDeque<ActionLog> {
+        &self.actions_log
     }
 }
