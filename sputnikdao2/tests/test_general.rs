@@ -986,7 +986,7 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
 
     // Verify add_proposal log has been added
-    let blocks_log = dao
+    let proposal_log = dao
         .view("get_proposal")
         .args_json(json!({"id": proposal_id}))
         .await
@@ -1003,21 +1003,21 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
 
     let action_log = global_actions_log[0].clone();
-    let block_log = blocks_log.get(0).unwrap();
+    let block_log = proposal_log.get(0).unwrap();
     assert_eq!(action_log.block_height, block_log.block_height);
     assert_eq!(global_actions_log.len(), 1);
-    assert_eq!(blocks_log.len(), 1);
+    assert_eq!(proposal_log.len(), 1);
     assert_eq!(
         action_log,
-        ActionLog::new(
-            "dao.test.near".parse().unwrap(),
-            proposal_id,
-            Action::AddProposal,
-            action_log.block_height // It is uncertain because of async block creation
-        )
+        ActionLog {
+            account_id: "dao.test.near".parse().unwrap(),
+            proposal_id: proposal_id.into(),
+            action: Action::AddProposal,
+            block_height: action_log.block_height // It is uncertain because of async block creation
+        }
     );
     assert!(
-        (action_log.block_height as i128
+        (action_log.block_height.0 as i128
             - worker.view_block().await.unwrap().header().height() as i128)
             .abs()
             <= 1 as i128,
@@ -1028,7 +1028,7 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
     vote(voting_users, &dao, proposal_id).await.unwrap();
 
     // Verify that the oldest prposal now is the voting approve from user0
-    let blocks_log = dao
+    let proposal_log = dao
         .view("get_proposal")
         .args_json(json!({"id": proposal_id}))
         .await
@@ -1046,18 +1046,18 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap();
 
     let action_log = global_actions_log[0].clone();
-    let block_log = blocks_log[0].clone();
+    let block_log = proposal_log[0].clone();
     assert_eq!(action_log.block_height, block_log.block_height);
     assert_eq!(global_actions_log.len(), 20);
-    assert_eq!(blocks_log.len(), 20);
+    assert_eq!(proposal_log.len(), 20);
     assert_eq!(
         action_log,
-        ActionLog::new(
-            "user0.test.near".parse().unwrap(),
-            proposal_id,
-            Action::VoteApprove,
-            action_log.block_height, // It is uncertain because of async block creation
-        )
+        ActionLog {
+            account_id: "user0.test.near".parse().unwrap(),
+            proposal_id: proposal_id.into(),
+            action: Action::VoteApprove,
+            block_height: action_log.block_height, // It is uncertain because of async block creation
+        }
     );
     Ok(())
 }

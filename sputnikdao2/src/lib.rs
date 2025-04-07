@@ -214,7 +214,7 @@ mod tests {
     use near_sdk::testing_env;
     use near_workspaces::types::NearToken;
 
-    use crate::action_log::BlockLog;
+    use crate::action_log::ProposalLog;
     use crate::proposals::ProposalStatus;
 
     use super::*;
@@ -465,10 +465,20 @@ mod tests {
         let global_last_actions_log = contract.get_actions_log();
         assert_eq!(proposal_last_actions_log.len(), 1);
         assert_eq!(global_last_actions_log.len(), 1);
-        assert_eq!(proposal_last_actions_log[0], BlockLog { block_height: 0 });
+        assert_eq!(
+            proposal_last_actions_log[0],
+            ProposalLog {
+                block_height: 0.into()
+            }
+        );
         assert_eq!(
             global_last_actions_log.get(0).unwrap().clone(),
-            ActionLog::new("alice".parse().unwrap(), 0, Action::AddProposal, 0)
+            ActionLog {
+                account_id: "alice".parse().unwrap(),
+                proposal_id: 0.into(),
+                action: Action::AddProposal,
+                block_height: 0.into()
+            }
         );
 
         // Fill the latest actions list
@@ -483,10 +493,20 @@ mod tests {
         let global_last_actions_log = contract.get_actions_log();
         assert_eq!(proposal_last_actions_log.len(), 20);
         assert_eq!(global_last_actions_log.len(), 20);
-        assert_eq!(proposal_last_actions_log[0], BlockLog { block_height: 0 });
+        assert_eq!(
+            proposal_last_actions_log[0],
+            ProposalLog {
+                block_height: 0.into()
+            }
+        );
         assert_eq!(
             global_last_actions_log[0],
-            ActionLog::new("bob".parse().unwrap(), 0, Action::VoteApprove, 0)
+            ActionLog {
+                account_id: "bob".parse().unwrap(),
+                proposal_id: 0.into(),
+                action: Action::VoteApprove,
+                block_height: 0.into()
+            }
         );
     }
 }

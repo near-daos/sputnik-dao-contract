@@ -4,7 +4,7 @@ use ext_fungible_token::ext_fungible_token;
 use near_sdk::json_types::{Base64VecU8, U128, U64};
 use near_sdk::{log, AccountId, Gas, PromiseOrValue};
 
-use crate::action_log::BlockLog;
+use crate::action_log::ProposalLog;
 use crate::policy::UserInfo;
 use crate::types::{
     convert_old_to_new_token, Action, Config, OldAccountId, GAS_FOR_FT_TRANSFER, OLD_BASE_TOKEN,
@@ -208,7 +208,7 @@ pub struct Proposal {
     /// Submission time (for voting period).
     pub submission_time: U64,
     /// Last actions log
-    pub last_actions_log: VecDeque<BlockLog>,
+    pub last_actions_log: VecDeque<ProposalLog>,
 }
 
 impl From<ProposalV1> for Proposal {
@@ -230,8 +230,8 @@ impl From<ProposalV1> for Proposal {
 #[near(serializers=[borsh])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 pub enum VersionedProposal {
-    Latest(Proposal),
     V1(ProposalV1),
+    Latest(Proposal),
 }
 
 impl From<VersionedProposal> for ProposalV1 {
@@ -495,17 +495,17 @@ impl Contract {
         proposal: &mut Proposal,
     ) -> PromiseOrValue<()> {
         let policy = self.policy.get().unwrap().to_policy();
-        if let ProposalKind::BountyDone { bounty_id, .. } = &proposal.kind {
-            let mut bounty: Bounty = self.bounties.get(bounty_id).expect("ERR_NO_BOUNTY").into();
+        if let ProposalKind::BountyDone { bounty_id, .. } = proposal.kind {
+            let mut bounty: Bounty = self.bounties.get(&bounty_id).expect("ERR_NO_BOUNTY").into();
             if bounty.times == 0 {
-                self.bounties.remove(bounty_id);
+                self.bounties.remove(&bounty_id);
             } else {
                 bounty.times -= 1;
                 self.bounties
-                    .insert(bounty_id, &VersionedBounty::Default(bounty));
+                    .insert(&bounty_id, &VersionedBounty::Default(bounty));
             }
         }
-
+        proposal.status = ProposalStatus::Approved;
         self.internal_return_bonds(&policy, &proposal).into()
     }
 
