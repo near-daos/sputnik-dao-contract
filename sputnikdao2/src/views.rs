@@ -9,7 +9,7 @@ pub struct ProposalOutput {
     /// Id of the proposal.
     pub id: u64,
     #[serde(flatten)]
-    pub proposal: VersionedProposal,
+    pub proposal: Proposal,
 }
 
 /// This is format of output via JSON for the bounty.
@@ -102,7 +102,7 @@ impl Contract {
         let proposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL");
         ProposalOutput {
             id,
-            proposal: VersionedProposal::V1(proposal.latest_version()),
+            proposal: proposal.latest_version(),
         }
     }
 

@@ -275,6 +275,5 @@ pub async fn get_proposal_kind(dao: &Contract, proposal_id: u64) -> ProposalKind
         .json::<ProposalOutput>()
         .unwrap()
         .proposal
-        .latest_version()
         .kind
 }

@@ -235,7 +235,7 @@ mod tests {
         contract.act_proposal(
             id,
             Action::VoteApprove,
-            contract.get_proposal(id).proposal.latest_version_ref().kind,
+            contract.get_proposal(id).proposal.kind,
             None,
         );
         id
@@ -272,19 +272,14 @@ mod tests {
 
         assert_eq!(contract.get_last_proposal_id(), 2);
         assert_eq!(
-            contract
-                .get_proposal(1)
-                .proposal
-                .latest_version()
-                .kind
-                .to_policy_label(),
+            contract.get_proposal(1).proposal.kind.to_policy_label(),
             "bounty_done"
         );
 
         contract.act_proposal(
             1,
             Action::VoteApprove,
-            contract.get_proposal(1).proposal.latest_version_ref().kind,
+            contract.get_proposal(1).proposal.kind,
             None,
         );
         testing_env!(
@@ -304,7 +299,7 @@ mod tests {
         contract.act_proposal(
             2,
             Action::VoteApprove,
-            contract.get_proposal(2).proposal.latest_version_ref().kind,
+            contract.get_proposal(2).proposal.kind,
             None,
         );
         testing_env!(

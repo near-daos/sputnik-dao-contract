@@ -68,13 +68,14 @@ const VERSION_KEY: &[u8] = b"STATEVERSION";
 pub(crate) fn state_version_read() -> StateVersion {
     env::storage_read(VERSION_KEY)
         .map(|data| {
-            StateVersion::try_from_slice(&data).expect("Cannot deserialize the contract state.")
+            StateVersion::try_from_slice(&data)
+                .expect("Cannot deserialize the contract state version.")
         })
         .unwrap_or(StateVersion::V1)
 }
 
 pub(crate) fn state_version_write(version: &StateVersion) {
-    let data = to_vec(&version).expect("Cannot serialize the contract state.");
+    let data = to_vec(&version).expect("Cannot serialize the contract state version.");
     env::storage_write(VERSION_KEY, &data);
     near_sdk::log!("Contract state version: {:?}", version);
 }

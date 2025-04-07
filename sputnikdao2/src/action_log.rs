@@ -52,7 +52,7 @@ impl Contract {
         &mut self,
         proposal_id: u64,
         action: Action,
-        proposal: &mut ProposalV1,
+        proposal: &mut Proposal,
     ) {
         update_action_log(
             &mut proposal.last_actions_log,

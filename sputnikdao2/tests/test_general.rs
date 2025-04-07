@@ -181,8 +181,7 @@ async fn test_multi_council() -> Result<(), Box<dyn std::error::Error>> {
         .await?
         .json::<ProposalOutput>()
         .unwrap()
-        .proposal
-        .latest_version();
+        .proposal;
     // Votes from members in different councils.
     assert_eq!(proposal.status, ProposalStatus::InProgress);
     // Finish with vote that is in both councils, which approves the proposal.
@@ -194,8 +193,7 @@ async fn test_multi_council() -> Result<(), Box<dyn std::error::Error>> {
         .await?
         .json::<ProposalOutput>()
         .unwrap()
-        .proposal
-        .latest_version();
+        .proposal;
     assert_eq!(
         proposal.status,
         ProposalStatus::Approved,
@@ -423,7 +421,6 @@ async fn test_bounty_workflow() -> Result<(), Box<dyn std::error::Error>> {
             .json::<ProposalOutput>()
             .unwrap()
             .proposal
-            .latest_version_ref()
             .kind
             .to_policy_label()
     );
@@ -608,7 +605,6 @@ async fn test_create_dao_and_use_token() -> Result<(), Box<dyn std::error::Error
             .json::<ProposalOutput>()
             .unwrap()
             .proposal
-            .latest_version()
             .status,
         ProposalStatus::Approved
     );
@@ -894,8 +890,7 @@ async fn test_payment_failures() -> Result<(), Box<dyn std::error::Error>> {
         .await?
         .json::<ProposalOutput>()
         .unwrap()
-        .proposal
-        .latest_version();
+        .proposal;
 
     assert_eq!(proposal.status, ProposalStatus::Failed);
 
@@ -942,8 +937,7 @@ async fn test_payment_failures() -> Result<(), Box<dyn std::error::Error>> {
         .await?
         .json::<ProposalOutput>()
         .unwrap()
-        .proposal
-        .latest_version();
+        .proposal;
 
     assert_eq!(
         proposal.status,
@@ -1000,7 +994,6 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
         .json::<ProposalOutput>()
         .unwrap()
         .proposal
-        .latest_version()
         .last_actions_log;
     let global_actions_log = dao
         .view("get_actions_log")
@@ -1009,7 +1002,7 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
         .json::<Vec<ActionLog>>()
         .unwrap();
 
-    let action_log = global_actions_log.get(0).unwrap().clone();
+    let action_log = global_actions_log[0].clone();
     let block_log = blocks_log.get(0).unwrap();
     assert_eq!(action_log.block_height, block_log.block_height);
     assert_eq!(global_actions_log.len(), 1);
@@ -1043,7 +1036,6 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
         .json::<ProposalOutput>()
         .unwrap()
         .proposal
-        .latest_version()
         .last_actions_log;
 
     let global_actions_log = dao
@@ -1053,8 +1045,8 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
         .json::<Vec<ActionLog>>()
         .unwrap();
 
-    let action_log = global_actions_log.get(0).unwrap().clone();
-    let block_log = blocks_log.get(0).unwrap().clone();
+    let action_log = global_actions_log[0].clone();
+    let block_log = blocks_log[0].clone();
     assert_eq!(action_log.block_height, block_log.block_height);
     assert_eq!(global_actions_log.len(), 20);
     assert_eq!(blocks_log.len(), 20);

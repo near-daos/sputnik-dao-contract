@@ -172,7 +172,7 @@ impl From<Action> for Vote {
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[derive(Clone)]
 #[serde(deny_unknown_fields)]
-pub struct ProposalV0 {
+pub struct ProposalV1 {
     /// Original proposer.
     pub proposer: AccountId,
     /// Description of this proposal.
@@ -192,7 +192,7 @@ pub struct ProposalV0 {
 #[near(serializers=[borsh, json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[derive(Clone)]
-pub struct ProposalV1 {
+pub struct Proposal {
     /// Original proposer.
     pub proposer: AccountId,
     /// Description of this proposal.
@@ -211,49 +211,48 @@ pub struct ProposalV1 {
     pub last_actions_log: VecDeque<BlockLog>,
 }
 
-impl From<ProposalV0> for ProposalV1 {
-    fn from(v0: ProposalV0) -> Self {
-        ProposalV1 {
-            proposer: v0.proposer.clone(),
-            description: v0.description.clone(),
-            kind: v0.kind.clone(),
-            status: v0.status.clone(),
-            vote_counts: v0.vote_counts.clone(),
-            votes: v0.votes.clone(),
-            submission_time: v0.submission_time,
+impl From<ProposalV1> for Proposal {
+    fn from(v1: ProposalV1) -> Self {
+        Proposal {
+            proposer: v1.proposer.clone(),
+            description: v1.description.clone(),
+            kind: v1.kind.clone(),
+            status: v1.status.clone(),
+            vote_counts: v1.vote_counts.clone(),
+            votes: v1.votes.clone(),
+            submission_time: v1.submission_time,
             last_actions_log: VecDeque::new(),
         }
     }
 }
 
 #[derive(Clone)]
-#[near(serializers=[borsh, json])]
+#[near(serializers=[borsh])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
-#[serde(untagged)]
 pub enum VersionedProposal {
-    V0(ProposalV0),
+    Latest(Proposal),
     V1(ProposalV1),
-}
-
-impl From<VersionedProposal> for ProposalV0 {
-    fn from(v: VersionedProposal) -> Self {
-        match v {
-            VersionedProposal::V0(p) => p,
-            _ => unimplemented!(),
-        }
-    }
 }
 
 impl From<VersionedProposal> for ProposalV1 {
     fn from(v: VersionedProposal) -> Self {
         match v {
-            VersionedProposal::V0(p) => p.into(),
             VersionedProposal::V1(p) => p,
+            _ => unimplemented!(),
         }
     }
 }
 
-impl ProposalV1 {
+impl From<VersionedProposal> for Proposal {
+    fn from(v: VersionedProposal) -> Self {
+        match v {
+            VersionedProposal::V1(p) => p.into(),
+            VersionedProposal::Latest(p) => p,
+        }
+    }
+}
+
+impl Proposal {
     pub fn update_votes(
         &mut self,
         account_id: &AccountId,
@@ -285,14 +284,14 @@ impl ProposalV1 {
 }
 
 impl VersionedProposal {
-    pub fn latest_version(self) -> ProposalV1 {
+    pub fn latest_version(self) -> Proposal {
         self.into()
     }
 
-    pub fn latest_version_ref(&self) -> ProposalV1 {
+    pub fn latest_version_ref(&self) -> Proposal {
         match self {
-            VersionedProposal::V0(p) => ProposalV1::from(p.clone()),
-            VersionedProposal::V1(p) => p.clone(),
+            VersionedProposal::V1(p) => Proposal::from(p.clone()),
+            VersionedProposal::Latest(p) => p.clone(),
         }
     }
 }
@@ -307,7 +306,7 @@ pub struct ProposalInput {
 
 impl From<ProposalInput> for VersionedProposal {
     fn from(input: ProposalInput) -> Self {
-        VersionedProposal::V1(ProposalV1 {
+        VersionedProposal::Latest(Proposal {
             proposer: env::predecessor_account_id(),
             description: input.description,
             kind: input.kind,
@@ -350,7 +349,7 @@ impl Contract {
         }
     }
 
-    fn internal_return_bonds(&mut self, policy: &Policy, proposal: &ProposalV1) -> Promise {
+    fn internal_return_bonds(&mut self, policy: &Policy, proposal: &Proposal) -> Promise {
         match &proposal.kind {
             ProposalKind::BountyDone { .. } => {
                 self.locked_amount = self
@@ -373,7 +372,7 @@ impl Contract {
     fn internal_execute_proposal(
         &mut self,
         policy: &Policy,
-        proposal: &ProposalV1,
+        proposal: &Proposal,
         proposal_id: u64,
     ) -> PromiseOrValue<()> {
         let result = match &proposal.kind {
@@ -493,7 +492,7 @@ impl Contract {
 
     pub(crate) fn internal_callback_proposal_success(
         &mut self,
-        proposal: &mut ProposalV1,
+        proposal: &mut Proposal,
     ) -> PromiseOrValue<()> {
         let policy = self.policy.get().unwrap().to_policy();
         if let ProposalKind::BountyDone { bounty_id, .. } = &proposal.kind {
@@ -512,7 +511,7 @@ impl Contract {
 
     pub(crate) fn internal_callback_proposal_fail(
         &mut self,
-        proposal: &mut ProposalV1,
+        proposal: &mut Proposal,
     ) -> PromiseOrValue<()> {
         proposal.status = ProposalStatus::Failed;
         PromiseOrValue::Value(())
@@ -522,7 +521,7 @@ impl Contract {
     fn internal_reject_proposal(
         &mut self,
         policy: &Policy,
-        proposal: &ProposalV1,
+        proposal: &Proposal,
         return_bonds: bool,
     ) -> PromiseOrValue<()> {
         if return_bonds {
@@ -604,7 +603,8 @@ impl Contract {
         let mut proposal = VersionedProposal::from(proposal).latest_version();
         self.internal_log_action(id, Action::AddProposal, &mut proposal);
 
-        self.proposals.insert(&id, &VersionedProposal::V1(proposal));
+        self.proposals
+            .insert(&id, &VersionedProposal::Latest(proposal));
         self.last_proposal_id += 1;
         self.locked_amount = self.locked_amount.saturating_add(env::attached_deposit());
         id
@@ -622,7 +622,7 @@ impl Contract {
     ) {
         let input_proposal_kind = proposal;
         // Covert proposal to the latest version
-        let mut proposal: ProposalV1 = self
+        let mut proposal: Proposal = self
             .proposals
             .get(&id)
             .expect("ERR_NO_PROPOSAL")
@@ -660,12 +660,9 @@ impl Contract {
                     self.get_user_weight(&sender_id),
                 );
 
-                // Get new status without cloning the entire proposal
-                let new_status =
-                    policy.proposal_status(&proposal, roles.clone(), self.total_delegation_amount);
-
                 // Updates proposal status with new votes using the policy.
-                proposal.status = new_status;
+                proposal.status =
+                    policy.proposal_status(&proposal, roles.clone(), self.total_delegation_amount);
                 if proposal.status == ProposalStatus::Approved {
                     self.internal_execute_proposal(&policy, &proposal, id);
                     true
@@ -689,13 +686,11 @@ impl Contract {
             //  - if the number of votes in the group has changed (new members has been added) -
             //      the proposal can loose it's approved state. In this case new proposal needs to be made, this one can only expire.
             Action::Finalize => {
-                let new_status = policy.proposal_status(
+                proposal.status = policy.proposal_status(
                     &proposal,
                     policy.roles.iter().map(|r| r.name.clone()).collect(),
                     self.total_delegation_amount,
                 );
-
-                proposal.status = new_status;
                 match proposal.status {
                     ProposalStatus::Approved => {
                         self.internal_execute_proposal(&policy, &proposal, id);
@@ -713,7 +708,8 @@ impl Contract {
         };
 
         if update {
-            self.proposals.insert(&id, &VersionedProposal::V1(proposal));
+            self.proposals
+                .insert(&id, &VersionedProposal::Latest(proposal));
         }
         if let Some(memo) = memo {
             log!("Memo: {}", memo);
@@ -726,11 +722,11 @@ impl Contract {
     /// move proposal to "Failed" state.
     #[private]
     pub fn on_proposal_callback(&mut self, proposal_id: u64) -> PromiseOrValue<()> {
-        let mut proposal: ProposalV1 = self
+        let mut proposal: Proposal = self
             .proposals
             .get(&proposal_id)
             .expect("ERR_NO_PROPOSAL")
-            .latest_version();
+            .into();
         assert_eq!(
             env::promise_results_count(),
             1,
@@ -741,7 +737,7 @@ impl Contract {
             PromiseResult::Failed => self.internal_callback_proposal_fail(&mut proposal),
         };
         self.proposals
-            .insert(&proposal_id, &VersionedProposal::V1(proposal.into()));
+            .insert(&proposal_id, &VersionedProposal::Latest(proposal.into()));
         result
     }
 }

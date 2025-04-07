@@ -7,7 +7,7 @@ use near_sdk::{env, near, AccountId};
 
 use crate::proposals::{PolicyParameters, ProposalKind, ProposalStatus, Vote};
 use crate::types::Action;
-use crate::ProposalV1;
+use crate::Proposal;
 
 #[derive(Clone, PartialEq)]
 #[near(serializers=[json,borsh])]
@@ -388,7 +388,7 @@ impl Policy {
     /// Usually is called after changing it's state.
     pub fn proposal_status(
         &self,
-        proposal: &ProposalV1,
+        proposal: &Proposal,
         roles: Vec<String>,
         total_supply: Balance,
     ) -> ProposalStatus {
