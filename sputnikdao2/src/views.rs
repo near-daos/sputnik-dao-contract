@@ -99,10 +99,10 @@ impl Contract {
 
     /// Get specific proposal.
     pub fn get_proposal(&self, id: u64) -> ProposalOutput {
-        let proposal: VersionedProposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL");
+        let proposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL");
         ProposalOutput {
             id,
-            proposal: proposal.latest_version(),
+            proposal: proposal.into(),
         }
     }
 

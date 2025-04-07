@@ -147,10 +147,7 @@ impl Contract {
                     actions_log: VecDeque::new(),
                 }
             }
-            StateVersion::V2 => {
-                let this: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
-                this
-            }
+            StateVersion::V2 => env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED"),
         }
     }
 
