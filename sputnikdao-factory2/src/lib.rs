@@ -522,4 +522,244 @@ mod tests {
 
         assert_eq!(factory.get_owner(), bob())
     }
+
+    //              ##################################              //
+    //              #  Factory View Function Tests   #              //
+    //              ##################################              //
+
+    #[test]
+    fn test_returns_empty_array_for_new_factory() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let factory = SputnikDAOFactory::new();
+
+        assert_eq!(factory.get_dao_list(), []);
+    }
+
+    #[test]
+    fn test_returns_full_list_of_daos() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let mut factory = SputnikDAOFactory::new();
+
+        factory.daos.insert(&AccountId::new_unchecked(
+            "bob.sputnik-dao.near".to_string(),
+        ));
+
+        factory.daos.insert(&AccountId::new_unchecked(
+            "alice.sputnik-dao.near".to_string(),
+        ));
+
+        factory.daos.insert(&AccountId::new_unchecked(
+            "mike.sputnik-dao.near".to_string(),
+        ));
+
+        assert_eq!(
+            factory.get_dao_list(),
+            [
+                "bob.sputnik-dao.near".to_string().parse().unwrap(),
+                "alice.sputnik-dao.near".to_string().parse().unwrap(),
+                "mike.sputnik-dao.near".to_string().parse().unwrap()
+            ]
+        );
+    }
+
+    #[test]
+    fn test_returns_an_integer_of_the_total_amount_of_daos_known_to_factory() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let mut factory = SputnikDAOFactory::new();
+
+        factory.daos.insert(&AccountId::new_unchecked(
+            "bob.sputnik-dao.near".to_string(),
+        ));
+
+        factory.daos.insert(&AccountId::new_unchecked(
+            "alice.sputnik-dao.near".to_string(),
+        ));
+
+        factory.daos.insert(&AccountId::new_unchecked(
+            "mike.sputnik-dao.near".to_string(),
+        ));
+
+        assert_eq!(factory.get_number_daos(), 3);
+    }
+
+    /*
+    get_daos test (Needs Impl)????
+    #[test]
+    fn test_returns_default_list_of_daos_with_max_len_of_100_&_offset_of_0() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let mut factory = SputnikDAOFactory::new();
+    }
+
+    fn test_returns_list_of_daos_matching_specified_from_index_and_limit() {
+        pass
+    }
+
+    fn test_capable_of_returning_non_zero_indexed_list() {
+        pass
+    }
+    */
+
+    #[test]
+    fn test_returns_a_string_representing_the_account_that_owns_the_factory() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let factory = SputnikDAOFactory::new();
+
+        assert_eq!(factory.get_owner(), "bob.near".to_string().parse().unwrap());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_fails_if_storage_is_corrupted_or_no_owner() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let factory = SputnikDAOFactory::new();
+
+        assert_eq!(factory.get_owner().to_string(), "");
+    }
+
+    #[test]
+    fn test_returns_the_default_code_hash_for_a_new_dao() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let mut factory = SputnikDAOFactory::new();
+
+        factory.create(bob(), "{}".as_bytes().to_vec().into());
+
+        factory.set_owner("bob.sputnik-dao.near".to_string().parse().unwrap());
+
+        let code_hash = [
+            9, 47, 14, 126, 93, 206, 56, 168, 143, 142, 82, 99, 62, 169, 170, 85, 9, 87, 50, 25,
+            233, 191, 251, 21, 172, 100, 42, 69, 56, 190, 91, 168,
+        ]
+        .into();
+
+        assert_eq!(factory.get_default_code_hash(), code_hash);
+    }
+
+    /*
+    Not sure how to implement this
+    #[test]
+    fn test_returns_the_default_code_hash_that_has_been_updated_after_new_code_blob_in_factory() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let mut factory = SputnikDAOFactory::new();
+
+        factory.create(bob(), "{}".as_bytes().to_vec().into());
+
+        factory.daos.insert(&bob());
+
+        factory.set_owner("bob.sputnik-dao.near".to_string().parse().unwrap());
+
+        let initial_code_hash = factory.get_default_code_hash();
+
+        let new_code_hash: Base58CryptoHash = [
+            9, 47, 14, 126, 93, 200, 46, 168, 143, 142, 82, 99, 62, 169, 170, 85, 9, 87, 50, 25,
+            233, 191, 251, 21, 172, 100, 42, 69, 56, 180, 90, 200,
+        ]
+        .into();
+
+        factory.update(factory.get_owner(), new_code_hash); PANICS WITH A
+        MESSAGE[panicked at 'Must be updated by the factory owner or the DAO
+         itself]
+
+        assert_ne!(factory.get_default_code_hash(), initial_code_hash);
+    }
+    */
+
+    #[test]
+    fn test_returns_the_default_metadata_version_for_a_new_dao() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let factory = SputnikDAOFactory::new();
+
+        assert_eq!(factory.get_default_version(), DAO_CONTRACT_INITIAL_VERSION);
+    }
+
+    #[test]
+    fn test_returns_an_entire_code_blob_based_on_given_code_hash() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let factory = SputnikDAOFactory::new();
+
+        let code_hash: CryptoHash = factory.get_default_code_hash().into();
+
+        let blob_code = env::storage_read(&code_hash).unwrap();
+
+        assert_ne!(blob_code, [0u8; 0])
+        // For some reason this is the only way that get_code() doesn't
+        // return empty; ()
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_returns_no_value_if_code_hash_doesnt_exist() {
+        let mut context = VMContextBuilder::new();
+        testing_env!(context
+            .current_account_id(bob())
+            .predecessor_account_id(bob())
+            .attached_deposit(to_yocto("6"))
+            .build());
+        let mut factory = SputnikDAOFactory::new();
+
+        factory.create(bob(), "{}".as_bytes().to_vec().into());
+
+        factory.daos.insert(&bob());
+
+        let fake_code_hash: Base58CryptoHash = [0u8; 32].into();
+
+        factory.get_code(fake_code_hash);
+    }
+
+    /*
+    Not sure which args to pass
+    #[test]
+    fn test_returns_contract_metadata() {
+        Pass
+    }
+    */
 }
