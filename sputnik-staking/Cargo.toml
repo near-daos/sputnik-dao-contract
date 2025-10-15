@@ -22,9 +22,9 @@ test-token = { path = "../test-token" }
 # in https://github.com/near/NEPs/blob/master/neps/nep-0330.md 
 [package.metadata.near.reproducible_build]
 # docker image, descriptor of build environment
-image = "sourcescan/cargo-near:0.14.0-rust-1.86.0"
+image = "sourcescan/cargo-near:0.14.2-rust-1.86.0"
 # tag after colon above serves only descriptive purpose; image is identified by digest
-image_digest = "sha256:2fc8c8d40cf83c4b2d84f50b5dd18534c59a2d6b4ed9d6c7c70cb7ab92bcd6cb"
+image_digest = "sha256:5f3384cb9d7ffd3075a0be7d453c66181d68b7096f91afc67a349f9a3058c989"
 # list of environment variables names, whose values, if set, will be used as external build parameters
 # in a reproducible manner
 # supported by `sourcescan/cargo-near:0.10.1-rust-1.82.0` image or later images
