@@ -1,9 +1,4 @@
-{
-  "hostRequirements": {
-    "cpus": 2,
-    "memory": "8gb",
-    "storage": "64gb"
-  },
+{  
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "features": {
     "ghcr.io/devcontainers/features/rust:1": {},
