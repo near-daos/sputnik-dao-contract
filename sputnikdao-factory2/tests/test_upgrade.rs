@@ -17,7 +17,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
     let sputnikdao_factory_contract_id: AccountId =
         AccountIdRef::new_or_panic(SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT).into();
 
-    let worker = near_workspaces::sandbox().await?;
+    let worker = near_workspaces::sandbox_with_version("2.8.0").await?;
     let user_account = worker.dev_create_account().await?;
 
     // Deploy the sputnik-dao.near factory contract to the sandbox

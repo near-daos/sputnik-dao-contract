@@ -15,7 +15,7 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
     let sputnikdao_factory_contract_id: AccountId =
         AccountIdRef::new_or_panic(SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT).into();
 
-    let worker = near_workspaces::sandbox().await?;
+    let worker = near_workspaces::sandbox_with_version("2.8.0").await?;
 
     let sputnik_dao_factory = worker
         .import_contract(&sputnikdao_factory_contract_id, &mainnet)

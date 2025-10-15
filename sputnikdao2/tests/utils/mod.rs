@@ -36,7 +36,7 @@ pub fn should_fail(r: ExecutionFinalResult) {
 pub async fn setup_factory() -> Result<(Contract, Worker<Sandbox>), Box<dyn std::error::Error>> {
     let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.parse()?;
 
-    let worker = near_workspaces::sandbox().await?;
+    let worker = near_workspaces::sandbox_with_version("2.8.0").await?;
     let mainnet = near_workspaces::custom("https://rpc.mainnet.fastnear.com").await?;
 
     let _sputnik_dao_factory = worker
@@ -48,7 +48,7 @@ pub async fn setup_factory() -> Result<(Contract, Worker<Sandbox>), Box<dyn std:
     let mainnet = near_workspaces::custom("https://rpc.mainnet.fastnear.com").await?;
     let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.parse()?;
 
-    let worker = near_workspaces::sandbox().await?;
+    let worker = near_workspaces::sandbox_with_version("2.8.0").await?;
 
     let sputnik_dao_factory = worker
         .import_contract(&sputnikdao_factory_contract_id, &mainnet)
