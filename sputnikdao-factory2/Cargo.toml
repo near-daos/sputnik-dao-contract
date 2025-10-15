@@ -17,6 +17,7 @@ near-contract-standards = "5.9.0"
 near-workspaces = { version = "0.21.0", features = ["unstable"] }
 tokio = { version = "1.44.0", features = ["full"] }
 near-sdk = {version="5.9.0", features = ["unit-testing"] }
+tempfile = "=3.20.0"
 
 # fields to configure build with WASM reproducibility, according to specs  
 # in https://github.com/near/NEPs/blob/master/neps/nep-0330.md 
