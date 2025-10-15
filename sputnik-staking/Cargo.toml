@@ -15,7 +15,7 @@ near-contract-standards = "5.9.0"
 hex = "0.4.3"
 
 [dev-dependencies]
-near-workspaces = "0.17.0"
+near-workspaces = { version = "0.21.0", features = ["unstable"] }
 test-token = { path = "../test-token" }
 
 # fields to configure build with WASM reproducibility, according to specs  
