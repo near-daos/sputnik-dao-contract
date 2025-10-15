@@ -13,7 +13,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
     const SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &str = "sputnik-dao.near";
 
     // Import the mainnet sputnik-dao.near factory contract
-    let mainnet = near_workspaces::mainnet().await?;
+    let mainnet = near_workspaces::custom("https://rpc.mainnet.fastnear.com").await?;
     let sputnikdao_factory_contract_id: AccountId =
         AccountIdRef::new_or_panic(SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT).into();
 

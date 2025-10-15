@@ -37,7 +37,7 @@ pub async fn setup_factory() -> Result<(Contract, Worker<Sandbox>), Box<dyn std:
     let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.parse()?;
 
     let worker = near_workspaces::sandbox().await?;
-    let mainnet = near_workspaces::mainnet().await?;
+    let mainnet = near_workspaces::custom("https://rpc.mainnet.fastnear.com").await?;
 
     let _sputnik_dao_factory = worker
         .import_contract(&sputnikdao_factory_contract_id, &mainnet)
@@ -45,7 +45,7 @@ pub async fn setup_factory() -> Result<(Contract, Worker<Sandbox>), Box<dyn std:
         .transact()
         .await?;
 
-    let mainnet = near_workspaces::mainnet().await?;
+    let mainnet = near_workspaces::custom("https://rpc.mainnet.fastnear.com").await?;
     let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.parse()?;
 
     let worker = near_workspaces::sandbox().await?;
