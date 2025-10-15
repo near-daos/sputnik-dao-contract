@@ -129,4 +129,49 @@ impl FactoryManager {
         );
         env::promise_return(promise_id);
     }
+
+    /// Create DAO instance from global contract using code hash.
+    /// This method uses a global contract to reduce storage costs.
+    /// The code_hash should be the hash of the deployed global contract.
+    pub fn create_global_contract(
+        &self,
+        code_hash: Base58CryptoHash,
+        account_id: AccountId,
+        new_method: &str,
+        args: &[u8],
+        callback_method: &str,
+        callback_args: &[u8],
+    ) {
+        let code_hash: CryptoHash = code_hash.into();
+        let attached_deposit = env::attached_deposit();
+        let factory_account_id = env::current_account_id();
+
+        // Create the subaccount and deploy global contract by hash
+        let promise_id = env::promise_batch_create(&account_id);
+        // Create account first
+        env::promise_batch_action_create_account(promise_id);
+        // Transfer attached deposit
+        env::promise_batch_action_transfer(promise_id, attached_deposit);
+        // Deploy contract using global contract hash
+        env::promise_batch_action_use_global_contract(promise_id, &code_hash);
+        // Call initialization method
+        env::promise_batch_action_function_call(
+            promise_id,
+            new_method,
+            args,
+            NO_DEPOSIT,
+            CREATE_CALL_GAS,
+        );
+
+        // Attach callback to the factory
+        let callback_promise = env::promise_then(
+            promise_id,
+            factory_account_id,
+            callback_method,
+            callback_args,
+            NO_DEPOSIT,
+            ON_CREATE_CALL_GAS,
+        );
+        env::promise_return(callback_promise);
+    }
 }

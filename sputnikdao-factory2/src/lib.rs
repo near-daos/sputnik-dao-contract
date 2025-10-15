@@ -116,6 +116,29 @@ impl SputnikDAOFactory {
         );
     }
 
+    /// Create a DAO using a global contract to reduce storage costs.
+    /// This requires the factory to have deployed the DAO contract as a global contract first.
+    #[payable]
+    pub fn create_global_contract(&mut self, name: AccountId, args: Base64VecU8) {
+        let account_id: AccountId = format!("{}.{}", name, env::current_account_id())
+            .parse()
+            .unwrap();
+        let callback_args = serde_json::to_vec(&json!({
+            "account_id": account_id,
+            "attached_deposit": env::attached_deposit(),
+            "predecessor_account_id": env::predecessor_account_id()
+        }))
+        .expect("Failed to serialize");
+        self.factory_manager.create_global_contract(
+            self.get_default_code_hash(),
+            account_id,
+            "new",
+            &args.0,
+            "on_create",
+            &callback_args,
+        );
+    }
+
     #[private]
     pub fn on_create(
         &mut self,
@@ -373,6 +396,35 @@ impl SputnikDAOFactory {
             env::predecessor_account_id(),
             "Must be owner"
         );
+    }
+
+    /// Deploy the DAO contract as a global contract by hash.
+    /// This function can only be called by the sputnikdao-factory contract itself.
+    /// After calling this, DAOs can be created using `create_global_contract` method
+    /// which will use significantly less storage and reduce creation costs.
+    pub fn deploy_dao_global_contract(&mut self) -> Promise {
+        // Only allow the contract itself to call this function
+        if env::predecessor_account_id() != env::current_account_id() {
+            env::panic_str(
+                "Only the sputnikdao factory contract can deploy the global DAO contract",
+            );
+        }
+
+        let code_hash = self.get_default_code_hash();
+        let code_hash_bytes: CryptoHash = code_hash.into();
+
+        // Check that the contract exists
+        assert!(
+            env::storage_has_key(&code_hash_bytes),
+            "Code not found for the given code hash"
+        );
+
+        // Load the contract code
+        let code = env::storage_read(&code_hash_bytes).expect("ERR_NO_HASH");
+
+        // Deploy the global contract
+        Promise::new(env::current_account_id())
+            .deploy_global_contract(code)
     }
 }
 
