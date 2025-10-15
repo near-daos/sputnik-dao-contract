@@ -76,7 +76,7 @@ pub async fn setup_factory() -> Result<(Contract, Worker<Sandbox>), Box<dyn std:
 
 pub async fn setup_dao() -> Result<(Contract, Worker<Sandbox>, Account), Box<dyn std::error::Error>>
 {
-    let worker = near_workspaces::sandbox().await?;
+    let worker = near_workspaces::sandbox_with_version("2.8.0").await?;
     let root = worker.root_account().unwrap();
     setup_dao_with_params(
         root.clone(),

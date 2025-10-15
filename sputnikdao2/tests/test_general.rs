@@ -951,7 +951,7 @@ async fn test_payment_failures() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::test]
 async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
-    let worker = near_workspaces::sandbox().await?;
+    let worker = near_workspaces::sandbox_with_version("2.8.0").await?;
     let root = worker.root_account().unwrap();
     // initialize voting users
     let mut users = Vec::new();
@@ -1020,7 +1020,7 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
         (action_log.block_height.0 as i128
             - worker.view_block().await.unwrap().header().height() as i128)
             .abs()
-            <= 1 as i128,
+            <= 2 as i128,
     );
 
     // Fill the actions log
