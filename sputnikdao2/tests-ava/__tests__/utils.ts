@@ -1,4 +1,11 @@
-import { Worker, NearAccount, BN, toYocto, tGas, KeyPair } from 'near-workspaces';
+import {
+    Worker,
+    NearAccount,
+    BN,
+    toYocto,
+    tGas,
+    KeyPair,
+} from 'near-workspaces';
 import anyTest, { TestFn } from 'ava';
 import * as fs from 'fs';
 
@@ -19,7 +26,7 @@ export async function deployAndInit({
             gas?: string | BN;
             attachedDeposit?: string | BN;
             signWithKey?: KeyPair;
-        }
+        };
     };
     initialBalance?: string;
 }): Promise<NearAccount> {
@@ -31,12 +38,20 @@ export async function deployAndInit({
         throw result.Failure;
     }
     if (init) {
-        await contract.call(contract, init.methodName, init.args ?? {}, init.options);
+        await contract.call(
+            contract,
+            init.methodName,
+            init.args ?? {},
+            init.options,
+        );
     }
     return contract;
 }
 
-export function initWorkspace(options?: { skipInit?: boolean, factory?: boolean}) {
+export function initWorkspace(options?: {
+    skipInit?: boolean;
+    factory?: boolean;
+}) {
     const test = anyTest as TestFn<{
         worker: Worker;
         accounts: Record<string, NearAccount>;
@@ -59,26 +74,30 @@ export function initWorkspace(options?: { skipInit?: boolean, factory?: boolean}
             root,
             subContractId: 'dao',
             code: '../res/sputnikdao2.wasm',
-            init: options?.skipInit ? undefined : {
-                methodName: 'new',
-                args: { config, policy },
-            },
+            init: options?.skipInit
+                ? undefined
+                : {
+                      methodName: 'new',
+                      args: { config, policy },
+                  },
             initialBalance: toYocto('200'),
         });
 
-        const factory = options?.factory ? await deployAndInit({
-            root,
-            subContractId: 'factory',
-            code: '../../sputnikdao-factory2/res/sputnikdao_factory2.wasm',
-            init: {
-                methodName: 'new',
-                args: {},
-                options: {
-                    gas: tGas(300),
-                },
-            }, // 300 Tags
-            initialBalance: toYocto('500'),
-        }) : undefined;
+        const factory = options?.factory
+            ? await deployAndInit({
+                  root,
+                  subContractId: 'factory',
+                  code: '../../sputnikdao-factory2/res/sputnikdao_factory2.wasm',
+                  init: {
+                      methodName: 'new',
+                      args: {},
+                      options: {
+                          gas: tGas(300),
+                      },
+                  }, // 300 Tags
+                  initialBalance: toYocto('500'),
+              })
+            : undefined;
 
         // Save state for test runs, it is unique for each test
         t.context.worker = worker;
@@ -164,7 +183,9 @@ export async function setStakingId(
 }
 
 export const regCost = STORAGE_PER_BYTE.mul(new BN(16));
-export const DAO_WASM_BYTES: Uint8Array = fs.readFileSync('../res/sputnikdao2.wasm');
+export const DAO_WASM_BYTES: Uint8Array = fs.readFileSync(
+    '../res/sputnikdao2.wasm',
+);
 
 export async function registerAndDelegate(
     dao: NearAccount,
@@ -344,23 +365,29 @@ export async function voteApprove(
 }
 
 export async function getProposalKind(dao: NearAccount, proposalId: number) {
-    const proposal: any = await dao.view("get_proposal", { id: proposalId });
+    const proposal: any = await dao.view('get_proposal', { id: proposalId });
     return proposal.kind;
 }
 
-export type ProposalStatus = 'InProgress' | 'Approved' | 'Rejected' | 'Removed' | 'Expired' | 'Moved' | 'Failed';
+export type ProposalStatus =
+    | 'InProgress'
+    | 'Approved'
+    | 'Rejected'
+    | 'Removed'
+    | 'Expired'
+    | 'Moved'
+    | 'Failed';
 
 export interface Proposal {
-    status: ProposalStatus
-};
-
+    status: ProposalStatus;
+}
 
 export function normalizePolicy(policy) {
     return {
         ...policy,
-        roles: policy.roles.map(role => ({
+        roles: policy.roles.map((role) => ({
             ...role,
-            permissions: role.permissions.sort()
-        }))
+            permissions: role.permissions.sort(),
+        })),
     };
 }

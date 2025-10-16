@@ -16,7 +16,7 @@ import {
     Proposal,
     initWorkspace,
     getProposalKind,
-    normalizePolicy
+    normalizePolicy,
 } from './utils';
 
 const test = initWorkspace();
@@ -29,152 +29,146 @@ test('basic', async (t) => {
     t.log(await dao.view('get_config'));
 });
 
-test(
-    'add_proposal fails in case of insufficient deposit',
-    async (t) => {
-        const { alice, root, dao } = t.context.accounts;
-        t.is(await dao.view('get_last_proposal_id'), 0);
-        const config = {
-            name: 'sputnikdao',
-            purpose: 'testing',
-            metadata: '',
-        };
-        //Try adding a proposal with 0.999... near
-        let err = await captureError(
-            async () =>
-                await alice.call(
-                    dao,
-                    'add_proposal',
-                    {
-                        proposal: {
-                            description: 'rename the dao',
-                            kind: {
-                                ChangeConfig: {
-                                    config,
-                                },
-                            },
-                        },
-                    },
-                    { attachedDeposit: new BN(toYocto('1')).subn(1) },
-                ),
-        );
-
-        t.log(err.toString());
-        t.true(err.includes('ERR_MIN_BOND'));
-        //the proposal did not count
-        t.is(await dao.view('get_last_proposal_id'), 0);
-
-        //Checks that the same proposal doesn't fail
-        //if the deposit is at least 1 near
-        await alice.call(
-            dao,
-            'add_proposal',
-            {
-                proposal: {
-                    description: 'rename the dao',
-                    kind: {
-                        ChangeConfig: {
-                            config,
-                        },
-                    },
-                },
-            },
-            { attachedDeposit: toYocto('1') },
-        );
-        t.is(await dao.view('get_last_proposal_id'), 1);
-
-        let new_proposal: any = await dao.view('get_proposal', { id: 0 });
-
-        t.log(new_proposal);
-        t.is(new_proposal.description, 'rename the dao');
-        t.is(new_proposal.proposer, 'alice.test.near');
-        t.is(new_proposal.status, 'InProgress');
-
-        t.truthy(new_proposal.kind.ChangeConfig);
-        t.is(new_proposal.kind.ChangeConfig.config.name, 'sputnikdao');
-        //same config as we did not execute that proposal
-        t.deepEqual(await dao.view('get_config'), {
-            name: 'sputnik',
-            purpose: 'testing',
-            metadata: '',
-        });
-    },
-);
-
-test(
-    'Bob can not add proposals',
-    async (t) => {
-        const { alice, root, dao } = t.context.accounts;
-        const bob = await root.createSubAccount('bob');
-
-        //First we change a policy so that Bob can't add proposals
-        const period = new BN('1000000000')
-            .muln(60)
-            .muln(60)
-            .muln(24)
-            .muln(7)
-            .toString();
-        const newPolicy = {
-            roles: [
+test('add_proposal fails in case of insufficient deposit', async (t) => {
+    const { alice, root, dao } = t.context.accounts;
+    t.is(await dao.view('get_last_proposal_id'), 0);
+    const config = {
+        name: 'sputnikdao',
+        purpose: 'testing',
+        metadata: '',
+    };
+    //Try adding a proposal with 0.999... near
+    let err = await captureError(
+        async () =>
+            await alice.call(
+                dao,
+                'add_proposal',
                 {
-                    name: 'all',
-                    kind: {
-                        Group: [root.accountId, alice.accountId],
-                    },
-                    permissions: ['*:VoteApprove', '*:AddProposal'],
-                    vote_policy: {},
-                },
-            ],
-            default_vote_policy: {
-                weight_kind: 'TokenWeight',
-                quorum: new BN('1').toString(),
-                threshold: '5',
-            },
-            proposal_bond: toYocto('1'),
-            proposal_period: period,
-            bounty_bond: toYocto('1'),
-            bounty_forgiveness_period: period,
-        };
-        let id: number = await bob.call(
-            dao,
-            'add_proposal',
-            {
-                proposal: {
-                    description:
-                        'change to a new policy, so that bob can not add a proposal',
-                    kind: {
-                        ChangePolicy: {
-                            policy: newPolicy,
-                        },
-                    },
-                },
-            },
-            { attachedDeposit: toYocto('1') },
-        );
-        await voteApprove(root, dao, id);
-
-        //Chrck that only those with a permission can add the proposal
-        let errorString = await captureError(
-            async () =>
-                await bob.call(
-                    dao,
-                    'add_proposal',
-                    {
-                        proposal: {
-                            description: 'change to a new policy',
-                            kind: {
-                                ChangePolicy: {
-                                    policy: newPolicy,
-                                },
+                    proposal: {
+                        description: 'rename the dao',
+                        kind: {
+                            ChangeConfig: {
+                                config,
                             },
                         },
                     },
-                    { attachedDeposit: toYocto('1') },
-                ),
-        );
-        t.regex(errorString, /ERR_PERMISSION_DENIED/);
-    },
-);
+                },
+                { attachedDeposit: new BN(toYocto('1')).subn(1) },
+            ),
+    );
+
+    t.log(err.toString());
+    t.true(err.includes('ERR_MIN_BOND'));
+    //the proposal did not count
+    t.is(await dao.view('get_last_proposal_id'), 0);
+
+    //Checks that the same proposal doesn't fail
+    //if the deposit is at least 1 near
+    await alice.call(
+        dao,
+        'add_proposal',
+        {
+            proposal: {
+                description: 'rename the dao',
+                kind: {
+                    ChangeConfig: {
+                        config,
+                    },
+                },
+            },
+        },
+        { attachedDeposit: toYocto('1') },
+    );
+    t.is(await dao.view('get_last_proposal_id'), 1);
+
+    let new_proposal: any = await dao.view('get_proposal', { id: 0 });
+
+    t.log(new_proposal);
+    t.is(new_proposal.description, 'rename the dao');
+    t.is(new_proposal.proposer, 'alice.test.near');
+    t.is(new_proposal.status, 'InProgress');
+
+    t.truthy(new_proposal.kind.ChangeConfig);
+    t.is(new_proposal.kind.ChangeConfig.config.name, 'sputnikdao');
+    //same config as we did not execute that proposal
+    t.deepEqual(await dao.view('get_config'), {
+        name: 'sputnik',
+        purpose: 'testing',
+        metadata: '',
+    });
+});
+
+test('Bob can not add proposals', async (t) => {
+    const { alice, root, dao } = t.context.accounts;
+    const bob = await root.createSubAccount('bob');
+
+    //First we change a policy so that Bob can't add proposals
+    const period = new BN('1000000000')
+        .muln(60)
+        .muln(60)
+        .muln(24)
+        .muln(7)
+        .toString();
+    const newPolicy = {
+        roles: [
+            {
+                name: 'all',
+                kind: {
+                    Group: [root.accountId, alice.accountId],
+                },
+                permissions: ['*:VoteApprove', '*:AddProposal'],
+                vote_policy: {},
+            },
+        ],
+        default_vote_policy: {
+            weight_kind: 'TokenWeight',
+            quorum: new BN('1').toString(),
+            threshold: '5',
+        },
+        proposal_bond: toYocto('1'),
+        proposal_period: period,
+        bounty_bond: toYocto('1'),
+        bounty_forgiveness_period: period,
+    };
+    let id: number = await bob.call(
+        dao,
+        'add_proposal',
+        {
+            proposal: {
+                description:
+                    'change to a new policy, so that bob can not add a proposal',
+                kind: {
+                    ChangePolicy: {
+                        policy: newPolicy,
+                    },
+                },
+            },
+        },
+        { attachedDeposit: toYocto('1') },
+    );
+    await voteApprove(root, dao, id);
+
+    //Chrck that only those with a permission can add the proposal
+    let errorString = await captureError(
+        async () =>
+            await bob.call(
+                dao,
+                'add_proposal',
+                {
+                    proposal: {
+                        description: 'change to a new policy',
+                        kind: {
+                            ChangePolicy: {
+                                policy: newPolicy,
+                            },
+                        },
+                    },
+                },
+                { attachedDeposit: toYocto('1') },
+            ),
+    );
+    t.regex(errorString, /ERR_PERMISSION_DENIED/);
+});
 
 test('Proposal ChangePolicy', async (t) => {
     const { alice, root, dao } = t.context.accounts;
@@ -274,6 +268,9 @@ test('Proposal ChangePolicy', async (t) => {
     // Permissions might be in different order
     proposals[0].kind.ChangePolicy.policy.roles[0].permissions.sort();
     realProposal.kind.ChangePolicy.policy.roles[0].permissions.sort();
+    proposals[0].kind.ChangePolicy.policy.roles[0].kind.Group.sort();
+    realProposal.kind.ChangePolicy.policy.roles[0].kind.Group.sort();
+
     t.deepEqual(proposals[0].kind, realProposal.kind);
 
     //After voting on the proposal it is Approved
@@ -292,7 +289,10 @@ test('Proposal ChangePolicy', async (t) => {
 
     //Check that the policy is changed
 
-    t.deepEqual(normalizePolicy(await dao.view('get_policy')), normalizePolicy(correctPolicy));
+    t.deepEqual(
+        normalizePolicy(await dao.view('get_policy')),
+        normalizePolicy(correctPolicy),
+    );
 });
 
 test('Proposal Transfer', async (t) => {
@@ -346,108 +346,101 @@ test('Proposal Transfer', async (t) => {
     t.deepEqual(balance, initBalance.add(ONE_NEAR));
 });
 
-test(
-    'Proposal SetStakingContract',
-    async (t) => {
-        const { alice, root, dao } = t.context.accounts;
-        const testToken = await initTestToken(root);
-        const staking = await initStaking(root, dao, testToken);
-        await setStakingId(root, dao, staking);
+test('Proposal SetStakingContract', async (t) => {
+    const { alice, root, dao } = t.context.accounts;
+    const testToken = await initTestToken(root);
+    const staking = await initStaking(root, dao, testToken);
+    await setStakingId(root, dao, staking);
 
-        t.is(await dao.view('get_staking_contract'), staking.accountId);
+    t.is(await dao.view('get_staking_contract'), staking.accountId);
 
-        let errorString = await captureError(
-            async () => await setStakingId(root, dao, staking),
-        );
-        t.regex(errorString, /ERR_STAKING_CONTRACT_CANT_CHANGE/);
-    },
-);
+    let errorString = await captureError(
+        async () => await setStakingId(root, dao, staking),
+    );
+    t.regex(errorString, /ERR_STAKING_CONTRACT_CANT_CHANGE/);
+});
 
-test(
-    'Voting is only allowed for councils',
-    async (t) => {
-        const { alice, root, dao } = t.context.accounts;
-        const config = {
-            name: 'sputnikdao',
-            purpose: 'testing',
-            metadata: '',
-        };
-        //add_proposal returns new proposal id
-        const id: number = await alice.call(
-            dao,
-            'add_proposal',
-            {
-                proposal: {
-                    description: 'rename the dao',
-                    kind: {
-                        ChangeConfig: {
-                            config,
-                        },
+test('Voting is only allowed for councils', async (t) => {
+    const { alice, root, dao } = t.context.accounts;
+    const config = {
+        name: 'sputnikdao',
+        purpose: 'testing',
+        metadata: '',
+    };
+    //add_proposal returns new proposal id
+    const id: number = await alice.call(
+        dao,
+        'add_proposal',
+        {
+            proposal: {
+                description: 'rename the dao',
+                kind: {
+                    ChangeConfig: {
+                        config,
                     },
                 },
             },
-            { attachedDeposit: toYocto('1') },
-        );
+        },
+        { attachedDeposit: toYocto('1') },
+    );
 
-        //Check that voting is not allowed for non councils
-        //Here alice tries to vote for her proposal but she is not a council and has no permission to vote.
-        const err = await captureError(
-            async () => await voteApprove(alice, dao, id),
-        );
-        t.log(err);
-        t.true(err.includes('ERR_PERMISSION_DENIED'));
+    //Check that voting is not allowed for non councils
+    //Here alice tries to vote for her proposal but she is not a council and has no permission to vote.
+    const err = await captureError(
+        async () => await voteApprove(alice, dao, id),
+    );
+    t.log(err);
+    t.true(err.includes('ERR_PERMISSION_DENIED'));
 
-        let proposal: any = await dao.view('get_proposal', { id });
-        t.log(proposal);
-        t.is(proposal.status, 'InProgress');
+    let proposal: any = await dao.view('get_proposal', { id });
+    t.log(proposal);
+    t.is(proposal.status, 'InProgress');
 
-        //Check that voting is allowed for councils
-        //council (root) votes on alice's promise
-        const res = await voteApprove(root, dao, id);
-        proposal = await dao.view('get_proposal', { id });
-        t.log(res);
-        t.log(proposal);
-        t.is(proposal.status, 'Approved');
+    //Check that voting is allowed for councils
+    //council (root) votes on alice's promise
+    const res = await voteApprove(root, dao, id);
+    proposal = await dao.view('get_proposal', { id });
+    t.log(res);
+    t.log(proposal);
+    t.is(proposal.status, 'Approved');
 
-        // proposal approved so now the config is equal to what alice did propose
-        t.deepEqual(await dao.view('get_config'), config);
-    },
-);
+    // proposal approved so now the config is equal to what alice did propose
+    t.deepEqual(await dao.view('get_config'), config);
+});
 
-test(
-    'act_proposal should include correct kind',
-    async (t) => {
-        const { alice, root, dao } = t.context.accounts;
-        const config = {
-            name: 'sputnikdao',
-            purpose: 'testing',
-            metadata: '',
-        };
-        const wrong_config = {
-            name: 'sputnikdao_fake',
-            purpose: 'testing',
-            metadata: '',
-        };
-        //add_proposal returns new proposal id
-        const id: number = await alice.call(
-            dao,
-            'add_proposal',
-            {
-                proposal: {
-                    description: 'rename the dao',
-                    kind: {
-                        ChangeConfig: {
-                            config,
-                        },
+test('act_proposal should include correct kind', async (t) => {
+    const { alice, root, dao } = t.context.accounts;
+    const config = {
+        name: 'sputnikdao',
+        purpose: 'testing',
+        metadata: '',
+    };
+    const wrong_config = {
+        name: 'sputnikdao_fake',
+        purpose: 'testing',
+        metadata: '',
+    };
+    //add_proposal returns new proposal id
+    const id: number = await alice.call(
+        dao,
+        'add_proposal',
+        {
+            proposal: {
+                description: 'rename the dao',
+                kind: {
+                    ChangeConfig: {
+                        config,
                     },
                 },
             },
-            { attachedDeposit: toYocto('1') },
-        );
+        },
+        { attachedDeposit: toYocto('1') },
+    );
 
-        //Check that act_proposal is not allowed with wrong kind included
-        const err = await captureError(
-            async () => await root.call(
+    //Check that act_proposal is not allowed with wrong kind included
+    const err = await captureError(
+        async () =>
+            await root.call(
                 dao,
                 'act_proposal',
                 {
@@ -463,64 +456,61 @@ test(
                     gas: tGas(100),
                 },
             ),
-        );
-        t.log(err);
-        t.true(err.includes('ERR_WRONG_KIND'));
+    );
+    t.log(err);
+    t.true(err.includes('ERR_WRONG_KIND'));
 
-        let proposal: any = await dao.view('get_proposal', { id });
-        t.log(proposal);
-        t.is(proposal.status, 'InProgress');
-    },
-);
-
+    let proposal: any = await dao.view('get_proposal', { id });
+    t.log(proposal);
+    t.is(proposal.status, 'InProgress');
+});
 
 // If the number of votes in the group has changed (new members has been added)
 //  the proposal can lose it's approved state.
 //  In this case new proposal needs to be made, this one should expire
-test(
-    'Proposal group changed during voting',
-    async (t) => {
-        const { alice, root, dao } = t.context.accounts;
-        const transferId: number = await root.call(
-            dao,
-            'add_proposal',
-            {
-                proposal: {
-                    description: 'give me tokens',
-                    kind: {
-                        Transfer: {
-                            token_id: '',
-                            receiver_id: alice,
-                            amount: toYocto('1'),
-                        },
+test('Proposal group changed during voting', async (t) => {
+    const { alice, root, dao } = t.context.accounts;
+    const transferId: number = await root.call(
+        dao,
+        'add_proposal',
+        {
+            proposal: {
+                description: 'give me tokens',
+                kind: {
+                    Transfer: {
+                        token_id: '',
+                        receiver_id: alice,
+                        amount: toYocto('1'),
                     },
                 },
             },
-            { attachedDeposit: toYocto('1') },
-        );
+        },
+        { attachedDeposit: toYocto('1') },
+    );
 
-        const addMemberToRoleId: number = await root.call(
-            dao,
-            'add_proposal',
-            {
-                proposal: {
-                    description: 'add alice',
-                    kind: {
-                        AddMemberToRole: {
-                            member_id: alice,
-                            role: 'council',
-                        },
+    const addMemberToRoleId: number = await root.call(
+        dao,
+        'add_proposal',
+        {
+            proposal: {
+                description: 'add alice',
+                kind: {
+                    AddMemberToRole: {
+                        member_id: alice,
+                        role: 'council',
                     },
                 },
             },
-            { attachedDeposit: toYocto('1') },
-        );
-        await voteApprove(root, dao, addMemberToRoleId);
-        await voteApprove(root, dao, transferId);
-        const { status } : Proposal = await dao.view('get_proposal', { id: transferId });
-        t.is(status, 'InProgress');
-    },
-);
+        },
+        { attachedDeposit: toYocto('1') },
+    );
+    await voteApprove(root, dao, addMemberToRoleId);
+    await voteApprove(root, dao, transferId);
+    const { status }: Proposal = await dao.view('get_proposal', {
+        id: transferId,
+    });
+    t.is(status, 'InProgress');
+});
 
 test('Proposal transfer ft', async (t) => {
     const { alice, root, dao } = t.context.accounts;
@@ -567,7 +557,9 @@ test('Proposal transfer ft', async (t) => {
         },
     );
     await voteApprove(root, dao, transferId);
-    const { status } : Proposal  = await dao.view('get_proposal', { id: transferId });
+    const { status }: Proposal = await dao.view('get_proposal', {
+        id: transferId,
+    });
     t.is(status, 'Approved');
 });
 
@@ -592,10 +584,14 @@ test('Callback transfer', async (t) => {
         },
         { attachedDeposit: toYocto('1') },
     );
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     let user1Balance = (await user1.balance()).total;
     await voteApprove(root, dao, transferId);
-    let { status } : Proposal  = await dao.view('get_proposal', { id: transferId });
+    let { status }: Proposal = await dao.view('get_proposal', {
+        id: transferId,
+    });
     t.is(status, 'Failed');
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     t.assert((await user1.balance()).total.eq(user1Balance)); // no bond returns on fail
 
     // now we transfer to real accountId
@@ -618,7 +614,9 @@ test('Callback transfer', async (t) => {
     );
     user1Balance = (await user1.balance()).total;
     await voteApprove(root, dao, transferId);
-    ({ status } = await dao.view('get_proposal', { id: transferId }) as Proposal);
+    ({ status } = (await dao.view('get_proposal', {
+        id: transferId,
+    })) as Proposal);
     t.is(status, 'Approved');
     t.assert((await user1.balance()).total.gt(user1Balance)); // returns bond
 });
@@ -663,7 +661,9 @@ test('Callback function call', async (t) => {
             gas: tGas(200),
         },
     );
-    let { status } : Proposal  = await dao.view('get_proposal', { id: transferId });
+    let { status }: Proposal = await dao.view('get_proposal', {
+        id: transferId,
+    });
     t.is(status, 'Failed');
 
     transferId = await root.call(
@@ -715,6 +715,8 @@ test('Callback function call', async (t) => {
             gas: tGas(200),
         },
     );
-    ({ status } = await dao.view('get_proposal', { id: transferId }) as Proposal);
+    ({ status } = (await dao.view('get_proposal', {
+        id: transferId,
+    })) as Proposal);
     t.is(status, 'Approved');
 });

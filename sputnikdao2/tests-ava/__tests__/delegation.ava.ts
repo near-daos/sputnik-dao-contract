@@ -1,10 +1,4 @@
-import {
-    BN,
-    NearAccount,
-    captureError,
-    toYocto,
-    tGas,
-} from 'near-workspaces';
+import { BN, NearAccount, captureError, toYocto, tGas } from 'near-workspaces';
 import {
     initStaking,
     initTestToken,
@@ -36,55 +30,52 @@ test('Register delegation', async (t) => {
     t.deepEqual(total, new BN(1));
 });
 
-test(
-    'Register delegation fail',
-    async (t) => {
-        const { root, dao, alice } = t.context.accounts;
-        const testToken = await initTestToken(root);
-        const staking = await initStaking(root, dao, testToken);
+test('Register delegation fail', async (t) => {
+    const { root, dao, alice } = t.context.accounts;
+    const testToken = await initTestToken(root);
+    const staking = await initStaking(root, dao, testToken);
 
-        // Staking id not set
-        let errorString = await captureError(async () =>
-            staking.call(
-                dao,
-                'register_delegation',
-                { account_id: alice },
-                { attachedDeposit: regCost },
-            ),
-        );
-        t.regex(errorString, /ERR_NO_STAKING/);
+    // Staking id not set
+    let errorString = await captureError(async () =>
+        staking.call(
+            dao,
+            'register_delegation',
+            { account_id: alice },
+            { attachedDeposit: regCost },
+        ),
+    );
+    t.regex(errorString, /ERR_NO_STAKING/);
 
-        await setStakingId(root, dao, staking);
-        // Can only be called by the `staking_id`
-        errorString = await captureError(async () =>
-            root.call(
-                dao,
-                'register_delegation',
-                { account_id: alice },
-                { attachedDeposit: regCost },
-            ),
-        );
-        t.regex(errorString, /ERR_INVALID_CALLER/);
+    await setStakingId(root, dao, staking);
+    // Can only be called by the `staking_id`
+    errorString = await captureError(async () =>
+        root.call(
+            dao,
+            'register_delegation',
+            { account_id: alice },
+            { attachedDeposit: regCost },
+        ),
+    );
+    t.regex(errorString, /ERR_INVALID_CALLER/);
 
-        // Attached deposit is handled correctly
-        await captureError(async () =>
-            root.call(
-                dao,
-                'register_delegation',
-                { account_id: alice },
-                { attachedDeposit: regCost.add(new BN(1)) },
-            ),
-        );
-        await captureError(async () =>
-            root.call(
-                dao,
-                'register_delegation',
-                { account_id: alice },
-                { attachedDeposit: regCost.sub(new BN(1)) },
-            ),
-        );
-    },
-);
+    // Attached deposit is handled correctly
+    await captureError(async () =>
+        root.call(
+            dao,
+            'register_delegation',
+            { account_id: alice },
+            { attachedDeposit: regCost.add(new BN(1)) },
+        ),
+    );
+    await captureError(async () =>
+        root.call(
+            dao,
+            'register_delegation',
+            { account_id: alice },
+            { attachedDeposit: regCost.sub(new BN(1)) },
+        ),
+    );
+});
 
 test('Delegation', async (t) => {
     const { root, dao, alice } = t.context.accounts;

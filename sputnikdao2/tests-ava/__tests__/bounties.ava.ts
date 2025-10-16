@@ -116,10 +116,7 @@ test('Bounty claim', async (t) => {
     await claimBounty(alice, dao, proposalId);
 
     //Should increase number of claims
-    t.is(
-        await dao.view('get_bounty_number_of_claims', { id: proposalId }),
-        1,
-    );
+    t.is(await dao.view('get_bounty_number_of_claims', { id: proposalId }), 1);
 
     //Should add this claim to the list of claims, done by this account
     let bounty: any = await dao.view('get_bounty_claims', {
@@ -130,10 +127,7 @@ test('Bounty claim', async (t) => {
     t.is(bounty[0].completed, false);
 
     await claimBounty(alice, dao, proposalId);
-    t.is(
-        await dao.view('get_bounty_number_of_claims', { id: proposalId }),
-        2,
-    );
+    t.is(await dao.view('get_bounty_number_of_claims', { id: proposalId }), 2);
 
     let bounty2: any = await dao.view('get_bounty_claims', {
         account_id: alice,
@@ -143,10 +137,7 @@ test('Bounty claim', async (t) => {
     t.is(bounty2[1].completed, false);
 
     await claimBounty(alice, dao, proposalId);
-    t.is(
-        await dao.view('get_bounty_number_of_claims', { id: proposalId }),
-        3,
-    );
+    t.is(await dao.view('get_bounty_number_of_claims', { id: proposalId }), 3);
 
     //Should panic if all bounties are claimed
     let errorString4 = await captureError(
@@ -166,66 +157,63 @@ test('Bounty claim', async (t) => {
     t.regex(errorString4, /ERR_BOUNTY_ALL_CLAIMED/);
 });
 
-test(
-    'Bounty done with NEAR token',
-    async (t) => {
-        const { alice, root, dao } = t.context.accounts;
-        const proposalId = await proposeBountyWithNear(alice, dao);
+test('Bounty done with NEAR token', async (t) => {
+    const { alice, root, dao } = t.context.accounts;
+    const proposalId = await proposeBountyWithNear(alice, dao);
 
-        await voteOnBounty(root, dao, proposalId);
-        await claimBounty(alice, dao, proposalId);
+    await voteOnBounty(root, dao, proposalId);
+    await claimBounty(alice, dao, proposalId);
 
-        const bob = await root.createSubAccount('bob');
-        //Should panic if the caller is not in the list of claimers
-        let errorString1 = await captureError(
-            async () => await doneBounty(alice, bob, dao, proposalId),
-        );
-        t.regex(errorString1, /ERR_NO_BOUNTY_CLAIMS/);
+    const bob = await root.createSubAccount('bob');
+    //Should panic if the caller is not in the list of claimers
+    let errorString1 = await captureError(
+        async () => await doneBounty(alice, bob, dao, proposalId),
+    );
+    t.regex(errorString1, /ERR_NO_BOUNTY_CLAIMS/);
 
-        await claimBounty(bob, dao, proposalId);
+    await claimBounty(bob, dao, proposalId);
 
-        //Should panic if the list of claims for the caller of the method
-        //doesn't contain the claim with given ID
-        let errorString2 = await captureError(
-            async () => await doneBounty(alice, alice, dao, proposalId + 10),
-        );
-        t.regex(errorString2, /ERR_NO_BOUNTY_CLAIM/);
+    //Should panic if the list of claims for the caller of the method
+    //doesn't contain the claim with given ID
+    let errorString2 = await captureError(
+        async () => await doneBounty(alice, alice, dao, proposalId + 10),
+    );
+    t.regex(errorString2, /ERR_NO_BOUNTY_CLAIM/);
 
-        //`bounty_done` can only be called by the claimer
-        let errorString3 = await captureError(
-            async () => await doneBounty(alice, bob, dao, proposalId),
-        );
-        t.regex(errorString3, /ERR_BOUNTY_DONE_MUST_BE_SELF/);
+    //`bounty_done` can only be called by the claimer
+    let errorString3 = await captureError(
+        async () => await doneBounty(alice, bob, dao, proposalId),
+    );
+    t.regex(errorString3, /ERR_BOUNTY_DONE_MUST_BE_SELF/);
 
-        let bounty: any = await dao.view('get_bounty_claims', {
-            account_id: alice,
-        });
-        t.is(bounty[0].completed, false);
+    let bounty: any = await dao.view('get_bounty_claims', {
+        account_id: alice,
+    });
+    t.is(bounty[0].completed, false);
 
-        await doneBounty(alice, alice, dao, proposalId);
+    await doneBounty(alice, alice, dao, proposalId);
 
-        //claim is marked as completed
-        bounty = await dao.view('get_bounty_claims', { account_id: alice });
-        t.is(bounty[0].completed, true);
+    //claim is marked as completed
+    bounty = await dao.view('get_bounty_claims', { account_id: alice });
+    t.is(bounty[0].completed, true);
 
-        let proposal: any = await dao.view('get_proposal', {
-            id: proposalId + 1,
-        });
-        t.is(proposal.status, 'InProgress');
+    let proposal: any = await dao.view('get_proposal', {
+        id: proposalId + 1,
+    });
+    t.is(proposal.status, 'InProgress');
 
-        await voteOnBounty(root, dao, proposalId + 1);
+    await voteOnBounty(root, dao, proposalId + 1);
 
-        //proposal is approved
-        proposal = await dao.view('get_proposal', { id: proposalId + 1 });
-        t.is(proposal.status, 'Approved');
+    //proposal is approved
+    proposal = await dao.view('get_proposal', { id: proposalId + 1 });
+    t.is(proposal.status, 'Approved');
 
-        //Should panic if the bounty claim is completed
-        let errorString4 = await captureError(
-            async () => await doneBounty(alice, alice, dao, proposalId),
-        );
-        t.regex(errorString4, /ERR_NO_BOUNTY_CLAIMS/);
-    },
-);
+    //Should panic if the bounty claim is completed
+    let errorString4 = await captureError(
+        async () => await doneBounty(alice, alice, dao, proposalId),
+    );
+    t.regex(errorString4, /ERR_NO_BOUNTY_CLAIMS/);
+});
 
 test('Bounty giveup', async (t) => {
     const { alice, root, dao } = t.context.accounts;
@@ -262,10 +250,7 @@ test('Bounty giveup', async (t) => {
 
     //If within forgiveness period,
     //claim should be removed from the list of claims, done by this account
-    t.deepEqual(
-        await dao.view('get_bounty_claims', { account_id: alice }),
-        [],
-    );
+    t.deepEqual(await dao.view('get_bounty_claims', { account_id: alice }), []);
 });
 
 test('Bounty ft done', async (t) => {
@@ -318,7 +303,9 @@ test('Bounty ft done', async (t) => {
         },
     );
     await voteApprove(root, dao, proposalId);
-    let { status }: Proposal = await dao.view('get_proposal', { id: proposalId });
+    let { status }: Proposal = await dao.view('get_proposal', {
+        id: proposalId,
+    });
     t.is(status, 'Approved');
     const bountyId = 0; // first bounty
     await claimBounty(alice, dao, bountyId);
@@ -336,139 +323,134 @@ test('Bounty ft done', async (t) => {
     );
 
     await voteApprove(root, dao, proposalId + 1);
-    ({ status } = await dao.view('get_proposal', { id: proposalId }) as Proposal );
+    ({ status } = (await dao.view('get_proposal', {
+        id: proposalId,
+    })) as Proposal);
     t.is(status, 'Approved');
 });
 
-test(
-    'Callback for BountyDone with NEAR token',
-    async (t) => {
-        const { alice, root, dao } = t.context.accounts;
-        //During the callback the number bounty_claims_count should decrease
-        const proposalId = await proposeBountyWithNear(alice, dao);
-        await voteOnBounty(root, dao, proposalId);
-        await claimBounty(alice, dao, proposalId);
-        await doneBounty(alice, alice, dao, proposalId);
-        //Before the bounty is done there is 1 claim
-        t.is(await dao.view('get_bounty_number_of_claims', { id: 0 }), 1);
-        const balanceBefore: NEAR = (await alice.balance()).total;
-        //During the callback this number is decreased
-        await voteOnBounty(root, dao, proposalId + 1);
-        const balanceAfter: NEAR = (await alice.balance()).total;
-        t.is(await dao.view('get_bounty_number_of_claims', { id: 0 }), 0);
-        t.assert(balanceBefore.lt(balanceAfter));
-    },
-);
+test('Callback for BountyDone with NEAR token', async (t) => {
+    const { alice, root, dao } = t.context.accounts;
+    //During the callback the number bounty_claims_count should decrease
+    const proposalId = await proposeBountyWithNear(alice, dao);
+    await voteOnBounty(root, dao, proposalId);
+    await claimBounty(alice, dao, proposalId);
+    await doneBounty(alice, alice, dao, proposalId);
+    //Before the bounty is done there is 1 claim
+    t.is(await dao.view('get_bounty_number_of_claims', { id: 0 }), 1);
+    const balanceBefore: NEAR = (await alice.balance()).total;
+    //During the callback this number is decreased
+    await voteOnBounty(root, dao, proposalId + 1);
+    const balanceAfter: NEAR = (await alice.balance()).total;
+    t.is(await dao.view('get_bounty_number_of_claims', { id: 0 }), 0);
+    t.assert(balanceBefore.lt(balanceAfter));
+});
 
-test(
-    'Callback for BountyDone ft token fail',
-    async (t) => {
-        const { alice, root, dao } = t.context.accounts;
-        //Test the callback with Failed proposal status
-        const testTokenFail = await initTestToken(root);
-        const proposalIdFail = await proposeBounty(alice, dao, testTokenFail);
-        await dao.call(
-            testTokenFail,
-            'mint',
-            {
-                account_id: dao,
-                amount: '1000000000',
-            },
-            {
-                gas: tGas(50),
-            },
-        );
-        await alice.call(
-            testTokenFail,
-            'storage_deposit',
-            {
-                account_id: alice.accountId,
-                registration_only: true,
-            },
-            {
-                attachedDeposit: toYocto('90'),
-            },
-        );
-        await voteOnBounty(root, dao, proposalIdFail);
-        await claimBounty(alice, dao, proposalIdFail);
-        await doneBounty(alice, alice, dao, proposalIdFail);
-        await voteOnBounty(root, dao, proposalIdFail + 1);
-        //Proposal should be Failed
-        let { status }: Proposal = await dao.view('get_proposal', {
-            id: proposalIdFail + 1,
-        });
-        t.is(status, 'Failed');
-    },
-);
+test('Callback for BountyDone ft token fail', async (t) => {
+    const { alice, root, dao } = t.context.accounts;
+    //Test the callback with Failed proposal status
+    const testTokenFail = await initTestToken(root);
+    const proposalIdFail = await proposeBounty(alice, dao, testTokenFail);
+    await dao.call(
+        testTokenFail,
+        'mint',
+        {
+            account_id: dao,
+            amount: '1000000000',
+        },
+        {
+            gas: tGas(50),
+        },
+    );
+    await alice.call(
+        testTokenFail,
+        'storage_deposit',
+        {
+            account_id: alice.accountId,
+            registration_only: true,
+        },
+        {
+            attachedDeposit: toYocto('90'),
+        },
+    );
+    await voteOnBounty(root, dao, proposalIdFail);
+    await claimBounty(alice, dao, proposalIdFail);
+    await doneBounty(alice, alice, dao, proposalIdFail);
+    await voteOnBounty(root, dao, proposalIdFail + 1);
+    //Proposal should be Failed
+    let { status }: Proposal = await dao.view('get_proposal', {
+        id: proposalIdFail + 1,
+    });
+    t.is(status, 'Failed');
+});
 
-test(
-    'Callback for BountyDone ft token',
-    async (t) => {
-        const { alice, root, dao } = t.context.accounts;
-        //Test correct callback
-        const testToken = await initTestToken(root);
-        await dao.call(
-            testToken,
-            'mint',
-            {
-                account_id: dao,
-                amount: '1000000000',
-            },
-            {
-                gas: tGas(50),
-            },
-        );
-        await alice.call(
-            testToken,
-            'storage_deposit',
-            {
-                account_id: alice.accountId,
-                registration_only: true,
-            },
-            {
-                attachedDeposit: toYocto('90'),
-            },
-        );
-        const bounty = {
-            description: 'test_bounties',
-            token: testToken.accountId,
-            amount: '10',
-            times: 3,
-            max_deadline: DEADLINE,
-        };
-        let proposalId: number = await alice.call(
-            dao,
-            'add_proposal',
-            {
-                proposal: {
-                    description: 'add_new_bounty',
-                    kind: {
-                        AddBounty: {
-                            bounty,
-                        },
+test('Callback for BountyDone ft token', async (t) => {
+    const { alice, root, dao } = t.context.accounts;
+    //Test correct callback
+    const testToken = await initTestToken(root);
+    await dao.call(
+        testToken,
+        'mint',
+        {
+            account_id: dao,
+            amount: '1000000000',
+        },
+        {
+            gas: tGas(50),
+        },
+    );
+    await alice.call(
+        testToken,
+        'storage_deposit',
+        {
+            account_id: alice.accountId,
+            registration_only: true,
+        },
+        {
+            attachedDeposit: toYocto('90'),
+        },
+    );
+    const bounty = {
+        description: 'test_bounties',
+        token: testToken.accountId,
+        amount: '10',
+        times: 3,
+        max_deadline: DEADLINE,
+    };
+    let proposalId: number = await alice.call(
+        dao,
+        'add_proposal',
+        {
+            proposal: {
+                description: 'add_new_bounty',
+                kind: {
+                    AddBounty: {
+                        bounty,
                     },
                 },
             },
-            {
-                attachedDeposit: toYocto('1'),
-            },
-        );
-        await voteOnBounty(root, dao, proposalId);
-        await claimBounty(alice, dao, proposalId);
-        await doneBounty(alice, alice, dao, proposalId);
-        //Before the bounty is done there is 1 claim
-        t.is(await dao.view('get_bounty_number_of_claims', { id: 0 }), 1);
-        const balanceBefore: NEAR = (await alice.balance()).total;
-        //During the callback this number is decreased
-        await voteOnBounty(root, dao, proposalId + 1);
+        },
+        {
+            attachedDeposit: toYocto('1'),
+        },
+    );
+    await voteOnBounty(root, dao, proposalId);
+    await claimBounty(alice, dao, proposalId);
+    await doneBounty(alice, alice, dao, proposalId);
+    //Before the bounty is done there is 1 claim
+    t.is(await dao.view('get_bounty_number_of_claims', { id: 0 }), 1);
+    const balanceBefore: NEAR = (await alice.balance()).total;
+    //During the callback this number is decreased
+    await voteOnBounty(root, dao, proposalId + 1);
 
-        //Proposal should be approved
-        let { status }: Proposal = await dao.view('get_proposal', { id: proposalId + 1 });
-        t.is(status, 'Approved');
+    //Proposal should be approved
+    let { status }: Proposal = await dao.view('get_proposal', {
+        id: proposalId + 1,
+    });
+    t.is(status, 'Approved');
 
-        //During the callback the number bounty_claims_count should decrease
-        const balanceAfter: NEAR = (await alice.balance()).total;
-        t.is(await dao.view('get_bounty_number_of_claims', { id: 0 }), 0);
-        t.assert(balanceBefore.lt(balanceAfter));
-    },
-);
+    //During the callback the number bounty_claims_count should decrease
+    const balanceAfter: NEAR = (await alice.balance()).total;
+    t.is(await dao.view('get_bounty_number_of_claims', { id: 0 }), 0);
+    t.assert(balanceBefore.lt(balanceAfter));
+});
