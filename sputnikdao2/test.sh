@@ -6,4 +6,5 @@
 sh build.sh # to make sure last version is tested
 cd tests-ava
 npm install
+rm ./node_modules/near-sandbox/bin/near-sandbox
 npm run test -- $@ # pass along any CLI flags, such as `--verbose`
