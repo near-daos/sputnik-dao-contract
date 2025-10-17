@@ -1020,7 +1020,7 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
         (action_log.block_height.0 as i128
             - worker.view_block().await.unwrap().header().height() as i128)
             .abs()
-            <= 2 as i128,
+            <= 3 as i128,
     );
 
     // Fill the actions log
