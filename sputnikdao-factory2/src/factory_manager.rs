@@ -146,12 +146,30 @@ impl FactoryManager {
         let attached_deposit = env::attached_deposit();
         let factory_account_id = env::current_account_id();
 
+        // Calculate gas cost to deduct from deposit
+        // The factory pays for CREATE_CALL_GAS but any unused gas refund goes to the DAO
+        // To prevent the factory from losing funds, we deduct the maximum gas cost from the transfer
+        // Gas price is approximately 100,000,000 yoctoNEAR per gas unit
+        // For 40 TGas: 40 * 10^12 gas * 10^8 yoctoNEAR/gas = 4 * 10^21 yoctoNEAR (~0.004 NEAR)
+        // We use a conservative estimate of 0.01 NEAR to cover gas costs and variations in gas price
+        let gas_cost_buffer = NearToken::from_millinear(10); // 0.01 NEAR
+
+        // Ensure we have enough deposit to cover the gas cost buffer
+        assert!(
+            attached_deposit > gas_cost_buffer,
+            "Attached deposit must be greater than gas cost buffer of {} yoctoNEAR",
+            gas_cost_buffer.as_yoctonear()
+        );
+
+        // Transfer deposit minus gas cost buffer; unused gas will be refunded to the DAO
+        let transfer_amount = attached_deposit.saturating_sub(gas_cost_buffer);
+
         // Create the subaccount and deploy global contract by hash
         let promise_id = env::promise_batch_create(&account_id);
         // Create account first
         env::promise_batch_action_create_account(promise_id);
-        // Transfer attached deposit
-        env::promise_batch_action_transfer(promise_id, attached_deposit);
+        // Transfer deposit minus gas cost (unused gas will be refunded to DAO)
+        env::promise_batch_action_transfer(promise_id, transfer_amount);
         // Deploy contract using global contract hash
         env::promise_batch_action_use_global_contract(promise_id, &code_hash);
         // Call initialization method
