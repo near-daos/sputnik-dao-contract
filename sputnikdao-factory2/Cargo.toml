@@ -14,9 +14,12 @@ near-sdk = "5.9.0"
 near-contract-standards = "5.9.0"
 
 [dev-dependencies]
-near-workspaces = "0.17.0"
+near-sandbox = { git = "https://github.com/near/near-sandbox-rs.git", branch = "sandbox-rpc", features = [
+    "generate",
+] }
+near-api = { version = "0.7" }
 tokio = { version = "1.44.0", features = ["full"] }
-near-sdk = {version="5.9.0", features = ["unit-testing"] }
+near-sdk = { version = "5.9.0", features = ["unit-testing"] }
 
 # fields to configure build with WASM reproducibility, according to specs  
 # in https://github.com/near/NEPs/blob/master/neps/nep-0330.md 
@@ -33,6 +36,12 @@ passed_env = []
 # if docker image from default gallery is used https://hub.docker.com/r/sourcescan/cargo-near/tags,
 # the command may be any combination of flags of `cargo-near`,
 # supported by respective version of binary inside the container besides `--no-locked` flag
-container_build_command = ["cargo", "near", "build", "non-reproducible-wasm", "--locked"]
+container_build_command = [
+    "cargo",
+    "near",
+    "build",
+    "non-reproducible-wasm",
+    "--locked",
+]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

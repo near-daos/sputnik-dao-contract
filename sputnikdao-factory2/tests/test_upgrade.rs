@@ -1,41 +1,77 @@
+use near_api::types::{AccessKey, AccessKeyPermission};
+use near_api::{AccountId, Contract, NearToken};
+use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY};
 use near_sdk::base64::{engine::general_purpose, Engine as _};
 use near_sdk::env::sha256;
 use near_sdk::json_types::Base58CryptoHash;
 use near_sdk::serde_json::{json, Value};
 use near_sdk::{AccountIdRef, CryptoHash};
-use near_workspaces::types::NearToken;
-use near_workspaces::{AccountId, Contract};
 use std::fs;
 use std::str::FromStr;
 
 #[tokio::test]
 async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
-    const SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &str = "sputnik-dao.near";
+    const SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &AccountIdRef =
+        AccountIdRef::new_or_panic("sputnik-dao.near");
 
     // Import the mainnet sputnik-dao.near factory contract
-    let mainnet = near_workspaces::mainnet().await?;
-    let sputnikdao_factory_contract_id: AccountId =
-        AccountIdRef::new_or_panic(SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT).into();
+    let sputnikdao_factory_contract =
+        near_api::Contract(SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.to_owned());
 
-    let worker = near_workspaces::sandbox().await?;
-    let user_account = worker.dev_create_account().await?;
+    let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
+    let sandbox_network =
+        near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
+    let signer = near_api::Signer::new(near_api::Signer::from_secret_key(
+        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
+    ))?;
 
-    // Deploy the sputnik-dao.near factory contract to the sandbox
-    let sputnik_dao_factory = worker
-        .import_contract(&sputnikdao_factory_contract_id, &mainnet)
-        .initial_balance(NearToken::from_near(100))
-        .transact()
-        .await?;
+    let user_account_id: AccountId = format!("some_account.{}", DEFAULT_GENESIS_ACCOUNT)
+        .parse()
+        .unwrap();
+    near_api::Account::create_account(user_account_id.clone())
+        .fund_myself(DEFAULT_GENESIS_ACCOUNT.to_owned(), NearToken::from_near(50))
+        .public_key(signer.clone().get_public_key().await?)
+        .unwrap()
+        .with_signer(signer.clone())
+        .send_to(&sandbox_network)
+        .await?
+        .assert_success();
+
+    let mut account = near_api::Account(sputnikdao_factory_contract.0.clone())
+        .view()
+        .fetch_from_mainnet()
+        .await?
+        .data;
+    let wasm = sputnikdao_factory_contract
+        .wasm()
+        .fetch_from_mainnet()
+        .await?
+        .data;
+    account.amount = NearToken::from_near(100);
+    sandbox
+        .patch_state(sputnikdao_factory_contract.0.clone())
+        .account(account)
+        .code(wasm.code_base64)
+        .access_key(
+            signer.get_public_key().await?.to_string(),
+            AccessKey {
+                nonce: 0.into(),
+                permission: AccessKeyPermission::FullAccess,
+            },
+        )
+        .send()
+        .await
+        .unwrap();
 
     // Initialize the sputnik-dao factory contract
-    let init_sputnik_dao_factory_result =
-        sputnik_dao_factory.call("new").max_gas().transact().await?;
-    if init_sputnik_dao_factory_result.is_failure() {
-        panic!(
-            "Error initializing sputnik-dao contract: {:?}",
-            String::from_utf8(init_sputnik_dao_factory_result.raw_bytes().unwrap())
-        );
-    }
+    let init_sputnik_dao_factory_result = sputnikdao_factory_contract
+        .call_function("new", ())
+        .unwrap()
+        .transaction()
+        .max_gas()
+        .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())
+        .send_to(&sandbox_network)
+        .await?;
     assert!(init_sputnik_dao_factory_result.is_success());
 
     // Create a testdao.sputnik-dao.near instance
@@ -50,7 +86,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         "roles": [
             {
             "kind": {
-                "Group": [user_account.id()],
+                "Group": [user_account_id.clone()],
             },
             "name": "Create Requests",
             "permissions": [
@@ -60,7 +96,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
             },
             {
             "kind": {
-                "Group": [user_account.id()],
+                "Group": [user_account_id.clone()],
             },
             "name": "Manage Members",
             "permissions": [
@@ -73,7 +109,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
             },
             {
             "kind": {
-                "Group": [user_account.id()],
+                "Group": [user_account_id.clone()],
             },
             "name": "Vote",
             "permissions": ["*:VoteReject", "*:VoteApprove", "*:VoteRemove"],
@@ -92,15 +128,20 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         },
     });
 
-    let create_result = user_account
-        .call(&sputnikdao_factory_contract_id, "create")
-        .args_json(json!({
-            "name": dao_name,
-            "args": general_purpose::STANDARD.encode(create_dao_args.to_string())
-        }))
+    let create_result = sputnikdao_factory_contract
+        .call_function(
+            "create",
+            json!({
+                "name": dao_name,
+                "args": general_purpose::STANDARD.encode(create_dao_args.to_string())
+            }),
+        )
+        .unwrap()
+        .transaction()
         .max_gas()
         .deposit(NearToken::from_near(6))
-        .transact()
+        .with_signer(user_account_id.clone(), signer.clone())
+        .send_to(&sandbox_network)
         .await?;
 
     assert!(create_result.is_success(), "{:?}", create_result.failures());
@@ -108,22 +149,25 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
     let dao_account_id: AccountId = format!("{}.{}", dao_name, SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT)
         .parse()
         .unwrap();
-    let dao_contract = Contract::from_secret_key(
-        dao_account_id.clone(),
-        user_account.secret_key().clone(),
-        &worker,
-    );
+    let dao_contract = near_api::Contract(dao_account_id.clone());
 
     // Verify the DAO configuration
-    let get_config_result = worker.view(&dao_account_id, "get_config").await?;
-    let config: Value = get_config_result.json().unwrap();
+    let config: Value = dao_contract
+        .call_function("get_config", ())
+        .unwrap()
+        .read_only()
+        .fetch_from(&sandbox_network)
+        .await?
+        .data;
     assert_eq!(create_dao_args["config"], config);
 
     // Deploy the local build of the sputnik-dao factory contract
     let wasm = fs::read("./res/sputnikdao_factory2.wasm").expect("Unable to read contract wasm");
-    let deploy_result = sputnik_dao_factory
-        .as_account()
-        .deploy(wasm.as_slice())
+    let deploy_result = Contract::deploy(sputnikdao_factory_contract.0.clone())
+        .use_code(wasm.to_vec())
+        .without_init_call()
+        .with_signer(signer.clone())
+        .send_to(&sandbox_network)
         .await?;
     assert!(deploy_result.is_success());
 
@@ -131,12 +175,13 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
     let sputnikdao2_wasm =
         fs::read("../sputnikdao2/res/sputnikdao2.wasm").expect("Unable to read sputnikdao2.wasm");
     let computed_hash = sha256(&sputnikdao2_wasm);
-    let stored_contract_hash_string = sputnik_dao_factory
-        .call("store")
-        .args(sputnikdao2_wasm.clone())
+    let stored_contract_hash_string = sputnikdao_factory_contract
+        .call_function_raw("store", sputnikdao2_wasm.clone())
+        .transaction()
         .max_gas()
         .deposit(NearToken::from_near(20))
-        .transact()
+        .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())
+        .send_to(&sandbox_network)
         .await?
         .json::<String>()
         .unwrap();
@@ -145,10 +190,15 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         Base58CryptoHash::from_str(stored_contract_hash_string.as_str()).unwrap();
 
     // Set the stored contract hash as the default code hash
-    let set_default_code_hash_result = sputnik_dao_factory
-        .call("set_default_code_hash")
-        .args_json(json!({"code_hash": stored_contract_hash}))
-        .transact()
+    let set_default_code_hash_result = sputnikdao_factory_contract
+        .call_function(
+            "set_default_code_hash",
+            json!({"code_hash": stored_contract_hash}),
+        )
+        .unwrap()
+        .transaction()
+        .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())
+        .send_to(&sandbox_network)
         .await?;
     assert!(
         set_default_code_hash_result.is_success(),
@@ -158,11 +208,13 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Verify the default code hash matches the computed hash
-    let hash = sputnik_dao_factory
-        .view("get_default_code_hash")
+    let hash: Base58CryptoHash = sputnikdao_factory_contract
+        .call_function("get_default_code_hash", ())
+        .unwrap()
+        .read_only()
+        .fetch_from(&sandbox_network)
         .await?
-        .json::<Base58CryptoHash>()
-        .unwrap();
+        .data;
 
     assert_eq!(
         CryptoHash::from(hash).to_vec(),
@@ -171,56 +223,71 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Create a self-upgrade proposal
-    let proposal_id = user_account
-        .call(dao_contract.id(), "add_proposal")
-        .args_json(json!({ "proposal": {
-            "description": "proposal to test".to_string(),
-            "kind": {"UpgradeSelf": {
-                "hash": stored_contract_hash
-            }}
-        }}))
-        .deposit(NearToken::from_near(1))
-        .transact()
-        .await?
+    let proposal_id = dao_contract
+        .call_function(
+            "add_proposal",
+            json!({ "proposal": {
+                "description": "proposal to test".to_string(),
+                "kind": {"UpgradeSelf": {
+                    "hash": stored_contract_hash
+                }}
+            }}),
+        )
         .unwrap()
+        .transaction()
+        .max_gas()
+        .deposit(NearToken::from_near(1))
+        .with_signer(user_account_id.clone(), signer.clone())
+        .send_to(&sandbox_network)
+        .await?
         .json::<u64>()
         .unwrap();
 
     assert_eq!(0, proposal_id);
 
     // Create a transfer proposal to check after the upgrade
-    let transfer_proposal_id = user_account
-        .call(dao_contract.id(), "add_proposal")
-        .args_json(json!({ "proposal": {
-            "description": "a transfer proposal to check after upgrade",
-            "kind": {
-                "Transfer": {
-                    "token_id": "",
-                    "receiver_id": user_account.id(),
-                    "amount": "1"
+    let transfer_proposal_id = dao_contract
+        .call_function(
+            "add_proposal",
+            json!({ "proposal": {
+                "description": "a transfer proposal to check after upgrade",
+                "kind": {
+                    "Transfer": {
+                        "token_id": "",
+                        "receiver_id": user_account_id.clone(),
+                        "amount": "1"
+                    },
                 },
-            },
-        }}))
-        .deposit(NearToken::from_near(1))
-        .transact()
-        .await?
+            }}),
+        )
         .unwrap()
+        .transaction()
+        .max_gas()
+        .deposit(NearToken::from_near(1))
+        .with_signer(user_account_id.clone(), signer.clone())
+        .send_to(&sandbox_network)
+        .await?
         .json::<u64>()
         .unwrap();
 
     // Act on the self-upgrade proposal
-    let act_proposal_result = user_account
-        .call(dao_contract.id(), "act_proposal")
-        .args_json(json!({
-            "id": 0,
-            "action": "VoteApprove",
-            "proposal": {
-                "UpgradeSelf": {
-                "hash": stored_contract_hash
-            }}
-        }))
+    let act_proposal_result = dao_contract
+        .call_function(
+            "act_proposal",
+            json!({
+                "id": 0,
+                "action": "VoteApprove",
+                "proposal": {
+                    "UpgradeSelf": {
+                    "hash": stored_contract_hash
+                }}
+            }),
+        )
+        .unwrap()
+        .transaction()
         .max_gas()
-        .transact()
+        .with_signer(user_account_id.clone(), signer.clone())
+        .send_to(&sandbox_network)
         .await?;
     assert!(
         act_proposal_result.is_success(),
@@ -235,30 +302,43 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Verify the code of testdao.sputnik-dao.near matches the local build of sputnikdao2.wasm
-    let upgraded_code = dao_contract.view_code().await?;
-    assert_eq!(upgraded_code, sputnikdao2_wasm);
+    let upgraded_code = dao_contract.wasm().fetch_from(&sandbox_network).await?.data;
+    assert_eq!(
+        upgraded_code.code_base64,
+        general_purpose::STANDARD.encode(sputnikdao2_wasm)
+    );
 
     // Verify the DAO configuration remains the same
-    let get_config_result = worker.view(&dao_account_id, "get_config").await?;
-    let config: Value = get_config_result.json().unwrap();
+    let config: Value = dao_contract
+        .call_function("get_config", ())
+        .unwrap()
+        .read_only()
+        .fetch_from(&sandbox_network)
+        .await?
+        .data;
     assert_eq!(create_dao_args["config"], config);
 
     // Act on the transfer proposal
-    let act_proposal_result = user_account
-        .call(dao_contract.id(), "act_proposal")
-        .args_json(json!({
-            "id": transfer_proposal_id,
-            "action": "VoteApprove",
-            "proposal": {
-                "Transfer": {
-                    "token_id": "",
-                    "receiver_id": user_account.id(),
-                    "amount": "1"
-                },
-            }
-        }))
+    let act_proposal_result = dao_contract
+        .call_function(
+            "act_proposal",
+            json!({
+                "id": transfer_proposal_id,
+                "action": "VoteApprove",
+                "proposal": {
+                    "Transfer": {
+                        "token_id": "",
+                        "receiver_id": user_account_id.clone(),
+                        "amount": "1"
+                    },
+                }
+            }),
+        )
+        .unwrap()
+        .transaction()
         .max_gas()
-        .transact()
+        .with_signer(user_account_id.clone(), signer.clone())
+        .send_to(&sandbox_network)
         .await?;
 
     assert!(

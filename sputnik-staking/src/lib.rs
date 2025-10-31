@@ -162,7 +162,7 @@ mod tests {
     use near_sdk::json_types::U64;
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::testing_env;
-    use near_workspaces::types::NearToken;
+    use near_token::NearToken;
 
     use super::*;
 
