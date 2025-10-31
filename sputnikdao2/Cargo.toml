@@ -18,7 +18,10 @@ hex = "0.4.3"
 version = "1.4.0"
 
 [dev-dependencies]
-near-workspaces = "0.17.0"
+near-sandbox = { git = "https://github.com/near/near-sandbox-rs.git", branch = "sandbox-rpc", features = [
+    "generate",
+] }
+near-api = { version = "0.7" }
 test-token = { path = "../test-token" }
 sputnik-staking = { path = "../sputnik-staking" }
 sputnikdao-factory2 = { path = "../sputnikdao-factory2" }
@@ -26,6 +29,7 @@ tokio = { version = "1.44.0", features = ["full"] }
 walrus = "0.23.3"
 anyhow = "1.0.97"
 rand = "0.8"
+openssl = { version = "0.10", features = ["vendored"] }
 
 # fields to configure build with WASM reproducibility, according to specs
 # in https://github.com/near/NEPs/blob/master/neps/nep-0330.md
