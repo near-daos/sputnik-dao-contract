@@ -48,36 +48,30 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
                 "name": "testdao",
                 "args": Base64VecU8(params)
             }),
-        )
-        .unwrap()
+        )?
         .transaction()
         .deposit(NearToken::from_near(10))
         .max_gas()
         .with_signer(root.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
-        .await
-        .unwrap();
+        .await?;
 
     assert!(create_result.is_success(), "{:?}", create_result.failures());
 
-    let dao_account_id: AccountId = format!("testdao.{}", factory.0).parse().unwrap();
+    let dao_account_id: AccountId = format!("testdao.{}", factory.0).parse()?;
     let dao_list: Vec<near_api::AccountId> = factory
-        .call_function("get_dao_list", ())
-        .unwrap()
+        .call_function("get_dao_list", ())?
         .read_only()
         .fetch_from(&ctx.sandbox_network)
-        .await
-        .unwrap()
+        .await?
         .data;
     assert_eq!(dao_list, vec![dao_account_id.clone()]);
 
     let hash: Base58CryptoHash = factory
-        .call_function("get_default_code_hash", ())
-        .unwrap()
+        .call_function("get_default_code_hash", ())?
         .read_only()
         .fetch_from(&ctx.sandbox_network)
-        .await
-        .unwrap()
+        .await?
         .data;
 
     let proposal_kind = ProposalKind::UpgradeSelf { hash };
@@ -88,17 +82,14 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
                 description: "proposal to test".to_string(),
                 kind: proposal_kind.clone()
             }}),
-        )
-        .unwrap()
+        )?
         .transaction()
         .deposit(NearToken::from_near(1))
         .with_signer(root.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
-        .await
-        .unwrap()
+        .await?
         .assert_success()
-        .json()
-        .unwrap();
+        .json()?;
 
     assert_eq!(0, proposal_id);
 
@@ -110,13 +101,11 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
                 "action": Action::VoteApprove,
                 "proposal": proposal_kind
             }),
-        )
-        .unwrap()
+        )?
         .transaction()
         .with_signer(root.clone(), ctx.signer)
         .send_to(&ctx.sandbox_network)
-        .await
-        .unwrap();
+        .await?;
     assert!(
         act_proposal_result.is_success(),
         "{:?}",
@@ -137,11 +126,10 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
 async fn test_upgrade_other() -> Result<(), Box<dyn std::error::Error>> {
     let (ctx, dao) = setup_dao().await?;
 
-    let ref_account: AccountId = format!("ref-finance.{}", ctx.root).parse().unwrap();
+    let ref_account: AccountId = format!("ref-finance.{}", ctx.root).parse()?;
     near_api::Account::create_account(ref_account.clone())
         .fund_myself(ctx.root.clone(), NearToken::from_near(2000))
-        .public_key(ctx.signer.get_public_key().await?)
-        .unwrap()
+        .public_key(ctx.signer.get_public_key().await?)?
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
@@ -167,7 +155,7 @@ async fn test_upgrade_other() -> Result<(), Box<dyn std::error::Error>> {
         ref_contract_new_result.failures()
     );
 
-    let extended_wasm = add_data_segment(OTHER_WASM_BYTES, 1200 * 1024).unwrap();
+    let extended_wasm = add_data_segment(OTHER_WASM_BYTES, 1200 * 1024)?;
     assert_eq!(extended_wasm.len(), 1566669);
 
     let hash = dao
@@ -179,8 +167,7 @@ async fn test_upgrade_other() -> Result<(), Box<dyn std::error::Error>> {
         .send_to(&ctx.sandbox_network)
         .await?
         .assert_success()
-        .json()
-        .unwrap();
+        .json()?;
 
     assert!(add_proposal(
         &ctx,
@@ -205,8 +192,7 @@ async fn test_upgrade_other() -> Result<(), Box<dyn std::error::Error>> {
                 "action": Action::VoteApprove,
                 "proposal": get_proposal_kind(&ctx, &dao, 0).await
             }),
-        )
-        .unwrap()
+        )?
         .transaction()
         .max_gas()
         .with_signer(ctx.root.clone(), ctx.signer.clone())

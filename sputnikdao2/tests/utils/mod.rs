@@ -130,14 +130,13 @@ pub async fn setup_dao_with_params(
     sandbox: Sandbox,
     policy: VersionedPolicy,
 ) -> Result<(TestContext, Contract), Box<dyn std::error::Error>> {
-    let dao_account_id: AccountId = format!("dao.{root}").parse().unwrap();
+    let dao_account_id: AccountId = format!("dao.{root}").parse()?;
     let sandbox_network =
         near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
 
     near_api::Account::create_account(dao_account_id.clone())
         .fund_myself(root.clone(), NearToken::from_near(200))
-        .public_key(signer.get_public_key().await?)
-        .unwrap()
+        .public_key(signer.get_public_key().await?)?
         .with_signer(signer.clone())
         .send_to(&sandbox_network)
         .await?
@@ -176,11 +175,10 @@ pub async fn setup_dao_with_params(
 }
 
 pub async fn setup_test_token(ctx: &TestContext) -> Result<Contract, Box<dyn std::error::Error>> {
-    let test_token_account_id: AccountId = format!("test_token.{}", ctx.root).parse().unwrap();
+    let test_token_account_id: AccountId = format!("test_token.{}", ctx.root).parse()?;
     near_api::Account::create_account(test_token_account_id.clone())
         .fund_myself(ctx.root.clone(), NearToken::from_near(200))
-        .public_key(ctx.signer.get_public_key().await?)
-        .unwrap()
+        .public_key(ctx.signer.get_public_key().await?)?
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
@@ -203,11 +201,10 @@ pub async fn setup_staking(
     test_token: &AccountId,
     dao: &AccountId,
 ) -> Result<Contract, Box<dyn std::error::Error>> {
-    let staking_account_id: AccountId = format!("staking.{}", ctx.root).parse().unwrap();
+    let staking_account_id: AccountId = format!("staking.{}", ctx.root).parse()?;
     near_api::Account::create_account(staking_account_id.clone())
         .fund_myself(ctx.root.clone(), NearToken::from_near(100))
-        .public_key(ctx.signer.get_public_key().await?)
-        .unwrap()
+        .public_key(ctx.signer.get_public_key().await?)?
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
