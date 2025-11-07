@@ -27,7 +27,6 @@ tokio = { version = "1.44.0", features = ["full"] }
 walrus = "0.23.3"
 anyhow = "1.0.97"
 rand = "0.8"
-openssl = { version = "0.10", features = ["vendored"] }
 
 # fields to configure build with WASM reproducibility, according to specs
 # in https://github.com/near/NEPs/blob/master/neps/nep-0330.md

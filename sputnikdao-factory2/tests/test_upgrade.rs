@@ -1,4 +1,3 @@
-use near_api::types::{AccessKey, AccessKeyPermission};
 use near_api::{AccountId, Contract, NearToken};
 use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY};
 use near_sdk::base64::{engine::general_purpose, Engine as _};
@@ -14,6 +13,13 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
     const SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &AccountIdRef =
         AccountIdRef::new_or_panic("sputnik-dao.near");
 
+    let rpc = near_api::NetworkConfig::mainnet()
+        .rpc_endpoints
+        .first()
+        .unwrap()
+        .url
+        .clone();
+
     // Import the mainnet sputnik-dao.near factory contract
     let sputnikdao_factory_contract =
         near_api::Contract(SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.to_owned());
@@ -28,38 +34,16 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
     let user_account_id: AccountId = format!("some_account.{}", DEFAULT_GENESIS_ACCOUNT)
         .parse()
         .unwrap();
-    near_api::Account::create_account(user_account_id.clone())
-        .fund_myself(DEFAULT_GENESIS_ACCOUNT.to_owned(), NearToken::from_near(50))
-        .public_key(signer.clone().get_public_key().await?)
-        .unwrap()
-        .with_signer(signer.clone())
-        .send_to(&sandbox_network)
-        .await?
-        .assert_success();
-
-    let mut account = near_api::Account(sputnikdao_factory_contract.0.clone())
-        .view()
-        .fetch_from_mainnet()
-        .await?
-        .data;
-    let wasm = sputnikdao_factory_contract
-        .wasm()
-        .fetch_from_mainnet()
-        .await?
-        .data;
-    account.amount = NearToken::from_near(100);
     sandbox
-        .patch_state(sputnikdao_factory_contract.0.clone())
-        .account(account)
-        .code(wasm.code_base64)
-        .access_key(
-            signer.get_public_key().await?.to_string(),
-            AccessKey {
-                nonce: 0.into(),
-                permission: AccessKeyPermission::FullAccess,
-            },
-        )
+        .create_account(user_account_id.clone())
+        .initial_balance(NearToken::from_near(50))
         .send()
+        .await?;
+
+    sandbox
+        .import_account(sputnikdao_factory_contract.0.clone())
+        .initial_balance(NearToken::from_near(100))
+        .send(rpc.as_str())
         .await
         .unwrap();
 

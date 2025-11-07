@@ -10,10 +10,7 @@ pub use near_sdk::json_types::{Base64VecU8, U64};
 use near_sdk::{serde_json::json, AccountIdRef};
 
 use near_api::{
-    types::{
-        transaction::result::ExecutionFinalResult, AccessKey, AccessKeyPermission, AccountId,
-        NearToken, TxExecutionStatus,
-    },
+    types::{transaction::result::ExecutionFinalResult, AccountId, NearToken, TxExecutionStatus},
     Contract, Signer,
 };
 
@@ -57,35 +54,22 @@ pub async fn setup_factory() -> Result<(TestContext, Contract), Box<dyn std::err
     let sandbox_network =
         near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
 
-    let private_key = near_api::signer::generate_secret_key()?;
-
-    let mut sputnik_dao_factory_account = near_api::Account(sputnikdao_factory_contract_id.clone())
-        .view()
-        .fetch_from_mainnet()
-        .await?
-        .data;
-    sputnik_dao_factory_account.amount = NearToken::from_near(50);
-    let sputnik_dao_code = near_api::Contract(sputnikdao_factory_contract_id.clone())
-        .wasm()
-        .fetch_from_mainnet()
-        .await?
-        .data;
+    let rpc = near_api::NetworkConfig::mainnet()
+        .rpc_endpoints
+        .first()
+        .unwrap()
+        .url
+        .clone();
 
     sandbox
-        .patch_state(sputnikdao_factory_contract_id.clone())
-        .account(sputnik_dao_factory_account)
-        .code(sputnik_dao_code.code_base64)
-        .access_key(
-            private_key.public_key().to_string(),
-            AccessKey {
-                nonce: 0.into(),
-                permission: AccessKeyPermission::FullAccess,
-            },
-        )
-        .send()
+        .import_account(sputnikdao_factory_contract_id.clone())
+        .initial_balance(NearToken::from_near(50))
+        .send(rpc.as_str())
         .await?;
 
-    let signer = Signer::new(Signer::from_secret_key(private_key))?;
+    let signer = Signer::new(Signer::from_secret_key(
+        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
+    ))?;
 
     let deploy_result = Contract::deploy(sputnikdao_factory_contract_id.clone())
         .use_code(FACTORY_WASM_BYTES.to_vec())
@@ -134,13 +118,11 @@ pub async fn setup_dao_with_params(
     let sandbox_network =
         near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
 
-    near_api::Account::create_account(dao_account_id.clone())
-        .fund_myself(root.clone(), NearToken::from_near(200))
-        .public_key(signer.get_public_key().await?)?
-        .with_signer(signer.clone())
-        .send_to(&sandbox_network)
-        .await?
-        .assert_success();
+    sandbox
+        .create_account(dao_account_id.clone())
+        .initial_balance(NearToken::from_near(200))
+        .send()
+        .await?;
 
     let config = Config {
         name: "test".to_string(),
@@ -175,14 +157,12 @@ pub async fn setup_dao_with_params(
 }
 
 pub async fn setup_test_token(ctx: &TestContext) -> Result<Contract, Box<dyn std::error::Error>> {
-    let test_token_account_id: AccountId = format!("test_token.{}", ctx.root).parse()?;
-    near_api::Account::create_account(test_token_account_id.clone())
-        .fund_myself(ctx.root.clone(), NearToken::from_near(200))
-        .public_key(ctx.signer.get_public_key().await?)?
-        .with_signer(ctx.signer.clone())
-        .send_to(&ctx.sandbox_network)
-        .await?
-        .assert_success();
+    let test_token_account_id: AccountId = format!("test_token.{}", ctx.root).parse().unwrap();
+    ctx.sandbox
+        .create_account(test_token_account_id.clone())
+        .initial_balance(NearToken::from_near(200))
+        .send()
+        .await?;
 
     near_api::Contract::deploy(test_token_account_id.clone())
         .use_code(TEST_TOKEN_WASM_BYTES.to_vec())
@@ -201,14 +181,12 @@ pub async fn setup_staking(
     test_token: &AccountId,
     dao: &AccountId,
 ) -> Result<Contract, Box<dyn std::error::Error>> {
-    let staking_account_id: AccountId = format!("staking.{}", ctx.root).parse()?;
-    near_api::Account::create_account(staking_account_id.clone())
-        .fund_myself(ctx.root.clone(), NearToken::from_near(100))
-        .public_key(ctx.signer.get_public_key().await?)?
-        .with_signer(ctx.signer.clone())
-        .send_to(&ctx.sandbox_network)
-        .await?
-        .assert_success();
+    let staking_account_id: AccountId = format!("staking.{}", ctx.root).parse().unwrap();
+    ctx.sandbox
+        .create_account(staking_account_id.clone())
+        .initial_balance(NearToken::from_near(100))
+        .send()
+        .await?;
 
     near_api::Contract::deploy(staking_account_id.clone())
         .use_code(STAKING_WASM_BYTES.to_vec())

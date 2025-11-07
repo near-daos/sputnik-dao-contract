@@ -1,4 +1,3 @@
-use near_api::types::TxExecutionStatus;
 use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY};
 use near_sdk::base64::{engine::general_purpose, Engine as _};
 use near_sdk::json_types::U128;
@@ -96,27 +95,22 @@ async fn test_large_policy() -> Result<(), Box<dyn std::error::Error>> {
 #[tokio::test]
 async fn test_multi_council() -> Result<(), Box<dyn std::error::Error>> {
     let (ctx, dao) = setup_dao().await?;
-    near_api::Account::create_account(user(1))
-        .fund_myself(ctx.root.clone(), NearToken::from_near(1000))
-        .public_key(ctx.signer.get_public_key().await?)?
-        .with_signer(ctx.signer.clone())
-        .send_to(&ctx.sandbox_network)
-        .await?
-        .assert_success();
-    near_api::Account::create_account(user(2))
-        .fund_myself(ctx.root.clone(), NearToken::from_near(1000))
-        .public_key(ctx.signer.get_public_key().await?)?
-        .with_signer(ctx.signer.clone())
-        .send_to(&ctx.sandbox_network)
-        .await?
-        .assert_success();
-    near_api::Account::create_account(user(3))
-        .fund_myself(ctx.root.clone(), NearToken::from_near(1000))
-        .public_key(ctx.signer.get_public_key().await?)?
-        .with_signer(ctx.signer.clone())
-        .send_to(&ctx.sandbox_network)
-        .await?
-        .assert_success();
+
+    ctx.sandbox
+        .create_account(user(1))
+        .initial_balance(NearToken::from_near(1000))
+        .send()
+        .await?;
+    ctx.sandbox
+        .create_account(user(2))
+        .initial_balance(NearToken::from_near(1000))
+        .send()
+        .await?;
+    ctx.sandbox
+        .create_account(user(3))
+        .initial_balance(NearToken::from_near(1000))
+        .send()
+        .await?;
 
     let new_policy = Policy {
         roles: vec![
@@ -219,20 +213,16 @@ async fn test_multi_council() -> Result<(), Box<dyn std::error::Error>> {
 #[tokio::test]
 async fn test_bounty_workflow() -> Result<(), Box<dyn std::error::Error>> {
     let (ctx, dao) = setup_dao().await?;
-    near_api::Account::create_account(user(1))
-        .fund_myself(ctx.root.clone(), NearToken::from_near(1000))
-        .public_key(ctx.signer.get_public_key().await?)?
-        .with_signer(ctx.signer.clone())
-        .send_to(&ctx.sandbox_network)
-        .await?
-        .assert_success();
-    near_api::Account::create_account(user(2))
-        .fund_myself(ctx.root.clone(), NearToken::from_near(1000))
-        .public_key(ctx.signer.get_public_key().await?)?
-        .with_signer(ctx.signer.clone())
-        .send_to(&ctx.sandbox_network)
-        .await?
-        .assert_success();
+    ctx.sandbox
+        .create_account(user(1))
+        .initial_balance(NearToken::from_near(1000))
+        .send()
+        .await?;
+    ctx.sandbox
+        .create_account(user(2))
+        .initial_balance(NearToken::from_near(1000))
+        .send()
+        .await?;
 
     let proposal_id: u64 = add_bounty_proposal(&ctx, &dao)
         .await
@@ -539,20 +529,16 @@ async fn test_bounty_workflow() -> Result<(), Box<dyn std::error::Error>> {
 #[tokio::test]
 async fn test_create_dao_and_use_token() -> Result<(), Box<dyn std::error::Error>> {
     let (ctx, dao) = setup_dao().await?;
-    near_api::Account::create_account(user(2))
-        .fund_myself(ctx.root.clone(), NearToken::from_near(1000))
-        .public_key(ctx.signer.get_public_key().await?)?
-        .with_signer(ctx.signer.clone())
-        .send_to(&ctx.sandbox_network)
-        .await?
-        .assert_success();
-    near_api::Account::create_account(user(3))
-        .fund_myself(ctx.root.clone(), NearToken::from_near(1000))
-        .public_key(ctx.signer.get_public_key().await?)?
-        .with_signer(ctx.signer.clone())
-        .send_to(&ctx.sandbox_network)
-        .await?
-        .assert_success();
+    ctx.sandbox
+        .create_account(user(2))
+        .initial_balance(NearToken::from_near(1000))
+        .send()
+        .await?;
+    ctx.sandbox
+        .create_account(user(3))
+        .initial_balance(NearToken::from_near(1000))
+        .send()
+        .await?;
 
     let test_token = setup_test_token(&ctx).await?;
     let staking = setup_staking(&ctx, &test_token.0, &dao.0).await?;
@@ -907,20 +893,16 @@ async fn test_payment_failures() -> Result<(), Box<dyn std::error::Error>> {
     let (ctx, dao) = setup_dao().await?;
     let (user1, whale) = (user(1), user(2));
 
-    near_api::Account::create_account(user(1))
-        .fund_myself(ctx.root.clone(), NearToken::from_near(1000))
-        .public_key(ctx.signer.get_public_key().await?)?
-        .with_signer(ctx.signer.clone())
-        .send_to(&ctx.sandbox_network)
-        .await?
-        .assert_success();
-    near_api::Account::create_account(user(2))
-        .fund_myself(ctx.root.clone(), NearToken::from_near(1000))
-        .public_key(ctx.signer.get_public_key().await?)?
-        .with_signer(ctx.signer.clone())
-        .send_to(&ctx.sandbox_network)
-        .await?
-        .assert_success();
+    ctx.sandbox
+        .create_account(user(1))
+        .initial_balance(NearToken::from_near(1000))
+        .send()
+        .await?;
+    ctx.sandbox
+        .create_account(user(2))
+        .initial_balance(NearToken::from_near(1000))
+        .send()
+        .await?;
 
     // Add user1
 
@@ -1050,8 +1032,6 @@ async fn test_payment_failures() -> Result<(), Box<dyn std::error::Error>> {
 #[tokio::test]
 async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
-    let sandbox_network =
-        near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
     let root = DEFAULT_GENESIS_ACCOUNT.to_owned();
     let signer = Signer::new(Signer::from_secret_key(
         DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
@@ -1060,14 +1040,11 @@ async fn test_actions_log() -> Result<(), Box<dyn std::error::Error>> {
     let mut users = Vec::new();
     for i in 0..20 {
         let account_id = user(i); // assuming user(i) returns a String
-        near_api::Account::create_account(account_id.clone())
-            .fund_myself(root.clone(), NearToken::from_near(1))
-            .public_key(signer.get_public_key().await?)?
-            .with_signer(signer.clone())
-            .wait_until(TxExecutionStatus::ExecutedOptimistic)
-            .send_to(&sandbox_network)
-            .await?
-            .assert_success();
+        sandbox
+            .create_account(account_id.clone())
+            .initial_balance(NearToken::from_near(1))
+            .send()
+            .await?;
 
         users.push(account_id);
     }

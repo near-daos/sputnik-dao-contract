@@ -1,5 +1,4 @@
-use near_api::types::{AccessKey, AccessKeyPermission};
-use near_api::{AccountId, NearToken};
+use near_api::{AccountId, NearToken, NetworkConfig};
 use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY};
 use near_sdk::serde_json::{json, Value};
 use near_sdk::{
@@ -22,23 +21,17 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
         DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
     ))?;
 
-    let mut account = near_api::Account(sputnikdao_factory_contract.0.clone())
-        .view()
-        .fetch_from_mainnet()
-        .await?
-        .data;
-    account.amount = NearToken::from_near(50);
+    let rpc = NetworkConfig::mainnet()
+        .rpc_endpoints
+        .first()
+        .unwrap()
+        .url
+        .clone();
+
     sandbox
-        .patch_state(sputnikdao_factory_contract.0.clone())
-        .access_key(
-            signer.get_public_key().await?.to_string(),
-            AccessKey {
-                nonce: 0.into(),
-                permission: AccessKeyPermission::FullAccess,
-            },
-        )
-        .account(account)
-        .send()
+        .import_account(sputnikdao_factory_contract.0.clone())
+        .initial_balance(NearToken::from_near(50))
+        .send(rpc.as_str())
         .await
         .unwrap();
 
@@ -111,14 +104,11 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
     let account_id: AccountId = format!("some_account.{}", DEFAULT_GENESIS_ACCOUNT)
         .parse()
         .unwrap();
-    near_api::Account::create_account(account_id.clone())
-        .fund_myself(DEFAULT_GENESIS_ACCOUNT.to_owned(), NearToken::from_near(20))
-        .public_key(signer.clone().get_public_key().await?)
-        .unwrap()
-        .with_signer(signer.clone())
-        .send_to(&sandbox_network)
-        .await?
-        .assert_success();
+    sandbox
+        .create_account(account_id.clone())
+        .initial_balance(NearToken::from_near(20))
+        .send()
+        .await?;
 
     sputnikdao_factory_contract
         .call_function(

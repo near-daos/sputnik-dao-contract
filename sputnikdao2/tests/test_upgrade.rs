@@ -126,14 +126,12 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
 async fn test_upgrade_other() -> Result<(), Box<dyn std::error::Error>> {
     let (ctx, dao) = setup_dao().await?;
 
-    let ref_account: AccountId = format!("ref-finance.{}", ctx.root).parse()?;
-    near_api::Account::create_account(ref_account.clone())
-        .fund_myself(ctx.root.clone(), NearToken::from_near(2000))
-        .public_key(ctx.signer.get_public_key().await?)?
-        .with_signer(ctx.signer.clone())
-        .send_to(&ctx.sandbox_network)
-        .await?
-        .assert_success();
+    let ref_account: AccountId = format!("ref-finance.{}", ctx.root).parse().unwrap();
+    ctx.sandbox
+        .create_account(ref_account.clone())
+        .initial_balance(NearToken::from_near(2000))
+        .send()
+        .await?;
 
     let ref_contract_new_result = near_api::Contract::deploy(ref_account.clone())
         .use_code(OTHER_WASM_BYTES.to_vec())
