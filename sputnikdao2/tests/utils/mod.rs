@@ -62,9 +62,9 @@ pub async fn setup_factory() -> Result<(TestContext, Contract), Box<dyn std::err
         .clone();
 
     sandbox
-        .import_account(sputnikdao_factory_contract_id.clone())
+        .import_account(rpc.as_str(), sputnikdao_factory_contract_id.clone())
         .initial_balance(NearToken::from_near(50))
-        .send(rpc.as_str())
+        .send()
         .await?;
 
     let signer = Signer::new(Signer::from_secret_key(

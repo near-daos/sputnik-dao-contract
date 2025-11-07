@@ -29,9 +29,9 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
         .clone();
 
     sandbox
-        .import_account(sputnikdao_factory_contract.0.clone())
+        .import_account(rpc.as_str(), sputnikdao_factory_contract.0.clone())
         .initial_balance(NearToken::from_near(50))
-        .send(rpc.as_str())
+        .send()
         .await
         .unwrap();
 

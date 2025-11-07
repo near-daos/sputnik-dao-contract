@@ -41,9 +41,9 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     sandbox
-        .import_account(sputnikdao_factory_contract.0.clone())
+        .import_account(rpc.as_str(), sputnikdao_factory_contract.0.clone())
         .initial_balance(NearToken::from_near(100))
-        .send(rpc.as_str())
+        .send()
         .await
         .unwrap();
 
