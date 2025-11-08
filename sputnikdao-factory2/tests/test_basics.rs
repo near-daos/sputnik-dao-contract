@@ -32,14 +32,12 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
         .import_account(rpc.as_str(), sputnikdao_factory_contract.0.clone())
         .initial_balance(NearToken::from_near(50))
         .send()
-        .await
-        .unwrap();
+        .await?;
 
     let wasm = fs::read("./res/sputnikdao_factory2.wasm").expect("Unable to read contract wasm");
     near_api::Contract::deploy(sputnikdao_factory_contract.0.clone())
         .use_code(wasm.to_vec())
-        .with_init_call("new", ())
-        .unwrap()
+        .with_init_call("new", ())?
         .max_gas()
         .with_signer(signer.clone())
         .send_to(&sandbox_network)
@@ -101,9 +99,7 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
         },
     });
 
-    let account_id: AccountId = format!("some_account.{}", DEFAULT_GENESIS_ACCOUNT)
-        .parse()
-        .unwrap();
+    let account_id: AccountId = format!("some_account.{}", DEFAULT_GENESIS_ACCOUNT).parse()?;
     sandbox
         .create_account(account_id.clone())
         .initial_balance(NearToken::from_near(20))
@@ -117,8 +113,7 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
                 "name": dao_name,
                 "args":  general_purpose::STANDARD.encode(create_dao_args.to_string())
             }),
-        )
-        .unwrap()
+        )?
         .transaction()
         .max_gas()
         .deposit(NearToken::from_near(6))
@@ -127,17 +122,14 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
         .await?
         .assert_success();
 
-    let dao_account_id: AccountId = format!("{}.{}", dao_name, SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT)
-        .parse()
-        .unwrap();
+    let dao_account_id: AccountId =
+        format!("{}.{}", dao_name, SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT).parse()?;
 
     let get_config_result: Value = near_api::Contract(dao_account_id)
-        .call_function("get_config", ())
-        .unwrap()
+        .call_function("get_config", ())?
         .read_only()
         .fetch_from(&sandbox_network)
-        .await
-        .unwrap()
+        .await?
         .data;
 
     assert_eq!(create_dao_args["config"], get_config_result);
