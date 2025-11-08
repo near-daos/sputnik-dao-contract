@@ -1,15 +1,14 @@
 use near_api::{AccountId, Contract, NearToken};
 use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY};
 use near_sdk::base64::{engine::general_purpose, Engine as _};
-use near_sdk::env::sha256;
+use near_sdk::env::sha256_array;
 use near_sdk::json_types::Base58CryptoHash;
 use near_sdk::serde_json::{json, Value};
-use near_sdk::{AccountIdRef, CryptoHash};
+use near_sdk::AccountIdRef;
 use std::fs;
-use std::str::FromStr;
 
 #[tokio::test]
-async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
+async fn test_upgrade() -> testresult::TestResult {
     const SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &AccountIdRef =
         AccountIdRef::new_or_panic("sputnik-dao.near");
 
@@ -45,70 +44,70 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     // Initialize the sputnik-dao factory contract
-    let init_sputnik_dao_factory_result = sputnikdao_factory_contract
+    sputnikdao_factory_contract
         .call_function("new", ())?
         .transaction()
         .max_gas()
         .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())
         .send_to(&sandbox_network)
-        .await?;
-    assert!(init_sputnik_dao_factory_result.is_success());
+        .await?
+        .assert_success();
 
     // Create a testdao.sputnik-dao.near instance
     let dao_name = "testdao";
     let create_dao_args = json!({
         "config": {
-        "name": dao_name,
-        "purpose": "creating dao treasury",
-        "metadata": "",
+            "name": dao_name,
+            "purpose": "creating dao treasury",
+            "metadata": "",
         },
         "policy": {
-        "roles": [
-            {
-            "kind": {
-                "Group": [user_account_id.clone()],
-            },
-            "name": "Create Requests",
-            "permissions": [
-                "*:AddProposal"
+            "roles": [
+                {
+                    "kind": {
+                        "Group": [user_account_id],
+                    },
+                    "name": "Create Requests",
+                    "permissions": [
+                        "*:AddProposal"
+                    ],
+                    "vote_policy": {},
+                },
+                {
+                    "kind": {
+                        "Group": [user_account_id],
+                    },
+                    "name": "Manage Members",
+                    "permissions": [
+                        "config:*",
+                        "policy:*",
+                        "add_member_to_role:*",
+                        "remove_member_from_role:*",
+                    ],
+                    "vote_policy": {},
+                },
+                {
+                    "kind": {
+                        "Group": [user_account_id],
+                    },
+                    "name": "Vote",
+                    "permissions": ["*:VoteReject", "*:VoteApprove", "*:VoteRemove"],
+                    "vote_policy": {},
+                },
             ],
-            "vote_policy": {},
+            "default_vote_policy": {
+                "weight_kind": "RoleWeight",
+                "quorum": "0",
+                "threshold": [1, 2],
             },
-            {
-            "kind": {
-                "Group": [user_account_id.clone()],
-            },
-            "name": "Manage Members",
-            "permissions": [
-                "config:*",
-                "policy:*",
-                "add_member_to_role:*",
-                "remove_member_from_role:*",
-            ],
-            "vote_policy": {},
-            },
-            {
-            "kind": {
-                "Group": [user_account_id.clone()],
-            },
-            "name": "Vote",
-            "permissions": ["*:VoteReject", "*:VoteApprove", "*:VoteRemove"],
-            "vote_policy": {},
-            },
-        ],
-        "default_vote_policy": {
-            "weight_kind": "RoleWeight",
-            "quorum": "0",
-            "threshold": [1, 2],
-        },
-        "proposal_bond": NearToken::from_near(1),
-        "proposal_period": "604800000000000",
-        "bounty_bond": "100000000000000000000000",
-        "bounty_forgiveness_period": "604800000000000",
+            "proposal_bond": NearToken::from_near(1),
+            "proposal_period": "604800000000000",
+            "bounty_bond": "100000000000000000000000",
+            "bounty_forgiveness_period": "604800000000000",
         },
     });
 
-    let create_result = sputnikdao_factory_contract
+    sputnikdao_factory_contract
         .call_function(
             "create",
             json!({
@@ -121,13 +120,12 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         .deposit(NearToken::from_near(6))
         .with_signer(user_account_id.clone(), signer.clone())
         .send_to(&sandbox_network)
-        .await?;
-
-    assert!(create_result.is_success(), "{:?}", create_result.failures());
+        .await?
+        .assert_success();
 
     let dao_account_id: AccountId =
         format!("{}.{}", dao_name, SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT).parse()?;
-    let dao_contract = near_api::Contract(dao_account_id.clone());
+    let dao_contract = near_api::Contract(dao_account_id);
 
     // Verify the DAO configuration
     let config: Value = dao_contract
@@ -140,19 +138,19 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
 
     // Deploy the local build of the sputnik-dao factory contract
     let wasm = fs::read("./res/sputnikdao_factory2.wasm").expect("Unable to read contract wasm");
-    let deploy_result = Contract::deploy(sputnikdao_factory_contract.0.clone())
+    Contract::deploy(sputnikdao_factory_contract.0.clone())
         .use_code(wasm.to_vec())
         .without_init_call()
         .with_signer(signer.clone())
         .send_to(&sandbox_network)
-        .await?;
-    assert!(deploy_result.is_success());
+        .await?
+        .assert_success();
 
     // Store the local build of sputnikdao2.wasm into sputnik-dao.near
     let sputnikdao2_wasm =
         fs::read("../sputnikdao2/res/sputnikdao2.wasm").expect("Unable to read sputnikdao2.wasm");
-    let computed_hash = sha256(&sputnikdao2_wasm);
-    let stored_contract_hash_string = sputnikdao_factory_contract
+    let computed_hash = sha256_array(&sputnikdao2_wasm);
+    let stored_contract_hash: Base58CryptoHash = sputnikdao_factory_contract
         .call_function_raw("store", sputnikdao2_wasm.clone())
         .transaction()
         .max_gas()
@@ -160,12 +158,10 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())
         .send_to(&sandbox_network)
         .await?
-        .json::<String>()?;
-
-    let stored_contract_hash = Base58CryptoHash::from_str(stored_contract_hash_string.as_str())?;
+        .json()?;
 
     // Set the stored contract hash as the default code hash
-    let set_default_code_hash_result = sputnikdao_factory_contract
+    sputnikdao_factory_contract
         .call_function(
             "set_default_code_hash",
             json!({"code_hash": stored_contract_hash}),
@@ -173,13 +169,8 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         .transaction()
         .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())
         .send_to(&sandbox_network)
-        .await?;
-    assert!(
-        set_default_code_hash_result.is_success(),
-        "stored contract hash {:?}, failures: {:?}",
-        stored_contract_hash,
-        set_default_code_hash_result.failures()
-    );
+        .await?
+        .assert_success();
 
     // Verify the default code hash matches the computed hash
     let hash: Base58CryptoHash = sputnikdao_factory_contract
@@ -189,21 +180,19 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         .await?
         .data;
 
-    assert_eq!(
-        CryptoHash::from(hash).to_vec(),
-        computed_hash,
-        "Hashes do not match"
-    );
+    assert_eq!(hash, computed_hash.into(), "Hashes do not match");
 
     // Create a self-upgrade proposal
-    let proposal_id = dao_contract
+    let proposal_id: u64 = dao_contract
         .call_function(
             "add_proposal",
             json!({ "proposal": {
-                "description": "proposal to test".to_string(),
-                "kind": {"UpgradeSelf": {
-                    "hash": stored_contract_hash
-                }}
+                "description": "proposal to test",
+                "kind": {
+                    "UpgradeSelf": {
+                        "hash": stored_contract_hash
+                    }
+                }
             }}),
         )?
         .transaction()
@@ -212,12 +201,12 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         .with_signer(user_account_id.clone(), signer.clone())
         .send_to(&sandbox_network)
         .await?
-        .json::<u64>()?;
+        .json()?;
 
     assert_eq!(0, proposal_id);
 
     // Create a transfer proposal to check after the upgrade
-    let transfer_proposal_id = dao_contract
+    let transfer_proposal_id: u64 = dao_contract
         .call_function(
             "add_proposal",
             json!({ "proposal": {
@@ -225,7 +214,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
                 "kind": {
                     "Transfer": {
                         "token_id": "",
-                        "receiver_id": user_account_id.clone(),
+                        "receiver_id": user_account_id,
                         "amount": "1"
                     },
                 },
@@ -237,7 +226,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         .with_signer(user_account_id.clone(), signer.clone())
         .send_to(&sandbox_network)
         .await?
-        .json::<u64>()?;
+        .json()?;
 
     // Act on the self-upgrade proposal
     let act_proposal_result = dao_contract
@@ -248,23 +237,19 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
                 "action": "VoteApprove",
                 "proposal": {
                     "UpgradeSelf": {
-                    "hash": stored_contract_hash
-                }}
+                        "hash": stored_contract_hash
+                    }
+                }
             }),
         )?
         .transaction()
         .max_gas()
         .with_signer(user_account_id.clone(), signer.clone())
         .send_to(&sandbox_network)
-        .await?;
+        .await?
+        .assert_success();
     assert!(
-        act_proposal_result.is_success(),
-        "{:?}",
-        act_proposal_result.failures()
-    );
-    assert_eq!(
-        0,
-        act_proposal_result.failures().len(),
+        act_proposal_result.failures().is_empty(),
         "{:?}",
         act_proposal_result.failures()
     );
@@ -295,7 +280,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
                 "proposal": {
                     "Transfer": {
                         "token_id": "",
-                        "receiver_id": user_account_id.clone(),
+                        "receiver_id": user_account_id,
                         "amount": "1"
                     },
                 }
@@ -305,16 +290,10 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         .max_gas()
         .with_signer(user_account_id.clone(), signer.clone())
         .send_to(&sandbox_network)
-        .await?;
-
+        .await?
+        .assert_success();
     assert!(
-        act_proposal_result.is_success(),
-        "{:?}",
-        act_proposal_result.failures()
-    );
-    assert_eq!(
-        0,
-        act_proposal_result.failures().len(),
+        act_proposal_result.failures().is_empty(),
         "{:?}",
         act_proposal_result.failures()
     );

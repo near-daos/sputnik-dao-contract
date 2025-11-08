@@ -34,12 +34,6 @@ pub fn base_token() -> Option<near_sdk::AccountId> {
     None
 }
 
-pub fn should_fail(r: ExecutionFinalResult) {
-    if r.is_success() {
-        panic!("Should fail");
-    }
-}
-
 pub struct TestContext {
     pub sandbox: Sandbox,
     pub sandbox_network: near_api::NetworkConfig,
@@ -92,7 +86,7 @@ pub async fn setup_factory() -> Result<(TestContext, Contract), Box<dyn std::err
     ))
 }
 
-pub async fn setup_dao() -> Result<(TestContext, Contract), Box<dyn std::error::Error>> {
+pub async fn setup_dao() -> testresult::TestResult<(TestContext, Contract)> {
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
     let root_account = DEFAULT_GENESIS_ACCOUNT.to_owned();
     let signer = Signer::new(Signer::from_secret_key(
@@ -113,7 +107,7 @@ pub async fn setup_dao_with_params(
     signer: Arc<Signer>,
     sandbox: Sandbox,
     policy: VersionedPolicy,
-) -> Result<(TestContext, Contract), Box<dyn std::error::Error>> {
+) -> testresult::TestResult<(TestContext, Contract)> {
     let dao_account_id: AccountId = format!("dao.{root}").parse()?;
     let sandbox_network =
         near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
@@ -156,7 +150,7 @@ pub async fn setup_dao_with_params(
     ))
 }
 
-pub async fn setup_test_token(ctx: &TestContext) -> Result<Contract, Box<dyn std::error::Error>> {
+pub async fn setup_test_token(ctx: &TestContext) -> testresult::TestResult<Contract> {
     let test_token_account_id: AccountId = format!("test_token.{}", ctx.root).parse().unwrap();
     ctx.sandbox
         .create_account(test_token_account_id.clone())
@@ -180,7 +174,7 @@ pub async fn setup_staking(
     ctx: &TestContext,
     test_token: &AccountId,
     dao: &AccountId,
-) -> Result<Contract, Box<dyn std::error::Error>> {
+) -> testresult::TestResult<Contract> {
     let staking_account_id: AccountId = format!("staking.{}", ctx.root).parse().unwrap();
     ctx.sandbox
         .create_account(staking_account_id.clone())
@@ -297,28 +291,22 @@ pub async fn vote(
     users: Vec<&AccountId>,
     dao: &Contract,
     proposal_id: u64,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> testresult::TestResult {
     for user in users.into_iter() {
-        let act_proposal_result = dao
-            .call_function(
-                "act_proposal",
-                json!({
-                    "id": proposal_id,
-                    "action": Action::VoteApprove,
-                    "proposal": get_proposal_kind(ctx, dao, proposal_id).await
-                }),
-            )
-            .unwrap()
-            .transaction()
-            .max_gas()
-            .with_signer(user.clone(), ctx.signer.clone())
-            .send_to(&ctx.sandbox_network)
-            .await?;
-        assert!(
-            act_proposal_result.is_success(),
-            "{:?}",
-            act_proposal_result.failures()
-        );
+        dao.call_function(
+            "act_proposal",
+            json!({
+                "id": proposal_id,
+                "action": Action::VoteApprove,
+                "proposal": get_proposal_kind(ctx, dao, proposal_id).await?
+            }),
+        )?
+        .transaction()
+        .max_gas()
+        .with_signer(user.clone(), ctx.signer.clone())
+        .send_to(&ctx.sandbox_network)
+        .await?
+        .assert_success();
     }
     Ok(())
 }
@@ -334,14 +322,13 @@ pub async fn get_proposal_kind(
     ctx: &TestContext,
     dao: &Contract,
     proposal_id: u64,
-) -> ProposalKind {
-    dao.call_function("get_proposal", json!({"id": proposal_id}))
-        .unwrap()
+) -> testresult::TestResult<ProposalKind> {
+    Ok(dao
+        .call_function("get_proposal", json!({"id": proposal_id}))?
         .read_only::<ProposalOutput>()
         .fetch_from(&ctx.sandbox_network)
-        .await
-        .unwrap()
+        .await?
         .data
         .proposal
-        .kind
+        .kind)
 }

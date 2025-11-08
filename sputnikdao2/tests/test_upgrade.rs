@@ -14,7 +14,7 @@ use crate::utils::*;
 pub static DAO_WASM_BYTES: &[u8] = include_bytes!("../res/sputnikdao2.wasm");
 pub static OTHER_WASM_BYTES: &[u8] = include_bytes!("../res/ref_exchange_release.wasm");
 
-pub fn add_data_segment(wasm: &[u8], size: usize) -> anyhow::Result<Vec<u8>> {
+pub fn add_data_segment(wasm: &[u8], size: usize) -> testresult::TestResult<Vec<u8>> {
     let mut module = ModuleConfig::new().parse(wasm)?;
 
     let random_data: Vec<u8> = (0..size).map(|_| rand::thread_rng().gen()).collect();
@@ -22,12 +22,11 @@ pub fn add_data_segment(wasm: &[u8], size: usize) -> anyhow::Result<Vec<u8>> {
 
     module.data.get_mut(data_id).name = Some("zero-padding".to_string());
 
-    let new_bytes = module.emit_wasm();
-    Ok(new_bytes)
+    Ok(module.emit_wasm())
 }
 
 #[tokio::test]
-async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> {
+async fn test_upgrade_using_factory() -> testresult::TestResult {
     let (ctx, factory) = setup_factory().await?;
     let root = ctx.root;
 
@@ -37,16 +36,14 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
         metadata: Base64VecU8(vec![]),
     };
     let policy = VersionedPolicy::Default(vec![root.clone()]);
-    let params = json!({ "config": config, "policy": policy })
-        .to_string()
-        .into_bytes();
+    let params = json!({ "config": config, "policy": policy }).to_string();
 
-    let create_result = factory
+    factory
         .call_function(
             "create",
             json!({
                 "name": "testdao",
-                "args": Base64VecU8(params)
+                "args": Base64VecU8(params.into())
             }),
         )?
         .transaction()
@@ -54,9 +51,8 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
         .max_gas()
         .with_signer(root.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
-        .await?;
-
-    assert!(create_result.is_success(), "{:?}", create_result.failures());
+        .await?
+        .assert_success();
 
     let dao_account_id: AccountId = format!("testdao.{}", factory.0).parse()?;
     let dao_list: Vec<near_api::AccountId> = factory
@@ -65,7 +61,7 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
         .fetch_from(&ctx.sandbox_network)
         .await?
         .data;
-    assert_eq!(dao_list, vec![dao_account_id.clone()]);
+    assert_eq!(dao_list, [dao_account_id.clone()]);
 
     let hash: Base58CryptoHash = factory
         .call_function("get_default_code_hash", ())?
@@ -78,9 +74,9 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
     let proposal_id: u64 = near_api::Contract(dao_account_id.clone())
         .call_function(
             "add_proposal",
-            json!({ "proposal": ProposalInput {
-                description: "proposal to test".to_string(),
-                kind: proposal_kind.clone()
+            json!({ "proposal": {
+                "description": "proposal to test",
+                "kind": proposal_kind,
             }}),
         )?
         .transaction()
@@ -88,7 +84,6 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
         .with_signer(root.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success()
         .json()?;
 
     assert_eq!(0, proposal_id);
@@ -105,12 +100,8 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
         .transaction()
         .with_signer(root.clone(), ctx.signer)
         .send_to(&ctx.sandbox_network)
-        .await?;
-    assert!(
-        act_proposal_result.is_success(),
-        "{:?}",
-        act_proposal_result.failures()
-    );
+        .await?
+        .assert_success();
     assert_eq!(
         0,
         act_proposal_result.failures().len(),
@@ -123,17 +114,17 @@ async fn test_upgrade_using_factory() -> Result<(), Box<dyn std::error::Error>> 
 
 /// Test that Sputnik can upgrade another contract.
 #[tokio::test]
-async fn test_upgrade_other() -> Result<(), Box<dyn std::error::Error>> {
+async fn test_upgrade_other() -> testresult::TestResult {
     let (ctx, dao) = setup_dao().await?;
 
-    let ref_account: AccountId = format!("ref-finance.{}", ctx.root).parse().unwrap();
+    let ref_account: AccountId = format!("ref-finance.{}", ctx.root).parse()?;
     ctx.sandbox
         .create_account(ref_account.clone())
         .initial_balance(NearToken::from_near(2000))
         .send()
         .await?;
 
-    let ref_contract_new_result = near_api::Contract::deploy(ref_account.clone())
+    near_api::Contract::deploy(ref_account.clone())
         .use_code(OTHER_WASM_BYTES.to_vec())
         .with_init_call(
             "new",
@@ -145,13 +136,8 @@ async fn test_upgrade_other() -> Result<(), Box<dyn std::error::Error>> {
         )?
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
-        .await?;
-
-    assert!(
-        ref_contract_new_result.is_success(),
-        "{:?}",
-        ref_contract_new_result.failures()
-    );
+        .await?
+        .assert_success();
 
     let extended_wasm = add_data_segment(OTHER_WASM_BYTES, 1200 * 1024)?;
     assert_eq!(extended_wasm.len(), 1566669);
@@ -164,10 +150,9 @@ async fn test_upgrade_other() -> Result<(), Box<dyn std::error::Error>> {
         .with_signer(ctx.root.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success()
         .json()?;
 
-    assert!(add_proposal(
+    add_proposal(
         &ctx,
         &dao,
         ProposalInput {
@@ -180,7 +165,7 @@ async fn test_upgrade_other() -> Result<(), Box<dyn std::error::Error>> {
         },
     )
     .await
-    .is_success());
+    .assert_success();
 
     let act_proposal_result = dao
         .call_function(
@@ -188,22 +173,21 @@ async fn test_upgrade_other() -> Result<(), Box<dyn std::error::Error>> {
             json!({
                 "id": 0,
                 "action": Action::VoteApprove,
-                "proposal": get_proposal_kind(&ctx, &dao, 0).await
+                "proposal": get_proposal_kind(&ctx, &dao, 0).await?
             }),
         )?
         .transaction()
         .max_gas()
         .with_signer(ctx.root.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
-        .await?;
+        .await?
+        .assert_success();
 
-    assert_eq!(
-        0,
-        act_proposal_result.failures().len(),
+    assert!(
+        act_proposal_result.failures().is_empty(),
         "{:?}",
         act_proposal_result.failures()
     );
-    assert!(act_proposal_result.is_success());
 
     Ok(())
 }

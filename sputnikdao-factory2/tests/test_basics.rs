@@ -8,7 +8,7 @@ use near_sdk::{
 use std::fs;
 
 #[tokio::test]
-async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
+async fn test_factory() -> testresult::TestResult {
     const SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &AccountIdRef =
         AccountIdRef::new_or_panic("sputnik-dao.near");
     let sputnikdao_factory_contract =
@@ -47,55 +47,55 @@ async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
     let dao_name = "testdao";
     let create_dao_args = json!({
         "config": {
-        "name": dao_name,
-        "purpose": "creating dao treasury",
-        "metadata": "",
+            "name": dao_name,
+            "purpose": "creating dao treasury",
+            "metadata": "",
         },
         "policy": {
-        "roles": [
-            {
-            "kind": {
-                "Group": ["acc3.near", "acc2.near", "acc1.near"],
-            },
-            "name": "Create Requests",
-            "permissions": [
-                "call:AddProposal",
-                "transfer:AddProposal",
-                "config:Finalize",
+            "roles": [
+                {
+                    "kind": {
+                        "Group": ["acc3.near", "acc2.near", "acc1.near"],
+                    },
+                    "name": "Create Requests",
+                    "permissions": [
+                        "call:AddProposal",
+                        "transfer:AddProposal",
+                        "config:Finalize",
+                    ],
+                    "vote_policy": {},
+                },
+                {
+                    "kind": {
+                        "Group": ["acc1.near"],
+                    },
+                    "name": "Manage Members",
+                    "permissions": [
+                        "config:*",
+                        "policy:*",
+                        "add_member_to_role:*",
+                        "remove_member_from_role:*",
+                    ],
+                    "vote_policy": {},
+                },
+                {
+                    "kind": {
+                        "Group": ["acc1.near", "acc2.near"],
+                    },
+                    "name": "Vote",
+                    "permissions": ["*:VoteReject", "*:VoteApprove", "*:VoteRemove"],
+                    "vote_policy": {},
+                },
             ],
-            "vote_policy": {},
+            "default_vote_policy": {
+                "weight_kind": "RoleWeight",
+                "quorum": "0",
+                "threshold": [1, 2],
             },
-            {
-            "kind": {
-                "Group": ["acc1.near"],
-            },
-            "name": "Manage Members",
-            "permissions": [
-                "config:*",
-                "policy:*",
-                "add_member_to_role:*",
-                "remove_member_from_role:*",
-            ],
-            "vote_policy": {},
-            },
-            {
-            "kind": {
-                "Group": ["acc1.near", "acc2.near"],
-            },
-            "name": "Vote",
-            "permissions": ["*:VoteReject", "*:VoteApprove", "*:VoteRemove"],
-            "vote_policy": {},
-            },
-        ],
-        "default_vote_policy": {
-            "weight_kind": "RoleWeight",
-            "quorum": "0",
-            "threshold": [1, 2],
-        },
-        "proposal_bond": "100000000000000000000000",
-        "proposal_period": "604800000000000",
-        "bounty_bond": "100000000000000000000000",
-        "bounty_forgiveness_period": "604800000000000",
+            "proposal_bond": "100000000000000000000000",
+            "proposal_period": "604800000000000",
+            "bounty_bond": "100000000000000000000000",
+            "bounty_forgiveness_period": "604800000000000",
         },
     });
 
