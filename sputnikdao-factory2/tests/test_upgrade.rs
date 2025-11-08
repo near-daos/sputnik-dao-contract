@@ -31,9 +31,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
     ))?;
 
-    let user_account_id: AccountId = format!("some_account.{}", DEFAULT_GENESIS_ACCOUNT)
-        .parse()
-        .unwrap();
+    let user_account_id: AccountId = format!("some_account.{}", DEFAULT_GENESIS_ACCOUNT).parse()?;
     sandbox
         .create_account(user_account_id.clone())
         .initial_balance(NearToken::from_near(50))
@@ -44,13 +42,11 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         .import_account(rpc.as_str(), sputnikdao_factory_contract.0.clone())
         .initial_balance(NearToken::from_near(100))
         .send()
-        .await
-        .unwrap();
+        .await?;
 
     // Initialize the sputnik-dao factory contract
     let init_sputnik_dao_factory_result = sputnikdao_factory_contract
-        .call_function("new", ())
-        .unwrap()
+        .call_function("new", ())?
         .transaction()
         .max_gas()
         .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())
@@ -119,8 +115,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
                 "name": dao_name,
                 "args": general_purpose::STANDARD.encode(create_dao_args.to_string())
             }),
-        )
-        .unwrap()
+        )?
         .transaction()
         .max_gas()
         .deposit(NearToken::from_near(6))
@@ -130,15 +125,13 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
 
     assert!(create_result.is_success(), "{:?}", create_result.failures());
 
-    let dao_account_id: AccountId = format!("{}.{}", dao_name, SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT)
-        .parse()
-        .unwrap();
+    let dao_account_id: AccountId =
+        format!("{}.{}", dao_name, SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT).parse()?;
     let dao_contract = near_api::Contract(dao_account_id.clone());
 
     // Verify the DAO configuration
     let config: Value = dao_contract
-        .call_function("get_config", ())
-        .unwrap()
+        .call_function("get_config", ())?
         .read_only()
         .fetch_from(&sandbox_network)
         .await?
@@ -167,19 +160,16 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
         .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())
         .send_to(&sandbox_network)
         .await?
-        .json::<String>()
-        .unwrap();
+        .json::<String>()?;
 
-    let stored_contract_hash =
-        Base58CryptoHash::from_str(stored_contract_hash_string.as_str()).unwrap();
+    let stored_contract_hash = Base58CryptoHash::from_str(stored_contract_hash_string.as_str())?;
 
     // Set the stored contract hash as the default code hash
     let set_default_code_hash_result = sputnikdao_factory_contract
         .call_function(
             "set_default_code_hash",
             json!({"code_hash": stored_contract_hash}),
-        )
-        .unwrap()
+        )?
         .transaction()
         .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())
         .send_to(&sandbox_network)
@@ -193,8 +183,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
 
     // Verify the default code hash matches the computed hash
     let hash: Base58CryptoHash = sputnikdao_factory_contract
-        .call_function("get_default_code_hash", ())
-        .unwrap()
+        .call_function("get_default_code_hash", ())?
         .read_only()
         .fetch_from(&sandbox_network)
         .await?
@@ -216,16 +205,14 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
                     "hash": stored_contract_hash
                 }}
             }}),
-        )
-        .unwrap()
+        )?
         .transaction()
         .max_gas()
         .deposit(NearToken::from_near(1))
         .with_signer(user_account_id.clone(), signer.clone())
         .send_to(&sandbox_network)
         .await?
-        .json::<u64>()
-        .unwrap();
+        .json::<u64>()?;
 
     assert_eq!(0, proposal_id);
 
@@ -243,16 +230,14 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 },
             }}),
-        )
-        .unwrap()
+        )?
         .transaction()
         .max_gas()
         .deposit(NearToken::from_near(1))
         .with_signer(user_account_id.clone(), signer.clone())
         .send_to(&sandbox_network)
         .await?
-        .json::<u64>()
-        .unwrap();
+        .json::<u64>()?;
 
     // Act on the self-upgrade proposal
     let act_proposal_result = dao_contract
@@ -266,8 +251,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
                     "hash": stored_contract_hash
                 }}
             }),
-        )
-        .unwrap()
+        )?
         .transaction()
         .max_gas()
         .with_signer(user_account_id.clone(), signer.clone())
@@ -294,8 +278,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
 
     // Verify the DAO configuration remains the same
     let config: Value = dao_contract
-        .call_function("get_config", ())
-        .unwrap()
+        .call_function("get_config", ())?
         .read_only()
         .fetch_from(&sandbox_network)
         .await?
@@ -317,8 +300,7 @@ async fn test_upgrade() -> Result<(), Box<dyn std::error::Error>> {
                     },
                 }
             }),
-        )
-        .unwrap()
+        )?
         .transaction()
         .max_gas()
         .with_signer(user_account_id.clone(), signer.clone())
