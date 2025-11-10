@@ -1930,7 +1930,7 @@ dependencies = [
 [[package]]
 name = "near-sandbox"
 version = "0.2.1"
-source = "git+https://github.com/near/near-sandbox-rs.git?branch=sandbox-rpc#eb77f4aec3c38d9d056503992ddfbb19c46aab40"
+source = "git+https://github.com/near/near-sandbox-rs.git?branch=sandbox-rpc#757af72fbaff007f8559106f8f131987b4c6889f"
 dependencies = [
  "binary-install",
  "fs4",

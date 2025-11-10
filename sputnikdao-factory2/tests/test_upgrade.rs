@@ -1,4 +1,4 @@
-use near_api::{AccountId, Contract, NearToken};
+use near_api::{AccountId, Contract, NearToken, RPCEndpoint};
 use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY};
 use near_sdk::base64::{engine::general_purpose, Engine as _};
 use near_sdk::env::sha256_array;
@@ -11,14 +11,6 @@ use std::fs;
 async fn test_upgrade() -> testresult::TestResult {
     const SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &AccountIdRef =
         AccountIdRef::new_or_panic("sputnik-dao.near");
-
-    let rpc = near_api::NetworkConfig::mainnet()
-        .rpc_endpoints
-        .first()
-        .unwrap()
-        .url
-        .clone();
-
     // Import the mainnet sputnik-dao.near factory contract
     let sputnikdao_factory_contract =
         near_api::Contract(SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.to_owned());
@@ -38,7 +30,10 @@ async fn test_upgrade() -> testresult::TestResult {
         .await?;
 
     sandbox
-        .import_account(rpc.as_str(), sputnikdao_factory_contract.0.clone())
+        .import_account(
+            RPCEndpoint::mainnet().url,
+            sputnikdao_factory_contract.0.clone(),
+        )
         .initial_balance(NearToken::from_near(100))
         .send()
         .await?;

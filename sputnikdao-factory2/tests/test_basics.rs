@@ -1,4 +1,4 @@
-use near_api::{AccountId, NearToken, NetworkConfig};
+use near_api::{AccountId, NearToken, RPCEndpoint};
 use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY};
 use near_sdk::serde_json::{json, Value};
 use near_sdk::{
@@ -21,15 +21,11 @@ async fn test_factory() -> testresult::TestResult {
         DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
     ))?;
 
-    let rpc = NetworkConfig::mainnet()
-        .rpc_endpoints
-        .first()
-        .unwrap()
-        .url
-        .clone();
-
     sandbox
-        .import_account(rpc.as_str(), sputnikdao_factory_contract.0.clone())
+        .import_account(
+            RPCEndpoint::mainnet().url,
+            sputnikdao_factory_contract.0.clone(),
+        )
         .initial_balance(NearToken::from_near(50))
         .send()
         .await?;

@@ -11,7 +11,7 @@ use near_sdk::{serde_json::json, AccountIdRef};
 
 use near_api::{
     types::{transaction::result::ExecutionFinalResult, AccountId, NearToken, TxExecutionStatus},
-    Contract, Signer,
+    Contract, RPCEndpoint, Signer,
 };
 
 use near_sdk::json_types::U128;
@@ -48,15 +48,11 @@ pub async fn setup_factory() -> Result<(TestContext, Contract), Box<dyn std::err
     let sandbox_network =
         near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
 
-    let rpc = near_api::NetworkConfig::mainnet()
-        .rpc_endpoints
-        .first()
-        .unwrap()
-        .url
-        .clone();
-
     sandbox
-        .import_account(rpc.as_str(), sputnikdao_factory_contract_id.clone())
+        .import_account(
+            RPCEndpoint::mainnet().url,
+            sputnikdao_factory_contract_id.clone(),
+        )
         .initial_balance(NearToken::from_near(50))
         .send()
         .await?;
