@@ -38,7 +38,7 @@ async fn test_factory() -> testresult::TestResult {
         .with_signer(signer.clone())
         .send_to(&sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     let dao_name = "testdao";
     let create_dao_args = json!({
@@ -116,7 +116,7 @@ async fn test_factory() -> testresult::TestResult {
         .with_signer(account_id.clone(), signer.clone())
         .send_to(&sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     let dao_account_id: AccountId =
         format!("{}.{}", dao_name, SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT).parse()?;

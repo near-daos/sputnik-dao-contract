@@ -133,7 +133,7 @@ pub async fn setup_dao_with_params(
         .with_signer(signer.clone())
         .send_to(&sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     Ok((
         TestContext {
@@ -161,7 +161,7 @@ pub async fn setup_test_token(ctx: &TestContext) -> testresult::TestResult<Contr
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     Ok(Contract(test_token_account_id))
 }
@@ -192,7 +192,7 @@ pub async fn setup_staking(
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     Ok(Contract(staking_account_id))
 }
@@ -302,7 +302,7 @@ pub async fn vote(
         .with_signer(user.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
     }
     Ok(())
 }

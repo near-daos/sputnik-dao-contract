@@ -52,7 +52,7 @@ async fn test_upgrade_using_factory() -> testresult::TestResult {
         .with_signer(root.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     let dao_account_id: AccountId = format!("testdao.{}", factory.0).parse()?;
     let dao_list: Vec<near_api::AccountId> = factory
@@ -101,7 +101,7 @@ async fn test_upgrade_using_factory() -> testresult::TestResult {
         .with_signer(root.clone(), ctx.signer)
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
     assert_eq!(
         0,
         act_proposal_result.failures().len(),
@@ -137,7 +137,7 @@ async fn test_upgrade_other() -> testresult::TestResult {
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     let extended_wasm = add_data_segment(OTHER_WASM_BYTES, 1200 * 1024)?;
     assert_eq!(extended_wasm.len(), 1566669);
@@ -165,7 +165,7 @@ async fn test_upgrade_other() -> testresult::TestResult {
         },
     )
     .await
-    .assert_success();
+    .into_result()?;
 
     let act_proposal_result = dao
         .call_function(
@@ -181,7 +181,7 @@ async fn test_upgrade_other() -> testresult::TestResult {
         .with_signer(ctx.root.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     assert!(
         act_proposal_result.failures().is_empty(),

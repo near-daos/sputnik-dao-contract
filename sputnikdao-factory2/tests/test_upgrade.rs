@@ -46,7 +46,7 @@ async fn test_upgrade() -> testresult::TestResult {
         .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())
         .send_to(&sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     // Create a testdao.sputnik-dao.near instance
     let dao_name = "testdao";
@@ -116,7 +116,7 @@ async fn test_upgrade() -> testresult::TestResult {
         .with_signer(user_account_id.clone(), signer.clone())
         .send_to(&sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     let dao_account_id: AccountId =
         format!("{}.{}", dao_name, SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT).parse()?;
@@ -139,7 +139,7 @@ async fn test_upgrade() -> testresult::TestResult {
         .with_signer(signer.clone())
         .send_to(&sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     // Store the local build of sputnikdao2.wasm into sputnik-dao.near
     let sputnikdao2_wasm =
@@ -165,7 +165,7 @@ async fn test_upgrade() -> testresult::TestResult {
         .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())
         .send_to(&sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     // Verify the default code hash matches the computed hash
     let hash: Base58CryptoHash = sputnikdao_factory_contract
@@ -242,7 +242,7 @@ async fn test_upgrade() -> testresult::TestResult {
         .with_signer(user_account_id.clone(), signer.clone())
         .send_to(&sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
     assert!(
         act_proposal_result.failures().is_empty(),
         "{:?}",
@@ -286,7 +286,7 @@ async fn test_upgrade() -> testresult::TestResult {
         .with_signer(user_account_id.clone(), signer.clone())
         .send_to(&sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
     assert!(
         act_proposal_result.failures().is_empty(),
         "{:?}",

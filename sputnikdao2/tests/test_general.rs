@@ -75,7 +75,7 @@ async fn test_large_policy() -> testresult::TestResult {
         .with_signer(ctx.root.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     let dao_account_id = "testdao.sputnik-dao.near";
     let dao_list: Vec<AccountId> = sputnik_dao_factory
@@ -151,7 +151,7 @@ async fn test_multi_council() -> testresult::TestResult {
         },
     )
     .await
-    .assert_success();
+    .into_result()?;
 
     vote(&ctx, vec![&ctx.root], &dao, 0).await?;
 
@@ -166,7 +166,7 @@ async fn test_multi_council() -> testresult::TestResult {
 
     add_transfer_proposal(&ctx, &dao, base_token(), user(1), 1_000_000, None)
         .await
-        .assert_success();
+        .into_result()?;
 
     vote(&ctx, vec![&user(2)], &dao, 1).await?;
     vote(&ctx, vec![&user(3)], &dao, 1).await?;
@@ -215,7 +215,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
 
     let proposal_id: u64 = add_bounty_proposal(&ctx, &dao)
         .await
-        .assert_success()
+        .into_result()?
         .json()?;
     assert_eq!(proposal_id, 0);
     let last_proposal_id: u64 = dao
@@ -329,7 +329,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
     .with_signer(user(1), ctx.signer.clone())
     .send_to(&ctx.sandbox_network)
     .await?
-    .assert_success();
+    .into_result()?;
 
     assert_eq!(
         0,
@@ -375,7 +375,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
     .with_signer(user(2), ctx.signer.clone())
     .send_to(&ctx.sandbox_network)
     .await?
-    .assert_success();
+    .into_result()?;
 
     let user2_balance = near_api::Tokens::account(user(2))
         .near_balance()
@@ -470,7 +470,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
     .with_signer(ctx.root.clone(), ctx.signer.clone())
     .send_to(&ctx.sandbox_network)
     .await?
-    .assert_success();
+    .into_result()?;
 
     let user2_balance = near_api::Tokens::account(user(2))
         .near_balance()
@@ -532,7 +532,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
 
     add_member_proposal(&ctx, &dao, user(2))
         .await
-        .assert_success();
+        .into_result()?;
     assert_eq!(
         1,
         dao.call_function("get_last_proposal_id", json!({}))?
@@ -573,7 +573,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
     .with_signer(ctx.root.clone(), ctx.signer.clone())
     .send_to(&ctx.sandbox_network)
     .await?
-    .assert_success();
+    .into_result()?;
 
     // voting second time should fail.
     let act_proposal_result = dao
@@ -599,7 +599,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
     // Add 3rd member.
     add_member_proposal(&ctx, &dao, user(3))
         .await
-        .assert_success();
+        .into_result()?;
 
     assert!(vote(&ctx, vec![&ctx.root, &user(2)], &dao, 1).await.is_ok());
     let policy = dao
@@ -630,7 +630,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
         },
     )
     .await
-    .assert_success();
+    .into_result()?;
 
     vote(&ctx, vec![&user(3), &user(2)], &dao, 2).await?;
     assert!(!dao
@@ -671,14 +671,14 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
         .with_signer(ctx.root.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     near_api::StorageDeposit::on_contract(staking.0.clone())
         .deposit(user(2), NearToken::from_near(1))?
         .with_signer(user(2), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     let ft_transfer_result = near_api::Tokens::account(user(2))
         .send_to(staking.0.clone())
@@ -690,7 +690,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
     assert!(
         ft_transfer_result.failures().is_empty(),
         "{:?}",
@@ -729,7 +729,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     assert_eq!(
         NearToken::from_near(95),
@@ -751,7 +751,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
         .with_signer(user(2), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     staking
         .call_function(
@@ -763,7 +763,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
         .with_signer(user(2), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     // should fail right after undelegation as need to wait for voting period before can delegate again.
     let delegate_result = staking
@@ -855,7 +855,7 @@ async fn test_payment_failures() -> testresult::TestResult {
 
     add_member_proposal(&ctx, &dao, user1.clone())
         .await
-        .assert_success();
+        .into_result()?;
 
     vote(&ctx, vec![&ctx.root], &dao, 0).await?;
 
@@ -873,14 +873,14 @@ async fn test_payment_failures() -> testresult::TestResult {
         .with_signer(dao.0.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     near_api::StorageDeposit::on_contract(test_token.0.clone())
         .deposit(user1.clone(), NearToken::from_near(1))?
         .with_signer(user1.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     // Attempt to transfer more than it has
     add_transfer_proposal(
@@ -892,7 +892,7 @@ async fn test_payment_failures() -> testresult::TestResult {
         None,
     )
     .await
-    .assert_success();
+    .into_result()?;
 
     // Vote in the transfer
     vote(&ctx, vec![&ctx.root.clone(), &user1], &dao, 1).await?;
@@ -914,7 +914,7 @@ async fn test_payment_failures() -> testresult::TestResult {
         .with_signer(whale.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     near_api::Tokens::account(whale.clone())
         .send_to(dao.0.clone())
@@ -925,7 +925,7 @@ async fn test_payment_failures() -> testresult::TestResult {
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     // Council member retries payment via an action
     let act_proposal_result = dao
@@ -943,7 +943,7 @@ async fn test_payment_failures() -> testresult::TestResult {
         .with_signer(ctx.root.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
-        .assert_success();
+        .into_result()?;
 
     let proposal = dao
         .call_function("get_proposal", json!({"id": 1}))?
@@ -1079,7 +1079,7 @@ async fn test_deny_unknown_arguments() -> testresult::TestResult {
     let (ctx, dao) = setup_dao().await?;
 
     // Add bounty proposal
-    add_bounty_proposal(&ctx, &dao).await.assert_success();
+    add_bounty_proposal(&ctx, &dao).await.into_result()?;
 
     let mut kind = dao
         .call_function("get_proposal", json!({"id": 0}))?

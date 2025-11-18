@@ -14,7 +14,7 @@ near-sdk = "5.9.0"
 near-contract-standards = "5.9.0"
 
 [dev-dependencies]
-near-sandbox = { git = "https://github.com/near/near-sandbox-rs.git", branch = "sandbox-rpc" }
+near-sandbox = "0.2.2"
 near-api = { version = "0.7", default-features = false }
 tokio = { version = "1.44.0", features = ["full"] }
 near-sdk = { version = "5.9.0", features = ["unit-testing"] }

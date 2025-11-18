@@ -1699,9 +1699,9 @@ dependencies = [
 
 [[package]]
 name = "near-api"
-version = "0.7.5"
+version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38e98e06ff30efc05d4c1d0cc171436be3de5e1adfe4611a05534fdb339bcbb1"
+checksum = "93e4f0aae502ff7af0f9b3e18baa1664d86605eab03934b0532e2f085981e420"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -1725,9 +1725,9 @@ dependencies = [
 
 [[package]]
 name = "near-api-types"
-version = "0.7.2"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f6ec6c6989383192e690d70023d21633b3839fe613216a9d4d43c3b94efdf7a"
+checksum = "a2217e6f385c25956fd199e8e73ca93e179c4638f97546e0a6bec64a874c0424"
 dependencies = [
  "base64 0.22.1",
  "borsh",
@@ -1929,21 +1929,22 @@ dependencies = [
 
 [[package]]
 name = "near-sandbox"
-version = "0.2.1"
-source = "git+https://github.com/near/near-sandbox-rs.git?branch=sandbox-rpc#757af72fbaff007f8559106f8f131987b4c6889f"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0398e6e72bb8f16f603e831ecbe9b5605e088e4200048f191b702402f794eb5e"
 dependencies = [
  "binary-install",
  "fs4",
  "json-patch",
  "near-account-id",
  "near-token",
- "reqwest",
  "serde",
  "serde_json",
  "tempfile",
  "thiserror 2.0.12",
  "tokio",
  "tracing",
+ "ureq",
 ]
 
 [[package]]
@@ -3490,6 +3491,8 @@ dependencies = [
  "once_cell",
  "rustls",
  "rustls-pki-types",
+ "serde",
+ "serde_json",
  "url",
  "webpki-roots",
 ]
