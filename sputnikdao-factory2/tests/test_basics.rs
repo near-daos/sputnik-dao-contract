@@ -1,124 +1,134 @@
+use near_api::{AccountId, NearToken, RPCEndpoint};
+use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY};
 use near_sdk::serde_json::{json, Value};
 use near_sdk::{
     base64::{engine::general_purpose, Engine as _},
     AccountIdRef,
 };
-use near_workspaces::types::NearToken;
-use near_workspaces::AccountId;
 use std::fs;
 
 #[tokio::test]
-async fn test_factory() -> Result<(), Box<dyn std::error::Error>> {
-    const SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &str = "sputnik-dao.near";
+async fn test_factory() -> testresult::TestResult {
+    const SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &AccountIdRef =
+        AccountIdRef::new_or_panic("sputnik-dao.near");
+    let sputnikdao_factory_contract =
+        near_api::Contract(SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.to_owned());
 
-    let mainnet = near_workspaces::mainnet().await?;
-    let sputnikdao_factory_contract_id: AccountId =
-        AccountIdRef::new_or_panic(SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT).into();
+    let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
+    let sandbox_network =
+        near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
+    let signer = near_api::Signer::new(near_api::Signer::from_secret_key(
+        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
+    ))?;
 
-    let worker = near_workspaces::sandbox().await?;
-
-    let sputnik_dao_factory = worker
-        .import_contract(&sputnikdao_factory_contract_id, &mainnet)
+    sandbox
+        .import_account(
+            RPCEndpoint::mainnet().url,
+            sputnikdao_factory_contract.0.clone(),
+        )
         .initial_balance(NearToken::from_near(50))
-        .transact()
+        .send()
         .await?;
 
     let wasm = fs::read("./res/sputnikdao_factory2.wasm").expect("Unable to read contract wasm");
-
-    let deploy_result = sputnik_dao_factory
-        .as_account()
-        .deploy(wasm.as_slice())
-        .await?;
-    assert!(deploy_result.is_success());
-
-    let init_sputnik_dao_factory_result =
-        sputnik_dao_factory.call("new").max_gas().transact().await?;
-    if init_sputnik_dao_factory_result.is_failure() {
-        panic!(
-            "Error initializing sputnik-dao contract: {:?}",
-            String::from_utf8(init_sputnik_dao_factory_result.raw_bytes().unwrap())
-        );
-    }
-    assert!(init_sputnik_dao_factory_result.is_success());
+    near_api::Contract::deploy(sputnikdao_factory_contract.0.clone())
+        .use_code(wasm.to_vec())
+        .with_init_call("new", ())?
+        .max_gas()
+        .with_signer(signer.clone())
+        .send_to(&sandbox_network)
+        .await?
+        .into_result()?;
 
     let dao_name = "testdao";
     let create_dao_args = json!({
         "config": {
-        "name": dao_name,
-        "purpose": "creating dao treasury",
-        "metadata": "",
+            "name": dao_name,
+            "purpose": "creating dao treasury",
+            "metadata": "",
         },
         "policy": {
-        "roles": [
-            {
-            "kind": {
-                "Group": ["acc3.near", "acc2.near", "acc1.near"],
-            },
-            "name": "Create Requests",
-            "permissions": [
-                "call:AddProposal",
-                "transfer:AddProposal",
-                "config:Finalize",
+            "roles": [
+                {
+                    "kind": {
+                        "Group": ["acc3.near", "acc2.near", "acc1.near"],
+                    },
+                    "name": "Create Requests",
+                    "permissions": [
+                        "call:AddProposal",
+                        "transfer:AddProposal",
+                        "config:Finalize",
+                    ],
+                    "vote_policy": {},
+                },
+                {
+                    "kind": {
+                        "Group": ["acc1.near"],
+                    },
+                    "name": "Manage Members",
+                    "permissions": [
+                        "config:*",
+                        "policy:*",
+                        "add_member_to_role:*",
+                        "remove_member_from_role:*",
+                    ],
+                    "vote_policy": {},
+                },
+                {
+                    "kind": {
+                        "Group": ["acc1.near", "acc2.near"],
+                    },
+                    "name": "Vote",
+                    "permissions": ["*:VoteReject", "*:VoteApprove", "*:VoteRemove"],
+                    "vote_policy": {},
+                },
             ],
-            "vote_policy": {},
+            "default_vote_policy": {
+                "weight_kind": "RoleWeight",
+                "quorum": "0",
+                "threshold": [1, 2],
             },
-            {
-            "kind": {
-                "Group": ["acc1.near"],
-            },
-            "name": "Manage Members",
-            "permissions": [
-                "config:*",
-                "policy:*",
-                "add_member_to_role:*",
-                "remove_member_from_role:*",
-            ],
-            "vote_policy": {},
-            },
-            {
-            "kind": {
-                "Group": ["acc1.near", "acc2.near"],
-            },
-            "name": "Vote",
-            "permissions": ["*:VoteReject", "*:VoteApprove", "*:VoteRemove"],
-            "vote_policy": {},
-            },
-        ],
-        "default_vote_policy": {
-            "weight_kind": "RoleWeight",
-            "quorum": "0",
-            "threshold": [1, 2],
-        },
-        "proposal_bond": "100000000000000000000000",
-        "proposal_period": "604800000000000",
-        "bounty_bond": "100000000000000000000000",
-        "bounty_forgiveness_period": "604800000000000",
+            "proposal_bond": "100000000000000000000000",
+            "proposal_period": "604800000000000",
+            "bounty_bond": "100000000000000000000000",
+            "bounty_forgiveness_period": "604800000000000",
         },
     });
 
-    let user_account = worker.dev_create_account().await?;
-
-    let create_result = user_account
-        .call(&sputnikdao_factory_contract_id, "create")
-        .args_json(json!({
-            "name": dao_name,
-            "args":  general_purpose::STANDARD.encode(create_dao_args.to_string())
-        }))
-        .max_gas()
-        .deposit(NearToken::from_near(6))
-        .transact()
+    let account_id: AccountId = format!("some_account.{}", DEFAULT_GENESIS_ACCOUNT).parse()?;
+    sandbox
+        .create_account(account_id.clone())
+        .initial_balance(NearToken::from_near(20))
+        .send()
         .await?;
 
-    assert!(create_result.is_success(), "{:?}", create_result.failures());
+    sputnikdao_factory_contract
+        .call_function(
+            "create",
+            json!({
+                "name": dao_name,
+                "args":  general_purpose::STANDARD.encode(create_dao_args.to_string())
+            }),
+        )?
+        .transaction()
+        .max_gas()
+        .deposit(NearToken::from_near(6))
+        .with_signer(account_id.clone(), signer.clone())
+        .send_to(&sandbox_network)
+        .await?
+        .into_result()?;
 
-    let dao_account_id: AccountId = format!("{}.{}", dao_name, SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT)
-        .parse()
-        .unwrap();
+    let dao_account_id: AccountId =
+        format!("{}.{}", dao_name, SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT).parse()?;
 
-    let get_config_result = worker.view(&dao_account_id, "get_config").await?;
+    let get_config_result: Value = near_api::Contract(dao_account_id)
+        .call_function("get_config", ())?
+        .read_only()
+        .fetch_from(&sandbox_network)
+        .await?
+        .data;
 
-    let config: Value = get_config_result.json().unwrap();
-    assert_eq!(create_dao_args["config"], config);
+    assert_eq!(create_dao_args["config"], get_config_result);
 
     Ok(())
 }

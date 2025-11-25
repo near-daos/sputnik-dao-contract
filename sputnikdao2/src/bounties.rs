@@ -208,9 +208,9 @@ impl Contract {
 
 #[cfg(test)]
 mod tests {
+    use near_api::types::NearToken;
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::testing_env;
-    use near_workspaces::types::NearToken;
 
     use crate::proposals::{ProposalInput, ProposalKind};
     use crate::{Action, Config};

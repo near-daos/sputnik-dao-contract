@@ -406,7 +406,7 @@ mod tests {
     use near_sdk::test_utils::{accounts, VMContextBuilder};
     use near_sdk::{test_vm_config, testing_env, PromiseResult, RuntimeFeesConfig};
 
-    use near_workspaces::types::NearToken;
+    use near_api::NearToken;
 
     use super::*;
 

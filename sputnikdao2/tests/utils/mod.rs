@@ -1,12 +1,18 @@
 #![allow(dead_code)]
-use near_contract_standards::fungible_token::Balance;
-pub use near_sdk::json_types::{Base64VecU8, U64};
-use near_sdk::serde_json::json;
+use std::sync::Arc;
 
-use near_workspaces::network::Sandbox;
-use near_workspaces::result::ExecutionFinalResult;
-use near_workspaces::types::NearToken;
-use near_workspaces::{Account, AccountId, Contract, Worker};
+use near_contract_standards::fungible_token::Balance;
+use near_sandbox::{
+    config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY},
+    Sandbox,
+};
+pub use near_sdk::json_types::{Base64VecU8, U64};
+use near_sdk::{serde_json::json, AccountIdRef};
+
+use near_api::{
+    types::{transaction::result::ExecutionFinalResult, AccountId, NearToken, TxExecutionStatus},
+    Contract, RPCEndpoint, Signer,
+};
 
 use near_sdk::json_types::U128;
 use sputnikdao2::{
@@ -21,82 +27,92 @@ pub static TEST_TOKEN_WASM_BYTES: &[u8] = include_bytes!("../../../test-token/re
 pub static STAKING_WASM_BYTES: &[u8] =
     include_bytes!("../../../sputnik-staking/res/sputnik_staking.wasm");
 
-pub static SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &str = "sputnik-dao.near";
+pub static SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &AccountIdRef =
+    AccountIdRef::new_or_panic("sputnik-dao.near");
 
 pub fn base_token() -> Option<near_sdk::AccountId> {
     None
 }
 
-pub fn should_fail(r: ExecutionFinalResult) {
-    if r.is_success() {
-        panic!("Should fail");
-    }
+pub struct TestContext {
+    pub sandbox: Sandbox,
+    pub sandbox_network: near_api::NetworkConfig,
+    pub signer: Arc<Signer>,
+    pub root: AccountId,
 }
 
-pub async fn setup_factory() -> Result<(Contract, Worker<Sandbox>), Box<dyn std::error::Error>> {
-    let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.parse()?;
+pub async fn setup_factory() -> Result<(TestContext, Contract), Box<dyn std::error::Error>> {
+    let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.into();
 
-    let worker = near_workspaces::sandbox().await?;
-    let mainnet = near_workspaces::mainnet().await?;
+    let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
+    let sandbox_network =
+        near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
 
-    let _sputnik_dao_factory = worker
-        .import_contract(&sputnikdao_factory_contract_id, &mainnet)
+    sandbox
+        .import_account(
+            RPCEndpoint::mainnet().url,
+            sputnikdao_factory_contract_id.clone(),
+        )
         .initial_balance(NearToken::from_near(50))
-        .transact()
+        .send()
         .await?;
 
-    let mainnet = near_workspaces::mainnet().await?;
-    let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.parse()?;
+    let signer = Signer::new(Signer::from_secret_key(
+        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
+    ))?;
 
-    let worker = near_workspaces::sandbox().await?;
-
-    let sputnik_dao_factory = worker
-        .import_contract(&sputnikdao_factory_contract_id, &mainnet)
-        .initial_balance(NearToken::from_near(50))
-        .transact()
+    let deploy_result = Contract::deploy(sputnikdao_factory_contract_id.clone())
+        .use_code(FACTORY_WASM_BYTES.to_vec())
+        .with_init_call("new", ())?
+        .max_gas()
+        .with_signer(signer.clone())
+        .send_to(&sandbox_network)
         .await?;
 
-    let deploy_result = sputnik_dao_factory
-        .as_account()
-        .deploy(FACTORY_WASM_BYTES)
-        .await?;
     assert!(deploy_result.is_success());
 
-    let init_sputnik_dao_factory_result =
-        sputnik_dao_factory.call("new").max_gas().transact().await?;
-    if init_sputnik_dao_factory_result.is_failure() {
-        panic!(
-            "Error initializing sputnik-dao contract: {:?}",
-            String::from_utf8(init_sputnik_dao_factory_result.raw_bytes().unwrap())
-        );
-    }
-    assert!(init_sputnik_dao_factory_result.is_success());
-    Ok((sputnik_dao_factory, worker))
+    Ok((
+        TestContext {
+            sandbox,
+            sandbox_network,
+            signer,
+            root: sputnikdao_factory_contract_id.clone(),
+        },
+        Contract(sputnikdao_factory_contract_id),
+    ))
 }
 
-pub async fn setup_dao() -> Result<(Contract, Worker<Sandbox>, Account), Box<dyn std::error::Error>>
-{
-    let worker = near_workspaces::sandbox().await?;
-    let root = worker.root_account().unwrap();
+pub async fn setup_dao() -> testresult::TestResult<(TestContext, Contract)> {
+    let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
+    let root_account = DEFAULT_GENESIS_ACCOUNT.to_owned();
+    let signer = Signer::new(Signer::from_secret_key(
+        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
+    ))?;
+
     setup_dao_with_params(
-        root.clone(),
-        worker,
-        VersionedPolicy::Default(vec![root.id().clone()]),
+        root_account.clone(),
+        signer,
+        sandbox,
+        VersionedPolicy::Default(vec![root_account.clone()]),
     )
     .await
 }
 
 pub async fn setup_dao_with_params(
-    root: Account,
-    worker: Worker<Sandbox>,
+    root: AccountId,
+    signer: Arc<Signer>,
+    sandbox: Sandbox,
     policy: VersionedPolicy,
-) -> Result<(Contract, Worker<Sandbox>, Account), Box<dyn std::error::Error>> {
-    let dao_account = root
-        .create_subaccount("dao")
+) -> testresult::TestResult<(TestContext, Contract)> {
+    let dao_account_id: AccountId = format!("dao.{root}").parse()?;
+    let sandbox_network =
+        near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
+
+    sandbox
+        .create_account(dao_account_id.clone())
         .initial_balance(NearToken::from_near(200))
-        .transact()
-        .await?
-        .result;
+        .send()
+        .await?;
 
     let config = Config {
         name: "test".to_string(),
@@ -104,88 +120,111 @@ pub async fn setup_dao_with_params(
         metadata: Base64VecU8(vec![]),
     };
 
-    let dao = dao_account.deploy(DAO_WASM_BYTES).await?.result;
-    let dao_new_result = dao
-        .call("new")
-        .args_json(json!({
-            "config": config,
-            "policy": policy,
-        }))
+    near_api::Contract::deploy(dao_account_id.clone())
+        .use_code(DAO_WASM_BYTES.to_vec())
+        .with_init_call(
+            "new",
+            json!({
+                "config": config,
+                "policy": policy,
+            }),
+        )?
         .max_gas()
-        .transact()
-        .await?;
+        .with_signer(signer.clone())
+        .send_to(&sandbox_network)
+        .await?
+        .into_result()?;
 
-    assert!(dao_new_result.is_success());
-    Ok((dao, worker, root))
+    Ok((
+        TestContext {
+            sandbox,
+            sandbox_network,
+            signer,
+            root,
+        },
+        Contract(dao_account_id),
+    ))
 }
 
-pub async fn setup_test_token(root: &Account) -> Result<Contract, Box<dyn std::error::Error>> {
-    let test_token_account = root
-        .create_subaccount("test_token")
+pub async fn setup_test_token(ctx: &TestContext) -> testresult::TestResult<Contract> {
+    let test_token_account_id: AccountId = format!("test_token.{}", ctx.root).parse().unwrap();
+    ctx.sandbox
+        .create_account(test_token_account_id.clone())
         .initial_balance(NearToken::from_near(200))
-        .transact()
-        .await?
-        .result;
+        .send()
+        .await?;
 
-    let test_token_contract = test_token_account
-        .deploy(TEST_TOKEN_WASM_BYTES)
+    near_api::Contract::deploy(test_token_account_id.clone())
+        .use_code(TEST_TOKEN_WASM_BYTES.to_vec())
+        .with_init_call("new", ())?
+        .max_gas()
+        .with_signer(ctx.signer.clone())
+        .send_to(&ctx.sandbox_network)
         .await?
-        .result;
+        .into_result()?;
 
-    assert!(test_token_contract
-        .call("new")
-        .transact()
-        .await?
-        .is_success());
-    Ok(test_token_contract)
+    Ok(Contract(test_token_account_id))
 }
 
 pub async fn setup_staking(
-    root: &Account,
-    test_token: &Account,
-    dao: &Account,
-) -> Result<Contract, Box<dyn std::error::Error>> {
-    let staking_account = root
-        .create_subaccount("staking")
+    ctx: &TestContext,
+    test_token: &AccountId,
+    dao: &AccountId,
+) -> testresult::TestResult<Contract> {
+    let staking_account_id: AccountId = format!("staking.{}", ctx.root).parse().unwrap();
+    ctx.sandbox
+        .create_account(staking_account_id.clone())
         .initial_balance(NearToken::from_near(100))
-        .transact()
-        .await?
-        .result;
+        .send()
+        .await?;
 
-    let staking_contract = staking_account.deploy(STAKING_WASM_BYTES).await?.result;
-
-    assert!(staking_contract
-        .call("new")
-        .args_json(json!({
-            "owner_id": dao.id(),
-            "token_id": test_token.id(),
-            "unstake_period": U64(100_000_000_000)
-        }))
-        .transact()
+    near_api::Contract::deploy(staking_account_id.clone())
+        .use_code(STAKING_WASM_BYTES.to_vec())
+        .with_init_call(
+            "new",
+            json!({
+                "owner_id": dao,
+                "token_id": test_token,
+                "unstake_period": U64(100_000_000_000)
+            }),
+        )?
+        .max_gas()
+        .with_signer(ctx.signer.clone())
+        .send_to(&ctx.sandbox_network)
         .await?
-        .is_success());
-    Ok(staking_contract)
+        .into_result()?;
+
+    Ok(Contract(staking_account_id))
 }
 
-pub async fn add_proposal(dao: &Contract, proposal: ProposalInput) -> ExecutionFinalResult {
-    dao.call("add_proposal")
-        .args_json(json!({"proposal": proposal}))
+pub async fn add_proposal(
+    ctx: &TestContext,
+    dao: &Contract,
+    proposal: ProposalInput,
+) -> ExecutionFinalResult {
+    dao.call_function("add_proposal", json!({"proposal": proposal}))
+        .unwrap()
+        .transaction()
         .deposit(NearToken::from_near(1))
-        .transact()
+        .with_signer(dao.0.clone(), ctx.signer.clone())
+        .wait_until(TxExecutionStatus::ExecutedOptimistic)
+        .send_to(&ctx.sandbox_network)
         .await
         .unwrap()
 }
 
 pub async fn add_member_proposal(
+    ctx: &TestContext,
     dao: &Contract,
     member_id: near_sdk::AccountId,
 ) -> ExecutionFinalResult {
     add_proposal(
+        ctx,
         dao,
         ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::AddMemberToRole {
-                member_id: member_id,
+                member_id,
                 role: "council".to_string(),
             },
         },
@@ -194,6 +233,7 @@ pub async fn add_member_proposal(
 }
 
 pub async fn add_transfer_proposal(
+    ctx: &TestContext,
     dao: &Contract,
     token_id: Option<near_sdk::AccountId>,
     receiver_id: near_sdk::AccountId,
@@ -201,6 +241,7 @@ pub async fn add_transfer_proposal(
     msg: Option<String>,
 ) -> ExecutionFinalResult {
     add_proposal(
+        ctx,
         dao,
         ProposalInput {
             description: "test".to_string(),
@@ -215,8 +256,15 @@ pub async fn add_transfer_proposal(
     .await
 }
 
-pub async fn add_bounty_proposal(worker: &Worker<Sandbox>, dao: &Contract) -> ExecutionFinalResult {
+pub async fn add_bounty_proposal(ctx: &TestContext, dao: &Contract) -> ExecutionFinalResult {
+    let block_timestamp = near_api::Chain::block()
+        .fetch_from(&ctx.sandbox_network)
+        .await
+        .unwrap()
+        .header
+        .timestamp;
     add_proposal(
+        ctx,
         dao,
         ProposalInput {
             description: "test".to_string(),
@@ -226,9 +274,7 @@ pub async fn add_bounty_proposal(worker: &Worker<Sandbox>, dao: &Contract) -> Ex
                     token: String::from(OLD_BASE_TOKEN),
                     amount: U128(NearToken::from_near(10).as_yoctonear()),
                     times: 3,
-                    max_deadline: U64(
-                        worker.view_block().await.unwrap().timestamp() + 10_000_000_000
-                    ),
+                    max_deadline: U64(block_timestamp + 10_000_000_000),
                 },
             },
         },
@@ -237,25 +283,26 @@ pub async fn add_bounty_proposal(worker: &Worker<Sandbox>, dao: &Contract) -> Ex
 }
 
 pub async fn vote(
-    users: Vec<&Account>,
+    ctx: &TestContext,
+    users: Vec<&AccountId>,
     dao: &Contract,
     proposal_id: u64,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> testresult::TestResult {
     for user in users.into_iter() {
-        let act_proposal_result = user
-            .call(dao.id(), "act_proposal")
-            .args_json(json!({
+        dao.call_function(
+            "act_proposal",
+            json!({
                 "id": proposal_id,
                 "action": Action::VoteApprove,
-                "proposal": get_proposal_kind(&dao, proposal_id).await}))
-            .max_gas()
-            .transact()
-            .await?;
-        assert!(
-            act_proposal_result.is_success(),
-            "{:?}",
-            act_proposal_result.failures()
-        );
+                "proposal": get_proposal_kind(ctx, dao, proposal_id).await?
+            }),
+        )?
+        .transaction()
+        .max_gas()
+        .with_signer(user.clone(), ctx.signer.clone())
+        .send_to(&ctx.sandbox_network)
+        .await?
+        .into_result()?;
     }
     Ok(())
 }
@@ -267,13 +314,17 @@ pub fn convert_new_to_old_token(new_account_id: Option<near_sdk::AccountId>) -> 
     new_account_id.unwrap().to_string()
 }
 
-pub async fn get_proposal_kind(dao: &Contract, proposal_id: u64) -> ProposalKind {
-    dao.view("get_proposal")
-        .args_json(json!({"id": proposal_id}))
-        .await
-        .unwrap()
-        .json::<ProposalOutput>()
-        .unwrap()
+pub async fn get_proposal_kind(
+    ctx: &TestContext,
+    dao: &Contract,
+    proposal_id: u64,
+) -> testresult::TestResult<ProposalKind> {
+    Ok(dao
+        .call_function("get_proposal", json!({"id": proposal_id}))?
+        .read_only::<ProposalOutput>()
+        .fetch_from(&ctx.sandbox_network)
+        .await?
+        .data
         .proposal
-        .kind
+        .kind)
 }
