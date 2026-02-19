@@ -5,21 +5,21 @@ use near_sdk::borsh::{BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap};
 use near_sdk::json_types::{Base58CryptoHash, U128};
 use near_sdk::{
-    env, ext_contract, near, AccountId, BorshStorageKey, CryptoHash, NearToken, PanicOnDefault,
-    Promise, PromiseOrValue, PromiseResult,
+    AccountId, BorshStorageKey, CryptoHash, NearToken, PanicOnDefault, Promise, PromiseOrValue,
+    env, ext_contract, near,
 };
 
 use crate::action_log::ActionLog;
 pub use crate::bounties::{Bounty, BountyClaim, VersionedBounty};
 pub use crate::policy::{
-    default_policy, Policy, RoleKind, RolePermission, VersionedPolicy, VotePolicy,
+    Policy, RoleKind, RolePermission, VersionedPolicy, VotePolicy, default_policy,
 };
 use crate::proposals::VersionedProposal;
 pub use crate::proposals::{Proposal, ProposalInput, ProposalKind, ProposalStatus};
-pub use crate::types::{Action, Config, OldAccountId, OLD_BASE_TOKEN};
+pub use crate::types::{Action, Config, OLD_BASE_TOKEN, OldAccountId};
 use crate::upgrade::{
-    internal_get_factory_info, internal_set_factory_info, state_version_read, state_version_write,
-    ContractV1, FactoryInfo, StateVersion,
+    ContractV1, FactoryInfo, StateVersion, internal_get_factory_info, internal_set_factory_info,
+    state_version_read, state_version_write,
 };
 pub use crate::views::{BountyOutput, ProposalOutput};
 
@@ -177,7 +177,8 @@ impl Contract {
 
 /// Stores attached data into blob store and returns hash of it.
 /// Implemented to avoid loading the data into WASM for optimal gas usage.
-#[no_mangle]
+#[cfg(target_arch = "wasm32")]
+#[unsafe(no_mangle)]
 pub extern "C" fn store_blob() {
     env::setup_panic_hook();
     let mut contract: Contract = env::state_read().expect("ERR_CONTRACT_IS_NOT_INITIALIZED");
@@ -210,7 +211,7 @@ pub extern "C" fn store_blob() {
 #[cfg(test)]
 mod tests {
     use near_api::types::NearToken;
-    use near_sdk::test_utils::{accounts, VMContextBuilder};
+    use near_sdk::test_utils::{VMContextBuilder, accounts};
     use near_sdk::testing_env;
 
     use crate::action_log::ProposalLog;
@@ -224,7 +225,7 @@ mod tests {
             description: "test".to_string(),
             kind: ProposalKind::Transfer {
                 token_id: String::from(OLD_BASE_TOKEN),
-                receiver_id: accounts(2).into(),
+                receiver_id: accounts(2),
                 amount: U128(NearToken::from_near(100).as_yoctonear()),
                 msg: None,
             },
@@ -237,7 +238,7 @@ mod tests {
         testing_env!(context.predecessor_account_id(accounts(1)).build());
         let mut contract = Contract::new(
             Config::test_config(),
-            VersionedPolicy::Default(vec![accounts(1).into()]),
+            VersionedPolicy::Default(vec![accounts(1)]),
         );
         let id = create_proposal(&mut context, &mut contract);
         assert_eq!(contract.get_proposal(id).proposal.description, "test");
@@ -257,9 +258,11 @@ mod tests {
 
         let id = create_proposal(&mut context, &mut contract);
         // proposal expired, finalize.
-        testing_env!(context
-            .block_timestamp(1_000_000_000 * 24 * 60 * 60 * 8)
-            .build());
+        testing_env!(
+            context
+                .block_timestamp(1_000_000_000 * 24 * 60 * 60 * 8)
+                .build()
+        );
         contract.act_proposal(
             id,
             Action::Finalize,
@@ -272,14 +275,16 @@ mod tests {
         );
 
         // non council adding proposal per default policy.
-        testing_env!(context
-            .predecessor_account_id(accounts(2))
-            .attached_deposit(NearToken::from_near(1))
-            .build());
+        testing_env!(
+            context
+                .predecessor_account_id(accounts(2))
+                .attached_deposit(NearToken::from_near(1))
+                .build()
+        );
         let _id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::AddMemberToRole {
-                member_id: accounts(2).into(),
+                member_id: accounts(2),
                 role: "council".to_string(),
             },
         });
@@ -292,7 +297,7 @@ mod tests {
         testing_env!(context.predecessor_account_id(accounts(1)).build());
         let mut contract = Contract::new(
             Config::test_config(),
-            VersionedPolicy::Default(vec![accounts(1).into()]),
+            VersionedPolicy::Default(vec![accounts(1)]),
         );
         let id = create_proposal(&mut context, &mut contract);
         assert_eq!(contract.get_proposal(id).proposal.description, "test");
@@ -308,7 +313,7 @@ mod tests {
     fn test_remove_proposal_allowed() {
         let mut context = VMContextBuilder::new();
         testing_env!(context.predecessor_account_id(accounts(1)).build());
-        let mut policy = VersionedPolicy::Default(vec![accounts(1).into()]).upgrade();
+        let mut policy = VersionedPolicy::Default(vec![accounts(1)]).upgrade();
         policy.to_policy_mut().roles[1]
             .permissions
             .insert("*:RemoveProposal".to_string());
@@ -330,12 +335,14 @@ mod tests {
         testing_env!(context.predecessor_account_id(accounts(1)).build());
         let mut contract = Contract::new(
             Config::test_config(),
-            VersionedPolicy::Default(vec![accounts(1).into()]),
+            VersionedPolicy::Default(vec![accounts(1)]),
         );
         let id = create_proposal(&mut context, &mut contract);
-        testing_env!(context
-            .block_timestamp(1_000_000_000 * 24 * 60 * 60 * 8)
-            .build());
+        testing_env!(
+            context
+                .block_timestamp(1_000_000_000 * 24 * 60 * 60 * 8)
+                .build()
+        );
         contract.act_proposal(
             id,
             Action::VoteApprove,
@@ -351,7 +358,7 @@ mod tests {
         testing_env!(context.predecessor_account_id(accounts(1)).build());
         let mut contract = Contract::new(
             Config::test_config(),
-            VersionedPolicy::Default(vec![accounts(1).into(), accounts(2).into()]),
+            VersionedPolicy::Default(vec![accounts(1), accounts(2)]),
         );
         let id = create_proposal(&mut context, &mut contract);
         contract.act_proposal(
@@ -375,7 +382,7 @@ mod tests {
         testing_env!(context.predecessor_account_id(accounts(1)).build());
         let mut contract = Contract::new(
             Config::test_config(),
-            VersionedPolicy::Default(vec![accounts(1).into(), accounts(2).into()]),
+            VersionedPolicy::Default(vec![accounts(1), accounts(2)]),
         );
         let id = create_proposal(&mut context, &mut contract);
         contract.act_proposal(
@@ -383,7 +390,7 @@ mod tests {
             Action::VoteApprove,
             ProposalKind::Transfer {
                 token_id: String::from(OLD_BASE_TOKEN),
-                receiver_id: accounts(1).into(), // The only different thing from initial kind
+                receiver_id: accounts(1), // The only different thing from initial kind
                 amount: U128(NearToken::from_near(100).as_yoctonear()),
                 msg: None,
             },
@@ -397,13 +404,13 @@ mod tests {
         testing_env!(context.predecessor_account_id(accounts(1)).build());
         let mut contract = Contract::new(
             Config::test_config(),
-            VersionedPolicy::Default(vec![accounts(1).into()]),
+            VersionedPolicy::Default(vec![accounts(1)]),
         );
         testing_env!(context.attached_deposit(NearToken::from_near(1)).build());
         let id = contract.add_proposal(ProposalInput {
             description: "test".to_string(),
             kind: ProposalKind::AddMemberToRole {
-                member_id: accounts(2).into(),
+                member_id: accounts(2),
                 role: "missing".to_string(),
             },
         });
@@ -425,7 +432,7 @@ mod tests {
         testing_env!(context.predecessor_account_id(accounts(1)).build());
         let mut contract = Contract::new(
             Config::test_config(),
-            VersionedPolicy::Default(vec![accounts(1).into()]),
+            VersionedPolicy::Default(vec![accounts(1)]),
         );
         testing_env!(context.attached_deposit(NearToken::from_near(1)).build());
         let _id = contract.add_proposal(ProposalInput {
@@ -471,7 +478,7 @@ mod tests {
             }
         );
         assert_eq!(
-            global_last_actions_log.get(0).unwrap().clone(),
+            global_last_actions_log[0],
             ActionLog {
                 account_id: "alice".parse().unwrap(),
                 proposal_id: 0.into(),
@@ -482,9 +489,11 @@ mod tests {
 
         // Fill the latest actions list
         for i in 1..21 {
-            testing_env!(context
-                .predecessor_account_id(accounts_list.get(i).unwrap().clone())
-                .build());
+            testing_env!(
+                context
+                    .predecessor_account_id(accounts_list.get(i).unwrap().clone())
+                    .build()
+            );
             contract.act_proposal(id, Action::VoteApprove, proposal_kind.clone(), None);
         }
         // Now the oldest proposal should be bob's vote

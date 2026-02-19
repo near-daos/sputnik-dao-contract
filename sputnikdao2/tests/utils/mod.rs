@@ -3,21 +3,21 @@ use std::sync::Arc;
 
 use near_contract_standards::fungible_token::Balance;
 use near_sandbox::{
-    config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY},
     Sandbox,
+    config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY},
 };
 pub use near_sdk::json_types::{Base64VecU8, U64};
-use near_sdk::{serde_json::json, AccountIdRef};
+use near_sdk::{AccountIdRef, serde_json::json};
 
 use near_api::{
-    types::{transaction::result::ExecutionFinalResult, AccountId, NearToken, TxExecutionStatus},
     Contract, RPCEndpoint, Signer,
+    types::{AccountId, NearToken, TxExecutionStatus, transaction::result::ExecutionFinalResult},
 };
 
 use near_sdk::json_types::U128;
 use sputnikdao2::{
-    Action, Bounty, Config, OldAccountId, ProposalInput, ProposalKind, ProposalOutput,
-    VersionedPolicy, OLD_BASE_TOKEN,
+    Action, Bounty, Config, OLD_BASE_TOKEN, OldAccountId, ProposalInput, ProposalKind,
+    ProposalOutput, VersionedPolicy,
 };
 
 pub static FACTORY_WASM_BYTES: &[u8] =
@@ -57,9 +57,7 @@ pub async fn setup_factory() -> Result<(TestContext, Contract), Box<dyn std::err
         .send()
         .await?;
 
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
-    ))?;
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
     let deploy_result = Contract::deploy(sputnikdao_factory_contract_id.clone())
         .use_code(FACTORY_WASM_BYTES.to_vec())
@@ -85,9 +83,7 @@ pub async fn setup_factory() -> Result<(TestContext, Contract), Box<dyn std::err
 pub async fn setup_dao() -> testresult::TestResult<(TestContext, Contract)> {
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
     let root_account = DEFAULT_GENESIS_ACCOUNT.to_owned();
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
-    ))?;
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
     setup_dao_with_params(
         root_account.clone(),
@@ -203,7 +199,6 @@ pub async fn add_proposal(
     proposal: ProposalInput,
 ) -> ExecutionFinalResult {
     dao.call_function("add_proposal", json!({"proposal": proposal}))
-        .unwrap()
         .transaction()
         .deposit(NearToken::from_near(1))
         .with_signer(dao.0.clone(), ctx.signer.clone())
@@ -296,7 +291,7 @@ pub async fn vote(
                 "action": Action::VoteApprove,
                 "proposal": get_proposal_kind(ctx, dao, proposal_id).await?
             }),
-        )?
+        )
         .transaction()
         .max_gas()
         .with_signer(user.clone(), ctx.signer.clone())
@@ -320,7 +315,7 @@ pub async fn get_proposal_kind(
     proposal_id: u64,
 ) -> testresult::TestResult<ProposalKind> {
     Ok(dao
-        .call_function("get_proposal", json!({"id": proposal_id}))?
+        .call_function("get_proposal", json!({"id": proposal_id}))
         .read_only::<ProposalOutput>()
         .fetch_from(&ctx.sandbox_network)
         .await?

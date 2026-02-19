@@ -1,7 +1,7 @@
-use near_sdk::json_types::{U128, U64};
-use near_sdk::{env, AccountId, Promise, PromiseOrValue};
+use near_sdk::json_types::{U64, U128};
+use near_sdk::{AccountId, Promise, PromiseOrValue, env};
 
-use crate::types::{convert_old_to_new_token, OldAccountId};
+use crate::types::{OldAccountId, convert_old_to_new_token};
 use crate::*;
 
 /// Information recorded about claim of the bounty by given user.
@@ -84,12 +84,7 @@ impl Contract {
     }
 
     fn internal_find_claim(&self, bounty_id: u64, claims: &[BountyClaim]) -> Option<usize> {
-        for i in 0..claims.len() {
-            if claims[i].bounty_id == bounty_id {
-                return Some(i);
-            }
-        }
-        None
+        claims.iter().position(|claim| claim.bounty_id == bounty_id)
     }
 }
 
@@ -104,15 +99,12 @@ impl Contract {
         let policy = self.policy.get().unwrap().to_policy();
         assert_eq!(
             env::attached_deposit(),
-            NearToken::from_yoctonear(policy.bounty_bond.0),
+            policy.bounty_bond,
             "ERR_BOUNTY_WRONG_BOND"
         );
         let claims_count = self.bounty_claims_count.get(&id).unwrap_or_default();
         assert!(claims_count < bounty.times, "ERR_BOUNTY_ALL_CLAIMED");
-        assert!(
-            deadline.0 <= bounty.max_deadline.0,
-            "ERR_BOUNTY_WRONG_DEADLINE"
-        );
+        assert!(deadline <= bounty.max_deadline, "ERR_BOUNTY_WRONG_DEADLINE");
         self.bounty_claims_count.insert(&id, &(claims_count + 1));
         let mut claims = self
             .bounty_claimers
@@ -133,7 +125,7 @@ impl Contract {
     fn internal_remove_claim(&mut self, bounty_id: u64, claimer_id: &AccountId) {
         let (mut claims, claim_idx) = self.internal_get_claims(bounty_id, claimer_id);
         claims.remove(claim_idx);
-        if claims.len() == 0 {
+        if claims.is_empty() {
             self.bounty_claimers.remove(claimer_id);
         } else {
             self.bounty_claimers.insert(claimer_id, &claims);
@@ -145,7 +137,7 @@ impl Contract {
     fn internal_get_claims(&mut self, id: u64, sender_id: &AccountId) -> (Vec<BountyClaim>, usize) {
         let claims = self
             .bounty_claimers
-            .get(&sender_id)
+            .get(sender_id)
             .expect("ERR_NO_BOUNTY_CLAIMS");
         let claim_idx = self
             .internal_find_claim(id, &claims)
@@ -158,7 +150,7 @@ impl Contract {
     /// On expired, anyone can call it to free up the claim slot.
     #[payable]
     pub fn bounty_done(&mut self, id: u64, account_id: Option<AccountId>, description: String) {
-        let sender_id = account_id.unwrap_or_else(|| env::predecessor_account_id());
+        let sender_id = account_id.unwrap_or_else(env::predecessor_account_id);
         let (mut claims, claim_idx) = self.internal_get_claims(id, &sender_id);
         assert!(!claims[claim_idx].completed, "ERR_BOUNTY_CLAIM_COMPLETED");
         if env::block_timestamp() > claims[claim_idx].start_time.0 + claims[claim_idx].deadline.0 {
@@ -194,11 +186,9 @@ impl Contract {
             PromiseOrValue::Value(())
         } else {
             // Within forgiveness period. Return bond.
-            self.locked_amount = self
-                .locked_amount
-                .saturating_sub(NearToken::from_yoctonear(policy.bounty_bond.0));
+            self.locked_amount = self.locked_amount.saturating_sub(policy.bounty_bond);
             Promise::new(env::predecessor_account_id())
-                .transfer(NearToken::from_yoctonear(policy.bounty_bond.0))
+                .transfer(policy.bounty_bond)
                 .into()
         };
         self.internal_remove_claim(id, &env::predecessor_account_id());
@@ -209,8 +199,8 @@ impl Contract {
 #[cfg(test)]
 mod tests {
     use near_api::types::NearToken;
-    use near_sdk::test_utils::{accounts, VMContextBuilder};
-    use near_sdk::testing_env;
+    use near_sdk::test_utils::{VMContextBuilder, accounts};
+    use near_sdk::{PromiseResult, testing_env};
 
     use crate::proposals::{ProposalInput, ProposalKind};
     use crate::{Action, Config};
@@ -248,7 +238,7 @@ mod tests {
         testing_env!(context.predecessor_account_id(accounts(1)).build());
         let mut contract = Contract::new(
             Config::test_config(),
-            VersionedPolicy::Default(vec![accounts(1).into()]),
+            VersionedPolicy::Default(vec![accounts(1)]),
         );
         add_bounty(&mut context, &mut contract, 2);
 
@@ -259,7 +249,11 @@ mod tests {
         assert_eq!(contract.get_bounty_claims(accounts(1)).len(), 1);
         assert_eq!(contract.get_bounty_number_of_claims(0), 1);
 
-        contract.bounty_giveup(0);
+        assert!(matches!(
+            contract.bounty_giveup(0),
+            PromiseOrValue::Promise(_)
+        ));
+
         assert_eq!(contract.get_bounty_claims(accounts(1)).len(), 0);
         assert_eq!(contract.get_bounty_number_of_claims(0), 0);
 
@@ -289,7 +283,10 @@ mod tests {
             Default::default(),
             vec![PromiseResult::Successful(vec![])],
         );
-        contract.on_proposal_callback(1);
+        assert!(matches!(
+            contract.on_proposal_callback(1),
+            PromiseOrValue::Promise(_)
+        ));
 
         assert_eq!(contract.get_bounty_claims(accounts(1)).len(), 0);
         assert_eq!(contract.get_bounty(0).bounty.times, 1);
@@ -309,7 +306,10 @@ mod tests {
             Default::default(),
             vec![PromiseResult::Successful(vec![])],
         );
-        contract.on_proposal_callback(2);
+        assert!(matches!(
+            contract.on_proposal_callback(2),
+            PromiseOrValue::Promise(_)
+        ));
 
         assert_eq!(contract.get_bounty(0).bounty.times, 0);
     }
@@ -321,7 +321,7 @@ mod tests {
         testing_env!(context.predecessor_account_id(accounts(1)).build());
         let mut contract = Contract::new(
             Config::test_config(),
-            VersionedPolicy::Default(vec![accounts(1).into()]),
+            VersionedPolicy::Default(vec![accounts(1)]),
         );
         let id = add_bounty(&mut context, &mut contract, 1);
         contract.bounty_claim(id, U64::from(500));

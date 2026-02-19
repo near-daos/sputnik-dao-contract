@@ -50,9 +50,7 @@ impl Contract {
 
     /// Returns locked amount of NEAR that is used for storage.
     pub fn get_locked_storage_amount(&self) -> NearToken {
-        let locked_storage_amount =
-            env::storage_byte_cost().saturating_mul(env::storage_usage() as u128);
-        locked_storage_amount
+        env::storage_byte_cost().saturating_mul(env::storage_usage() as u128)
     }
 
     /// Returns available amount of NEAR that can be spent (outside of amount for storage and bonds).

@@ -1,9 +1,9 @@
 use near_api::{AccountId, NearToken, RPCEndpoint};
 use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY};
-use near_sdk::serde_json::{json, Value};
+use near_sdk::serde_json::{Value, json};
 use near_sdk::{
-    base64::{engine::general_purpose, Engine as _},
     AccountIdRef,
+    base64::{Engine as _, engine::general_purpose},
 };
 use std::fs;
 
@@ -17,9 +17,7 @@ async fn test_factory() -> testresult::TestResult {
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
     let sandbox_network =
         near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
-    let signer = near_api::Signer::new(near_api::Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
-    ))?;
+    let signer = near_api::Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
     sandbox
         .import_account(
@@ -109,7 +107,7 @@ async fn test_factory() -> testresult::TestResult {
                 "name": dao_name,
                 "args":  general_purpose::STANDARD.encode(create_dao_args.to_string())
             }),
-        )?
+        )
         .transaction()
         .max_gas()
         .deposit(NearToken::from_near(6))
@@ -122,7 +120,7 @@ async fn test_factory() -> testresult::TestResult {
         format!("{}.{}", dao_name, SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT).parse()?;
 
     let get_config_result: Value = near_api::Contract(dao_account_id)
-        .call_function("get_config", ())?
+        .call_function("get_config", ())
         .read_only()
         .fetch_from(&sandbox_network)
         .await?

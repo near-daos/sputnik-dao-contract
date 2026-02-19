@@ -2,7 +2,7 @@
 
 use near_sdk::borsh::to_vec;
 use near_sdk::serde_json::json;
-use near_sdk::{Gas, GasWeight};
+use near_sdk::{Gas, GasWeight, PromiseResult};
 
 use crate::*;
 
@@ -111,7 +111,7 @@ pub(crate) fn internal_set_factory_info(factory_info: &FactoryInfo) {
 /// Two options who call it:
 ///  - current account, in case of fetching contract code from factory;
 ///  - factory, if this contract allows to factory-update;
-#[no_mangle]
+#[cfg_attr(target_arch = "wasm32", unsafe(no_mangle))]
 pub fn update() {
     env::setup_panic_hook();
 
@@ -126,19 +126,22 @@ pub fn update() {
     );
 
     let is_callback = env::predecessor_account_id() == current_id;
-    let input;
-    if is_callback {
-        input = match env::promise_result(0) {
-            PromiseResult::Successful(data) => data,
-            _ => env::panic_str("ERR_NO_RESULT"),
+    let new_contract_code = if is_callback {
+        // NOTE: It is fine to use the unbounded promise_result since the callback is always
+        // triggered by a trusted party (the contract itself or from the factory).
+        #[allow(deprecated)]
+        let PromiseResult::Successful(data) = env::promise_result(0) else {
+            env::panic_str("ERR_NO_RESULT");
         };
+        data
     } else {
-        input = env::input().expect("ERR_NO_INPUT");
+        env::input().expect("ERR_NO_INPUT")
     };
+    let new_contract_code_hash = env::sha256_array(&new_contract_code);
 
     let promise_id = env::promise_batch_create(&current_id);
     // Deploy the contract code.
-    env::promise_batch_action_deploy_contract(promise_id, &input);
+    env::promise_batch_action_use_global_contract(promise_id, &new_contract_code_hash);
     // Call promise to migrate the state.
     // Batched together to fail upgrade if migration fails.
     env::promise_batch_action_function_call_weight(
@@ -152,26 +155,26 @@ pub fn update() {
     env::promise_return(promise_id);
 }
 
-pub(crate) fn upgrade_using_factory(code_hash: Base58CryptoHash) {
-    let account_id = get_default_factory_id();
+pub(crate) fn upgrade_using_factory(code_hash: &Base58CryptoHash) {
+    let factory_account_id = get_default_factory_id();
     // Create a promise toward the factory.
-    let promise_id = env::promise_batch_create(&account_id);
+    let promise_id = env::promise_batch_create(&factory_account_id);
     // Call `update` method from the factory which calls `update` method on this account.
     env::promise_batch_action_function_call_weight(
         promise_id,
         "update",
-        &json!({ "account_id": env::current_account_id(), "code_hash": code_hash })
+        json!({ "account_id": env::current_account_id(), "code_hash": code_hash })
             .to_string()
-            .into_bytes(),
+            .as_bytes(),
         NO_DEPOSIT,
         Gas::from_gas(0),
-        GasWeight::default(),
+        GasWeight(1),
     );
     env::promise_return(promise_id);
 }
 
 #[allow(dead_code)]
-pub(crate) fn upgrade_self(hash: &[u8]) {
+pub(crate) fn upgrade_self(hash: &CryptoHash) {
     let current_id = env::current_account_id();
     let input = env::storage_read(hash).expect("ERR_NO_HASH");
     let promise_id = env::promise_batch_create(&current_id);
@@ -186,7 +189,7 @@ pub(crate) fn upgrade_self(hash: &[u8]) {
     );
 }
 
-pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &[u8]) {
+pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &CryptoHash) {
     let input = env::storage_read(hash).expect("ERR_NO_HASH");
     let promise_id = env::promise_batch_create(receiver_id);
 
