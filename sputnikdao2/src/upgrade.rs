@@ -173,22 +173,6 @@ pub(crate) fn upgrade_using_factory(code_hash: &Base58CryptoHash) {
     env::promise_return(promise_id);
 }
 
-#[allow(dead_code)]
-pub(crate) fn upgrade_self(hash: &CryptoHash) {
-    let current_id = env::current_account_id();
-    let input = env::storage_read(hash).expect("ERR_NO_HASH");
-    let promise_id = env::promise_batch_create(&current_id);
-    env::promise_batch_action_deploy_contract(promise_id, &input);
-    env::promise_batch_action_function_call_weight(
-        promise_id,
-        "migrate",
-        &[],
-        NO_DEPOSIT,
-        Gas::from_gas(0),
-        GasWeight::default(),
-    );
-}
-
 pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &CryptoHash) {
     let input = env::storage_read(hash).expect("ERR_NO_HASH");
     let promise_id = env::promise_batch_create(receiver_id);

@@ -90,7 +90,7 @@ pub struct UserInfo {
 #[serde(untagged)]
 pub enum WeightOrRatio {
     Weight(U128),
-    Ratio(u64, u64),
+    Ratio(u64, std::num::NonZeroU64),
 }
 
 impl WeightOrRatio {
@@ -99,7 +99,7 @@ impl WeightOrRatio {
         match self {
             WeightOrRatio::Weight(weight) => min(weight.0, total_weight),
             WeightOrRatio::Ratio(num, denom) => min(
-                (*num as u128 * total_weight) / *denom as u128 + 1,
+                (u128::from(*num) * total_weight) / u128::from(denom.get()) + 1,
                 total_weight,
             ),
         }
@@ -140,7 +140,7 @@ impl Default for VotePolicy {
         VotePolicy {
             weight_kind: WeightKind::RoleWeight,
             quorum: U128(0),
-            threshold: WeightOrRatio::Ratio(1, 2),
+            threshold: WeightOrRatio::Ratio(1, std::num::NonZeroU64::new(2).unwrap()),
         }
     }
 }
@@ -444,11 +444,11 @@ mod tests {
     fn test_vote_policy() {
         let r1 = WeightOrRatio::Weight(U128(100));
         assert_eq!(r1.to_weight(1_000_000), 100);
-        let r2 = WeightOrRatio::Ratio(1, 2);
+        let r2 = WeightOrRatio::Ratio(1, std::num::NonZeroU64::new(2).unwrap());
         assert_eq!(r2.to_weight(2), 2);
-        let r2 = WeightOrRatio::Ratio(1, 2);
+        let r2 = WeightOrRatio::Ratio(1, std::num::NonZeroU64::new(2).unwrap());
         assert_eq!(r2.to_weight(5), 3);
-        let r2 = WeightOrRatio::Ratio(1, 1);
+        let r2 = WeightOrRatio::Ratio(1, std::num::NonZeroU64::new(1).unwrap());
         assert_eq!(r2.to_weight(5), 5);
     }
 
@@ -560,14 +560,14 @@ mod tests {
         );
         assert_eq!(U128(0), policy.default_vote_policy.quorum);
         assert_eq!(
-            WeightOrRatio::Ratio(1, 2),
+            WeightOrRatio::Ratio(1, std::num::NonZeroU64::new(2).unwrap()),
             policy.default_vote_policy.threshold
         );
 
         let new_default_vote_policy = VotePolicy {
             weight_kind: WeightKind::TokenWeight,
             quorum: U128(100),
-            threshold: WeightOrRatio::Ratio(1, 4),
+            threshold: WeightOrRatio::Ratio(1, std::num::NonZeroU64::new(4).unwrap()),
         };
         policy.update_default_vote_policy(&new_default_vote_policy);
         assert_eq!(

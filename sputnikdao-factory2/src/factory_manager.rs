@@ -2,7 +2,7 @@
 //! TODO: move to near-sdk standards library.
 
 use near_sdk::json_types::Base58CryptoHash;
-use near_sdk::{env, near, require, serde_json, AccountId, CryptoHash, Gas, NearToken};
+use near_sdk::{AccountId, CryptoHash, Gas, NearToken, env, near, require, serde_json};
 
 /// Gas spent on the call & account creation.
 const CREATE_CALL_GAS: Gas = Gas::from_tgas(40);
