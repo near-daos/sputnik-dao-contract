@@ -29,6 +29,7 @@ tokio = { version = "1.44.0", features = ["full"] }
 walrus = "0.23.3"
 testresult = "0.4"
 rand = "0.8"
+cargo-near-build = "0.11.1"
 
 # fields to configure build with WASM reproducibility, according to specs
 # in https://github.com/near/NEPs/blob/master/neps/nep-0330.md
