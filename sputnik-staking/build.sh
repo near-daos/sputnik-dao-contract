@@ -2,4 +2,5 @@
 set -e
 
 cargo near build reproducible-wasm
+mkdir -p ./res
 cp ../target/near/sputnik_staking/sputnik_staking.wasm ./res/
