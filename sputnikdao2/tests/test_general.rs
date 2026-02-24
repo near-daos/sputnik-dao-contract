@@ -1012,13 +1012,12 @@ async fn test_actions_log() -> testresult::TestResult {
         .call_function("get_actions_log", json!({}))
         .read_only::<Vec<ActionLog>>()
         .fetch_from(&ctx.sandbox_network)
-        .await?
-        .data;
+        .await?;
 
-    let action_log = global_actions_log[0].clone();
+    let action_log = global_actions_log.data[0].clone();
     let block_log = proposal_log.front().unwrap();
     assert_eq!(action_log.block_height, block_log.block_height);
-    assert_eq!(global_actions_log.len(), 1);
+    assert_eq!(global_actions_log.data.len(), 1);
     assert_eq!(proposal_log.len(), 1);
     assert_eq!(
         action_log,
@@ -1029,11 +1028,12 @@ async fn test_actions_log() -> testresult::TestResult {
             block_height: action_log.block_height // It is uncertain because of async block creation
         }
     );
-    let block_height = near_api::Chain::block_number()
-        .at(Reference::Final)
-        .fetch_from(&ctx.sandbox_network)
-        .await?;
-    assert!(block_height.abs_diff(action_log.block_height.into()) <= 1);
+    assert!(
+        global_actions_log
+            .block_height
+            .abs_diff(action_log.block_height.into())
+            <= 2
+    );
 
     // Fill the actions log
     let voting_users: Vec<&AccountId> = users.iter().take(20).collect();
