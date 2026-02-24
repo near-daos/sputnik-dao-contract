@@ -20,12 +20,18 @@ pub struct FactoryManager {}
 impl FactoryManager {
     /// Store contract from input.
     pub fn store_contract(&self) {
-        let input = env::input().expect("ERR_NO_INPUT");
-        let sha256_hash = env::sha256_array(&input);
-        require!(!env::storage_has_key(&sha256_hash), "ERR_ALREADY_EXISTS");
-        env::storage_write(&sha256_hash, &input);
+        let contract_code = env::input().expect("ERR_NO_INPUT");
+        let contract_code_sha256_hash = env::sha256_array(&contract_code);
+        require!(
+            !env::storage_has_key(&contract_code_sha256_hash),
+            "ERR_ALREADY_EXISTS"
+        );
+        env::storage_write(&contract_code_sha256_hash, &contract_code);
+        let promise_id = env::promise_batch_create(&env::current_account_id());
+        env::promise_batch_action_deploy_global_contract(promise_id, &contract_code);
 
-        let blob_hash_str = serde_json::to_vec(&Base58CryptoHash::from(sha256_hash)).unwrap();
+        let blob_hash_str =
+            serde_json::to_vec(&Base58CryptoHash::from(contract_code_sha256_hash)).unwrap();
         env::value_return(&blob_hash_str);
     }
 

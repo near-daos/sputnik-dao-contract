@@ -11,8 +11,9 @@ use walrus::ModuleConfig;
 mod utils;
 use crate::utils::*;
 
-pub static DAO_WASM_BYTES: &[u8] = include_bytes!("../res/sputnikdao2.wasm");
-pub static OTHER_WASM_BYTES: &[u8] = include_bytes!("../res/ref_exchange_release.wasm");
+// OTHER_WASM_BYTES is a committed third-party binary (ref-finance) with no buildable source in
+// this workspace, so it remains as include_bytes! rather than being built on demand.
+pub static OTHER_WASM_BYTES: &[u8] = include_bytes!("ref_exchange_release.wasm");
 
 pub fn add_data_segment(wasm: &[u8], size: usize) -> testresult::TestResult<Vec<u8>> {
     let mut module = ModuleConfig::new().parse(wasm)?;

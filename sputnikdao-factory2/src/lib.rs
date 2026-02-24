@@ -14,10 +14,6 @@ const DEFAULT_CODE_HASH_KEY: &[u8; 4] = b"CODE";
 const FACTORY_OWNER_KEY: &[u8; 5] = b"OWNER";
 const CODE_METADATA_KEY: &[u8; 8] = b"METADATA";
 
-// The values used when writing initial data to the storage.
-const DAO_CONTRACT_INITIAL_VERSION: Version = [3, 0];
-const DAO_CONTRACT_NO_DATA: &str = "no data";
-
 #[near(serializers=[borsh,json])]
 #[cfg_attr(not(target_arch = "wasm32"), derive(Clone, Debug))]
 pub struct DaoContractMetadata {
@@ -174,8 +170,12 @@ impl SputnikDAOFactory {
         self.assert_owner();
         let prev_storage = env::storage_usage();
         self.factory_manager.store_contract();
+        // We need to store the contract in the contract local storage as well as register it as a
+        // global contract, which costs 10x regular deployment, so in total we need the deposit to
+        // be 1 + 10 = 11 times the storage cost of the single local contract.
         let storage_cost = env::storage_byte_cost()
-            .saturating_mul(env::storage_usage().saturating_sub(prev_storage).into());
+            .saturating_mul(env::storage_usage().saturating_sub(prev_storage).into())
+            .saturating_mul(11);
         assert!(
             storage_cost <= env::attached_deposit(),
             "Must at least deposit {} to store",
@@ -269,6 +269,11 @@ mod tests {
         );
         let mut factory = SputnikDAOFactory::new();
 
+        // A default code hash must be present so get_default_code_hash() does not panic before
+        // the deposit validation in create_contract() is reached.
+        let fake_hash = [0u8; 32];
+        env::storage_write(DEFAULT_CODE_HASH_KEY, &fake_hash);
+
         testing_env!(
             context
                 .attached_deposit(NearToken::from_millinear(1))
@@ -287,6 +292,13 @@ mod tests {
                 .build()
         );
         let mut factory = SputnikDAOFactory::new();
+
+        // Store fake contract code and register its hash as the factory default so that
+        // get_default_code_hash() and the storage_has_key check inside create_contract() pass.
+        let fake_code = b"fake_wasm";
+        let fake_hash = env::sha256_array(fake_code);
+        env::storage_write(&fake_hash, fake_code);
+        env::storage_write(DEFAULT_CODE_HASH_KEY, &fake_hash);
 
         testing_env!(
             context
@@ -368,6 +380,12 @@ mod tests {
                 .build()
         );
         let mut factory = SputnikDAOFactory::new();
+
+        // Store fake contract code and register its hash as the factory default.
+        let fake_code = b"fake_wasm";
+        let fake_hash = env::sha256_array(fake_code);
+        env::storage_write(&fake_hash, fake_code);
+        env::storage_write(DEFAULT_CODE_HASH_KEY, &fake_hash);
 
         factory.create(bob(), "{}".as_bytes().to_vec().into());
 

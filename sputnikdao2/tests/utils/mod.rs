@@ -1,5 +1,7 @@
 #![allow(dead_code)]
-use std::sync::Arc;
+// std::cell::OnceCell is not Sync and cannot be placed in a static; std::sync::OnceLock is its
+// thread-safe counterpart and is the correct choice for lazy-initialised statics in async tests.
+use std::sync::OnceLock;
 
 use near_contract_standards::fungible_token::Balance;
 use near_sandbox::{
@@ -20,12 +22,74 @@ use sputnikdao2::{
     ProposalOutput, VersionedPolicy,
 };
 
-pub static FACTORY_WASM_BYTES: &[u8] =
-    include_bytes!("../../../sputnikdao-factory2/res/sputnikdao_factory2.wasm");
-pub static DAO_WASM_BYTES: &[u8] = include_bytes!("../../res/sputnikdao2.wasm");
-pub static TEST_TOKEN_WASM_BYTES: &[u8] = include_bytes!("../../../test-token/res/test_token.wasm");
-pub static STAKING_WASM_BYTES: &[u8] =
-    include_bytes!("../../../sputnik-staking/res/sputnik_staking.wasm");
+// ---------------------------------------------------------------------------
+// On-demand WASM builds, cached per process via OnceLock.
+// Each contract is compiled exactly once regardless of how many tests run.
+// ---------------------------------------------------------------------------
+
+static DAO_WASM: OnceLock<Vec<u8>> = OnceLock::new();
+static FACTORY_WASM: OnceLock<Vec<u8>> = OnceLock::new();
+static TEST_TOKEN_WASM: OnceLock<Vec<u8>> = OnceLock::new();
+static STAKING_WASM: OnceLock<Vec<u8>> = OnceLock::new();
+
+/// Build sputnikdao2 (the current package) and return its WASM bytes.
+pub fn dao_wasm_bytes() -> &'static [u8] {
+    DAO_WASM.get_or_init(|| {
+        let wasm_path = cargo_near_build::build_with_cli(Default::default())
+            .expect("Failed to build sputnikdao2");
+        std::fs::read(&wasm_path).expect("Failed to read sputnikdao2.wasm")
+    })
+}
+
+/// Build sputnikdao-factory2 and return its WASM bytes.
+pub fn factory_wasm_bytes() -> &'static [u8] {
+    FACTORY_WASM.get_or_init(|| {
+        let wasm_path = cargo_near_build::build_with_cli(cargo_near_build::BuildOpts {
+            manifest_path: Some(
+                concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/../sputnikdao-factory2/Cargo.toml"
+                )
+                .into(),
+            ),
+            ..Default::default()
+        })
+        .expect("Failed to build sputnikdao-factory2");
+        std::fs::read(&wasm_path).expect("Failed to read sputnikdao_factory2.wasm")
+    })
+}
+
+/// Build test-token and return its WASM bytes.
+pub fn test_token_wasm_bytes() -> &'static [u8] {
+    TEST_TOKEN_WASM.get_or_init(|| {
+        let wasm_path = cargo_near_build::build_with_cli(cargo_near_build::BuildOpts {
+            manifest_path: Some(
+                concat!(env!("CARGO_MANIFEST_DIR"), "/../test-token/Cargo.toml").into(),
+            ),
+            ..Default::default()
+        })
+        .expect("Failed to build test-token");
+        std::fs::read(&wasm_path).expect("Failed to read test_token.wasm")
+    })
+}
+
+/// Build sputnik-staking and return its WASM bytes.
+pub fn staking_wasm_bytes() -> &'static [u8] {
+    STAKING_WASM.get_or_init(|| {
+        let wasm_path = cargo_near_build::build_with_cli(cargo_near_build::BuildOpts {
+            manifest_path: Some(
+                concat!(env!("CARGO_MANIFEST_DIR"), "/../sputnik-staking/Cargo.toml").into(),
+            ),
+            ..Default::default()
+        })
+        .expect("Failed to build sputnik-staking");
+        std::fs::read(&wasm_path).expect("Failed to read sputnik_staking.wasm")
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Test infrastructure
+// ---------------------------------------------------------------------------
 
 pub static SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &AccountIdRef =
     AccountIdRef::new_or_panic("sputnik-dao.near");
@@ -37,13 +101,11 @@ pub fn base_token() -> Option<near_sdk::AccountId> {
 pub struct TestContext {
     pub sandbox: Sandbox,
     pub sandbox_network: near_api::NetworkConfig,
-    pub signer: Arc<Signer>,
+    pub signer: std::sync::Arc<Signer>,
     pub root: AccountId,
 }
 
 pub async fn setup_factory() -> Result<(TestContext, Contract), Box<dyn std::error::Error>> {
-    let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.into();
-
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
     let sandbox_network =
         near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
@@ -51,16 +113,16 @@ pub async fn setup_factory() -> Result<(TestContext, Contract), Box<dyn std::err
     sandbox
         .import_account(
             RPCEndpoint::mainnet().url,
-            sputnikdao_factory_contract_id.clone(),
+            SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.to_owned(),
         )
-        .initial_balance(NearToken::from_near(50))
+        .initial_balance(NearToken::from_near(100))
         .send()
         .await?;
 
     let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
-    let deploy_result = Contract::deploy(sputnikdao_factory_contract_id.clone())
-        .use_code(FACTORY_WASM_BYTES.to_vec())
+    let deploy_result = Contract::deploy(SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.to_owned())
+        .use_code(factory_wasm_bytes().to_vec())
         .with_init_call("new", ())?
         .max_gas()
         .with_signer(signer.clone())
@@ -69,14 +131,40 @@ pub async fn setup_factory() -> Result<(TestContext, Contract), Box<dyn std::err
 
     assert!(deploy_result.is_success());
 
+    let sputnikdao_factory_contract = Contract(SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.to_owned());
+
+    // The factory starts with no default code hash, so we store the DAO wasm and register it.
+    let dao_hash: near_sdk::json_types::Base58CryptoHash = sputnikdao_factory_contract
+        .call_function_raw("store", dao_wasm_bytes().to_vec())
+        .transaction()
+        .max_gas()
+        .deposit(NearToken::from_near(50))
+        .with_signer(
+            SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.to_owned(),
+            signer.clone(),
+        )
+        .send_to(&sandbox_network)
+        .await?
+        .json()?;
+    sputnikdao_factory_contract
+        .call_function("set_default_code_hash", json!({ "code_hash": dao_hash }))
+        .transaction()
+        .with_signer(
+            SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.to_owned(),
+            signer.clone(),
+        )
+        .send_to(&sandbox_network)
+        .await?
+        .into_result()?;
+
     Ok((
         TestContext {
             sandbox,
             sandbox_network,
             signer,
-            root: sputnikdao_factory_contract_id.clone(),
+            root: SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.to_owned(),
         },
-        Contract(sputnikdao_factory_contract_id),
+        sputnikdao_factory_contract,
     ))
 }
 
@@ -96,7 +184,7 @@ pub async fn setup_dao() -> testresult::TestResult<(TestContext, Contract)> {
 
 pub async fn setup_dao_with_params(
     root: AccountId,
-    signer: Arc<Signer>,
+    signer: std::sync::Arc<Signer>,
     sandbox: Sandbox,
     policy: VersionedPolicy,
 ) -> testresult::TestResult<(TestContext, Contract)> {
@@ -117,7 +205,7 @@ pub async fn setup_dao_with_params(
     };
 
     near_api::Contract::deploy(dao_account_id.clone())
-        .use_code(DAO_WASM_BYTES.to_vec())
+        .use_code(dao_wasm_bytes().to_vec())
         .with_init_call(
             "new",
             json!({
@@ -151,7 +239,7 @@ pub async fn setup_test_token(ctx: &TestContext) -> testresult::TestResult<Contr
         .await?;
 
     near_api::Contract::deploy(test_token_account_id.clone())
-        .use_code(TEST_TOKEN_WASM_BYTES.to_vec())
+        .use_code(test_token_wasm_bytes().to_vec())
         .with_init_call("new", ())?
         .max_gas()
         .with_signer(ctx.signer.clone())
@@ -175,7 +263,7 @@ pub async fn setup_staking(
         .await?;
 
     near_api::Contract::deploy(staking_account_id.clone())
-        .use_code(STAKING_WASM_BYTES.to_vec())
+        .use_code(staking_wasm_bytes().to_vec())
         .with_init_call(
             "new",
             json!({

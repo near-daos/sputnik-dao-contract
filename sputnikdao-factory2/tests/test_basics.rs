@@ -5,7 +5,31 @@ use near_sdk::{
     AccountIdRef,
     base64::{Engine as _, engine::general_purpose},
 };
-use std::fs;
+use std::sync::OnceLock;
+
+static FACTORY_WASM: OnceLock<Vec<u8>> = OnceLock::new();
+static DAO_WASM: OnceLock<Vec<u8>> = OnceLock::new();
+
+fn factory_wasm_bytes() -> &'static [u8] {
+    FACTORY_WASM.get_or_init(|| {
+        let wasm_path = cargo_near_build::build_with_cli(Default::default())
+            .expect("Failed to build sputnikdao-factory2");
+        std::fs::read(&wasm_path).expect("Failed to read sputnikdao_factory2.wasm")
+    })
+}
+
+fn dao_wasm_bytes() -> &'static [u8] {
+    DAO_WASM.get_or_init(|| {
+        let wasm_path = cargo_near_build::build_with_cli(cargo_near_build::BuildOpts {
+            manifest_path: Some(
+                concat!(env!("CARGO_MANIFEST_DIR"), "/../sputnikdao2/Cargo.toml").into(),
+            ),
+            ..Default::default()
+        })
+        .expect("Failed to build sputnikdao2");
+        std::fs::read(&wasm_path).expect("Failed to read sputnikdao2.wasm")
+    })
+}
 
 #[tokio::test]
 async fn test_factory() -> testresult::TestResult {
@@ -24,16 +48,33 @@ async fn test_factory() -> testresult::TestResult {
             RPCEndpoint::mainnet().url,
             sputnikdao_factory_contract.0.clone(),
         )
-        .initial_balance(NearToken::from_near(50))
+        .initial_balance(NearToken::from_near(100))
         .send()
         .await?;
 
-    let wasm = fs::read("./res/sputnikdao_factory2.wasm").expect("Unable to read contract wasm");
     near_api::Contract::deploy(sputnikdao_factory_contract.0.clone())
-        .use_code(wasm.to_vec())
+        .use_code(factory_wasm_bytes().to_vec())
         .with_init_call("new", ())?
         .max_gas()
         .with_signer(signer.clone())
+        .send_to(&sandbox_network)
+        .await?
+        .into_result()?;
+
+    // The factory starts with no default code hash, so we store the DAO wasm and register it.
+    let dao_hash: near_sdk::json_types::Base58CryptoHash = sputnikdao_factory_contract
+        .call_function_raw("store", dao_wasm_bytes().to_vec())
+        .transaction()
+        .max_gas()
+        .deposit(NearToken::from_near(50))
+        .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())
+        .send_to(&sandbox_network)
+        .await?
+        .json()?;
+    sputnikdao_factory_contract
+        .call_function("set_default_code_hash", json!({ "code_hash": dao_hash }))
+        .transaction()
+        .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())
         .send_to(&sandbox_network)
         .await?
         .into_result()?;
@@ -93,10 +134,10 @@ async fn test_factory() -> testresult::TestResult {
         },
     });
 
-    let account_id: AccountId = format!("some_account.{}", DEFAULT_GENESIS_ACCOUNT).parse()?;
+    let alice_account_id: AccountId = DEFAULT_GENESIS_ACCOUNT.sub_account("alice")?;
     sandbox
-        .create_account(account_id.clone())
-        .initial_balance(NearToken::from_near(20))
+        .create_account(alice_account_id.clone())
+        .initial_balance(NearToken::from_near(100))
         .send()
         .await?;
 
@@ -110,14 +151,13 @@ async fn test_factory() -> testresult::TestResult {
         )
         .transaction()
         .max_gas()
-        .deposit(NearToken::from_near(6))
-        .with_signer(account_id.clone(), signer.clone())
+        .deposit(NearToken::from_millinear(10))
+        .with_signer(alice_account_id.clone(), signer.clone())
         .send_to(&sandbox_network)
         .await?
         .into_result()?;
 
-    let dao_account_id: AccountId =
-        format!("{}.{}", dao_name, SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT).parse()?;
+    let dao_account_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.sub_account(dao_name)?;
 
     let get_config_result: Value = near_api::Contract(dao_account_id)
         .call_function("get_config", ())

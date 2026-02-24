@@ -5,7 +5,31 @@ use near_sdk::base64::{Engine as _, engine::general_purpose};
 use near_sdk::env::sha256_array;
 use near_sdk::json_types::Base58CryptoHash;
 use near_sdk::serde_json::{Value, json};
-use std::fs;
+use std::sync::OnceLock;
+
+static FACTORY_WASM: OnceLock<Vec<u8>> = OnceLock::new();
+static DAO_WASM: OnceLock<Vec<u8>> = OnceLock::new();
+
+fn factory_wasm_bytes() -> &'static [u8] {
+    FACTORY_WASM.get_or_init(|| {
+        let wasm_path = cargo_near_build::build_with_cli(Default::default())
+            .expect("Failed to build sputnikdao-factory2");
+        std::fs::read(&wasm_path).expect("Failed to read sputnikdao_factory2.wasm")
+    })
+}
+
+fn dao_wasm_bytes() -> &'static [u8] {
+    DAO_WASM.get_or_init(|| {
+        let wasm_path = cargo_near_build::build_with_cli(cargo_near_build::BuildOpts {
+            manifest_path: Some(
+                concat!(env!("CARGO_MANIFEST_DIR"), "/../sputnikdao2/Cargo.toml").into(),
+            ),
+            ..Default::default()
+        })
+        .expect("Failed to build sputnikdao2");
+        std::fs::read(&wasm_path).expect("Failed to read sputnikdao2.wasm")
+    })
+}
 
 #[tokio::test]
 async fn test_upgrade() -> testresult::TestResult {
@@ -35,10 +59,6 @@ async fn test_upgrade() -> testresult::TestResult {
         .initial_balance(NearToken::from_near(100))
         .send()
         .await?;
-
-    // const DAO_CONTRACT_INITIAL_CODE: &[u8] =
-    //     include_bytes!("../../sputnikdao2/res/sputnikdao2.wasm");
-    // sputnikdao_factory_contract.deploy_global_contract_code(DAO_CONTRACT_INITIAL_CODE);
 
     // Initialize the sputnik-dao factory contract
     sputnikdao_factory_contract
@@ -133,10 +153,9 @@ async fn test_upgrade() -> testresult::TestResult {
         .data;
     assert_eq!(create_dao_args["config"], config);
 
-    // Deploy the local build of the sputnik-dao factory contract
-    let wasm = fs::read("./res/sputnikdao_factory2.wasm").expect("Unable to read contract wasm");
+    // Upgrade factory to the local build
     Contract::deploy(sputnikdao_factory_contract.0.clone())
-        .use_code(wasm.to_vec())
+        .use_code(factory_wasm_bytes().to_vec())
         .without_init_call()
         .with_signer(signer.clone())
         .send_to(&sandbox_network)
@@ -144,14 +163,13 @@ async fn test_upgrade() -> testresult::TestResult {
         .into_result()?;
 
     // Store the local build of sputnikdao2.wasm into sputnik-dao.near
-    let sputnikdao2_wasm =
-        fs::read("../sputnikdao2/res/sputnikdao2.wasm").expect("Unable to read sputnikdao2.wasm");
+    let sputnikdao2_wasm = dao_wasm_bytes().to_vec();
     let computed_hash = sha256_array(&sputnikdao2_wasm);
     let stored_contract_hash: Base58CryptoHash = sputnikdao_factory_contract
         .call_function_raw("store", sputnikdao2_wasm.clone())
         .transaction()
         .max_gas()
-        .deposit(NearToken::from_near(20))
+        .deposit(NearToken::from_near(50))
         .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())
         .send_to(&sandbox_network)
         .await?
