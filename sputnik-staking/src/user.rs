@@ -1,6 +1,6 @@
 use near_contract_standards::fungible_token::Balance;
-use near_sdk::json_types::{U128, U64};
-use near_sdk::{env, AccountId, Duration, NearToken, StorageUsage};
+use near_sdk::json_types::{U64, U128};
+use near_sdk::{AccountId, Duration, NearToken, StorageUsage, env};
 
 use crate::*;
 
@@ -35,7 +35,7 @@ impl User {
     pub fn new(near_amount: NearToken) -> Self {
         Self {
             storage_used: Self::min_storage(),
-            near_amount: near_amount,
+            near_amount,
             vote_amount: U128(0),
             delegated_amounts: vec![],
             next_action_timestamp: 0.into(),
@@ -153,22 +153,23 @@ impl Contract {
         ext_sputnik::ext(self.owner_id.clone())
             .with_static_gas(GAS_FOR_REGISTER)
             .with_attached_deposit(env::storage_byte_cost().saturating_mul(U128_LEN.into()))
-            .register_delegation(sender_id.clone());
+            .register_delegation(sender_id.clone())
+            .detach();
     }
 
     /// Deposit voting token.
     pub fn internal_deposit(&mut self, sender_id: &AccountId, amount: Balance) {
-        let mut sender = self.internal_get_user(&sender_id);
+        let mut sender = self.internal_get_user(sender_id);
         sender.deposit(amount);
-        self.save_user(&sender_id, sender);
+        self.save_user(sender_id, sender);
         self.total_amount += amount;
     }
 
     /// Withdraw voting token.
     pub fn internal_withdraw(&mut self, sender_id: &AccountId, amount: Balance) {
-        let mut sender = self.internal_get_user(&sender_id);
+        let mut sender = self.internal_get_user(sender_id);
         sender.withdraw(amount);
-        self.save_user(&sender_id, sender);
+        self.save_user(sender_id, sender);
         assert!(self.total_amount >= amount, "ERR_INTERNAL");
         self.total_amount -= amount;
     }

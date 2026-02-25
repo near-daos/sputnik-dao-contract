@@ -2,8 +2,8 @@ use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 
 use near_contract_standards::fungible_token::Balance;
-use near_sdk::json_types::{U128, U64};
-use near_sdk::{env, near, AccountId};
+use near_sdk::json_types::{U64, U128};
+use near_sdk::{AccountId, NearToken, env, near};
 
 use crate::proposals::{PolicyParameters, Proposal, ProposalKind, ProposalStatus, Vote};
 use crate::types::Action;
@@ -39,6 +39,7 @@ impl RoleKind {
         }
     }
 
+    #[allow(clippy::result_unit_err)]
     pub fn add_member_to_group(&mut self, member_id: &AccountId) -> Result<(), ()> {
         match self {
             RoleKind::Group(accounts) => {
@@ -49,6 +50,7 @@ impl RoleKind {
         }
     }
 
+    #[allow(clippy::result_unit_err)]
     pub fn remove_member_from_group(&mut self, member_id: &AccountId) -> Result<(), ()> {
         match self {
             RoleKind::Group(accounts) => {
@@ -88,7 +90,7 @@ pub struct UserInfo {
 #[serde(untagged)]
 pub enum WeightOrRatio {
     Weight(U128),
-    Ratio(u64, u64),
+    Ratio(u64, std::num::NonZeroU64),
 }
 
 impl WeightOrRatio {
@@ -97,7 +99,7 @@ impl WeightOrRatio {
         match self {
             WeightOrRatio::Weight(weight) => min(weight.0, total_weight),
             WeightOrRatio::Ratio(num, denom) => min(
-                (*num as u128 * total_weight) / *denom as u128 + 1,
+                (u128::from(*num) * total_weight) / u128::from(denom.get()) + 1,
                 total_weight,
             ),
         }
@@ -138,7 +140,7 @@ impl Default for VotePolicy {
         VotePolicy {
             weight_kind: WeightKind::RoleWeight,
             quorum: U128(0),
-            threshold: WeightOrRatio::Ratio(1, 2),
+            threshold: WeightOrRatio::Ratio(1, std::num::NonZeroU64::new(2).unwrap()),
         }
     }
 }
@@ -154,11 +156,11 @@ pub struct Policy {
     /// Default vote policy. Used when given proposal kind doesn't have special policy.
     pub default_vote_policy: VotePolicy,
     /// Proposal bond.
-    pub proposal_bond: U128,
+    pub proposal_bond: NearToken,
     /// Expiration period for proposals.
     pub proposal_period: U64,
     /// Bond for claiming a bounty.
-    pub bounty_bond: U128,
+    pub bounty_bond: NearToken,
     /// Period in which giving up on bounty is not punished.
     pub bounty_forgiveness_period: U64,
 }
@@ -206,9 +208,9 @@ pub fn default_policy(council: Vec<AccountId>) -> Policy {
             },
         ],
         default_vote_policy: VotePolicy::default(),
-        proposal_bond: U128(10u128.pow(24)),
+        proposal_bond: NearToken::from_near(1),
         proposal_period: U64::from(1_000_000_000 * 60 * 60 * 24 * 7),
-        bounty_bond: U128(10u128.pow(24)),
+        bounty_bond: NearToken::from_near(1),
         bounty_forgiveness_period: U64::from(1_000_000_000 * 60 * 60 * 24),
     }
 }
@@ -243,7 +245,7 @@ impl VersionedPolicy {
 impl Policy {
     pub fn add_or_update_role(&mut self, role: &RolePermission) {
         for i in 0..self.roles.len() {
-            if &self.roles[i].name == &role.name {
+            if self.roles[i].name == role.name {
                 env::log_str(&format!(
                     "Updating existing role in the policy:{}",
                     &role.name
@@ -350,11 +352,7 @@ impl Policy {
                     || permissions.contains(&format!("*:{}", action.to_policy_label()))
                     || permissions.contains("*:*");
                 allowed = allowed || allowed_role;
-                if allowed_role {
-                    Some(role)
-                } else {
-                    None
-                }
+                if allowed_role { Some(role) } else { None }
             })
             .collect();
         (allowed_roles, allowed)
@@ -363,24 +361,18 @@ impl Policy {
     /// Returns if given proposal kind is token weighted.
     pub fn is_token_weighted(&self, role: &String, proposal_kind_label: &String) -> bool {
         let role_info = self.internal_get_role(role).expect("ERR_ROLE_NOT_FOUND");
-        match role_info
-            .vote_policy
-            .get(proposal_kind_label)
-            .unwrap_or(&self.default_vote_policy)
-            .weight_kind
-        {
-            WeightKind::TokenWeight => true,
-            _ => false,
-        }
+        matches!(
+            role_info
+                .vote_policy
+                .get(proposal_kind_label)
+                .unwrap_or(&self.default_vote_policy)
+                .weight_kind,
+            WeightKind::TokenWeight
+        )
     }
 
     fn internal_get_role(&self, name: &String) -> Option<&RolePermission> {
-        for role in self.roles.iter() {
-            if role.name == *name {
-                return Some(role);
-            }
-        }
-        None
+        self.roles.iter().find(|role| &role.name == name)
     }
 
     /// Get proposal status for given proposal.
@@ -406,7 +398,7 @@ impl Policy {
             let role_info = self.internal_get_role(&role).expect("ERR_MISSING_ROLE");
             let vote_policy = role_info
                 .vote_policy
-                .get(&proposal.kind.to_policy_label().to_string())
+                .get(proposal.kind.to_policy_label())
                 .unwrap_or(&self.default_vote_policy);
             let total_weight = match &role_info.kind {
                 // Skip role that covers everyone as it doesn't provide a total size.
@@ -452,11 +444,11 @@ mod tests {
     fn test_vote_policy() {
         let r1 = WeightOrRatio::Weight(U128(100));
         assert_eq!(r1.to_weight(1_000_000), 100);
-        let r2 = WeightOrRatio::Ratio(1, 2);
+        let r2 = WeightOrRatio::Ratio(1, std::num::NonZeroU64::new(2).unwrap());
         assert_eq!(r2.to_weight(2), 2);
-        let r2 = WeightOrRatio::Ratio(1, 2);
+        let r2 = WeightOrRatio::Ratio(1, std::num::NonZeroU64::new(2).unwrap());
         assert_eq!(r2.to_weight(5), 3);
-        let r2 = WeightOrRatio::Ratio(1, 1);
+        let r2 = WeightOrRatio::Ratio(1, std::num::NonZeroU64::new(1).unwrap());
         assert_eq!(r2.to_weight(5), 5);
     }
 
@@ -568,14 +560,14 @@ mod tests {
         );
         assert_eq!(U128(0), policy.default_vote_policy.quorum);
         assert_eq!(
-            WeightOrRatio::Ratio(1, 2),
+            WeightOrRatio::Ratio(1, std::num::NonZeroU64::new(2).unwrap()),
             policy.default_vote_policy.threshold
         );
 
         let new_default_vote_policy = VotePolicy {
             weight_kind: WeightKind::TokenWeight,
             quorum: U128(100),
-            threshold: WeightOrRatio::Ratio(1, 4),
+            threshold: WeightOrRatio::Ratio(1, std::num::NonZeroU64::new(4).unwrap()),
         };
         policy.update_default_vote_policy(&new_default_vote_policy);
         assert_eq!(
@@ -597,30 +589,30 @@ mod tests {
         let council = vec![accounts(0), accounts(1)];
         let mut policy = default_policy(council);
 
-        assert_eq!(U128(10u128.pow(24)), policy.proposal_bond);
+        assert_eq!(NearToken::from_near(1), policy.proposal_bond);
         assert_eq!(
             U64::from(1_000_000_000 * 60 * 60 * 24 * 7),
             policy.proposal_period
         );
-        assert_eq!(U128(10u128.pow(24)), policy.bounty_bond);
+        assert_eq!(NearToken::from_near(1), policy.bounty_bond);
         assert_eq!(
             U64::from(1_000_000_000 * 60 * 60 * 24),
             policy.bounty_forgiveness_period
         );
 
         let new_parameters = PolicyParameters {
-            proposal_bond: Some(U128(10u128.pow(26))),
+            proposal_bond: Some(NearToken::from_near(100)),
             proposal_period: None,
             bounty_bond: None,
             bounty_forgiveness_period: Some(U64::from(1_000_000_000 * 60 * 60 * 24 * 5)),
         };
         policy.update_parameters(&new_parameters);
-        assert_eq!(U128(10u128.pow(26)), policy.proposal_bond);
+        assert_eq!(NearToken::from_near(100), policy.proposal_bond);
         assert_eq!(
             U64::from(1_000_000_000 * 60 * 60 * 24 * 7),
             policy.proposal_period
         );
-        assert_eq!(U128(10u128.pow(24)), policy.bounty_bond);
+        assert_eq!(NearToken::from_near(1), policy.bounty_bond);
         assert_eq!(
             U64::from(1_000_000_000 * 60 * 60 * 24 * 5),
             policy.bounty_forgiveness_period

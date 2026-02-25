@@ -1,31 +1,95 @@
 #![allow(dead_code)]
-use std::sync::Arc;
+// std::cell::OnceCell is not Sync and cannot be placed in a static; std::sync::OnceLock is its
+// thread-safe counterpart and is the correct choice for lazy-initialised statics in async tests.
+use std::sync::OnceLock;
 
 use near_contract_standards::fungible_token::Balance;
 use near_sandbox::{
-    config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY},
     Sandbox,
+    config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY},
 };
 pub use near_sdk::json_types::{Base64VecU8, U64};
-use near_sdk::{serde_json::json, AccountIdRef};
+use near_sdk::{AccountIdRef, serde_json::json};
 
 use near_api::{
-    types::{transaction::result::ExecutionFinalResult, AccountId, NearToken, TxExecutionStatus},
     Contract, RPCEndpoint, Signer,
+    types::{AccountId, NearToken, TxExecutionStatus, transaction::result::ExecutionFinalResult},
 };
 
 use near_sdk::json_types::U128;
 use sputnikdao2::{
-    Action, Bounty, Config, OldAccountId, ProposalInput, ProposalKind, ProposalOutput,
-    VersionedPolicy, OLD_BASE_TOKEN,
+    Action, Bounty, Config, OLD_BASE_TOKEN, OldAccountId, ProposalInput, ProposalKind,
+    ProposalOutput, VersionedPolicy,
 };
 
-pub static FACTORY_WASM_BYTES: &[u8] =
-    include_bytes!("../../../sputnikdao-factory2/res/sputnikdao_factory2.wasm");
-pub static DAO_WASM_BYTES: &[u8] = include_bytes!("../../res/sputnikdao2.wasm");
-pub static TEST_TOKEN_WASM_BYTES: &[u8] = include_bytes!("../../../test-token/res/test_token.wasm");
-pub static STAKING_WASM_BYTES: &[u8] =
-    include_bytes!("../../../sputnik-staking/res/sputnik_staking.wasm");
+// ---------------------------------------------------------------------------
+// On-demand WASM builds, cached per process via OnceLock.
+// Each contract is compiled exactly once regardless of how many tests run.
+// ---------------------------------------------------------------------------
+
+static DAO_WASM: OnceLock<Vec<u8>> = OnceLock::new();
+static FACTORY_WASM: OnceLock<Vec<u8>> = OnceLock::new();
+static TEST_TOKEN_WASM: OnceLock<Vec<u8>> = OnceLock::new();
+static STAKING_WASM: OnceLock<Vec<u8>> = OnceLock::new();
+
+/// Build sputnikdao2 (the current package) and return its WASM bytes.
+pub fn dao_wasm_bytes() -> &'static [u8] {
+    DAO_WASM.get_or_init(|| {
+        let wasm_path = cargo_near_build::build_with_cli(Default::default())
+            .expect("Failed to build sputnikdao2");
+        std::fs::read(&wasm_path).expect("Failed to read sputnikdao2.wasm")
+    })
+}
+
+/// Build sputnikdao-factory2 and return its WASM bytes.
+pub fn factory_wasm_bytes() -> &'static [u8] {
+    FACTORY_WASM.get_or_init(|| {
+        let wasm_path = cargo_near_build::build_with_cli(cargo_near_build::BuildOpts {
+            manifest_path: Some(
+                concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/../sputnikdao-factory2/Cargo.toml"
+                )
+                .into(),
+            ),
+            ..Default::default()
+        })
+        .expect("Failed to build sputnikdao-factory2");
+        std::fs::read(&wasm_path).expect("Failed to read sputnikdao_factory2.wasm")
+    })
+}
+
+/// Build test-token and return its WASM bytes.
+pub fn test_token_wasm_bytes() -> &'static [u8] {
+    TEST_TOKEN_WASM.get_or_init(|| {
+        let wasm_path = cargo_near_build::build_with_cli(cargo_near_build::BuildOpts {
+            manifest_path: Some(
+                concat!(env!("CARGO_MANIFEST_DIR"), "/../test-token/Cargo.toml").into(),
+            ),
+            ..Default::default()
+        })
+        .expect("Failed to build test-token");
+        std::fs::read(&wasm_path).expect("Failed to read test_token.wasm")
+    })
+}
+
+/// Build sputnik-staking and return its WASM bytes.
+pub fn staking_wasm_bytes() -> &'static [u8] {
+    STAKING_WASM.get_or_init(|| {
+        let wasm_path = cargo_near_build::build_with_cli(cargo_near_build::BuildOpts {
+            manifest_path: Some(
+                concat!(env!("CARGO_MANIFEST_DIR"), "/../sputnik-staking/Cargo.toml").into(),
+            ),
+            ..Default::default()
+        })
+        .expect("Failed to build sputnik-staking");
+        std::fs::read(&wasm_path).expect("Failed to read sputnik_staking.wasm")
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Test infrastructure
+// ---------------------------------------------------------------------------
 
 pub static SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT: &AccountIdRef =
     AccountIdRef::new_or_panic("sputnik-dao.near");
@@ -37,13 +101,11 @@ pub fn base_token() -> Option<near_sdk::AccountId> {
 pub struct TestContext {
     pub sandbox: Sandbox,
     pub sandbox_network: near_api::NetworkConfig,
-    pub signer: Arc<Signer>,
+    pub signer: std::sync::Arc<Signer>,
     pub root: AccountId,
 }
 
 pub async fn setup_factory() -> Result<(TestContext, Contract), Box<dyn std::error::Error>> {
-    let sputnikdao_factory_contract_id: AccountId = SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.into();
-
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
     let sandbox_network =
         near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
@@ -51,18 +113,16 @@ pub async fn setup_factory() -> Result<(TestContext, Contract), Box<dyn std::err
     sandbox
         .import_account(
             RPCEndpoint::mainnet().url,
-            sputnikdao_factory_contract_id.clone(),
+            SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.to_owned(),
         )
-        .initial_balance(NearToken::from_near(50))
+        .initial_balance(NearToken::from_near(100))
         .send()
         .await?;
 
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
-    ))?;
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
-    let deploy_result = Contract::deploy(sputnikdao_factory_contract_id.clone())
-        .use_code(FACTORY_WASM_BYTES.to_vec())
+    let deploy_result = Contract::deploy(SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.to_owned())
+        .use_code(factory_wasm_bytes().to_vec())
         .with_init_call("new", ())?
         .max_gas()
         .with_signer(signer.clone())
@@ -71,23 +131,47 @@ pub async fn setup_factory() -> Result<(TestContext, Contract), Box<dyn std::err
 
     assert!(deploy_result.is_success());
 
+    let sputnikdao_factory_contract = Contract(SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.to_owned());
+
+    // The factory starts with no default code hash, so we store the DAO wasm and register it.
+    let dao_hash: near_sdk::json_types::Base58CryptoHash = sputnikdao_factory_contract
+        .call_function_raw("store", dao_wasm_bytes().to_vec())
+        .transaction()
+        .max_gas()
+        .deposit(NearToken::from_near(50))
+        .with_signer(
+            SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.to_owned(),
+            signer.clone(),
+        )
+        .send_to(&sandbox_network)
+        .await?
+        .json()?;
+    sputnikdao_factory_contract
+        .call_function("set_default_code_hash", json!({ "code_hash": dao_hash }))
+        .transaction()
+        .with_signer(
+            SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.to_owned(),
+            signer.clone(),
+        )
+        .send_to(&sandbox_network)
+        .await?
+        .into_result()?;
+
     Ok((
         TestContext {
             sandbox,
             sandbox_network,
             signer,
-            root: sputnikdao_factory_contract_id.clone(),
+            root: SPUTNIKDAO_FACTORY_CONTRACT_ACCOUNT.to_owned(),
         },
-        Contract(sputnikdao_factory_contract_id),
+        sputnikdao_factory_contract,
     ))
 }
 
 pub async fn setup_dao() -> testresult::TestResult<(TestContext, Contract)> {
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
     let root_account = DEFAULT_GENESIS_ACCOUNT.to_owned();
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
-    ))?;
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
     setup_dao_with_params(
         root_account.clone(),
@@ -100,7 +184,7 @@ pub async fn setup_dao() -> testresult::TestResult<(TestContext, Contract)> {
 
 pub async fn setup_dao_with_params(
     root: AccountId,
-    signer: Arc<Signer>,
+    signer: std::sync::Arc<Signer>,
     sandbox: Sandbox,
     policy: VersionedPolicy,
 ) -> testresult::TestResult<(TestContext, Contract)> {
@@ -121,7 +205,7 @@ pub async fn setup_dao_with_params(
     };
 
     near_api::Contract::deploy(dao_account_id.clone())
-        .use_code(DAO_WASM_BYTES.to_vec())
+        .use_code(dao_wasm_bytes().to_vec())
         .with_init_call(
             "new",
             json!({
@@ -155,7 +239,7 @@ pub async fn setup_test_token(ctx: &TestContext) -> testresult::TestResult<Contr
         .await?;
 
     near_api::Contract::deploy(test_token_account_id.clone())
-        .use_code(TEST_TOKEN_WASM_BYTES.to_vec())
+        .use_code(test_token_wasm_bytes().to_vec())
         .with_init_call("new", ())?
         .max_gas()
         .with_signer(ctx.signer.clone())
@@ -179,7 +263,7 @@ pub async fn setup_staking(
         .await?;
 
     near_api::Contract::deploy(staking_account_id.clone())
-        .use_code(STAKING_WASM_BYTES.to_vec())
+        .use_code(staking_wasm_bytes().to_vec())
         .with_init_call(
             "new",
             json!({
@@ -203,7 +287,6 @@ pub async fn add_proposal(
     proposal: ProposalInput,
 ) -> ExecutionFinalResult {
     dao.call_function("add_proposal", json!({"proposal": proposal}))
-        .unwrap()
         .transaction()
         .deposit(NearToken::from_near(1))
         .with_signer(dao.0.clone(), ctx.signer.clone())
@@ -296,7 +379,7 @@ pub async fn vote(
                 "action": Action::VoteApprove,
                 "proposal": get_proposal_kind(ctx, dao, proposal_id).await?
             }),
-        )?
+        )
         .transaction()
         .max_gas()
         .with_signer(user.clone(), ctx.signer.clone())
@@ -320,11 +403,282 @@ pub async fn get_proposal_kind(
     proposal_id: u64,
 ) -> testresult::TestResult<ProposalKind> {
     Ok(dao
-        .call_function("get_proposal", json!({"id": proposal_id}))?
+        .call_function("get_proposal", json!({"id": proposal_id}))
         .read_only::<ProposalOutput>()
         .fetch_from(&ctx.sandbox_network)
         .await?
         .data
         .proposal
         .kind)
+}
+
+// ---------------------------------------------------------------------------
+// Additional test helpers
+// ---------------------------------------------------------------------------
+
+/// A fixed far-future timestamp (nanoseconds) used as a bounty deadline in tests.
+pub const DEADLINE: u64 = 1_925_376_849_430_593_581;
+
+/// Storage cost for registering a delegation: 16 bytes × 10^19 yoctoNEAR/byte.
+pub const REG_COST: u128 = 160_000_000_000_000_000_000;
+
+/// Creates a named sub-account under the test root (e.g. "alice.sandbox").
+pub async fn create_named_account(
+    ctx: &TestContext,
+    name: &str,
+    near_balance: u64,
+) -> testresult::TestResult<AccountId> {
+    let account_id: AccountId = format!("{}.{}", name, ctx.root).parse()?;
+    ctx.sandbox
+        .create_account(account_id.clone())
+        .initial_balance(NearToken::from_near(near_balance as u128))
+        .send()
+        .await?;
+    Ok(account_id)
+}
+
+/// Add a proposal signed by an arbitrary account (not the DAO account itself).
+pub async fn add_proposal_as(
+    ctx: &TestContext,
+    dao: &Contract,
+    proposer: &AccountId,
+    proposal: ProposalInput,
+) -> ExecutionFinalResult {
+    dao.call_function("add_proposal", json!({"proposal": proposal}))
+        .transaction()
+        .deposit(NearToken::from_near(1))
+        .with_signer(proposer.clone(), ctx.signer.clone())
+        .wait_until(TxExecutionStatus::ExecutedOptimistic)
+        .send_to(&ctx.sandbox_network)
+        .await
+        .unwrap()
+}
+
+/// Add a bounty proposal paid out in the given FT token.
+pub async fn propose_bounty_ft(
+    ctx: &TestContext,
+    dao: &Contract,
+    proposer: &AccountId,
+    token_id: &AccountId,
+) -> testresult::TestResult<u64> {
+    Ok(add_proposal_as(
+        ctx,
+        dao,
+        proposer,
+        ProposalInput {
+            description: "add_new_bounty".to_string(),
+            kind: ProposalKind::AddBounty {
+                bounty: Bounty {
+                    description: "test_bounties".to_string(),
+                    token: token_id.to_string(),
+                    amount: U128(19_000_000_000_000_000_000_000_000u128),
+                    times: 3,
+                    max_deadline: U64(DEADLINE),
+                },
+            },
+        },
+    )
+    .await
+    .json()?)
+}
+
+/// Add a bounty proposal paid out in NEAR (empty token id).
+pub async fn propose_bounty_near(
+    ctx: &TestContext,
+    dao: &Contract,
+    proposer: &AccountId,
+) -> testresult::TestResult<u64> {
+    Ok(add_proposal_as(
+        ctx,
+        dao,
+        proposer,
+        ProposalInput {
+            description: "add_new_bounty".to_string(),
+            kind: ProposalKind::AddBounty {
+                bounty: Bounty {
+                    description: "test_bounties_with_near_token".to_string(),
+                    token: String::from(OLD_BASE_TOKEN),
+                    amount: U128(19_000_000_000_000_000_000_000_000u128),
+                    times: 3,
+                    max_deadline: U64(DEADLINE),
+                },
+            },
+        },
+    )
+    .await
+    .json()?)
+}
+
+/// Vote approve on a proposal by a single account.
+pub async fn vote_approve(
+    ctx: &TestContext,
+    voter: &AccountId,
+    dao: &Contract,
+    proposal_id: u64,
+) -> testresult::TestResult {
+    dao.call_function(
+        "act_proposal",
+        json!({
+            "id": proposal_id,
+            "action": Action::VoteApprove,
+            "proposal": get_proposal_kind(ctx, dao, proposal_id).await?
+        }),
+    )
+    .transaction()
+    .max_gas()
+    .with_signer(voter.clone(), ctx.signer.clone())
+    .send_to(&ctx.sandbox_network)
+    .await?
+    .into_result()?;
+    Ok(())
+}
+
+/// Claim a bounty (using DEADLINE as the claim deadline).
+pub async fn claim_bounty_as(
+    ctx: &TestContext,
+    dao: &Contract,
+    claimer: &AccountId,
+    bounty_id: u64,
+) -> testresult::TestResult {
+    dao.call_function(
+        "bounty_claim",
+        json!({
+            "id": bounty_id,
+            "deadline": U64(DEADLINE),
+        }),
+    )
+    .transaction()
+    .deposit(NearToken::from_near(1))
+    .with_signer(claimer.clone(), ctx.signer.clone())
+    .send_to(&ctx.sandbox_network)
+    .await?
+    .into_result()?;
+    Ok(())
+}
+
+/// Submit a bounty_done call on behalf of `caller`, notifying receiver.
+pub async fn done_bounty_as(
+    ctx: &TestContext,
+    dao: &Contract,
+    caller: &AccountId,
+    bounty_id: u64,
+    receiver: &AccountId,
+) -> testresult::TestResult {
+    dao.call_function(
+        "bounty_done",
+        json!({
+            "id": bounty_id,
+            "account_id": receiver,
+            "description": "This bounty is done",
+        }),
+    )
+    .transaction()
+    .deposit(NearToken::from_near(1))
+    .with_signer(caller.clone(), ctx.signer.clone())
+    .send_to(&ctx.sandbox_network)
+    .await?
+    .into_result()?;
+    Ok(())
+}
+
+/// Give up a bounty claim.
+pub async fn giveup_bounty_as(
+    ctx: &TestContext,
+    dao: &Contract,
+    caller: &AccountId,
+    bounty_id: u64,
+) -> testresult::TestResult {
+    dao.call_function("bounty_giveup", json!({"id": bounty_id}))
+        .transaction()
+        .with_signer(caller.clone(), ctx.signer.clone())
+        .send_to(&ctx.sandbox_network)
+        .await?
+        .into_result()?;
+    Ok(())
+}
+
+/// Register `account_id` for delegation through the staking contract, then
+/// delegate `amount` tokens. Returns (old_balance, new_balance, total_supply).
+pub async fn register_and_delegate(
+    ctx: &TestContext,
+    dao: &Contract,
+    staking: &Contract,
+    account_id: &AccountId,
+    amount: u128,
+) -> testresult::TestResult<(U128, U128, U128)> {
+    dao.call_function("register_delegation", json!({"account_id": account_id}))
+        .transaction()
+        .deposit(NearToken::from_yoctonear(REG_COST))
+        .with_signer(staking.0.clone(), ctx.signer.clone())
+        .send_to(&ctx.sandbox_network)
+        .await?
+        .into_result()?;
+
+    let result: (U128, U128, U128) = dao
+        .call_function(
+            "delegate",
+            json!({"account_id": account_id, "amount": U128(amount)}),
+        )
+        .transaction()
+        .with_signer(staking.0.clone(), ctx.signer.clone())
+        .send_to(&ctx.sandbox_network)
+        .await?
+        .json()?;
+    Ok(result)
+}
+
+/// Set the staking contract on the DAO by submitting and approving a proposal.
+pub async fn set_staking_contract(
+    ctx: &TestContext,
+    dao: &Contract,
+    staking_id: &AccountId,
+) -> testresult::TestResult {
+    let proposal_id: u64 = add_proposal(
+        ctx,
+        dao,
+        ProposalInput {
+            description: "set staking".to_string(),
+            kind: ProposalKind::SetStakingContract {
+                staking_id: staking_id.clone(),
+            },
+        },
+    )
+    .await
+    .json()?;
+    vote(ctx, vec![&ctx.root], dao, proposal_id).await?;
+    Ok(())
+}
+
+/// Deploy DAO WASM to a new "dao.{root}" account WITHOUT calling `new`.
+pub async fn deploy_dao_no_init() -> testresult::TestResult<(TestContext, Contract)> {
+    let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
+    let root_account = DEFAULT_GENESIS_ACCOUNT.to_owned();
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
+    let dao_account_id: AccountId = format!("dao.{root_account}").parse()?;
+    let sandbox_network =
+        near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
+
+    sandbox
+        .create_account(dao_account_id.clone())
+        .initial_balance(NearToken::from_near(200))
+        .send()
+        .await?;
+
+    near_api::Contract::deploy(dao_account_id.clone())
+        .use_code(dao_wasm_bytes().to_vec())
+        .without_init_call()
+        .with_signer(signer.clone())
+        .send_to(&sandbox_network)
+        .await?
+        .into_result()?;
+
+    Ok((
+        TestContext {
+            sandbox,
+            sandbox_network,
+            signer,
+            root: root_account,
+        },
+        Contract(dao_account_id),
+    ))
 }

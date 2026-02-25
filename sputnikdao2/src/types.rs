@@ -1,5 +1,5 @@
 use near_sdk::json_types::Base64VecU8;
-use near_sdk::{near, AccountId, Gas, NearToken};
+use near_sdk::{AccountId, Gas, NearToken, near};
 
 /// Account ID used for $NEAR in near-sdk v3.
 /// Need to keep it around for backward compatibility.

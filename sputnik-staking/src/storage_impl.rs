@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use near_contract_standards::storage_management::{
     StorageBalance, StorageBalanceBounds, StorageManagement,
 };
@@ -22,7 +20,9 @@ impl StorageManagement for Contract {
         if self.users.contains_key(&account_id) {
             log!("ERR_ACC_REGISTERED");
             if !deposit_amount.is_zero() {
-                Promise::new(env::predecessor_account_id()).transfer(deposit_amount);
+                Promise::new(env::predecessor_account_id())
+                    .transfer(deposit_amount)
+                    .detach();
             }
         } else {
             let min_balance = env::storage_byte_cost().saturating_mul(User::min_storage().into());
@@ -35,14 +35,15 @@ impl StorageManagement for Contract {
                 self.internal_register_user(&account_id, min_balance);
                 let refund = deposit_amount.saturating_sub(min_balance);
                 if refund > NearToken::from_near(0) {
-                    Promise::new(env::predecessor_account_id()).transfer(refund);
+                    Promise::new(env::predecessor_account_id())
+                        .transfer(refund)
+                        .detach();
                 }
             } else {
                 self.internal_register_user(&account_id, deposit_amount);
             }
         }
-        self.storage_balance_of(account_id.try_into().unwrap())
-            .unwrap()
+        self.storage_balance_of(account_id).unwrap()
     }
 
     #[payable]
@@ -53,9 +54,8 @@ impl StorageManagement for Contract {
         let available = user.storage_available();
         let amount = amount.unwrap_or(available);
         assert!(amount <= available, "ERR_STORAGE_WITHDRAW_TOO_MUCH");
-        Promise::new(account_id.clone()).transfer(amount);
-        self.storage_balance_of(account_id.try_into().unwrap())
-            .unwrap()
+        Promise::new(account_id.clone()).transfer(amount).detach();
+        self.storage_balance_of(account_id).unwrap()
     }
 
     #[allow(unused_variables)]
@@ -67,7 +67,7 @@ impl StorageManagement for Contract {
             // TODO: figure out force option logic.
             assert!(user.vote_amount.0 > 0, "ERR_STORAGE_UNREGISTER_NOT_EMPTY");
             self.users.remove(&account_id);
-            Promise::new(account_id).transfer(user.near_amount);
+            Promise::new(account_id).transfer(user.near_amount).detach();
             true
         } else {
             false
@@ -93,9 +93,9 @@ impl StorageManagement for Contract {
 #[cfg(test)]
 mod tests {
     use near_sdk::{
+        NearToken,
         borsh::{BorshDeserialize, BorshSerialize},
         json_types::U128,
-        NearToken,
     };
 
     #[test]

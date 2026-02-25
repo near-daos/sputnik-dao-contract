@@ -2,7 +2,7 @@
 //! TODO: move to near-sdk standards library.
 
 use near_sdk::json_types::Base58CryptoHash;
-use near_sdk::{env, near, serde_json, AccountId, CryptoHash, Gas, NearToken};
+use near_sdk::{AccountId, CryptoHash, Gas, NearToken, env, near, require, serde_json};
 
 /// Gas spent on the call & account creation.
 const CREATE_CALL_GAS: Gas = Gas::from_tgas(40);
@@ -20,32 +20,30 @@ pub struct FactoryManager {}
 impl FactoryManager {
     /// Store contract from input.
     pub fn store_contract(&self) {
-        let input = env::input().expect("ERR_NO_INPUT");
-        let sha256_hash = env::sha256(&input);
-        assert!(!env::storage_has_key(&sha256_hash), "ERR_ALREADY_EXISTS");
-        env::storage_write(&sha256_hash, &input);
+        let contract_code = env::input().expect("ERR_NO_INPUT");
+        let contract_code_sha256_hash = env::sha256_array(&contract_code);
+        require!(
+            !env::storage_has_key(&contract_code_sha256_hash),
+            "ERR_ALREADY_EXISTS"
+        );
+        env::storage_write(&contract_code_sha256_hash, &contract_code);
+        let promise_id = env::promise_batch_create(&env::current_account_id());
+        env::promise_batch_action_deploy_global_contract(promise_id, &contract_code);
 
-        let mut blob_hash = [0u8; 32];
-        blob_hash.copy_from_slice(&sha256_hash);
-        let blob_hash_str = serde_json::to_string(&Base58CryptoHash::from(blob_hash))
-            .unwrap()
-            .into_bytes();
+        let blob_hash_str =
+            serde_json::to_vec(&Base58CryptoHash::from(contract_code_sha256_hash)).unwrap();
         env::value_return(&blob_hash_str);
     }
 
     /// Delete code from the contract.
-    pub fn delete_contract(&self, code_hash: Base58CryptoHash) {
-        let code_hash: CryptoHash = code_hash.into();
+    pub fn delete_contract(&self, code_hash: CryptoHash) {
         env::storage_remove(&code_hash);
     }
 
     /// Get code for given hash.
-    pub fn get_code(&self, code_hash: Base58CryptoHash) {
-        let code_hash: CryptoHash = code_hash.into();
-        // Check that such contract exists.
-        assert!(env::storage_has_key(&code_hash), "Contract doesn't exist");
+    pub fn get_code(&self, code_hash: CryptoHash) {
         // Load the hash from storage.
-        let code = env::storage_read(&code_hash).unwrap();
+        let code = env::storage_read(&code_hash).expect("ERR_NO_HASH");
         // Return as value.
         env::value_return(&code);
     }
@@ -54,25 +52,22 @@ impl FactoryManager {
     /// Contract must support update by factory for this via permission check.
     pub fn update_contract(
         &self,
-        account_id: AccountId,
-        code_hash: Base58CryptoHash,
-        method_name: &str,
+        dao_account_id: AccountId,
+        target_code_hash: CryptoHash,
+        update_method_name: &str,
     ) {
-        let code_hash: CryptoHash = code_hash.into();
-        // Check that such contract exists.
-        assert!(env::storage_has_key(&code_hash), "Contract doesn't exist");
         // Load the hash from storage.
-        let code = env::storage_read(&code_hash).expect("ERR_NO_HASH");
+        let code = env::storage_read(&target_code_hash).expect("ERR_NO_HASH");
         // Create a promise toward given account.
-        let promise_id = env::promise_batch_create(&account_id);
+        let promise_id = env::promise_batch_create(&dao_account_id);
         // Call `update` method, which should also handle migrations.
         env::promise_batch_action_function_call_weight(
             promise_id,
-            method_name,
+            update_method_name,
             &code,
             NO_DEPOSIT,
             Gas::from_gas(0),
-            near_sdk::GasWeight::default(),
+            near_sdk::GasWeight(1),
         );
         env::promise_return(promise_id);
     }
@@ -80,28 +75,24 @@ impl FactoryManager {
     /// Create given contract with args and callback factory.
     pub fn create_contract(
         &self,
-        code_hash: Base58CryptoHash,
+        code_hash: CryptoHash,
         account_id: AccountId,
         new_method: &str,
         args: &[u8],
         callback_method: &str,
         callback_args: &[u8],
     ) {
-        let code_hash: CryptoHash = code_hash.into();
         let attached_deposit = env::attached_deposit();
         let factory_account_id = env::current_account_id();
-        // Check that such contract exists.
-        assert!(env::storage_has_key(&code_hash), "Contract doesn't exist");
-        // Load input (wasm code).
-        let code = env::storage_read(&code_hash).expect("ERR_NO_HASH");
-        // Compute storage cost.
-        let code_len = code.len();
-        let storage_cost = env::storage_byte_cost().saturating_mul((code_len + 32) as u128);
+        // Minimal deposit is required to cover the account registration and DAO config storage
+        const MINIMAL_DEPOSIT: NearToken = NearToken::from_millinear(10);
         assert!(
-            attached_deposit >= storage_cost,
+            attached_deposit >= MINIMAL_DEPOSIT,
             "ERR_NOT_ENOUGH_DEPOSIT:{}",
-            storage_cost
+            MINIMAL_DEPOSIT.as_yoctonear(),
         );
+        // Check that such contract exists.
+        require!(env::storage_has_key(&code_hash), "Contract doesn't exist");
         // Schedule a Promise tx to account_id.
         let promise_id = env::promise_batch_create(&account_id);
         // Create account first.
@@ -109,7 +100,7 @@ impl FactoryManager {
         // Transfer attached deposit.
         env::promise_batch_action_transfer(promise_id, attached_deposit);
         // Deploy contract.
-        env::promise_batch_action_deploy_contract(promise_id, &code);
+        env::promise_batch_action_use_global_contract(promise_id, &code_hash);
         // call `new` with given arguments.
         env::promise_batch_action_function_call(
             promise_id,

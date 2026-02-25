@@ -1,4 +1,4 @@
-use near_sdk::{ext_contract, json_types::U128, AccountId, PromiseOrValue};
+use near_sdk::{AccountId, PromiseOrValue, ext_contract, json_types::U128};
 
 #[allow(dead_code)]
 #[ext_contract(ext_fungible_token)]

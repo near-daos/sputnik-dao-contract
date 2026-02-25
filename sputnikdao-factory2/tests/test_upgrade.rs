@@ -1,11 +1,35 @@
 use near_api::{AccountId, Contract, NearToken, RPCEndpoint};
 use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY};
-use near_sdk::base64::{engine::general_purpose, Engine as _};
+use near_sdk::AccountIdRef;
+use near_sdk::base64::{Engine as _, engine::general_purpose};
 use near_sdk::env::sha256_array;
 use near_sdk::json_types::Base58CryptoHash;
-use near_sdk::serde_json::{json, Value};
-use near_sdk::AccountIdRef;
-use std::fs;
+use near_sdk::serde_json::{Value, json};
+use std::sync::OnceLock;
+
+static FACTORY_WASM: OnceLock<Vec<u8>> = OnceLock::new();
+static DAO_WASM: OnceLock<Vec<u8>> = OnceLock::new();
+
+fn factory_wasm_bytes() -> &'static [u8] {
+    FACTORY_WASM.get_or_init(|| {
+        let wasm_path = cargo_near_build::build_with_cli(Default::default())
+            .expect("Failed to build sputnikdao-factory2");
+        std::fs::read(&wasm_path).expect("Failed to read sputnikdao_factory2.wasm")
+    })
+}
+
+fn dao_wasm_bytes() -> &'static [u8] {
+    DAO_WASM.get_or_init(|| {
+        let wasm_path = cargo_near_build::build_with_cli(cargo_near_build::BuildOpts {
+            manifest_path: Some(
+                concat!(env!("CARGO_MANIFEST_DIR"), "/../sputnikdao2/Cargo.toml").into(),
+            ),
+            ..Default::default()
+        })
+        .expect("Failed to build sputnikdao2");
+        std::fs::read(&wasm_path).expect("Failed to read sputnikdao2.wasm")
+    })
+}
 
 #[tokio::test]
 async fn test_upgrade() -> testresult::TestResult {
@@ -18,9 +42,7 @@ async fn test_upgrade() -> testresult::TestResult {
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
     let sandbox_network =
         near_api::NetworkConfig::from_rpc_url("sandbox", sandbox.rpc_addr.parse()?);
-    let signer = near_api::Signer::new(near_api::Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
-    ))?;
+    let signer = near_api::Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
 
     let user_account_id: AccountId = format!("some_account.{}", DEFAULT_GENESIS_ACCOUNT).parse()?;
     sandbox
@@ -40,7 +62,7 @@ async fn test_upgrade() -> testresult::TestResult {
 
     // Initialize the sputnik-dao factory contract
     sputnikdao_factory_contract
-        .call_function("new", ())?
+        .call_function("new", ())
         .transaction()
         .max_gas()
         .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())
@@ -95,9 +117,9 @@ async fn test_upgrade() -> testresult::TestResult {
                 "quorum": "0",
                 "threshold": [1, 2],
             },
-            "proposal_bond": NearToken::from_near(1),
+            "proposal_bond": NearToken::from_millinear(1),
             "proposal_period": "604800000000000",
-            "bounty_bond": "100000000000000000000000",
+            "bounty_bond": NearToken::from_near(1),
             "bounty_forgiveness_period": "604800000000000",
         },
     });
@@ -109,7 +131,7 @@ async fn test_upgrade() -> testresult::TestResult {
                 "name": dao_name,
                 "args": general_purpose::STANDARD.encode(create_dao_args.to_string())
             }),
-        )?
+        )
         .transaction()
         .max_gas()
         .deposit(NearToken::from_near(6))
@@ -124,17 +146,16 @@ async fn test_upgrade() -> testresult::TestResult {
 
     // Verify the DAO configuration
     let config: Value = dao_contract
-        .call_function("get_config", ())?
+        .call_function("get_config", ())
         .read_only()
         .fetch_from(&sandbox_network)
         .await?
         .data;
     assert_eq!(create_dao_args["config"], config);
 
-    // Deploy the local build of the sputnik-dao factory contract
-    let wasm = fs::read("./res/sputnikdao_factory2.wasm").expect("Unable to read contract wasm");
+    // Upgrade factory to the local build
     Contract::deploy(sputnikdao_factory_contract.0.clone())
-        .use_code(wasm.to_vec())
+        .use_code(factory_wasm_bytes().to_vec())
         .without_init_call()
         .with_signer(signer.clone())
         .send_to(&sandbox_network)
@@ -142,14 +163,13 @@ async fn test_upgrade() -> testresult::TestResult {
         .into_result()?;
 
     // Store the local build of sputnikdao2.wasm into sputnik-dao.near
-    let sputnikdao2_wasm =
-        fs::read("../sputnikdao2/res/sputnikdao2.wasm").expect("Unable to read sputnikdao2.wasm");
+    let sputnikdao2_wasm = dao_wasm_bytes().to_vec();
     let computed_hash = sha256_array(&sputnikdao2_wasm);
     let stored_contract_hash: Base58CryptoHash = sputnikdao_factory_contract
         .call_function_raw("store", sputnikdao2_wasm.clone())
         .transaction()
         .max_gas()
-        .deposit(NearToken::from_near(20))
+        .deposit(NearToken::from_near(50))
         .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())
         .send_to(&sandbox_network)
         .await?
@@ -160,7 +180,7 @@ async fn test_upgrade() -> testresult::TestResult {
         .call_function(
             "set_default_code_hash",
             json!({"code_hash": stored_contract_hash}),
-        )?
+        )
         .transaction()
         .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())
         .send_to(&sandbox_network)
@@ -169,13 +189,13 @@ async fn test_upgrade() -> testresult::TestResult {
 
     // Verify the default code hash matches the computed hash
     let hash: Base58CryptoHash = sputnikdao_factory_contract
-        .call_function("get_default_code_hash", ())?
+        .call_function("get_default_code_hash", ())
         .read_only()
         .fetch_from(&sandbox_network)
         .await?
         .data;
 
-    assert_eq!(hash, computed_hash.into(), "Hashes do not match");
+    assert_eq!(hash, computed_hash, "Hashes do not match");
 
     // Create a self-upgrade proposal
     let proposal_id: u64 = dao_contract
@@ -189,10 +209,10 @@ async fn test_upgrade() -> testresult::TestResult {
                     }
                 }
             }}),
-        )?
+        )
         .transaction()
         .max_gas()
-        .deposit(NearToken::from_near(1))
+        .deposit(NearToken::from_millinear(1))
         .with_signer(user_account_id.clone(), signer.clone())
         .send_to(&sandbox_network)
         .await?
@@ -214,10 +234,10 @@ async fn test_upgrade() -> testresult::TestResult {
                     },
                 },
             }}),
-        )?
+        )
         .transaction()
         .max_gas()
-        .deposit(NearToken::from_near(1))
+        .deposit(NearToken::from_millinear(1))
         .with_signer(user_account_id.clone(), signer.clone())
         .send_to(&sandbox_network)
         .await?
@@ -236,7 +256,7 @@ async fn test_upgrade() -> testresult::TestResult {
                     }
                 }
             }),
-        )?
+        )
         .transaction()
         .max_gas()
         .with_signer(user_account_id.clone(), signer.clone())
@@ -258,7 +278,7 @@ async fn test_upgrade() -> testresult::TestResult {
 
     // Verify the DAO configuration remains the same
     let config: Value = dao_contract
-        .call_function("get_config", ())?
+        .call_function("get_config", ())
         .read_only()
         .fetch_from(&sandbox_network)
         .await?
@@ -280,7 +300,7 @@ async fn test_upgrade() -> testresult::TestResult {
                     },
                 }
             }),
-        )?
+        )
         .transaction()
         .max_gas()
         .with_signer(user_account_id.clone(), signer.clone())

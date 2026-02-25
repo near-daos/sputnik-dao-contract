@@ -1,9 +1,9 @@
 use near_sandbox::config::{DEFAULT_GENESIS_ACCOUNT, DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY};
-use near_sdk::base64::{engine::general_purpose, Engine as _};
+use near_sdk::base64::{Engine as _, engine::general_purpose};
 use near_sdk::json_types::U128;
-use near_sdk::serde_json::{json, Value};
+use near_sdk::serde_json::{Value, json};
 
-use near_api::{AccountId, FTBalance, Reference, Signer, Staking};
+use near_api::{AccountId, FTBalance, Signer, Staking};
 use near_api::{NearToken, W_NEAR_BALANCE};
 use sputnikdao2::action_log::ActionLog;
 use std::collections::HashMap;
@@ -12,8 +12,8 @@ mod utils;
 use crate::utils::*;
 use sputnik_staking::User;
 use sputnikdao2::{
-    default_policy, Action, BountyClaim, BountyOutput, Config, Policy, ProposalInput, ProposalKind,
-    ProposalOutput, ProposalStatus, RoleKind, RolePermission, VersionedPolicy, VotePolicy,
+    Action, BountyClaim, BountyOutput, Config, Policy, ProposalInput, ProposalKind, ProposalOutput,
+    ProposalStatus, RoleKind, RolePermission, VersionedPolicy, VotePolicy, default_policy,
 };
 
 fn user(id: u32) -> near_sdk::AccountId {
@@ -68,7 +68,7 @@ async fn test_large_policy() -> testresult::TestResult {
                 "name": "testdao",
                 "args": general_purpose::STANDARD.encode(params)
             }),
-        )?
+        )
         .transaction()
         .deposit(NearToken::from_near(10))
         .max_gas()
@@ -79,7 +79,7 @@ async fn test_large_policy() -> testresult::TestResult {
 
     let dao_account_id = "testdao.sputnik-dao.near";
     let dao_list: Vec<AccountId> = sputnik_dao_factory
-        .call_function("get_dao_list", json!({}))?
+        .call_function("get_dao_list", json!({}))
         .read_only()
         .fetch_from(&ctx.sandbox_network)
         .await?
@@ -135,9 +135,9 @@ async fn test_multi_council() -> testresult::TestResult {
             },
         ],
         default_vote_policy: VotePolicy::default(),
-        proposal_bond: U128(NearToken::from_near(1).as_yoctonear()),
+        proposal_bond: NearToken::from_near(1),
         proposal_period: U64::from(1_000_000_000 * 60 * 60 * 24 * 7),
-        bounty_bond: U128(NearToken::from_near(1).as_yoctonear()),
+        bounty_bond: NearToken::from_near(1),
         bounty_forgiveness_period: U64::from(1_000_000_000 * 60 * 60 * 24),
     };
     add_proposal(
@@ -156,7 +156,7 @@ async fn test_multi_council() -> testresult::TestResult {
     vote(&ctx, vec![&ctx.root], &dao, 0).await?;
 
     assert_eq!(
-        dao.call_function("get_policy", json!({}))?
+        dao.call_function("get_policy", json!({}))
             .read_only::<Policy>()
             .fetch_from(&ctx.sandbox_network)
             .await?
@@ -172,7 +172,7 @@ async fn test_multi_council() -> testresult::TestResult {
     vote(&ctx, vec![&user(3)], &dao, 1).await?;
 
     let proposal = dao
-        .call_function("get_proposal", json!({"id": 1}))?
+        .call_function("get_proposal", json!({"id": 1}))
         .read_only::<ProposalOutput>()
         .fetch_from(&ctx.sandbox_network)
         .await?
@@ -184,7 +184,7 @@ async fn test_multi_council() -> testresult::TestResult {
     vote(&ctx, vec![&user(1)], &dao, 1).await?;
 
     let proposal = dao
-        .call_function("get_proposal", json!({"id": 1}))?
+        .call_function("get_proposal", json!({"id": 1}))
         .read_only::<ProposalOutput>()
         .fetch_from(&ctx.sandbox_network)
         .await?
@@ -219,7 +219,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
         .json()?;
     assert_eq!(proposal_id, 0);
     let last_proposal_id: u64 = dao
-        .call_function("get_last_proposal_id", json!({}))?
+        .call_function("get_last_proposal_id", json!({}))
         .read_only()
         .fetch_from(&ctx.sandbox_network)
         .await?
@@ -234,7 +234,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
                 "action": Action::VoteApprove,
                 "proposal": get_proposal_kind(&ctx, &dao, proposal_id).await?
             }),
-        )?
+        )
         .transaction()
         .with_signer(ctx.root.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
@@ -246,7 +246,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
     );
 
     let bounty_id = dao
-        .call_function("get_last_bounty_id", json!({}))?
+        .call_function("get_last_bounty_id", json!({}))
         .read_only::<u64>()
         .fetch_from(&ctx.sandbox_network)
         .await?
@@ -255,7 +255,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
     assert_eq!(bounty_id, 0);
 
     let bounty: BountyOutput = dao
-        .call_function("get_bounty", json!({"id": bounty_id}))?
+        .call_function("get_bounty", json!({"id": bounty_id}))
         .read_only()
         .fetch_from(&ctx.sandbox_network)
         .await?
@@ -278,7 +278,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
                 "id": bounty_id,
                 "deadline": "0",
             }),
-        )?
+        )
         .transaction()
         .deposit(NearToken::from_near(1))
         .with_signer(user(1), ctx.signer.clone())
@@ -302,7 +302,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
 
     assert_eq!(
         1,
-        dao.call_function("get_bounty_claims", json!({"account_id": user(1)}))?
+        dao.call_function("get_bounty_claims", json!({"account_id": user(1)}))
             .read_only::<Vec<BountyClaim>>()
             .fetch_from(&ctx.sandbox_network)
             .await?
@@ -311,7 +311,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
     );
     assert_eq!(
         1,
-        dao.call_function("get_bounty_number_of_claims", json!({"id": bounty_id}))?
+        dao.call_function("get_bounty_number_of_claims", json!({"id": bounty_id}))
             .read_only::<u64>()
             .fetch_from(&ctx.sandbox_network)
             .await?
@@ -324,7 +324,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
             "id": bounty_id,
             "deadline": "0",
         }),
-    )?
+    )
     .transaction()
     .with_signer(user(1), ctx.signer.clone())
     .send_to(&ctx.sandbox_network)
@@ -333,7 +333,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
 
     assert_eq!(
         0,
-        dao.call_function("get_bounty_claims", json!({"account_id": user(1)}))?
+        dao.call_function("get_bounty_claims", json!({"account_id": user(1)}))
             .read_only::<Vec<BountyClaim>>()
             .fetch_from(&ctx.sandbox_network)
             .await?
@@ -343,7 +343,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
 
     assert_eq!(
         0,
-        dao.call_function("get_bounty_number_of_claims", json!({"id": bounty_id}))?
+        dao.call_function("get_bounty_number_of_claims", json!({"id": bounty_id}))
             .read_only::<u64>()
             .fetch_from(&ctx.sandbox_network)
             .await?
@@ -369,7 +369,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
             "id": bounty_id,
             "deadline": U64(block_timestamp + 5_000_000_000)
         }),
-    )?
+    )
     .transaction()
     .deposit(NearToken::from_near(1))
     .with_signer(user(2), ctx.signer.clone())
@@ -390,7 +390,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
 
     assert_eq!(
         1,
-        dao.call_function("get_bounty_claims", json!({"account_id": user(2)}))?
+        dao.call_function("get_bounty_claims", json!({"account_id": user(2)}))
             .read_only::<Vec<BountyClaim>>()
             .fetch_from(&ctx.sandbox_network)
             .await?
@@ -399,7 +399,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
     );
     assert_eq!(
         1,
-        dao.call_function("get_bounty_number_of_claims", json!({"id": bounty_id}))?
+        dao.call_function("get_bounty_number_of_claims", json!({"id": bounty_id}))
             .read_only::<u64>()
             .fetch_from(&ctx.sandbox_network)
             .await?
@@ -412,7 +412,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
                 "id": bounty_id,
                 "description": "Bounty is done"
             }),
-        )?
+        )
         .transaction()
         .deposit(NearToken::from_near(1))
         .with_signer(user(2), ctx.signer.clone())
@@ -438,7 +438,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
     );
 
     let proposal_id: u64 = dao
-        .call_function("get_last_proposal_id", json!({}))?
+        .call_function("get_last_proposal_id", json!({}))
         .read_only::<u64>()
         .fetch_from(&ctx.sandbox_network)
         .await?
@@ -447,7 +447,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
     assert_eq!(proposal_id, 1);
     assert_eq!(
         "bounty_done",
-        dao.call_function("get_proposal", json!({"id": proposal_id}))?
+        dao.call_function("get_proposal", json!({"id": proposal_id}))
             .read_only::<ProposalOutput>()
             .fetch_from(&ctx.sandbox_network)
             .await?
@@ -464,7 +464,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
             "action": Action::VoteApprove,
             "proposal": get_proposal_kind(&ctx, &dao, proposal_id).await?
         }),
-    )?
+    )
     .transaction()
     .max_gas()
     .with_signer(ctx.root.clone(), ctx.signer.clone())
@@ -484,7 +484,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
     );
     assert_eq!(
         0,
-        dao.call_function("get_bounty_claims", json!({"account_id": user(2)}))?
+        dao.call_function("get_bounty_claims", json!({"account_id": user(2)}))
             .read_only::<Vec<BountyClaim>>()
             .fetch_from(&ctx.sandbox_network)
             .await?
@@ -493,7 +493,7 @@ async fn test_bounty_workflow() -> testresult::TestResult {
     );
     assert_eq!(
         2,
-        dao.call_function("get_bounty", json!({"id": bounty_id}))?
+        dao.call_function("get_bounty", json!({"id": bounty_id}))
             .read_only::<BountyOutput>()
             .fetch_from(&ctx.sandbox_network)
             .await?
@@ -522,20 +522,21 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
     let test_token = setup_test_token(&ctx).await?;
     let staking = setup_staking(&ctx, &test_token.0, &dao.0).await?;
 
-    assert!(dao
-        .call_function("get_staking_contract", json!({}))?
-        .read_only::<String>()
-        .fetch_from(&ctx.sandbox_network)
-        .await?
-        .data
-        .is_empty());
+    assert!(
+        dao.call_function("get_staking_contract", json!({}))
+            .read_only::<String>()
+            .fetch_from(&ctx.sandbox_network)
+            .await?
+            .data
+            .is_empty()
+    );
 
     add_member_proposal(&ctx, &dao, user(2))
         .await
         .into_result()?;
     assert_eq!(
         1,
-        dao.call_function("get_last_proposal_id", json!({}))?
+        dao.call_function("get_last_proposal_id", json!({}))
             .read_only::<u64>()
             .fetch_from(&ctx.sandbox_network)
             .await?
@@ -552,7 +553,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
                 "action": Action::VoteApprove,
                 "proposal": get_proposal_kind(&ctx, &dao, 0).await?
             }),
-        )?
+        )
         .transaction()
         .max_gas()
         .with_signer(user(2), ctx.signer.clone())
@@ -567,7 +568,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
             "action": Action::VoteApprove,
             "proposal": get_proposal_kind(&ctx, &dao, 0).await?
         }),
-    )?
+    )
     .transaction()
     .max_gas()
     .with_signer(ctx.root.clone(), ctx.signer.clone())
@@ -584,7 +585,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
                 "action": Action::VoteApprove,
                 "proposal": get_proposal_kind(&ctx, &dao, 0).await?
             }),
-        )?
+        )
         .transaction()
         .max_gas()
         .with_signer(ctx.root.clone(), ctx.signer.clone())
@@ -603,7 +604,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
 
     assert!(vote(&ctx, vec![&ctx.root, &user(2)], &dao, 1).await.is_ok());
     let policy = dao
-        .call_function("get_policy", json!({}))?
+        .call_function("get_policy", json!({}))
         .read_only::<Policy>()
         .fetch_from(&ctx.sandbox_network)
         .await?
@@ -633,15 +634,16 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
     .into_result()?;
 
     vote(&ctx, vec![&user(3), &user(2)], &dao, 2).await?;
-    assert!(!dao
-        .call_function("get_staking_contract", json!({}))?
-        .read_only::<String>()
-        .fetch_from(&ctx.sandbox_network)
-        .await?
-        .data
-        .is_empty());
+    assert!(
+        !dao.call_function("get_staking_contract", json!({}))
+            .read_only::<String>()
+            .fetch_from(&ctx.sandbox_network)
+            .await?
+            .data
+            .is_empty()
+    );
     assert_eq!(
-        dao.call_function("get_proposal", json!({"id": 2}))?
+        dao.call_function("get_proposal", json!({"id": 2}))
             .read_only::<ProposalOutput>()
             .fetch_from(&ctx.sandbox_network)
             .await?
@@ -652,7 +654,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
     );
 
     let staking_ft_total_supply = staking
-        .call_function("ft_total_supply", json!({}))?
+        .call_function("ft_total_supply", json!({}))
         .read_only::<U128>()
         .fetch_from(&ctx.sandbox_network)
         .await?
@@ -666,7 +668,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
                 "account_id": user(2),
                 "amount": NearToken::from_near(100)
             }),
-        )?
+        )
         .transaction()
         .with_signer(ctx.root.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
@@ -674,7 +676,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
         .into_result()?;
 
     near_api::StorageDeposit::on_contract(staking.0.clone())
-        .deposit(user(2), NearToken::from_near(1))?
+        .deposit(user(2), NearToken::from_near(1))
         .with_signer(user(2), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
@@ -686,7 +688,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
             test_token.0.clone(),
             W_NEAR_BALANCE.with_whole_amount(10),
             "".to_string(),
-        )?
+        )
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
@@ -698,7 +700,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
     );
 
     let staking_ft_total_supply = staking
-        .call_function("ft_total_supply", json!({}))?
+        .call_function("ft_total_supply", json!({}))
         .read_only::<NearToken>()
         .fetch_from(&ctx.sandbox_network)
         .await?
@@ -707,7 +709,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
     assert_eq!(
         NearToken::from_near(10),
         staking
-            .call_function("ft_balance_of", json!({"account_id": user(2)}))?
+            .call_function("ft_balance_of", json!({"account_id": user(2)}))
             .read_only::<NearToken>()
             .fetch_from(&ctx.sandbox_network)
             .await?
@@ -717,7 +719,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
     assert_eq!(
         NearToken::from_near(90),
         test_token
-            .call_function("ft_balance_of", json!({"account_id": user(2)}))?
+            .call_function("ft_balance_of", json!({"account_id": user(2)}))
             .read_only::<NearToken>()
             .fetch_from(&ctx.sandbox_network)
             .await?
@@ -725,7 +727,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
     );
 
     Staking::delegation(user(2))
-        .withdraw(staking.0.clone(), NearToken::from_near(5))?
+        .withdraw(staking.0.clone(), NearToken::from_near(5))
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
@@ -734,7 +736,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
     assert_eq!(
         NearToken::from_near(95),
         test_token
-            .call_function("ft_balance_of", json!({"account_id": user(2)}))?
+            .call_function("ft_balance_of", json!({"account_id": user(2)}))
             .read_only::<NearToken>()
             .fetch_from(&ctx.sandbox_network)
             .await?
@@ -745,7 +747,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
         .call_function(
             "delegate",
             json!({"account_id": user(2), "amount": NearToken::from_near(5)}),
-        )?
+        )
         .transaction()
         .max_gas()
         .with_signer(user(2), ctx.signer.clone())
@@ -757,7 +759,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
         .call_function(
             "undelegate",
             json!({"account_id": user(2), "amount": NearToken::from_near(1)}),
-        )?
+        )
         .transaction()
         .max_gas()
         .with_signer(user(2), ctx.signer.clone())
@@ -770,7 +772,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
         .call_function(
             "delegate",
             json!({"account_id": user(2), "amount": NearToken::from_near(1)}),
-        )?
+        )
         .transaction()
         .max_gas()
         .with_signer(user(2), ctx.signer.clone())
@@ -782,7 +784,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
         delegate_result.failures()
     );
     let user_info = staking
-        .call_function("get_user", json!({"account_id": user(2)}))?
+        .call_function("get_user", json!({"account_id": user(2)}))
         .read_only::<User>()
         .fetch_from(&ctx.sandbox_network)
         .await?
@@ -794,7 +796,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
 
     assert_eq!(
         NearToken::from_near(4),
-        dao.call_function("delegation_total_supply", json!({}))?
+        dao.call_function("delegation_total_supply", json!({}))
             .read_only::<NearToken>()
             .fetch_from(&ctx.sandbox_network)
             .await?
@@ -802,7 +804,7 @@ async fn test_create_dao_and_use_token() -> testresult::TestResult {
     );
     assert_eq!(
         NearToken::from_near(4),
-        dao.call_function("delegation_balance_of", json!({"account_id": user(2)}))?
+        dao.call_function("delegation_balance_of", json!({"account_id": user(2)}))
             .read_only::<NearToken>()
             .fetch_from(&ctx.sandbox_network)
             .await?
@@ -868,7 +870,7 @@ async fn test_payment_failures() -> testresult::TestResult {
                 "account_id": dao.0.clone(),
                 "amount": U128(5)
             }),
-        )?
+        )
         .transaction()
         .with_signer(dao.0.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
@@ -876,7 +878,7 @@ async fn test_payment_failures() -> testresult::TestResult {
         .into_result()?;
 
     near_api::StorageDeposit::on_contract(test_token.0.clone())
-        .deposit(user1.clone(), NearToken::from_near(1))?
+        .deposit(user1.clone(), NearToken::from_near(1))
         .with_signer(user1.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
@@ -897,7 +899,7 @@ async fn test_payment_failures() -> testresult::TestResult {
     // Vote in the transfer
     vote(&ctx, vec![&ctx.root.clone(), &user1], &dao, 1).await?;
     let proposal = dao
-        .call_function("get_proposal", json!({"id": 1}))?
+        .call_function("get_proposal", json!({"id": 1}))
         .read_only::<ProposalOutput>()
         .fetch_from(&ctx.sandbox_network)
         .await?
@@ -909,7 +911,7 @@ async fn test_payment_failures() -> testresult::TestResult {
         .call_function(
             "mint",
             json!({"account_id": whale.clone(), "amount": U128(6_000_000_000)}),
-        )?
+        )
         .transaction()
         .with_signer(whale.clone(), ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
@@ -921,7 +923,7 @@ async fn test_payment_failures() -> testresult::TestResult {
         .ft(
             test_token.0.clone(),
             FTBalance::with_decimals(0).with_amount(1000),
-        )?
+        )
         .with_signer(ctx.signer.clone())
         .send_to(&ctx.sandbox_network)
         .await?
@@ -937,7 +939,7 @@ async fn test_payment_failures() -> testresult::TestResult {
                 "memo": "Sorry! We topped up our tokens. Thanks.",
                 "proposal": get_proposal_kind(&ctx, &dao, 1).await?
             }),
-        )?
+        )
         .transaction()
         .max_gas()
         .with_signer(ctx.root.clone(), ctx.signer.clone())
@@ -946,7 +948,7 @@ async fn test_payment_failures() -> testresult::TestResult {
         .into_result()?;
 
     let proposal = dao
-        .call_function("get_proposal", json!({"id": 1}))?
+        .call_function("get_proposal", json!({"id": 1}))
         .read_only::<ProposalOutput>()
         .fetch_from(&ctx.sandbox_network)
         .await?
@@ -967,9 +969,7 @@ async fn test_payment_failures() -> testresult::TestResult {
 async fn test_actions_log() -> testresult::TestResult {
     let sandbox = near_sandbox::Sandbox::start_sandbox().await?;
     let root = DEFAULT_GENESIS_ACCOUNT.to_owned();
-    let signer = Signer::new(Signer::from_secret_key(
-        DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?,
-    ))?;
+    let signer = Signer::from_secret_key(DEFAULT_GENESIS_ACCOUNT_PRIVATE_KEY.parse()?)?;
     // initialize voting users
     let mut users = Vec::new();
     for i in 0..20 {
@@ -1001,7 +1001,7 @@ async fn test_actions_log() -> testresult::TestResult {
 
     // Verify add_proposal log has been added
     let proposal_log = dao
-        .call_function("get_proposal", json!({"id": proposal_id}))?
+        .call_function("get_proposal", json!({"id": proposal_id}))
         .read_only::<ProposalOutput>()
         .fetch_from(&ctx.sandbox_network)
         .await?
@@ -1009,16 +1009,15 @@ async fn test_actions_log() -> testresult::TestResult {
         .proposal
         .last_actions_log;
     let global_actions_log = dao
-        .call_function("get_actions_log", json!({}))?
+        .call_function("get_actions_log", json!({}))
         .read_only::<Vec<ActionLog>>()
         .fetch_from(&ctx.sandbox_network)
-        .await?
-        .data;
+        .await?;
 
-    let action_log = global_actions_log[0].clone();
+    let action_log = global_actions_log.data[0].clone();
     let block_log = proposal_log.front().unwrap();
     assert_eq!(action_log.block_height, block_log.block_height);
-    assert_eq!(global_actions_log.len(), 1);
+    assert_eq!(global_actions_log.data.len(), 1);
     assert_eq!(proposal_log.len(), 1);
     assert_eq!(
         action_log,
@@ -1029,11 +1028,12 @@ async fn test_actions_log() -> testresult::TestResult {
             block_height: action_log.block_height // It is uncertain because of async block creation
         }
     );
-    let block_height = near_api::Chain::block_number()
-        .at(Reference::Final)
-        .fetch_from(&ctx.sandbox_network)
-        .await?;
-    assert!(block_height.abs_diff(action_log.block_height.into()) <= 1);
+    assert!(
+        global_actions_log
+            .block_height
+            .abs_diff(action_log.block_height.into())
+            <= 10
+    );
 
     // Fill the actions log
     let voting_users: Vec<&AccountId> = users.iter().take(20).collect();
@@ -1041,7 +1041,7 @@ async fn test_actions_log() -> testresult::TestResult {
 
     // Verify that the oldest prposal now is the voting approve from user0
     let proposal_log = dao
-        .call_function("get_proposal", json!({"id": proposal_id}))?
+        .call_function("get_proposal", json!({"id": proposal_id}))
         .read_only::<ProposalOutput>()
         .fetch_from(&ctx.sandbox_network)
         .await?
@@ -1050,7 +1050,7 @@ async fn test_actions_log() -> testresult::TestResult {
         .last_actions_log;
 
     let global_actions_log = dao
-        .call_function("get_actions_log", json!({}))?
+        .call_function("get_actions_log", json!({}))
         .read_only::<Vec<ActionLog>>()
         .fetch_from(&ctx.sandbox_network)
         .await?
@@ -1082,7 +1082,7 @@ async fn test_deny_unknown_arguments() -> testresult::TestResult {
     add_bounty_proposal(&ctx, &dao).await.into_result()?;
 
     let mut kind = dao
-        .call_function("get_proposal", json!({"id": 0}))?
+        .call_function("get_proposal", json!({"id": 0}))
         .read_only::<Value>()
         .fetch_from(&ctx.sandbox_network)
         .await?
@@ -1099,7 +1099,7 @@ async fn test_deny_unknown_arguments() -> testresult::TestResult {
                 "proposal": kind,
                 "fake_arg": 0
             }),
-        )?
+        )
         .transaction()
         .max_gas()
         .with_signer(ctx.root.clone(), ctx.signer.clone())
@@ -1123,7 +1123,7 @@ async fn test_deny_unknown_arguments() -> testresult::TestResult {
                 "action": Action::VoteApprove,
                 "proposal": kind,
             }),
-        )?
+        )
         .transaction()
         .max_gas()
         .with_signer(ctx.root.clone(), ctx.signer.clone())

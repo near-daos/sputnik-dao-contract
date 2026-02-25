@@ -2,7 +2,7 @@
 name = "sputnik-staking"
 version = "1.0.0"
 authors = ["Sputnik Devs <near-daos@protonmail.com>"]
-edition = "2018"
+edition = "2024"
 publish = false
 repository = "https://github.com/near-daos/sputnik-dao-contract"
 
@@ -10,25 +10,25 @@ repository = "https://github.com/near-daos/sputnik-dao-contract"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-near-sdk = "5.9.0"
-near-contract-standards = "5.9.0"
+near-sdk = "5.24"
+near-contract-standards = "5.24"
 hex = "0.4.3"
 
 [dev-dependencies]
 test-token = { path = "../test-token" }
 
-# fields to configure build with WASM reproducibility, according to specs  
-# in https://github.com/near/NEPs/blob/master/neps/nep-0330.md 
+# fields to configure build with WASM reproducibility, according to specs
+# in https://github.com/near/NEPs/blob/master/neps/nep-0330.md
 [package.metadata.near.reproducible_build]
 # docker image, descriptor of build environment
-image = "sourcescan/cargo-near:0.13.3-rust-1.84.1"
+image = "sourcescan/cargo-near:0.19.0-rust-1.86.0"
 # tag after colon above serves only descriptive purpose; image is identified by digest
-image_digest = "sha256:baa712c5d2b7522d38175e36330d336ad2c4ce32bfaaa41af94ce40407ecd803"
+image_digest = "sha256:772638e343baeeea24e49062c7d424274f3441452cc06ce97fc4e5695b19fecc"
 # list of environment variables names, whose values, if set, will be used as external build parameters
 # in a reproducible manner
 # supported by `sourcescan/cargo-near:0.10.1-rust-1.82.0` image or later images
 passed_env = []
-# build command inside of docker container 
+# build command inside of docker container
 # if docker image from default gallery is used https://hub.docker.com/r/sourcescan/cargo-near/tags,
 # the command may be any combination of flags of `cargo-near`,
 # supported by respective version of binary inside the container besides `--no-locked` flag

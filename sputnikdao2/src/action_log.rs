@@ -2,8 +2,8 @@ use std::collections::VecDeque;
 
 use crate::types::Action;
 use crate::*;
-use near_sdk::json_types::U64;
 use near_sdk::AccountId;
+use near_sdk::json_types::U64;
 
 const ACTION_LOG_SIZE: usize = 20;
 

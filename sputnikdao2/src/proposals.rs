@@ -1,14 +1,14 @@
 use std::collections::{HashMap, VecDeque};
 
 use ext_fungible_token::ext_fungible_token;
-use near_sdk::json_types::{Base64VecU8, U128, U64};
-use near_sdk::{log, AccountId, Gas, PromiseOrValue};
+use near_sdk::json_types::{Base64VecU8, U64, U128};
+use near_sdk::{AccountId, Gas, NearToken, PromiseOrValue, log, utils};
 
 use crate::action_log::ProposalLog;
 use crate::policy::UserInfo;
 use crate::types::{
-    convert_old_to_new_token, Action, Config, OldAccountId, GAS_FOR_FT_TRANSFER, OLD_BASE_TOKEN,
-    ONE_YOCTO_NEAR,
+    Action, Config, GAS_FOR_FT_TRANSFER, OLD_BASE_TOKEN, ONE_YOCTO_NEAR, OldAccountId,
+    convert_old_to_new_token,
 };
 use crate::upgrade::{upgrade_remote, upgrade_using_factory};
 use crate::*;
@@ -42,8 +42,8 @@ pub enum ProposalStatus {
 pub struct ActionCall {
     method_name: String,
     args: Base64VecU8,
-    deposit: U128,
-    gas: U64,
+    deposit: NearToken,
+    gas: Gas,
 }
 
 /// Function call arguments.
@@ -53,9 +53,9 @@ pub struct ActionCall {
 #[cfg_attr(not(target_arch = "wasm32"), derive(Debug))]
 #[serde(deny_unknown_fields)]
 pub struct PolicyParameters {
-    pub proposal_bond: Option<U128>,
+    pub proposal_bond: Option<NearToken>,
     pub proposal_period: Option<U64>,
-    pub bounty_bond: Option<U128>,
+    pub bounty_bond: Option<NearToken>,
     pub bounty_forgiveness_period: Option<U64>,
 }
 
@@ -337,22 +337,15 @@ impl Contract {
     }
 
     fn internal_return_bonds(&mut self, policy: &Policy, proposal: &Proposal) -> Promise {
-        match &proposal.kind {
-            ProposalKind::BountyDone { .. } => {
-                self.locked_amount = self
-                    .locked_amount
-                    .saturating_sub(NearToken::from_yoctonear(policy.bounty_bond.0));
-                Promise::new(proposal.proposer.clone())
-                    .transfer(NearToken::from_yoctonear(policy.bounty_bond.0));
-            }
-            _ => {}
+        if let ProposalKind::BountyDone { .. } = &proposal.kind {
+            self.locked_amount = self.locked_amount.saturating_sub(policy.bounty_bond);
+            Promise::new(proposal.proposer.clone())
+                .transfer(policy.bounty_bond)
+                .detach();
         }
 
-        self.locked_amount = self
-            .locked_amount
-            .saturating_sub(NearToken::from_yoctonear(policy.proposal_bond.0));
-        Promise::new(proposal.proposer.clone())
-            .transfer(NearToken::from_yoctonear(policy.proposal_bond.0))
+        self.locked_amount = self.locked_amount.saturating_sub(policy.proposal_bond);
+        Promise::new(proposal.proposer.clone()).transfer(policy.proposal_bond)
     }
 
     /// Executes given proposal and updates the contract's state.
@@ -373,13 +366,13 @@ impl Contract {
             }
             ProposalKind::AddMemberToRole { member_id, role } => {
                 let mut new_policy = policy.clone();
-                new_policy.add_member_to_role(role, &member_id.clone().into());
+                new_policy.add_member_to_role(role, member_id);
                 self.policy.set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
             ProposalKind::RemoveMemberFromRole { member_id, role } => {
                 let mut new_policy = policy.clone();
-                new_policy.remove_member_from_role(role, &member_id.clone().into());
+                new_policy.remove_member_from_role(role, member_id);
                 self.policy.set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
@@ -387,19 +380,19 @@ impl Contract {
                 receiver_id,
                 actions,
             } => {
-                let mut promise = Promise::new(receiver_id.clone().into());
+                let mut promise = Promise::new(receiver_id.clone());
                 for action in actions {
                     promise = promise.function_call(
-                        action.method_name.clone().into(),
-                        action.args.clone().into(),
-                        NearToken::from_yoctonear(action.deposit.0),
-                        Gas::from_gas(action.gas.0),
+                        action.method_name.clone(),
+                        action.args.clone(),
+                        action.deposit,
+                        action.gas,
                     )
                 }
                 promise.into()
             }
             ProposalKind::UpgradeSelf { hash } => {
-                upgrade_using_factory(hash.clone());
+                upgrade_using_factory(hash);
                 PromiseOrValue::Value(())
             }
             ProposalKind::UpgradeRemote {
@@ -407,7 +400,7 @@ impl Contract {
                 method_name,
                 hash,
             } => {
-                upgrade_remote(&receiver_id, method_name, &CryptoHash::from(hash.clone()));
+                upgrade_remote(receiver_id, method_name, &hash.into());
                 PromiseOrValue::Value(())
             }
             ProposalKind::Transfer {
@@ -417,14 +410,14 @@ impl Contract {
                 msg,
             } => self.internal_payout(
                 &convert_old_to_new_token(token_id),
-                &receiver_id,
+                receiver_id,
                 amount.0,
                 proposal.description.clone(),
                 msg.clone(),
             ),
             ProposalKind::SetStakingContract { staking_id } => {
                 assert!(self.staking_id.is_none(), "ERR_INVALID_STAKING_CHANGE");
-                self.staking_id = Some(staking_id.clone().into());
+                self.staking_id = Some(staking_id.clone());
                 PromiseOrValue::Value(())
             }
             ProposalKind::AddBounty { bounty } => {
@@ -434,7 +427,7 @@ impl Contract {
             ProposalKind::BountyDone {
                 bounty_id,
                 receiver_id,
-            } => self.internal_execute_bounty_payout(*bounty_id, &receiver_id.clone().into(), true),
+            } => self.internal_execute_bounty_payout(*bounty_id, receiver_id, true),
             ProposalKind::Vote => PromiseOrValue::Value(()),
             ProposalKind::FactoryInfoUpdate { factory_info } => {
                 internal_set_factory_info(factory_info);
@@ -473,7 +466,7 @@ impl Contract {
                         .on_proposal_callback(proposal_id),
                 )
                 .into(),
-            PromiseOrValue::Value(()) => self.internal_return_bonds(&policy, &proposal).into(),
+            PromiseOrValue::Value(()) => self.internal_return_bonds(policy, proposal).into(),
         }
     }
 
@@ -493,7 +486,7 @@ impl Contract {
             }
         }
         proposal.status = ProposalStatus::Approved;
-        self.internal_return_bonds(&policy, &proposal).into()
+        self.internal_return_bonds(&policy, proposal).into()
     }
 
     pub(crate) fn internal_callback_proposal_fail(
@@ -513,7 +506,7 @@ impl Contract {
     ) -> PromiseOrValue<()> {
         if return_bonds {
             // Return bond to the proposer.
-            self.internal_return_bonds(policy, proposal);
+            self.internal_return_bonds(policy, proposal).detach();
         }
 
         let proposal_data = proposal;
@@ -521,9 +514,7 @@ impl Contract {
             ProposalKind::BountyDone {
                 bounty_id,
                 receiver_id,
-            } => {
-                self.internal_execute_bounty_payout(*bounty_id, &receiver_id.clone().into(), false)
-            }
+            } => self.internal_execute_bounty_payout(*bounty_id, receiver_id, false),
             _ => PromiseOrValue::Value(()),
         }
     }
@@ -548,7 +539,7 @@ impl Contract {
 
         assert_eq!(
             env::attached_deposit(),
-            NearToken::from_yoctonear(policy.proposal_bond.0),
+            policy.proposal_bond,
             "ERR_MIN_BOND"
         );
 
@@ -560,7 +551,7 @@ impl Contract {
             },
             ProposalKind::Transfer { token_id, msg, .. } => {
                 assert!(
-                    !(token_id == OLD_BASE_TOKEN) || msg.is_none(),
+                    token_id != OLD_BASE_TOKEN || msg.is_none(),
                     "ERR_BASE_TOKEN_NO_MSG"
                 );
             }
@@ -647,14 +638,17 @@ impl Contract {
                 proposal.status =
                     policy.proposal_status(&proposal, roles, self.total_delegation_amount);
                 if proposal.status == ProposalStatus::Approved {
-                    self.internal_execute_proposal(&policy, &proposal, id);
+                    self.internal_execute_proposal(&policy, &proposal, id)
+                        .detach();
                     true
                 } else if proposal.status == ProposalStatus::Removed {
-                    self.internal_reject_proposal(&policy, &proposal, false);
+                    self.internal_reject_proposal(&policy, &proposal, false)
+                        .detach();
                     self.proposals.remove(&id);
                     false
                 } else if proposal.status == ProposalStatus::Rejected {
-                    self.internal_reject_proposal(&policy, &proposal, true);
+                    self.internal_reject_proposal(&policy, &proposal, true)
+                        .detach();
                     true
                 } else {
                     // Still in progress or expired.
@@ -676,10 +670,12 @@ impl Contract {
                 );
                 match proposal.status {
                     ProposalStatus::Approved => {
-                        self.internal_execute_proposal(&policy, &proposal, id);
+                        self.internal_execute_proposal(&policy, &proposal, id)
+                            .detach();
                     }
                     ProposalStatus::Expired => {
-                        self.internal_reject_proposal(&policy, &proposal, true);
+                        self.internal_reject_proposal(&policy, &proposal, true)
+                            .detach();
                     }
                     _ => {
                         env::panic_str("ERR_PROPOSAL_NOT_EXPIRED_OR_FAILED");
@@ -715,12 +711,13 @@ impl Contract {
             1,
             "ERR_UNEXPECTED_CALLBACK_PROMISES"
         );
-        let result = match env::promise_result(0) {
-            PromiseResult::Successful(_) => self.internal_callback_proposal_success(&mut proposal),
-            PromiseResult::Failed => self.internal_callback_proposal_fail(&mut proposal),
+        let result = if utils::is_promise_success() {
+            self.internal_callback_proposal_success(&mut proposal)
+        } else {
+            self.internal_callback_proposal_fail(&mut proposal)
         };
         self.proposals
-            .insert(&proposal_id, &VersionedProposal::Latest(proposal.into()));
+            .insert(&proposal_id, &VersionedProposal::Latest(proposal));
         result
     }
 }

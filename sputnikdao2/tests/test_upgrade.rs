@@ -11,13 +11,14 @@ use walrus::ModuleConfig;
 mod utils;
 use crate::utils::*;
 
-pub static DAO_WASM_BYTES: &[u8] = include_bytes!("../res/sputnikdao2.wasm");
-pub static OTHER_WASM_BYTES: &[u8] = include_bytes!("../res/ref_exchange_release.wasm");
+// OTHER_WASM_BYTES is a committed third-party binary (ref-finance) with no buildable source in
+// this workspace, so it remains as include_bytes! rather than being built on demand.
+pub static OTHER_WASM_BYTES: &[u8] = include_bytes!("ref_exchange_release.wasm");
 
 pub fn add_data_segment(wasm: &[u8], size: usize) -> testresult::TestResult<Vec<u8>> {
     let mut module = ModuleConfig::new().parse(wasm)?;
 
-    let random_data: Vec<u8> = (0..size).map(|_| rand::thread_rng().gen()).collect();
+    let random_data: Vec<u8> = (0..size).map(|_| rand::thread_rng().r#gen()).collect();
     let data_id = module.data.add(walrus::DataKind::Passive, random_data);
 
     module.data.get_mut(data_id).name = Some("zero-padding".to_string());
@@ -45,7 +46,7 @@ async fn test_upgrade_using_factory() -> testresult::TestResult {
                 "name": "testdao",
                 "args": Base64VecU8(params.into())
             }),
-        )?
+        )
         .transaction()
         .deposit(NearToken::from_near(10))
         .max_gas()
@@ -56,7 +57,7 @@ async fn test_upgrade_using_factory() -> testresult::TestResult {
 
     let dao_account_id: AccountId = format!("testdao.{}", factory.0).parse()?;
     let dao_list: Vec<near_api::AccountId> = factory
-        .call_function("get_dao_list", ())?
+        .call_function("get_dao_list", ())
         .read_only()
         .fetch_from(&ctx.sandbox_network)
         .await?
@@ -64,7 +65,7 @@ async fn test_upgrade_using_factory() -> testresult::TestResult {
     assert_eq!(dao_list, [dao_account_id.clone()]);
 
     let hash: Base58CryptoHash = factory
-        .call_function("get_default_code_hash", ())?
+        .call_function("get_default_code_hash", ())
         .read_only()
         .fetch_from(&ctx.sandbox_network)
         .await?
@@ -78,7 +79,7 @@ async fn test_upgrade_using_factory() -> testresult::TestResult {
                 "description": "proposal to test",
                 "kind": proposal_kind,
             }}),
-        )?
+        )
         .transaction()
         .deposit(NearToken::from_near(1))
         .with_signer(root.clone(), ctx.signer.clone())
@@ -96,7 +97,7 @@ async fn test_upgrade_using_factory() -> testresult::TestResult {
                 "action": Action::VoteApprove,
                 "proposal": proposal_kind
             }),
-        )?
+        )
         .transaction()
         .with_signer(root.clone(), ctx.signer)
         .send_to(&ctx.sandbox_network)
@@ -175,7 +176,7 @@ async fn test_upgrade_other() -> testresult::TestResult {
                 "action": Action::VoteApprove,
                 "proposal": get_proposal_kind(&ctx, &dao, 0).await?
             }),
-        )?
+        )
         .transaction()
         .max_gas()
         .with_signer(ctx.root.clone(), ctx.signer.clone())
