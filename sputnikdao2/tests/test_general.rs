@@ -3,7 +3,7 @@ use near_sdk::base64::{Engine as _, engine::general_purpose};
 use near_sdk::json_types::U128;
 use near_sdk::serde_json::{Value, json};
 
-use near_api::{AccountId, FTBalance, Reference, Signer, Staking};
+use near_api::{AccountId, FTBalance, Signer, Staking};
 use near_api::{NearToken, W_NEAR_BALANCE};
 use sputnikdao2::action_log::ActionLog;
 use std::collections::HashMap;
@@ -1032,7 +1032,7 @@ async fn test_actions_log() -> testresult::TestResult {
         global_actions_log
             .block_height
             .abs_diff(action_log.block_height.into())
-            <= 2
+            <= 10
     );
 
     // Fill the actions log

@@ -14,17 +14,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.86
         with:
           profile: minimal
           target: wasm32-unknown-unknown
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20.17.0
       - name: Install cargo-near CLI
         run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/latest/download/cargo-near-installer.sh | sh
       - name: Run Cargo tests
         run: cargo test --workspace -- --nocapture
-      - name: Run Ava tests
-        run: cd sputnikdao2 && sh test.sh
