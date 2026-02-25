@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-(cd sputnik-staking && sh build.sh)
-(cd sputnikdao2 && sh build.sh)
-(cd sputnikdao-factory2 && sh build.sh)
-(cd test-token && sh build.sh)
+(cd sputnik-staking && cargo near build reproducible-wasm)
+(cd sputnikdao2 && cargo near build reproducible-wasm)
+(cd sputnikdao-factory2 && cargo near build reproducible-wasm)
+(cd test-token && cargo near build reproducible-wasm)

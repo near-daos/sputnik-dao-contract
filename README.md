@@ -21,8 +21,10 @@
 ### Prerequisites
 
 1. [NEAR Account](https://wallet.testnet.near.org)
-2. [NEAR-CLI](https://docs.near.org/docs/tools/near-cli#setup)
-3. [Rust](https://www.rust-lang.org)
+2. [NEAR-CLI](https://near.cli.rs)
+3. [cargo-near CLI](https://github.com/near/cargo-near)
+4. [Rust](https://www.rust-lang.org)
+5. [Docker](https://www.docker.com/) (for production builds)
 
 <details>
 <summary>3-Step Rust Installation.</summary>
@@ -57,7 +59,7 @@ rustup target add wasm32-unknown-unknown
 <summary>1. Login with your account.</summary>
 <p>
 
-Using [`near-cli`](https://docs.near.org/docs/tools/near-cli#near-login), login to your account which will save your credentials locally:
+Using [`near-cli`](https://near.cli.rs), login to your account which will save your credentials locally:
 
 ```bash
 near login
@@ -82,7 +84,7 @@ git clone https://github.com/near-daos/sputnik-dao-contract
 <p>
 
 ```bash
-cd sputnik-dao-contract/sputnikdao-factory2 && ./build.sh
+cd sputnik-dao-contract/sputnikdao-factory2 && cargo near build reproducible-wasm
 ```
 
 </p>
@@ -101,7 +103,7 @@ export CONTRACT_ID=YOUR_ACCOUNT.testnet
 - Deploy factory contract by running the following command from your current directory _(`sputnik-dao-contract/sputnikdao-factory2`)_:
 
 ```bash
-near deploy $CONTRACT_ID --wasmFile=res/sputnikdao_factory2.wasm --accountId $CONTRACT_ID
+near deploy $CONTRACT_ID --wasmFile=target/near/sputnikdao_factory2/sputnikdao_factory2.wasm --accountId $CONTRACT_ID
 ```
 
 </p>
