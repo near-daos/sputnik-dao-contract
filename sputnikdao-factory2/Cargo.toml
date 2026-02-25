@@ -10,18 +10,16 @@ repository = "https://github.com/near-daos/sputnik-dao-contract"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# near-sdk = "5.9.0"
-# near-contract-standards = "5.9.0"
 near-sdk = { version = "5.24", features = ["global-contracts"] }
 near-contract-standards = "5.24"
 
 [dev-dependencies]
+cargo-near-build = "0.11.1"
 near-sandbox = "0.3.5"
 near-api = { version = "0.8", default-features = false }
 tokio = { version = "1.44.0", features = ["full"] }
 near-sdk = { version = "5.24", features = ["unit-testing"] }
 testresult = "0.4"
-cargo-near-build = "0.11.1"
 
 # fields to configure build with WASM reproducibility, according to specs
 # in https://github.com/near/NEPs/blob/master/neps/nep-0330.md

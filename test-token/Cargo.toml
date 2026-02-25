@@ -2,16 +2,15 @@
 name = "test-token"
 version = "0.1.0"
 authors = ["Illia Polosukhin <illia.polosukhin@gmail.com>"]
-edition = "2018"
+edition = "2024"
 publish = false
 repository = "https://github.com/near-daos/sputnik-dao-contract"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-
 [dependencies]
-near-sdk = {version="5.24", features = ["unit-testing"] }
+near-sdk = "5.24"
 near-contract-standards = "5.24"
 
 # fields to configure build with WASM reproducibility, according to specs

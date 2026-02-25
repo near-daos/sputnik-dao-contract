@@ -111,7 +111,9 @@ pub(crate) fn internal_set_factory_info(factory_info: &FactoryInfo) {
 /// Two options who call it:
 ///  - current account, in case of fetching contract code from factory;
 ///  - factory, if this contract allows to factory-update;
+// NOTE: Remove the #[cfg] after https://github.com/near/cargo-near/issues/317 is resolved.
 #[cfg_attr(target_arch = "wasm32", unsafe(no_mangle))]
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 pub fn update() {
     env::setup_panic_hook();
 
@@ -126,6 +128,8 @@ pub fn update() {
     );
 
     let is_callback = env::predecessor_account_id() == current_id;
+    // While it would be more efficient to pass contract code hash instead of code itself,
+    // we need to support old versions of the contract that expect the code itself.
     let new_contract_code = if is_callback {
         // NOTE: It is fine to use the unbounded promise_result since the callback is always
         // triggered by a trusted party (the contract itself or from the factory).

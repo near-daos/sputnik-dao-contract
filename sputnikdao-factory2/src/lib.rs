@@ -163,7 +163,10 @@ impl SputnikDAOFactory {
         default_metadata.version
     }
 
-    /// Store new contract. The input are raw bytes of the contract.
+    /// Register new DAO contract.
+    /// It stores the provided contract code in the local storage for old versions of the DAO
+    /// contract that do not yet support global contracts.
+    /// The input are raw bytes of the contract.
     /// Returns base58 of the hash of the contract.
     #[payable]
     pub fn store(&mut self) {
