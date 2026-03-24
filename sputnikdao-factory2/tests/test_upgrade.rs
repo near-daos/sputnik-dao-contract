@@ -56,13 +56,55 @@ async fn test_upgrade() -> testresult::TestResult {
             RPCEndpoint::mainnet().url,
             sputnikdao_factory_contract.0.clone(),
         )
-        .initial_balance(NearToken::from_near(100))
+        .initial_balance(NearToken::from_near(150))
         .send()
         .await?;
+
+    let default_code_hash: Base58CryptoHash = sputnikdao_factory_contract
+        .call_function("get_default_code_hash", ())
+        .read_only()
+        .fetch_from_mainnet()
+        .await?
+        .data;
+    let default_code = sputnikdao_factory_contract
+        .call_function("get_code", json!({ "code_hash": default_code_hash }))
+        .read_only_raw()
+        .fetch_from_mainnet()
+        .await?
+        .data;
 
     // Initialize the sputnik-dao factory contract
     sputnikdao_factory_contract
         .call_function("new", ())
+        .transaction()
+        .max_gas()
+        .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())
+        .send_to(&sandbox_network)
+        .await?
+        .into_result()?;
+
+    sputnikdao_factory_contract
+        .call_function_raw("store", default_code)
+        .transaction()
+        .deposit(NearToken::from_near(50))
+        .max_gas()
+        .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())
+        .send_to(&sandbox_network)
+        .await?
+        .into_result()?;
+
+    sputnikdao_factory_contract
+        .call_function(
+            "store_contract_metadata",
+            json!({
+                "code_hash": default_code_hash,
+                "metadata": {
+                    "version": [1, 0],
+                    "commit_id": "COMMIT_ID_HASH",
+                },
+                "set_default": true,
+            }),
+        )
         .transaction()
         .max_gas()
         .with_signer(sputnikdao_factory_contract.0.clone(), signer.clone())

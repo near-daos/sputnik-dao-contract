@@ -9,7 +9,7 @@ use near_contract_standards::storage_management::{
     StorageBalance, StorageBalanceBounds, StorageManagement,
 };
 use near_sdk::json_types::U128;
-use near_sdk::{near, AccountId, NearToken, PanicOnDefault, PromiseOrValue};
+use near_sdk::{AccountId, NearToken, PanicOnDefault, PromiseOrValue, near};
 
 #[near(contract_state)]
 #[derive(PanicOnDefault)]
@@ -115,9 +115,9 @@ impl FungibleTokenMetadataProvider for Contract {
 mod tests {
     use super::*;
     use near_sdk::{
-        env,
-        test_utils::{accounts, VMContextBuilder},
-        testing_env, NearToken,
+        NearToken, env,
+        test_utils::{VMContextBuilder, accounts},
+        testing_env,
     };
 
     #[test]
@@ -125,20 +125,26 @@ mod tests {
         let mut context = VMContextBuilder::new();
         testing_env!(context.build());
         let mut contract = Contract::new();
-        testing_env!(context
-            .attached_deposit(env::storage_byte_cost().saturating_mul(125))
-            .build());
+        testing_env!(
+            context
+                .attached_deposit(env::storage_byte_cost().saturating_mul(125))
+                .build()
+        );
         contract.mint(accounts(0), 1_000_000.into());
         assert_eq!(contract.ft_balance_of(accounts(0)), 1_000_000.into());
 
-        testing_env!(context
-            .attached_deposit(env::storage_byte_cost().saturating_mul(125))
-            .build());
+        testing_env!(
+            context
+                .attached_deposit(env::storage_byte_cost().saturating_mul(125))
+                .build()
+        );
         contract.storage_deposit(Some(accounts(1)), None);
-        testing_env!(context
-            .attached_deposit(NearToken::from_yoctonear(1))
-            .predecessor_account_id(accounts(0))
-            .build());
+        testing_env!(
+            context
+                .attached_deposit(NearToken::from_yoctonear(1))
+                .predecessor_account_id(accounts(0))
+                .build()
+        );
         contract.ft_transfer(accounts(1), 1_000.into(), None);
         assert_eq!(contract.ft_balance_of(accounts(1)), 1_000.into());
 
