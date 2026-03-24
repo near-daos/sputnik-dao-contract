@@ -1,9 +1,11 @@
 //! Logic to upgrade Sputnik contracts.
 
 use near_sdk::borsh::to_vec;
+use near_sdk::json_types::{Base58CryptoHash, U64};
 use near_sdk::serde_json::json;
 use near_sdk::{Gas, GasWeight, PromiseResult};
 
+use crate::proposals::VersionedProposal;
 use crate::*;
 
 const FACTORY_KEY: &[u8; 7] = b"FACTORY";
@@ -107,10 +109,22 @@ pub(crate) fn internal_set_factory_info(factory_info: &FactoryInfo) {
     env::storage_write(FACTORY_KEY, &serialize_buf);
 }
 
+/// Two weeks in nanoseconds — the minimum delay before an auto-update proposal can be executed.
+const TWO_WEEKS_NS: u64 = 14 * 24 * 60 * 60 * 1_000_000_000;
+
 /// Function that receives new contract, updates and calls migration.
 /// Two options who call it:
-///  - current account, in case of fetching contract code from factory;
-///  - factory, if this contract allows to factory-update;
+///  - current account, in case of fetching contract code from factory (self-callback);
+///  - factory, if this contract allows to factory-update (auto-update);
+///
+/// For auto-update requests from the factory the flow is:
+///  1. Check the last 5 proposals for an InProgress `UpgradeSelf` proposal whose hash
+///     matches the incoming code.
+///  2. If such a proposal exists **and** its `submission_time` is older than 2 weeks,
+///     mark it Approved and proceed with deploying the code.
+///  3. If the proposal exists but is younger than 2 weeks, do nothing (wait).
+///  4. If no matching proposal exists, create a new `UpgradeSelf` proposal and return
+///     without deploying.
 // NOTE: Remove the #[cfg] after https://github.com/near/cargo-near/issues/317 is resolved.
 #[cfg_attr(target_arch = "wasm32", unsafe(no_mangle))]
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
@@ -142,6 +156,75 @@ pub fn update() {
         env::input().expect("ERR_NO_INPUT")
     };
     let new_contract_code_hash = env::sha256_array(&new_contract_code);
+
+    // --- Auto-update proposal gate ---
+    // When the factory triggers an auto-update (not a self-callback), enforce a 2-week
+    // proposal delay before the code is actually deployed, unless the contract state is broken.
+    let is_auto_update = !is_callback && env::predecessor_account_id() == factory_info.factory_id;
+
+    let contract: Option<Contract> = env::state_read();
+
+    if let (Some(mut contract), true) = (contract, is_auto_update) {
+        // Scan the last 5 proposals for a matching InProgress UpgradeSelf proposal.
+        let last_id = contract.last_proposal_id;
+        let start_id = last_id.saturating_sub(5);
+        let mut found: Option<(u64, Proposal)> = None;
+
+        for id in start_id..last_id {
+            if let Some(versioned) = contract.proposals.get(&id) {
+                let proposal: Proposal = versioned.into();
+                if matches!(
+                    &proposal.kind,
+                    ProposalKind::UpgradeSelf { hash } if *hash == new_contract_code_hash
+                ) && proposal.status == ProposalStatus::InProgress
+                {
+                    found = Some((id, proposal));
+                    break;
+                }
+            }
+        }
+
+        match found {
+            Some((id, mut proposal)) => {
+                if env::block_timestamp().saturating_sub(proposal.submission_time.0) >= TWO_WEEKS_NS
+                {
+                    // Proposal is old enough — mark it as Approved and proceed
+                    // with the deployment below.
+                    proposal.status = ProposalStatus::Approved;
+                    contract
+                        .proposals
+                        .insert(&id, &VersionedProposal::Latest(proposal));
+                    env::state_write(&contract);
+                    // Fall through to deploy the code.
+                } else {
+                    // Proposal exists but the 2-week waiting period has not elapsed yet.
+                    return;
+                }
+            }
+            None => {
+                // No matching proposal found — create one and return without deploying.
+                let proposal = Proposal {
+                    proposer: factory_info.factory_id.clone(),
+                    description: "Auto-update from factory".to_string(),
+                    kind: ProposalKind::UpgradeSelf {
+                        hash: new_contract_code_hash.into(),
+                    },
+                    status: ProposalStatus::InProgress,
+                    vote_counts: Default::default(),
+                    votes: Default::default(),
+                    submission_time: U64::from(env::block_timestamp()),
+                    last_actions_log: Default::default(),
+                };
+                let id = contract.last_proposal_id;
+                contract
+                    .proposals
+                    .insert(&id, &VersionedProposal::Latest(proposal));
+                contract.last_proposal_id += 1;
+                env::state_write(&contract);
+                return;
+            }
+        }
+    };
 
     let promise_id = env::promise_batch_create(&current_id);
     // Deploy the contract code.
