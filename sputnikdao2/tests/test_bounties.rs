@@ -1,4 +1,4 @@
-use near_sdk::json_types::{U128, U64};
+use near_sdk::json_types::{U64, U128};
 use near_sdk::serde_json::{Value, json};
 
 use near_api::NearToken;
@@ -98,14 +98,11 @@ async fn test_bounty_claim_errors() -> testresult::TestResult {
     claim_bounty_as(&ctx, &dao, &alice, proposal_id).await?;
     assert_eq!(
         1u32,
-        dao.call_function(
-            "get_bounty_number_of_claims",
-            json!({"id": proposal_id})
-        )
-        .read_only::<u32>()
-        .fetch_from(&ctx.sandbox_network)
-        .await?
-        .data
+        dao.call_function("get_bounty_number_of_claims", json!({"id": proposal_id}))
+            .read_only::<u32>()
+            .fetch_from(&ctx.sandbox_network)
+            .await?
+            .data
     );
 
     let claims: Vec<Value> = dao
@@ -121,27 +118,21 @@ async fn test_bounty_claim_errors() -> testresult::TestResult {
     claim_bounty_as(&ctx, &dao, &alice, proposal_id).await?;
     assert_eq!(
         2u32,
-        dao.call_function(
-            "get_bounty_number_of_claims",
-            json!({"id": proposal_id})
-        )
-        .read_only::<u32>()
-        .fetch_from(&ctx.sandbox_network)
-        .await?
-        .data
+        dao.call_function("get_bounty_number_of_claims", json!({"id": proposal_id}))
+            .read_only::<u32>()
+            .fetch_from(&ctx.sandbox_network)
+            .await?
+            .data
     );
 
     claim_bounty_as(&ctx, &dao, &alice, proposal_id).await?;
     assert_eq!(
         3u32,
-        dao.call_function(
-            "get_bounty_number_of_claims",
-            json!({"id": proposal_id})
-        )
-        .read_only::<u32>()
-        .fetch_from(&ctx.sandbox_network)
-        .await?
-        .data
+        dao.call_function("get_bounty_number_of_claims", json!({"id": proposal_id}))
+            .read_only::<u32>()
+            .fetch_from(&ctx.sandbox_network)
+            .await?
+            .data
     );
 
     // All 3 slots claimed — next claim should fail
@@ -378,10 +369,7 @@ async fn test_bounty_giveup() -> testresult::TestResult {
         .fetch_from(&ctx.sandbox_network)
         .await?
         .data;
-    assert!(
-        claims.is_empty(),
-        "claim list should be empty after giveup"
-    );
+    assert!(claims.is_empty(), "claim list should be empty after giveup");
 
     Ok(())
 }
