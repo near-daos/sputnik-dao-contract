@@ -599,7 +599,7 @@ impl Contract {
         memo: Option<String>,
     ) {
         let input_proposal_kind = proposal;
-        // Covert proposal to the latest version
+        // Convert proposal to the latest version
         let mut proposal: Proposal = self.proposals.get(&id).expect("ERR_NO_PROPOSAL").into();
         // Log the action
         self.internal_log_action(id, action.clone(), &mut proposal);
@@ -612,7 +612,7 @@ impl Contract {
         assert!(allowed, "ERR_PERMISSION_DENIED");
         let sender_id = env::predecessor_account_id();
 
-        // Verify propolsal kind
+        // Verify proposal kind
         assert!(proposal.kind == input_proposal_kind, "ERR_WRONG_KIND");
         // Update proposal given action. Returns true if should be updated in storage.
         let update = match action {
